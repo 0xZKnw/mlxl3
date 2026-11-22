@@ -135,6 +135,12 @@ final class StudioModel: ObservableObject {
     @Published private(set) var dsparkSupported: Bool?
     /// DSpark on or off, kept across launches (on by default).
     @Published private(set) var dsparkEnabled = true
+    /// Reasoning levels the selected model's chat template accepts; nil when it has none.
+    @Published private(set) var reasoningSupport: ReasoningSupport?
+    /// Level chosen for the selected model (kept per model); nil = the template default.
+    @Published private(set) var reasoningChoice: ReasoningEffort?
+    /// The running engine passes `reasoning_effort` to the template (reported at ready).
+    @Published private(set) var engineReasoningSupported = false
     /// Engines announcing this verify MTP drafts by exact speculative sampling.
     @Published private(set) var mtpSamplingSupported: Bool?
     /// The engine verifies DFlash2 with exact speculative sampling (engine 2.0.19+).
@@ -649,6 +655,35 @@ final class StudioModel: ObservableObject {
         guard !isGenerating && !isTuningMTP else { return }
         memorySaverEnabled = enabled
         preferences.set(enabled, forKey: "studio.memorySaverEnabled")
+    }
+
+    /// The reasoning selector shows only when both the model and the engine support it.
+    var reasoningControlAvailable: Bool { engineReasoningSupported && reasoningSupport != nil }
+
+    /// Level the next request uses: the saved choice when this model supports it, else its default.
+    var reasoningLevel: ReasoningEffort? {
+        guard let support = reasoningSupport else { return nil }
+        return reasoningChoice.flatMap { support.levels.contains($0) ? $0 : nil } ?? support.defaultLevel
+    }
+
+    /// Sent only when it differs from the template default, so default prompts stay identical.
+    var requestReasoningEffort: String? {
+        guard reasoningControlAvailable, let support = reasoningSupport, let level = reasoningLevel,
+              level != support.defaultLevel else { return nil }
+        return level.rawValue
+    }
+
+    func setReasoningLevel(_ level: ReasoningEffort) {
+        guard let model = selectedModel, reasoningSupport?.levels.contains(level) == true else { return }
+        reasoningChoice = level
+        preferences.set(level.rawValue, forKey: "studio.reasoning.\(model.path)")
+    }
+
+    private func restoreReasoningPreference() {
+        reasoningSupport = selectedModel.flatMap { ReasoningSupport.detect(modelPath: $0.path) }
+        reasoningChoice = selectedModel
+            .flatMap { preferences.string(forKey: "studio.reasoning.\($0.path)") }
+            .flatMap(ReasoningEffort.init(rawValue:))
     }
 
     /// Turns the DSpark drafter on or off for the next requests and remembers the choice.
@@ -1323,7 +1358,7 @@ final class StudioModel: ObservableObject {
 
         var messages: [PromptMessage] = []
         let system = [systemPrompt, currentProject?.instructions ?? "", sources.isEmpty ? "" : DocumentSearch.instruction,
-            selectedMode == .agent ? "You are a local coding agent. Use list_files and read_file to explore the project, write_file to edit it, and run to execute commands and verify your changes. Only enabled tools are available. You work on an isolated copy; originals are changed only after user review. Commands use macOS system tools, have no network or personal-file access, and have a configurable deadline (at most 30 seconds) and 32 KiB output limit. Use relative paths. Never claim to have executed a command unless its tool result confirms it. Explain failures and limits honestly." : ""]
+            selectedMode == .agent ? AgentSandbox.instructions(for: agentPermissions) : ""]
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: "\n\n")
         if !system.isEmpty {
             messages.append(PromptMessage(role: "system", content: system))
@@ -1360,7 +1395,8 @@ final class StudioModel: ObservableObject {
                     memorySaver: memorySaverEnabled && memorySaverSupported,
                     dspark: dsparkEnabled,
                     allowedTools: selectedMode == .agent ? nil : currentProject?.allowedTools,
-                    responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema
+                    responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema,
+                    reasoningEffort: requestReasoningEffort
                 )
             )
         } catch {
@@ -2127,6 +2163,8 @@ final class StudioModel: ObservableObject {
         cancelMTPPreparation()
         mtpConfigureSupported = false
         restoreMTPPreference()
+        restoreReasoningPreference()
+        engineReasoningSupported = false
         mtpHeadPath = selectedModel.flatMap { preferences.string(forKey: "studio.mtpHead.\($0.path)") }
             ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
         mtpError = nil
@@ -2244,6 +2282,7 @@ final class StudioModel: ObservableObject {
             engineState = .loading(event.model ?? selectedModelName ?? "modèle")
         case "ready":
             memorySaverSupported = event.memorySaverSupported == true
+            engineReasoningSupported = event.reasoningEffortSupported == true
             workspaceFeaturesAvailable = event.workspaceFeatures == true
             imagesSupported = event.imagesSupported == true
             if let tools = event.mcpToolCatalog { mcpTools = tools }
@@ -2605,6 +2644,12 @@ extension StudioModel {
             do { _ = try prepareAgentRegistry(); updateMCPConnection() }
             catch { mcpToolCount = 0; mcpErrors = ["sandbox": error.localizedDescription] }
         } else { loadSelectedModel() }
+    }
+
+    /// Permissions (and harness) of the current Agent workspace; defaults when none is saved.
+    var agentPermissions: AgentPermissions {
+        guard let url = agentWorkspaceURL else { return AgentPermissions() }
+        return (try? AgentProjectStore(workspace: url).state().permissions) ?? AgentPermissions()
     }
 
     func refreshAgentPermissions() {

@@ -607,6 +607,37 @@ mod tests {
     }
 
     #[test]
+    fn javascript_tool_code_reaches_the_tool_intact() {
+        // Agent mode's single `javascript` tool: multi-line code with comparisons, quotes,
+        // backticks and markup-like text must arrive unchanged in every supported format.
+        let code = "const files = list();\nif (files.length < 3 && files[0] > \"a\") {\n  console.log(`${files.length} <files> & 'x'`);\n}\nreturn read('src/a.js');";
+        let qwen = format!(
+            "<think>plan</think>\n\n<tool_call>\n<function=sandbox.javascript>\n<parameter=code>\n{code}\n</parameter>\n</function>\n</tool_call>"
+        );
+        assert_eq!(
+            parse(&qwen).unwrap(),
+            [ToolCall {
+                name: "sandbox.javascript".into(),
+                arguments: json!({ "code": code })
+            }]
+        );
+        let hermes = format!(
+            "<tool_call>{}</tool_call>",
+            json!({"name": "sandbox.javascript", "arguments": {"code": code}})
+        );
+        assert_eq!(parse(&hermes).unwrap()[0].arguments["code"], code);
+        let gemma =
+            format!("<|tool_call>call:sandbox.javascript{{code:<|\"|>{code}<|\"|>}}<tool_call|>");
+        assert_eq!(parse(&gemma).unwrap()[0].arguments["code"], code);
+        // XML values that are valid JSON are decoded; the sandbox turns them back into text.
+        let numeric = parse(
+            "<tool_call>\n<function=sandbox.javascript>\n<parameter=code>\n42\n</parameter>\n</function>\n</tool_call>",
+        )
+        .unwrap();
+        assert_eq!(numeric[0].arguments, json!({ "code": 42 }));
+    }
+
+    #[test]
     fn parses_ling_calls_and_rejects_malformed_arguments() {
         let response = "<think>searching</think><tool_call>exa.web_search_exa\n<arg_key>query</arg_key>\n<arg_value>GPT-6 Astra statistics</arg_value><arg_key>numResults</arg_key>\n<arg_value>10</arg_value>\n</tool_call>";
         assert_eq!(

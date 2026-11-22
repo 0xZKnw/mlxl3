@@ -64,6 +64,13 @@ extension CodeBlockView {
     view._showingPreview = State(initialValue: true)
     return view
   }
+
+  /// The inline block while its preview is shown full screen.
+  @MainActor fileprivate static func fullscreenForCheck(_ source: String) -> Self {
+    var view = previewForLifetimeCheck(source)
+    view._fullscreen = State(initialValue: true)
+    return view
+  }
 }
 
 @main struct ResponseUICheck {
@@ -383,21 +390,26 @@ extension CodeBlockView {
       }
       try await Task.sleep(for: .milliseconds(10))
     }
-    // The bottom marker precedes the transcript's 26 pt bottom padding.
+    // The bottom marker carries the transcript's bottom margin.
     require(abs(distance()) < 30, "Initial transcript is not at the bottom: \(distance())")
-    let before = offset()
+    func top() -> CGFloat {
+      document.isFlipped
+        ? scroll.contentView.bounds.minY : document.bounds.height - scroll.contentView.bounds.maxY
+    }
+    let before = top()
     message.append("\n\nA new paragraph.\n\nAnother new paragraph.\n\n", phase: "answer")
     var positions: [CGFloat] = []
     for _ in 0..<35 {
       try await Task.sleep(for: .milliseconds(10))
       host.layoutSubtreeIfNeeded()
-      positions.append(offset())
+      positions.append(top())
     }
-    let moving = Set(positions.map { Int(($0 * 10).rounded()) })
+    // Growth is pinned natively: the view follows without ever stepping back up (the old
+    // animated scrollTo showed the target for a frame, then slid from the previous offset).
+    require(top() - before > 10, "Scroll did not follow appended text: delta=\(top() - before)")
     require(
-      abs(offset() - before) > 10
-        && (NSWorkspace.shared.accessibilityDisplayShouldReduceMotion || moving.count > 2),
-      "Scroll jumped instead of interpolating: delta=\(offset() - before) positions=\(positions)")
+      zip([before] + positions, positions).allSatisfy { $1 >= $0 - 1 },
+      "Scroll moved back up while following: positions=\(positions)")
     require(abs(distance()) < 30, "Scroll missed the final prepared height: \(distance())")
 
     var visibleFrames = 0
@@ -474,7 +486,7 @@ extension CodeBlockView {
     follow.phaseChanged(.animating)
     require(follow.shouldFollow, "Returning to bottom must resume follow")
     print(
-      "Scroll checks passed: native initial/final anchor and interpolation; production state transitions for tracking/drag/deceleration/reading/resume"
+      "Scroll checks passed: native initial/final anchor and monotonic pinned follow; production state transitions for tracking/drag/deceleration/reading/resume"
     )
   }
 
@@ -934,7 +946,283 @@ extension CodeBlockView {
     NSApp.run()
   }
 
+  /// A long reply streamed below earlier long replies must keep the viewport at the bottom:
+  /// no upward jump while the transcript grows, and no gap larger than one batch of text.
+  @MainActor private static func checkScrollFollowStability(exchanges: Int) async throws {
+    func require(_ condition: Bool, _ message: String) {
+      if !condition {
+        FileHandle.standardError.write(Data((message + "\n").utf8))
+        preconditionFailure(message)
+      }
+    }
+    func reply(_ index: Int) -> String {
+      var text = "## Earlier answer \(index)\n\n"
+      for paragraph in 0..<14 {
+        text += "Paragraph \(paragraph) of answer \(index) explains a detail in enough words to wrap onto several lines of the transcript. "
+        text += String(repeating: "More context follows here. ", count: paragraph % 4 + 2) + "\n\n"
+        if paragraph % 5 == 2 {
+          text += "```swift\n" + (0..<(8 + paragraph)).map { "let value\($0) = compute(\($0)) // line" }.joined(separator: "\n") + "\n```\n\n"
+        }
+        if paragraph % 5 == 4 { text += "- first point\n- second point with **bold** text\n- third point\n\n" }
+      }
+      return text
+    }
+    var transcript: [ChatMessage] = []
+    for index in 0..<exchanges {
+      transcript.append(ChatMessage(role: .user, content: "Question \(index): explain it in detail."))
+      transcript.append(ChatMessage(role: .assistant, content: reply(index)))
+    }
+    transcript.append(ChatMessage(role: .user, content: "Write a long answer with code."))
+    let live = ChatMessage(role: .assistant, content: "", isStreaming: true)
+    transcript.append(live)
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "mlxl3-scroll-follow-" + UUID().uuidString)
+    let suite = "io.mlxl3.scroll-follow-check." + UUID().uuidString
+    let prefs = UserDefaults(suiteName: suite)!
+    defer {
+      prefs.removePersistentDomain(forName: suite)
+      try? FileManager.default.removeItem(at: root)
+    }
+    let studio = StudioModel(
+      conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true,
+      preferences: prefs)
+    let host = NSHostingView(
+      rootView: MessagesView(messages: transcript).environmentObject(studio).background(
+        StudioTheme.canvas
+      ).preferredColorScheme(.dark))
+    let window = NSWindow(
+      contentRect: NSRect(x: 80, y: 80, width: 760, height: 560),
+      styleMask: [.titled], backing: .buffered, defer: false)
+    window.contentView = host
+    window.makeKeyAndOrderFront(nil)
+    NSApp.activate()
+    defer { window.orderOut(nil) }
+    func scrollView(_ view: NSView) -> NSScrollView? {
+      if let scroll = view as? NSScrollView { return scroll }
+      return view.subviews.lazy.compactMap { scrollView($0) }.first
+    }
+    try await Task.sleep(for: .milliseconds(600))
+    guard let scroll = scrollView(host), let document = scroll.documentView else {
+      preconditionFailure("Transcript did not create a native scroll view")
+    }
+    struct Sample { let time: Double; let top: CGFloat; let gap: CGFloat; let height: CGFloat; let phase: String }
+    var samples: [Sample] = []
+    var phase = "idle"
+    let clock = ContinuousClock.now
+    func record() {
+      let clip = scroll.contentView.bounds
+      let height = document.bounds.height
+      let top = document.isFlipped ? clip.minY : height - clip.maxY
+      let gap = document.isFlipped ? document.bounds.maxY - clip.maxY : clip.minY
+      let elapsed = ContinuousClock.now - clock
+      samples.append(Sample(
+        time: Double(elapsed.components.seconds) + Double(elapsed.components.attoseconds) / 1e18,
+        top: top, gap: gap, height: height, phase: phase))
+    }
+    let sampler = Task { @MainActor in
+      while !Task.isCancelled {
+        record()
+        try? await Task.sleep(for: .milliseconds(4))
+      }
+    }
+    // Batches every 50 ms, as the bridge coalesces deltas.
+    func stream(_ text: String, phase name: String, chunk: Int) async throws {
+      phase = name
+      var rest = Substring(text)
+      while !rest.isEmpty {
+        let piece = rest.prefix(chunk)
+        rest = rest.dropFirst(piece.count)
+        live.append(String(piece), phase: name == "thinking" ? "thinking" : "answer")
+        try await Task.sleep(for: .milliseconds(50))
+      }
+    }
+    try await stream(
+      (0..<30).map { "Thinking step \($0): weigh the options and check the constraints carefully. " }
+        .joined(), phase: "thinking", chunk: 70)
+    var prose = ""
+    for index in 0..<26 {
+      prose += "Paragraph \(index) of the live answer keeps growing with **bold** words, `inline code` and enough text to wrap. "
+      prose += String(repeating: "The model keeps writing more detail. ", count: index % 3 + 1) + "\n\n"
+      if index % 6 == 3 { prose += "1. A numbered step\n2. Another step\n3. A final step\n\n" }
+    }
+    try await stream(prose, phase: "prose", chunk: 110)
+    let code = "```python\n" + (0..<90).map { "result_\($0) = transform(data, factor=\($0)) # streamed line" }.joined(separator: "\n") + "\n```\n\nDone: the code above is complete.\n\n"
+    try await stream(code, phase: "code", chunk: 120)
+    try await stream(prose, phase: "tail", chunk: 110)
+    phase = "finish"
+    live.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
+    try await Task.sleep(for: .milliseconds(700))
+    sampler.cancel()
+    record()
+
+    // Upward jumps: the offset falls although the document did not shrink by as much.
+    var jumps: [String] = []
+    var reversals = 0
+    var previousDirection = 0
+    for (before, after) in zip(samples, samples.dropFirst()) where before.phase != "idle" {
+      let moved = after.top - before.top
+      let shrank = min(0, after.height - before.height)
+      if moved < -24 && moved < shrank - 24 {
+        jumps.append(
+          "\(after.phase)@\(String(format: "%.3f", after.time)) top \(Int(before.top))→\(Int(after.top)) height \(Int(before.height))→\(Int(after.height))")
+      }
+      let direction = moved > 2 ? 1 : moved < -2 ? -1 : 0
+      if direction != 0 {
+        if previousDirection != 0 && direction != previousDirection { reversals += 1 }
+        previousDirection = direction
+      }
+    }
+    let streaming = samples.filter { $0.phase != "idle" && $0.phase != "finish" }
+    let worstGap = streaming.map(\.gap).max() ?? 0
+    let final = samples.last!
+    let summary =
+      "samples=\(samples.count) jumps=\(jumps.count) reversals=\(reversals) worstGap=\(Int(worstGap)) finalGap=\(Int(final.gap)) height=\(Int(final.height))"
+    print("Scroll follow (\(transcript.count) messages): " + summary)
+    if let path = ProcessInfo.processInfo.environment["MLXL3_SCROLL_FOLLOW_TRACE"].map({ "\($0)-\(exchanges).tsv" }) {
+      let lines = samples.map {
+        "\(String(format: "%.4f", $0.time))\t\($0.phase)\t\(Int($0.top))\t\(Int($0.gap))\t\(Int($0.height))"
+      }
+      try ("time\tphase\ttop\tgap\theight\n" + lines.joined(separator: "\n") + "\n")
+        .write(toFile: path, atomically: true, encoding: .utf8)
+    }
+    require(jumps.isEmpty, "Streaming scroll jumped up \(jumps.count) times: \(jumps.prefix(12))")
+    require(worstGap < 400, "Streaming scroll fell behind the bottom: \(summary)")
+    require(abs(final.gap) < 30, "Completed reply is not at the bottom: \(summary)")
+  }
+
+  /// Full-screen code and preview: the production presenter shows the right content, one
+  /// window at a time, and closing it removes the page and runs `onClose` exactly once.
+  @MainActor private static func checkCodeFullscreen() async throws {
+    func require(_ condition: Bool, _ message: String) {
+      if !condition {
+        FileHandle.standardError.write(Data(("Code fullscreen: " + message + "\n").utf8))
+        preconditionFailure(message)
+      }
+    }
+    func nativeViews(_ view: NSView) -> [NSView] { [view] + view.subviews.flatMap(nativeViews) }
+    func snapshot(_ view: NSView, _ name: String) throws {
+      guard let path = ProcessInfo.processInfo.environment["MLXL3_HTML_UI_SNAPSHOTS"] else { return }
+      let folder = URL(fileURLWithPath: path)
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      view.layoutSubtreeIfNeeded()
+      guard let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) else { return }
+      view.cacheDisplay(in: view.bounds, to: bitmap)
+      try bitmap.representation(using: .png, properties: [:])!.write(
+        to: folder.appendingPathComponent("fullscreen-\(name).png"))
+    }
+    func waitFor(_ condition: () -> Bool) async throws -> Bool {
+      for _ in 0..<100 {
+        if condition() { return true }
+        try await Task.sleep(for: .milliseconds(50))
+      }
+      return condition()
+    }
+    let root = FileManager.default.temporaryDirectory.appendingPathComponent(
+      "mlxl3-fullscreen-\(UUID())")
+    let suite = "mlxl3.fullscreen.\(UUID())"
+    let prefs = UserDefaults(suiteName: suite)!
+    let presenter = CodeFullscreenPresenter.shared
+    let native = presenter.usesNativeFullScreen
+    presenter.usesNativeFullScreen = false
+    defer {
+      presenter.close()
+      presenter.usesNativeFullScreen = native
+      prefs.removePersistentDomain(forName: suite)
+      try? FileManager.default.removeItem(at: root)
+    }
+    let studio = StudioModel(
+      conversationFileURL: root.appendingPathComponent("history.json"), isPreview: true,
+      preferences: prefs)
+    let html = "<!doctype html><html><body><h1>Full screen</h1><script>document.title='ok'</script></body></html>"
+    var closes = 0
+    studio.presentCodeFullscreen(
+      language: "html", source: html, canPreview: true, showingPreview: true,
+      onClose: { closes += 1 })
+    guard let previewWindow = presenter.window, let previewHost = previewWindow.contentView else {
+      preconditionFailure("Full-screen preview opened no window")
+    }
+    require(previewWindow.isVisible, "Full-screen preview window is hidden")
+    let screen = (previewWindow.screen ?? NSScreen.main)!.visibleFrame
+    require(
+      previewWindow.frame.width >= screen.width * 0.9 && previewWindow.frame.height >= screen.height * 0.9,
+      "Full-screen window does not cover the screen: \(previewWindow.frame) vs \(screen)")
+    require(
+      try await waitFor { nativeViews(previewHost).contains { $0 is WKWebView } },
+      "Full-screen preview never created its page")
+    require(
+      previewWindow.collectionBehavior.contains(.fullScreenPrimary),
+      "Full-screen window cannot enter native full screen")
+    try await Task.sleep(for: .milliseconds(600))
+    try snapshot(previewHost, "preview")
+
+    // Opening code replaces the preview window: its page goes and its onClose runs once.
+    let code = "let café = \"é 👩‍💻\"\nprint(café)\n"
+    var codeCloses = 0
+    studio.presentCodeFullscreen(
+      language: "swift", source: code, canPreview: false, showingPreview: true,
+      onClose: { codeCloses += 1 })
+    require(closes == 1, "Replaced preview window ran onClose \(closes) times")
+    require(
+      previewWindow.contentView == nil && !previewWindow.isVisible,
+      "Replaced preview window kept its content or stayed visible")
+    guard let codeWindow = presenter.window, codeWindow !== previewWindow,
+      let codeHost = codeWindow.contentView
+    else { preconditionFailure("Full-screen code opened no new window") }
+    var editor: NSTextView?
+    require(
+      try await waitFor {
+        codeHost.layoutSubtreeIfNeeded()
+        editor = nativeViews(codeHost).compactMap { $0 as? NSTextView }.first {
+          $0.accessibilityIdentifier() == "studio.code-editor"
+        }
+        return editor != nil
+      }, "Full-screen code has no native source viewer")
+    require(editor!.string.utf8.elementsEqual(code.utf8), "Full-screen code changed its text")
+    try snapshot(codeHost, "code")
+    require(!editor!.isEditable && editor!.isSelectable, "Full-screen code is not read-only")
+    require(
+      !nativeViews(codeHost).contains { $0 is WKWebView },
+      "Code without a preview created WebKit (canPreview false must win over showingPreview)")
+    presenter.close()
+    require(codeCloses == 1 && presenter.window == nil, "Closing ran onClose \(codeCloses) times")
+    require(codeWindow.contentView == nil, "Closed window kept its content")
+    presenter.close()
+    require(codeCloses == 1 && closes == 1, "A second close ran onClose again")
+
+    // While the preview is full screen, the inline block shows a placeholder, not a page.
+    let inline = NSHostingView(
+      rootView: CodeBlockView.fullscreenForCheck(html).environmentObject(studio)
+        .frame(width: 700).background(StudioTheme.canvas).preferredColorScheme(.dark))
+    let inlineWindow = NSWindow(
+      contentRect: NSRect(x: 60, y: 60, width: 760, height: 420), styleMask: [.titled],
+      backing: .buffered, defer: false)
+    inlineWindow.contentView = inline
+    inlineWindow.orderFront(nil)
+    defer {
+      inlineWindow.contentView = nil
+      inlineWindow.orderOut(nil)
+    }
+    try await Task.sleep(for: .milliseconds(800))
+    inline.layoutSubtreeIfNeeded()
+    require(
+      !nativeViews(inline).contains { $0 is WKWebView },
+      "Inline block ran a second page while the preview was full screen")
+    try snapshot(inline, "inline-placeholder")
+    print(
+      "Code fullscreen passed: preview page and read-only code windows covering the screen, replacement and close tear content down with one onClose, inline placeholder without WebKit"
+    )
+  }
+
   @MainActor private static func runChecks() async throws {
+    if CommandLine.arguments.contains("--check-code-fullscreen") {
+      try await checkCodeFullscreen()
+      return
+    }
+    if CommandLine.arguments.contains("--check-scroll-follow") {
+      try await checkScrollFollowStability(exchanges: 4)
+      try await checkScrollFollowStability(exchanges: 16)
+      return
+    }
     if CommandLine.arguments.contains("--check-tables") {
       try await MarkdownTableRegressionCheck.run()
       return
@@ -950,7 +1238,10 @@ extension CodeBlockView {
     checkFade()
     try await MarkdownTableRegressionCheck.run()
     try await checkScroll()
+    // The streaming scroll-follow scenarios run in their own process (--check-scroll-follow)
+    // so each fixture stays within check-desktop.sh's 90-second limit on CI runners.
     try await checkHTMLControls()
+    try await checkCodeFullscreen()
     try await checkInlinePreviewLifetime()
     // These exact reply formulas used to fall back to raw $$ text.
     let formulas = [

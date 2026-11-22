@@ -3,6 +3,8 @@ import SwiftUI
 
 extension StudioModel {
     fileprivate var fixtureRunning: Bool { bridge.isRunning }
+    /// Stands for an engine whose ready event announced `reasoning_effort_supported`.
+    fileprivate func fixtureReasoningEngine(_ supported: Bool) { engineReasoningSupported = supported }
 }
 
 @main struct DesktopPreferencesCheck {
@@ -372,6 +374,47 @@ extension StudioModel {
         if let output = ProcessInfo.processInfo.environment["MLXL3_PREFERENCE_SNAPSHOTS"],
            let data = updatesBitmap.representation(using: .png, properties: [:]) {
             try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("settings-updates.png"))
+        }
+        // Reasoning selector: levels read from the model's own template, the default never sent,
+        // a choice kept per model, nothing shown or sent without engine support.
+        check(ReasoningSupport.detect(template: "{%- if enable_thinking is undefined or enable_thinking is true %}{%- set resolved_reasoning_effort = reasoning_effort|default('xhigh') %}{%- if resolved_reasoning_effort not in ('xhigh', 'medium', 'low') %}")
+              == ReasoningSupport(levels: [.none, .low, .medium, .xhigh], defaultLevel: .xhigh), "Qwen3.8 reasoning levels")
+        check(ReasoningSupport.detect(template: "{{ enable_thinking }}") == nil, "On/off templates get no reasoning selector")
+        let reasoningFolder = root.appendingPathComponent("reasoning-model")
+        try FileManager.default.createDirectory(at: reasoningFolder, withIntermediateDirectories: true)
+        try #"{%- set effort_map = {"none": 0.0, "minimal": 0.1, "low": 0.2, "medium": 0.7, "high": 0.9, "xhigh": 0.99, "max": 0.99} -%}{%- set eff = reasoning_effort if reasoning_effort is defined and reasoning_effort is not none else 0.9 -%}"#
+            .write(to: reasoningFolder.appendingPathComponent("chat_template.jinja"), atomically: true, encoding: .utf8)
+        let reasoningModel = LocalModel(name: "Inkling 2 Mini", path: reasoningFolder.path, modelType: "inkling2",
+            format: "EXL3", bits: 3.33, sizeBytes: 12_000_000_000, modules: 0, addedAt: "", size: "12 GB")
+        func reasoningStudio() -> StudioModel {
+            let value = make(preview: true)
+            value.models = [reasoningModel]
+            value.selectModel(reasoningModel.name)
+            return value
+        }
+        let thinker = reasoningStudio()
+        check(thinker.reasoningSupport == ReasoningSupport(levels: ReasoningEffort.allCases, defaultLevel: .high),
+              "Inkling reasoning levels read from the model folder")
+        check(!thinker.reasoningControlAvailable && thinker.requestReasoningEffort == nil,
+              "No selector and no field for an engine without reasoning support")
+        thinker.fixtureReasoningEngine(true)
+        check(thinker.reasoningControlAvailable && thinker.reasoningLevel == .high && thinker.requestReasoningEffort == nil,
+              "The template default is shown and never sent")
+        thinker.setReasoningLevel(.low)
+        check(thinker.reasoningLevel == .low && thinker.requestReasoningEffort == "low", "A chosen level is sent")
+        let reopened = reasoningStudio()
+        reopened.fixtureReasoningEngine(true)
+        check(reopened.reasoningLevel == .low, "The reasoning level is kept per model")
+        let composer = NSHostingView(rootView: ComposerView().environmentObject(reopened)
+            .frame(width: 720).padding(24).background(StudioTheme.canvas).preferredColorScheme(.dark))
+        composer.frame = NSRect(x: 0, y: 0, width: 768, height: 150)
+        composer.layoutSubtreeIfNeeded()
+        let composerBitmap = composer.bitmapImageRepForCachingDisplay(in: composer.bounds)!
+        composer.cacheDisplay(in: composer.bounds, to: composerBitmap)
+        check(composerBitmap.pixelsWide > 0, "Composer with the reasoning selector failed to render")
+        if let output = ProcessInfo.processInfo.environment["MLXL3_PREFERENCE_SNAPSHOTS"],
+           let data = composerBitmap.representation(using: .png, properties: [:]) {
+            try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("composer-reasoning.png"))
         }
         print("Desktop preference checks passed: \(checks) assertions, isolated persistence, appearance, actual startup/manual loading and errors")
     }

@@ -13,47 +13,78 @@ struct StreamingScrollState {
   mutating func proximityChanged(_ nearBottom: Bool) {
     if userIsScrolling || nearBottom { followsBottom = nearBottom }
   }
+
+  /// A followed transcript more than a couple of points from its scroll end (or past it)
+  /// is re-pinned; layout rounding stays inside this tolerance.
+  static func needsRepin(gap: CGFloat) -> Bool { abs(gap) > 2 }
+  /// Delays (ms) between the re-pin checks that follow a content or viewport size change.
+  static let repinChecks = [0, 16, 33, 66, 133]
+}
+
+private struct BottomMetrics: Equatable {
+  var height: CGFloat = 0
+  var gap: CGFloat = 0
+  var container = CGSize.zero
+
+  /// Changes when the content or the viewport is resized, never when the reader scrolls.
+  struct Layout: Hashable {
+    let height: CGFloat
+    let width: CGFloat
+    let viewport: CGFloat
+  }
+  var layout: Layout { Layout(height: height, width: container.width, viewport: container.height) }
 }
 
 struct MessagesView: View {
+  /// Recent messages are measured eagerly. A `LazyVStack` re-estimates rows that leave its
+  /// window (their Markdown renders again from empty), which moved the transcript height by
+  /// thousands of points while a reply streamed and made the followed view jump up and down.
+  static let measuredTail = 12
+
   @Environment(\.conversationDensity) private var density
   @Environment(\.conversationReadingWidth) private var readingWidth
   let messages: [ChatMessage]
   @State private var scroll = StreamingScrollState()
-  @State private var renderedHeight: CGFloat = 0
+  @State private var metrics = BottomMetrics()
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
+    let split = max(0, messages.count - Self.measuredTail)
     ScrollViewReader { proxy in
       ScrollView {
         VStack(spacing: density.spacing) {
-          if messages.count > 1 {
+          if split > 0 {
             LazyVStack(spacing: density.spacing) {
-              ForEach(messages.dropLast()) { message in
+              ForEach(messages.prefix(split)) { message in
                 MessageView(message: message)
-                  .transition(reduceMotion ? .identity : .offset(y: 7).combined(with: .opacity))
                   .id(message.id)
               }
             }
           }
-          // Keep the growing response measured while older messages remain lazy.
-          if let message = messages.last {
+          ForEach(messages.suffix(from: split)) { message in
             MessageView(message: message)
+              .transition(
+                reduceMotion || message.id == messages.last?.id
+                  ? .identity : .offset(y: 7).combined(with: .opacity))
               .id(message.id)
           }
+          // The marker carries the 26 pt bottom margin, so pinning it reaches the scroll end,
+          // where the native size-change anchor engages.
           Color.clear
-            .frame(height: 4)
+            .frame(height: 30)
             .id("conversation-bottom")
         }
         .padding(.horizontal, 28)
         .padding(.top, 38)
-        .padding(.bottom, 26)
         .frame(maxWidth: readingWidth.messageMaximum)
         .frame(maxWidth: .infinity)
       }
       .scrollIndicators(.never)
       .mask(StudioEdgeFade(top: 26, bottom: 16))
       .defaultScrollAnchor(.bottom, for: .initialOffset)
+      // Growth keeps the bottom pinned natively. Animated `scrollTo` calls restarted every
+      // 50 ms batch: each one showed the target for a frame, then slid from the old offset.
+      .defaultScrollAnchor(scroll.shouldFollow ? .bottom : nil, for: .sizeChanges)
       .onScrollPhaseChange { _, phase in
         scroll.phaseChanged(phase)
       }
@@ -62,28 +93,33 @@ struct MessagesView: View {
       } action: { _, nearBottom in
         scroll.proximityChanged(nearBottom)
       }
-      .onScrollGeometryChange(for: CGFloat.self) { geometry in
-        geometry.contentSize.height
-      } action: { _, height in
-        renderedHeight = height
+      .onScrollGeometryChange(for: BottomMetrics.self) { geometry in
+        BottomMetrics(
+          height: geometry.contentSize.height.rounded(),
+          gap: (geometry.contentSize.height - geometry.visibleRect.maxY).rounded(),
+          container: CGSize(
+            width: geometry.containerSize.width.rounded(),
+            height: geometry.containerSize.height.rounded()))
+      } action: { _, value in
+        metrics = value
       }
-      .task(id: renderedHeight) {
-        guard renderedHeight > 0, scroll.shouldFollow else { return }
-        await Task.yield()
-        guard !Task.isCancelled, scroll.shouldFollow else { return }
-        withAnimation(reduceMotion ? nil : .linear(duration: 0.12)) {
-          proxy.scrollTo("conversation-bottom", anchor: .bottom)
+      .task(id: metrics.layout) {
+        // Safety net when growth or a resize moved the end and the anchor did not absorb it:
+        // re-pin without animation. A reader's own scroll never starts it. The anchor and a
+        // reflow can settle a few frames after the change (a resize anchored to the old
+        // viewport height), so the gap is checked again for a short while.
+        guard metrics.height > 0 else { return }
+        for delay in StreamingScrollState.repinChecks {
+          if delay == 0 { await Task.yield() } else { try? await Task.sleep(for: .milliseconds(delay)) }
+          guard !Task.isCancelled else { return }
+          if scroll.shouldFollow, StreamingScrollState.needsRepin(gap: metrics.gap) { pin(proxy) }
         }
       }
       .task(id: messages.last?.id) {
         scroll.followsBottom = true
         await Task.yield()
         guard !Task.isCancelled else { return }
-        var transaction = Transaction(animation: nil)
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-          proxy.scrollTo("conversation-bottom", anchor: .bottom)
-        }
+        pin(proxy)
       }
       .overlay(alignment: .bottom) {
         if !scroll.followsBottom {
@@ -101,6 +137,14 @@ struct MessagesView: View {
       }
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
+  }
+
+  private func pin(_ proxy: ScrollViewProxy) {
+    var transaction = Transaction(animation: nil)
+    transaction.disablesAnimations = true
+    withTransaction(transaction) {
+      proxy.scrollTo("conversation-bottom", anchor: .bottom)
+    }
   }
 }
 
@@ -818,6 +862,52 @@ private struct ComposerPasteMonitor: NSViewRepresentable {
 }
 
 
+/// Reasoning depth of models whose chat template accepts `reasoning_effort` (Inkling 2,
+/// Qwen3.8…): only the levels that template names, kept per model.
+private struct ReasoningMenu: View {
+    @EnvironmentObject private var studio: StudioModel
+    let support: ReasoningSupport
+    let level: ReasoningEffort
+
+    var body: some View {
+        Menu {
+            Picker(L("Raisonnement", "Reasoning"), selection: Binding(
+                get: { level }, set: { studio.setReasoningLevel($0) })) {
+                ForEach(support.levels) { option in
+                    Label {
+                        Text(option.title)
+                        Text(option == support.defaultLevel
+                             ? L("\(option.detail) · par défaut", "\(option.detail) · default")
+                             : option.detail)
+                    } icon: {
+                        Image(systemName: option.symbol)
+                    }
+                    .tag(option)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: level.symbol)
+                    .foregroundStyle(level == .none ? StudioTheme.quiet : studio.accentColor)
+                Text(level.label)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .padding(.horizontal, 9)
+            .frame(height: 28)
+            .background(StudioTheme.panel, in: Capsule())
+            .contentTransition(.symbolEffect(.replace))
+        }
+        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(studio.isGenerating)
+        .accessibilityIdentifier("composer.reasoning")
+        .accessibilityLabel(L("Raisonnement", "Reasoning"))
+        .accessibilityValue(level.label)
+        .help(L("Profondeur de raisonnement du modèle", "Model reasoning depth"))
+    }
+}
+
 private struct ComposerFooterView: View {
     @EnvironmentObject private var studio: StudioModel
 
@@ -855,6 +945,10 @@ private struct ComposerFooterView: View {
                 .accessibilityLabel(L("Fichiers et outils", "Files and tools"))
                 .accessibilityValue(studio.mcpEnabled ? L("Outils activés", "Tools enabled") : L("Outils désactivés", "Tools disabled"))
                 .help(L("Fichiers et outils (⌘⇧O pour joindre un fichier)", "Files and tools (⌘⇧O to attach a file)"))
+                if studio.reasoningControlAvailable, let support = studio.reasoningSupport,
+                   let level = studio.reasoningLevel {
+                    ReasoningMenu(support: support, level: level)
+                }
                 if studio.mcpUpdating {
                     ProgressView().controlSize(.mini).help(L("Connexion MCP…", "Connecting MCP…"))
                 } else if studio.mcpEnabled && !studio.mcpErrors.isEmpty {
