@@ -136,11 +136,74 @@ impl Linear {
         output: i32,
         bits: i32,
     ) -> Result<Self> {
+        if let Some(stored) = Self::stored(checkpoint, prefix, input, output)? {
+            ensure!(
+                stored.bits() == bits,
+                "{prefix} is stored as {}-bit affine weights; {bits}-bit weights were requested",
+                stored.bits()
+            );
+            return Ok(stored);
+        }
         let dense = Projection::load(checkpoint, prefix, input, output, false)?;
         if bits >= 16 {
             return Ok(Self::Dense(dense));
         }
         Self::quantized(dense.dense_weight().context("dense weight")?, bits)
+    }
+
+    /// The MLX affine copy stored in the checkpoint as `{prefix}.weight` (U32 `[output, input * bits / 32]`)
+    /// with `{prefix}.scales` and `{prefix}.biases` (F16 `[output, input / 64]`), exactly what `quantized`
+    /// produces at load; `None` when the checkpoint has no `{prefix}.scales` (dense weight).
+    pub(crate) fn stored(
+        checkpoint: &Checkpoint,
+        prefix: &str,
+        input: i32,
+        output: i32,
+    ) -> Result<Option<Self>> {
+        if !checkpoint.tensors.contains_key(&format!("{prefix}.scales")) {
+            return Ok(None);
+        }
+        ensure!(
+            input > 0 && output > 0 && input % AFFINE_GROUP == 0,
+            "{prefix}: invalid affine dimensions {output}x{input}"
+        );
+        let w = checkpoint_array(checkpoint, &format!("{prefix}.weight"))?;
+        let scales = checkpoint_array(checkpoint, &format!("{prefix}.scales"))?;
+        let biases = checkpoint_array(checkpoint, &format!("{prefix}.biases"))?;
+        let packed = if w.shape().len() == 2 {
+            w.shape()[1]
+        } else {
+            0
+        };
+        let bits = [4, 8]
+            .into_iter()
+            .find(|&b| i64::from(packed) * 32 == i64::from(b) * i64::from(input))
+            .with_context(|| format!("{prefix}: packed width {packed} is not 4 or 8 bits"))?;
+        let groups = [output, input / AFFINE_GROUP];
+        ensure!(
+            w.dtype() == Dtype::UInt32
+                && w.shape()[0] == output
+                && scales.dtype() == Dtype::Float16
+                && biases.dtype() == Dtype::Float16
+                && scales.shape() == groups
+                && biases.shape() == groups,
+            "{prefix}: invalid stored affine weights"
+        );
+        Array::eval_many(&[&w, &scales, &biases])?;
+        Ok(Some(Self::Affine {
+            w,
+            scales,
+            biases,
+            bits,
+        }))
+    }
+
+    /// 16 for the dense FP16 weight, otherwise the affine width.
+    pub(crate) fn bits(&self) -> i32 {
+        match self {
+            Self::Dense(_) => 16,
+            Self::Affine { bits, .. } => *bits,
+        }
     }
 
     /// `weight`: `[output, input]`, `input` a multiple of the group size.
@@ -185,6 +248,87 @@ impl Linear {
             } => x
                 .astype(Dtype::Float16)?
                 .quantized_matmul(w, scales, biases, AFFINE_GROUP, *bits),
+        }
+    }
+}
+
+/// `MLXL3_INKLING_EMBED_BITS`, if set (4, 8 or 16).
+fn embed_bits_requested() -> Result<Option<i32>> {
+    match std::env::var("MLXL3_INKLING_EMBED_BITS") {
+        Ok(_) => Ok(Some(bits_from_env("MLXL3_INKLING_EMBED_BITS", 16)?)),
+        Err(_) => Ok(None),
+    }
+}
+
+/// Token embedding table `[vocab, D]`: the checkpoint FP16 table, or an MLX affine copy stored in the checkpoint
+/// (SIZE-2026-11-22-INK2M-EMBED8) whose requested rows are dequantized on lookup.
+pub(crate) enum Embeddings {
+    Dense(Array),
+    Affine {
+        w: Array,
+        scales: Array,
+        biases: Array,
+        bits: i32,
+    },
+}
+
+impl Embeddings {
+    /// `requested`: `MLXL3_INKLING_EMBED_BITS`. On a stored copy it must be absent or equal to the stored width.
+    /// On a dense table, 4 or 8 rounds it at load (evaluation option of SIZE-2026-11-21-INK2M-SLIM part B,
+    /// element for element the table a stored copy gives); absent or 16 keeps it.
+    pub(crate) fn load(
+        checkpoint: &Checkpoint,
+        vocab: i32,
+        hidden: i32,
+        requested: Option<i32>,
+    ) -> Result<Self> {
+        if let Some(Linear::Affine {
+            w,
+            scales,
+            biases,
+            bits,
+        }) = Linear::stored(checkpoint, "model.llm.embed", hidden, vocab)?
+        {
+            ensure!(
+                requested.is_none_or(|r| r == bits),
+                "this checkpoint stores {bits}-bit embeddings; MLXL3_INKLING_EMBED_BITS={} is unavailable",
+                requested.unwrap_or(16)
+            );
+            return Ok(Self::Affine {
+                w,
+                scales,
+                biases,
+                bits,
+            });
+        }
+        let table = half_weight(checkpoint, "model.llm.embed.weight", Some(&[vocab, hidden]))?;
+        match requested {
+            Some(bits) if bits < 16 => {
+                let (w, scales, biases) = table.quantize_affine(AFFINE_GROUP, bits)?;
+                let rounded = Array::dequantize_affine(&w, &scales, &biases, AFFINE_GROUP, bits)?;
+                rounded.eval()?;
+                Ok(Self::Dense(rounded))
+            }
+            _ => Ok(Self::Dense(table)),
+        }
+    }
+
+    /// FP16 rows `[n, D]` of the token ids.
+    pub(crate) fn rows(&self, ids: &Array) -> Result<Array> {
+        match self {
+            Self::Dense(table) => table.take(ids, 0),
+            Self::Affine {
+                w,
+                scales,
+                biases,
+                bits,
+            } => Array::dequantize_affine(
+                &w.take(ids, 0)?,
+                &scales.take(ids, 0)?,
+                &biases.take(ids, 0)?,
+                AFFINE_GROUP,
+                *bits,
+            ),
         }
     }
 }
@@ -1507,12 +1651,13 @@ pub struct Inkling2 {
     /// Rows of an uncommitted `verify` call.
     pending: Option<i32>,
     kernel: i32,
-    embeddings: Array,
+    embeddings: Embeddings,
     embed_norm: Array,
     norm: Array,
     final_query: Array,
     message_queries: Array,
-    head: Projection,
+    /// Dense FP16 head (padded rows); `None` when the checkpoint stores only the affine copy.
+    head: Option<Projection>,
     /// Affine copy of the unpadded head rows when `precision.head_bits < 16`.
     head_q: Option<Linear>,
     precision: Precision,
@@ -1583,11 +1728,8 @@ impl Inkling2 {
             "unsupported Inkling 2 configuration"
         );
         let hidden = c.hidden_size;
-        let embeddings = half_weight(
-            checkpoint,
-            "model.llm.embed.weight",
-            Some(&[c.vocab_size, hidden]),
-        )?;
+        let embeddings =
+            Embeddings::load(checkpoint, c.vocab_size, hidden, embed_bits_requested()?)?;
         let embed_norm = f32_weight(checkpoint, "model.llm.embed_norm.weight", &[hidden])?;
         let norm = f32_weight(checkpoint, "model.llm.norm.weight", &[hidden])?;
         let final_query = f32_weight(checkpoint, "model.llm.attn_res.output_query", &[hidden])?
@@ -1609,18 +1751,39 @@ impl Inkling2 {
         let message_queries =
             Array::concatenate(&[&qm.slice(1, 0, 1)?, &kv, &qm.slice(1, 1, 2)?], 1)?;
         message_queries.eval()?;
-        let head = Projection::load(checkpoint, "model.llm.unembed", hidden, c.vocab_size, false)?;
-        let head_q = if precision.head_bits < 16 {
-            Some(Linear::quantized(
-                &head.dense_weight().context("dense Inkling head")?.slice(
-                    0,
-                    0,
-                    c.unpadded_vocab_size,
-                )?,
-                precision.head_bits,
-            )?)
-        } else {
-            None
+        // SIZE-2026-11-21-INK2M-SLIM: a checkpoint may store the affine head copy itself (unpadded rows)
+        let (head, head_q) = match Linear::stored(
+            checkpoint,
+            "model.llm.unembed",
+            hidden,
+            c.unpadded_vocab_size,
+        )? {
+            Some(stored) => {
+                ensure!(
+                    stored.bits() == precision.head_bits,
+                    "this checkpoint stores a {}-bit output head; MLXL3_INKLING_HEAD_BITS={} is unavailable",
+                    stored.bits(),
+                    precision.head_bits
+                );
+                (None, Some(stored))
+            }
+            None => {
+                let head =
+                    Projection::load(checkpoint, "model.llm.unembed", hidden, c.vocab_size, false)?;
+                let head_q = if precision.head_bits < 16 {
+                    Some(Linear::quantized(
+                        &head.dense_weight().context("dense Inkling head")?.slice(
+                            0,
+                            0,
+                            c.unpadded_vocab_size,
+                        )?,
+                        precision.head_bits,
+                    )?)
+                } else {
+                    None
+                };
+                (Some(head), head_q)
+            }
         };
         let layers = (0..c.num_hidden_layers)
             .map(|i| Layer::load(checkpoint, i, &c).with_context(|| format!("Inkling layer {i}")))
@@ -1705,7 +1868,7 @@ impl Inkling2 {
     /// Normalized token embeddings `[n, D]` FP32 (`embed_norm(embed(ids))`).
     pub fn embed_tokens(&self, ids: &Array) -> Result<Array> {
         self.embeddings
-            .take(ids, 0)?
+            .rows(ids)?
             .astype(Dtype::Float32)?
             .rms_norm(&self.embed_norm, self.eps)
     }
@@ -1719,9 +1882,10 @@ impl Inkling2 {
                 .slice(1, 0, 1)?
                 .broadcast_to(&[rows, self.unpadded_vocab]);
         }
-        match &self.head_q {
-            Some(head) => head.forward(&hidden),
-            None => self.head.forward(&hidden)?.slice(1, 0, self.unpadded_vocab),
+        match (&self.head_q, &self.head) {
+            (Some(head), _) => head.forward(&hidden),
+            (None, Some(head)) => head.forward(&hidden)?.slice(1, 0, self.unpadded_vocab),
+            (None, None) => anyhow::bail!("Inkling model without an output head"),
         }
     }
 
@@ -1729,9 +1893,15 @@ impl Inkling2 {
         self.precision
     }
 
-    /// `[vocab, D]` FP16 output head (padded rows included).
+    /// `[vocab, D]` FP16 output head (padded rows included); `None` for a checkpoint that stores only the
+    /// affine copy.
     pub fn head_weight(&self) -> Option<&Array> {
-        self.head.dense_weight()
+        self.head.as_ref().and_then(Projection::dense_weight)
+    }
+
+    /// Padded vocabulary rows of the embedding table (and of the dense head when there is one).
+    pub fn padded_vocab(&self) -> i32 {
+        self.vocab
     }
 
     pub fn logit_softcap(&self) -> f32 {
@@ -1868,11 +2038,7 @@ impl Inkling2 {
             &tokens.iter().map(|&t| t as i32).collect::<Vec<_>>(),
             &[time],
         )?;
-        let hidden = self
-            .embeddings
-            .take(&ids, 0)?
-            .astype(Dtype::Float32)?
-            .rms_norm(&self.embed_norm, self.eps)?;
+        let hidden = self.embed_tokens(&ids)?;
         // Sliding visits keep at most window - 1 past keys; full visits keep everything
         let sliding_first = (start - (self.window - 1)).max(0);
         let sliding = MaskPlan::new(
@@ -2037,9 +2203,276 @@ impl Inkling2 {
     }
 }
 
+/// Test and export helper: writes `tensors` (U32, F16 or F32, row-major) as one safetensors file.
+#[cfg(test)]
+pub(crate) fn write_safetensors(path: &Path, tensors: &[(String, &Array)]) -> Result<()> {
+    use std::io::Write;
+    let mut header = serde_json::Map::new();
+    let mut payloads = Vec::with_capacity(tensors.len());
+    let mut offset = 0u64;
+    for (name, array) in tensors {
+        let dtype = match array.dtype() {
+            Dtype::UInt32 => "U32",
+            Dtype::Float16 => "F16",
+            Dtype::Float32 => "F32",
+            other => anyhow::bail!("{name}: cannot write dtype {other:?}"),
+        };
+        let bytes = array.to_bytes()?;
+        let end = offset + bytes.len() as u64;
+        let previous = header.insert(
+            name.clone(),
+            serde_json::json!({"dtype": dtype, "shape": array.shape(), "data_offsets": [offset, end]}),
+        );
+        ensure!(previous.is_none(), "duplicate tensor {name}");
+        offset = end;
+        payloads.push(bytes);
+    }
+    let mut json = serde_json::to_vec(&serde_json::Value::Object(header))?;
+    while json.len() % 8 != 0 {
+        json.push(b' ');
+    }
+    let mut file = std::io::BufWriter::new(File::create(path)?);
+    file.write_all(&(json.len() as u64).to_le_bytes())?;
+    file.write_all(&json)?;
+    for bytes in payloads {
+        file.write_all(&bytes)?;
+    }
+    file.flush()?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn stored_checkpoint(dir: &Path, tensors: &[(String, &Array)]) -> Result<Checkpoint> {
+        let path = dir.join("model.safetensors");
+        write_safetensors(&path, tensors)?;
+        Ok(Checkpoint {
+            path: dir.to_path_buf(),
+            model_type: "inkling2_loop".into(),
+            bits: None,
+            size_bytes: std::fs::metadata(&path)?.len(),
+            modules: Vec::new(),
+            tensors: checkpoint::read_header(&path)?,
+        })
+    }
+
+    /// SIZE-2026-11-21-INK2M-SLIM: an affine copy written to a checkpoint and read back by `Linear::stored`
+    /// is the copy `Linear::quantized` made (same bytes, same matmul bits); every malformed variant and a
+    /// width other than the stored one are refused; a checkpoint without scales stays dense.
+    #[test]
+    fn stored_affine_weights_round_trip_and_refusals() -> Result<()> {
+        let (output, input) = (24, 192);
+        let weight = Array::from_f32(
+            &pseudo_random((output * input) as usize, 7, 1.0),
+            &[output, input],
+        )?
+        .astype(Dtype::Float16)?;
+        let x = Array::from_f32(&pseudo_random(3 * input as usize, 11, 1.0), &[3, input])?;
+        let dir = tempfile::tempdir()?;
+        for bits in [4, 8] {
+            let Linear::Affine {
+                w, scales, biases, ..
+            } = Linear::quantized(&weight, bits)?
+            else {
+                anyhow::bail!("quantized returned a dense weight");
+            };
+            let named = |p: &str| -> Vec<(String, &Array)> {
+                vec![
+                    (format!("{p}.weight"), &w),
+                    (format!("{p}.scales"), &scales),
+                    (format!("{p}.biases"), &biases),
+                ]
+            };
+            let ckpt = stored_checkpoint(dir.path(), &named("p"))?;
+            let stored = Linear::stored(&ckpt, "p", input, output)?.context("stored copy")?;
+            assert_eq!(stored.bits(), bits);
+            let Linear::Affine {
+                w: sw,
+                scales: ss,
+                biases: sb,
+                ..
+            } = &stored
+            else {
+                anyhow::bail!("stored copy is dense");
+            };
+            assert_eq!(sw.to_bytes()?, w.to_bytes()?);
+            assert_eq!(ss.to_bytes()?, scales.to_bytes()?);
+            assert_eq!(sb.to_bytes()?, biases.to_bytes()?);
+            let fresh = Linear::quantized(&weight, bits)?
+                .forward(&x)?
+                .to_f16_bits()?;
+            assert_eq!(stored.forward(&x)?.to_f16_bits()?, fresh);
+            // the requested width must be the stored one
+            assert!(Linear::load(&ckpt, "p", input, output, bits).is_ok());
+            for other in [4, 8, 16].into_iter().filter(|&b| b != bits) {
+                let error = Linear::load(&ckpt, "p", input, output, other)
+                    .err()
+                    .context("other width accepted")?;
+                assert!(error.to_string().contains("stored as"), "{error}");
+            }
+            // wrong logical dimensions
+            assert!(Linear::stored(&ckpt, "p", input, output + 1).is_err());
+            assert!(Linear::stored(&ckpt, "p", input * 2, output).is_err());
+            assert!(Linear::stored(&ckpt, "p", 100, output).is_err());
+            // F32 scales, missing biases
+            let scales32 = scales.astype(Dtype::Float32)?;
+            let bad = stored_checkpoint(
+                dir.path(),
+                &[
+                    ("p.weight".into(), &w),
+                    ("p.scales".into(), &scales32),
+                    ("p.biases".into(), &biases),
+                ],
+            )?;
+            assert!(Linear::stored(&bad, "p", input, output).is_err());
+            let missing = stored_checkpoint(
+                dir.path(),
+                &[("p.weight".into(), &w), ("p.scales".into(), &scales)],
+            )?;
+            assert!(Linear::stored(&missing, "p", input, output).is_err());
+        }
+        // no scales: dense path, nothing stored
+        let dense = stored_checkpoint(dir.path(), &[("p.weight".into(), &weight)])?;
+        assert!(Linear::stored(&dense, "p", input, output)?.is_none());
+        Ok(())
+    }
+
+    /// SIZE-2026-11-22-INK2M-EMBED8 exporter (not a check): writes `embed.safetensors` into the new directory
+    /// `MLXL3_INKLING_SLIM_OUT` with the 8-bit affine copy of the FP16 embedding table of `MLXL3_INKLING_MODEL`,
+    /// computed as `Embeddings::load` does for the measured option (`half_weight`, then `quantize_affine`).
+    #[test]
+    #[ignore = "writes files; requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_SLIM_OUT"]
+    fn export_slim_embeddings() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let out = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_SLIM_OUT")?);
+        std::fs::create_dir(&out).context("MLXL3_INKLING_SLIM_OUT must not exist yet")?;
+        let checkpoint = checkpoint::inspect(&dir)?;
+        let root: RootConfig = serde_json::from_reader(File::open(dir.join("config.json"))?)?;
+        let (vocab, hidden) = (root.text_config.vocab_size, root.text_config.hidden_size);
+        ensure!(
+            Linear::stored(&checkpoint, "model.llm.embed", hidden, vocab)?.is_none(),
+            "the source already stores an affine embedding table"
+        );
+        let table = half_weight(
+            &checkpoint,
+            "model.llm.embed.weight",
+            Some(&[vocab, hidden]),
+        )?;
+        let (w, scales, biases) = table.quantize_affine(AFFINE_GROUP, 8)?;
+        Array::eval_many(&[&w, &scales, &biases])?;
+        write_safetensors(
+            &out.join("embed.safetensors"),
+            &[
+                ("model.llm.embed.weight".into(), &w),
+                ("model.llm.embed.scales".into(), &scales),
+                ("model.llm.embed.biases".into(), &biases),
+            ],
+        )?;
+        let report = serde_json::json!({"trial": "SIZE-2026-11-22-INK2M-EMBED8", "source": dir,
+            "prefix": "model.llm.embed", "bits": 8, "group": AFFINE_GROUP, "rows": vocab, "hidden": hidden});
+        std::fs::write(
+            out.join("export.json"),
+            serde_json::to_string_pretty(&report)?,
+        )?;
+        println!("{report}");
+        Ok(())
+    }
+
+    /// SIZE-2026-11-22-INK2M-EMBED8: a stored 8-bit table gives, row for row, the bits of the dense table rounded
+    /// at load (the measured option); another requested width is refused; a dense table is unchanged by default.
+    #[test]
+    fn stored_embeddings_equal_the_rounded_table() -> Result<()> {
+        let (vocab, hidden) = (40, 128);
+        let table = Array::from_f32(
+            &pseudo_random((vocab * hidden) as usize, 9, 1.0),
+            &[vocab, hidden],
+        )?
+        .astype(Dtype::Float16)?;
+        let (w, scales, biases) = table.quantize_affine(AFFINE_GROUP, 8)?;
+        let dir = tempfile::tempdir()?;
+        let stored = stored_checkpoint(
+            dir.path(),
+            &[
+                ("model.llm.embed.weight".into(), &w),
+                ("model.llm.embed.scales".into(), &scales),
+                ("model.llm.embed.biases".into(), &biases),
+            ],
+        )?;
+        let dense_dir = tempfile::tempdir()?;
+        let dense = stored_checkpoint(
+            dense_dir.path(),
+            &[("model.llm.embed.weight".into(), &table)],
+        )?;
+        let ids = Array::from_i32(&[0, 39, 7, 7, 21], &[5])?;
+        let from_stored = Embeddings::load(&stored, vocab, hidden, None)?.rows(&ids)?;
+        let explicit = Embeddings::load(&stored, vocab, hidden, Some(8))?.rows(&ids)?;
+        let rounded = Embeddings::load(&dense, vocab, hidden, Some(8))?.rows(&ids)?;
+        assert_eq!(from_stored.dtype(), Dtype::Float16);
+        assert_eq!(from_stored.shape(), [5, hidden]);
+        assert_eq!(from_stored.to_f16_bits()?, rounded.to_f16_bits()?);
+        assert_eq!(explicit.to_f16_bits()?, rounded.to_f16_bits()?);
+        for other in [4, 16] {
+            let error = Embeddings::load(&stored, vocab, hidden, Some(other))
+                .err()
+                .context("other width accepted")?;
+            assert!(
+                error.to_string().contains("stores 8-bit embeddings"),
+                "{error}"
+            );
+        }
+        // dense table: unchanged without a request or with 16, rounded only on request
+        let plain = table.take(&ids, 0)?.to_f16_bits()?;
+        assert_eq!(
+            Embeddings::load(&dense, vocab, hidden, None)?
+                .rows(&ids)?
+                .to_f16_bits()?,
+            plain
+        );
+        assert_eq!(
+            Embeddings::load(&dense, vocab, hidden, Some(16))?
+                .rows(&ids)?
+                .to_f16_bits()?,
+            plain
+        );
+        assert_ne!(rounded.to_f16_bits()?, plain);
+        // a stored copy of the wrong vocabulary size is refused
+        assert!(Embeddings::load(&stored, vocab + 1, hidden, None).is_err());
+        Ok(())
+    }
+
+    /// SIZE-2026-11-21-INK2M-SLIM part B: the dequantized table equals the stored copy decoded row by row
+    /// (`take` then `dequantize`), and its error stays within half a quantization step.
+    #[test]
+    fn dequantized_embedding_rows_match_row_lookup() -> Result<()> {
+        let (rows, dim) = (40, 128);
+        let values = pseudo_random((rows * dim) as usize, 5, 1.0);
+        let table = Array::from_f32(&values, &[rows, dim])?.astype(Dtype::Float16)?;
+        let (w, scales, biases) = table.quantize_affine(AFFINE_GROUP, 8)?;
+        let full = Array::dequantize_affine(&w, &scales, &biases, AFFINE_GROUP, 8)?;
+        assert_eq!(full.dtype(), Dtype::Float16);
+        assert_eq!(full.shape(), [rows, dim]);
+        let ids = Array::from_i32(&[3, 0, 39, 3, 17], &[5])?;
+        let lookup = Array::dequantize_affine(
+            &w.take(&ids, 0)?,
+            &scales.take(&ids, 0)?,
+            &biases.take(&ids, 0)?,
+            AFFINE_GROUP,
+            8,
+        )?;
+        assert_eq!(full.take(&ids, 0)?.to_f16_bits()?, lookup.to_f16_bits()?);
+        let restored = full.to_f32()?;
+        let half = table.to_f32()?;
+        let steps = scales.to_f32()?;
+        for (i, (a, b)) in restored.iter().zip(&half).enumerate() {
+            let step = steps[i / AFFINE_GROUP as usize];
+            // half a step, plus the FP16 rounding of the scale, the bias and the result
+            let bound = 0.75 * step.abs() + 4e-3 * b.abs().max(1.0);
+            assert!(a.is_finite() && (a - b).abs() <= bound, "{i}: {a} vs {b}");
+        }
+        Ok(())
+    }
 
     #[test]
     fn precision_defaults_and_projection_sets() -> Result<()> {

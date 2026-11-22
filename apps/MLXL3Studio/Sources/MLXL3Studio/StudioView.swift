@@ -510,7 +510,12 @@ private struct WorkspaceHeader: View {
             HStack(spacing: 3) {
                 if studio.selectedMode != .decision {
                     ConversationDisplayControl()
-                    MTPToolbarControl()
+                    if studio.mtpToolbarVisible {
+                        MTPToolbarControl()
+                    }
+                }
+                if studio.dsparkToolbarVisible && studio.selectedMode != .decision {
+                    DSparkToolbarControl()
                 }
                 if studio.dflash2Available && studio.selectedMode != .decision {
                     DFlashToolbarControl()

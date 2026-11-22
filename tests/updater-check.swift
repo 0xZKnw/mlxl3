@@ -397,6 +397,18 @@ final class ChannelProtocol: URLProtocol, @unchecked Sendable {
     }
     check(try Data(contentsOf: installed.appendingPathComponent("keep")) == Data("working".utf8))
     check(try Data(contentsOf: backup.appendingPathComponent("keep")) == Data("backup".utf8))
+    let installLog = try String(contentsOf: root.appendingPathComponent("install.log"), encoding: .utf8)
+    check(!installLog.contains("cleanup:"), "Installer cleanup must run to the end and detach the DMG")
+    let updates = root.appendingPathComponent("Updates")
+    try FileManager.default.createDirectory(at: updates, withIntermediateDirectories: true)
+    for name in ["MLXL3-Desktop-v2.0.1-b1-Apple-Silicon.dmg", "MLXL3-Desktop-v2.0.2-b2-Apple-Silicon.dmg",
+                 "MLXL3-Engine-v2.0.1-arm64.tar.gz", "notes.txt"] {
+      try Data(name.utf8).write(to: updates.appendingPathComponent(name))
+    }
+    UpdateManager.pruneCache(updates, keeping: updates.appendingPathComponent("MLXL3-Desktop-v2.0.2-b2-Apple-Silicon.dmg"))
+    check(try FileManager.default.contentsOfDirectory(atPath: updates.path).sorted()
+      == ["MLXL3-Desktop-v2.0.2-b2-Apple-Silicon.dmg", "MLXL3-Engine-v2.0.1-arm64.tar.gz", "notes.txt"],
+      "Only older Desktop downloads are pruned")
     _ = try UpdateManager.runProcess("/bin/echo", arguments: ["pipe check"])
     fails("helper output bound") {
       _ = try UpdateManager.runProcess("/usr/bin/yes", arguments: [], outputLimit: 1_024)

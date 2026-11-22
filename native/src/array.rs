@@ -297,6 +297,14 @@ unsafe extern "C" {
         out_scales: *mut *mut c_void,
         out_biases: *mut *mut c_void,
     ) -> i32;
+    fn mlxl3_array_dequantize(
+        w: *mut c_void,
+        scales: *mut c_void,
+        biases: *mut c_void,
+        group: i32,
+        bits: i32,
+        out: *mut *mut c_void,
+    ) -> i32;
     fn mlxl3_array_qmm(
         x: *mut c_void,
         w: *mut c_void,
@@ -1571,6 +1579,29 @@ impl Array {
             mlxl3_array_quantize(self.handle.as_ptr(), group, bits, &mut w, &mut s, &mut b)
         })?;
         Ok((Self::owned(w)?, Self::owned(s)?, Self::owned(b)?))
+    }
+    /// Inverse of `quantize_affine`: the `[out, in]` weight in the dtype of `scales`.
+    pub fn dequantize_affine(
+        w: &Self,
+        scales: &Self,
+        biases: &Self,
+        group: i32,
+        bits: i32,
+    ) -> Result<Self> {
+        ensure!(
+            matches!(bits, 2 | 3 | 4 | 5 | 6 | 8) && matches!(group, 32 | 64 | 128),
+            "unsupported affine dequantization"
+        );
+        Self::output(|out| unsafe {
+            mlxl3_array_dequantize(
+                w.handle.as_ptr(),
+                scales.handle.as_ptr(),
+                biases.handle.as_ptr(),
+                group,
+                bits,
+                out,
+            )
+        })
     }
     /// `x @ dequantize(w).T` for a weight produced by `quantize_affine`.
     pub fn quantized_matmul(

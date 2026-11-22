@@ -30435,6 +30435,185 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
 - **APP-F2b (demande utilisateur « rajouter DSpark dans l'app ») implémenté** : moteur — `ready.dspark_supported` (Inkling avec drafter), champ de requête `dspark` (défaut vrai ; une requête `false` désactive la session DSpark) transmis par une variable locale au thread posée pour la durée de la requête (`DsparkRequest`), statistiques `dspark_profile` ; app — `dsparkSupported`, `dsparkEnabled` mémorisé (`studio.dsparkEnabled`, vrai par défaut), carte « Accélération DSpark » dans l'inspecteur, champ `dspark` de `GenerationRequest`, statistiques `dspark_*` décodées et affichées (`dsparkAcceptance` : acceptées / proposées et tokens par bloc). Contrôles : à exécuter (suite Desktop, bridge réel avec `dspark: false`).
 
 
+### SIZE-2026-11-21-INK2M-SLIM — VALIDÉ pour A (parité bit à bit) et PUBLIÉ (moteur 2.0.22, HF `a5763a01`, Desktop 2.0.13) ; B INTERROMPU, non mesuré (préenregistré avant tout code, export ou mesure ; demande utilisateur : « fais tout les trucs en local (virer la visio, drafter 8bits et tete 8bits) et puis ensuite tu mesures l'embedding 8 bits ») : R3 allégé sans changement de sortie (A) et coût KL des embeddings 8 bits (B)
+
+- Contexte : hors périmètre explicite de QUANT-2026-11-21-INK2M-EXL3-R3-PREP (« stockage 8 bits de la tête et du drafter, variante sans vision, gain ≈ 1,4 Go, faisable localement sans crédit »). Répartition de R3 lue dans les en-têtes : experts 10,256 Go, attention/denses/normes BF16 1,366, embeddings 0,926, tête 0,926, vision 0,637, drafter 0,636 — total 14,747 Go. Recherche préalable (conversation du 21 novembre, sans essai) : tête en 8 bits KL 1e-5 contre FP16 (SPEED-INK2M-P3) ; attention 8 bits sur experts exacts +0,0054 sur la prose (DIAG-LOCALREF) ; Unsloth publie un plancher ≈ 0,0107 de KLD pour ses quants quasi sans perte (protocole non comparable).
+- Source figée : `models/Inkling-2-Mini-EXL3-R3/` (HF `0xzknw/Inkling-2-Mini-EXL3-3.33bpw@0a455840`), SHA-256 des poids revérifiés le 21 novembre : shards 1–4 `6ecfe49d…17ab`, `58acbcba…f3d6`, `3ecde069…b0a3`, `4c621618…2072`, `mtp.safetensors` `7c3b6513…a1d2`. Code : worktree `claude/inkling2-slim` depuis `origin/main` `36849a1a4` (moteur 2.0.21, seul à charger R3 ; le checkout `windows-exl3-desktop` ne le charge pas), MLX 0.32.2, M5 24 Gio. Rien n'est publié, poussé ni installé.
+- **A. Allègement sans changement de sortie** (sortie `models/Inkling-2-Mini-EXL3-R3-slim/`, ignorée par git ; R3 intact) :
+  - A1 vision : les 422 tenseurs `model.visual.*` sont retirés du shard 1, de l'index et de `tensor_storage` (235 entrées). MLXL3 ne lit pas ces tenseurs (−0,637 Go).
+  - A2 tête : `model.llm.unembed.weight` BF16 `[201024, 2304]` est remplacé par la copie affine MLX 8 bits, groupe 64, des 200 058 lignes non paddées (`.weight` U32, `.scales`/`.biases` F16). Elle est **calculée par le chemin de chargement du moteur** (`Linear::quantized`, la copie qu'utilise déjà `Precision::DEFAULT`) et écrite par un test exportateur. Le moteur charge directement cette copie et refuse avec une erreur claire une tête 16 ou 4 bits sur ce checkpoint (≈ −0,44 Go).
+  - A3 drafter : les projections des couches sont stockées en affine 8 bits, ce qui égale le défaut `MLXL3_INKLING_DSPARK_BITS=8` de 2.0.21. Le repli Markov `fold` FP16 `[200058, 256]` et `fold_bias` FP16 sont précalculés par la même fonction que le chargement 2.0.21, depuis la tête FP16. Ils ne peuvent plus être recalculés une fois la tête stockée en 8 bits ; le pic FP32 de 1,8 Go au chargement disparaît (≈ −0,14 Go net). Le drafter reste donc **bit à bit celui de la configuration par défaut actuelle** (couches 8 bits, fold FP16, logits de base sur la tête 8 bits de la cible).
+  - Contrôles, dans cet ordre, la correction avant tout :
+    - (1) Couverture : chaque tenseur source est soit recopié octet pour octet (SHA-256 du contenu), soit retiré (vision), soit remplacé (tête, couches du drafter). Aucun manquant ni en trop ; en-têtes et index valides (`checkpoint::inspect`) ; shards 2–4 identiques au bit.
+    - (2) Tests du script (pytest sur fixtures jetables : refus d'entrées incomplètes, d'un hash source faux, d'un dossier de sortie existant, d'une forme inattendue) et tests Rust de chargement (copie stockée lue, bits incompatibles refusés, formes/dtypes faux refusés).
+    - (3) **Parité moteur bit à bit** : empreinte `decode_profile` (prompt de l'oracle court, 128 décodes gloutons, FNV-1a de tous les logits) de slim égale à celle de R3 avec la précision par défaut. `dump_draft_case` (features, x, base, propositions) de slim égal à celui de R3 par défaut, vérifié par `cmp`. `speculative_profile` : tokens et acceptation de slim égaux à ceux de R3. `eval_against_reference` sur 2 lignes : KL de slim égale au bit à celle de R3 avec `HEAD_BITS=8`.
+    - (4) Parcours réel : `mlxl3-rs run` glouton, texte et tokens identiques entre R3 et slim.
+  - Mesures rapportées : tailles en octets, RSS/empreinte au chargement (indicatives, pas une campagne de vitesse).
+- **B. Coût KL des embeddings 8 bits** (aucun fichier produit) :
+  - Option d'évaluation `MLXL3_INKLING_EMBED_BITS` ∈ {16, 8} (défaut 16 inchangé). La table FP16 est quantifiée en affine 8 bits groupe 64 au chargement, puis déquantifiée par `mx::dequantize` (nouvelle opération du pont). C'est l'équivalent exact d'une table stockée en 8 bits lue par lignes puis déquantifiée, l'opération étant élément par élément.
+  - Protocole : référence exacte locale validée (DIAG-LOCALREF, `models/inkling2-localref/logits-s4`, pas 4), 12 lignes (en/fr/code/chat × 3, 6 144 positions), un seul binaire reconstruit dans le worktree, un modèle GPU à la fois.
+    - (B0) Contrôle : R3, précision FULL, nouveau binaire, doit redonner `localref/runs/R3.json` au bit près. Sinon, nouvelle baseline appariée, signalée.
+    - (B1) R3 + `EMBED_BITS=8`, reste FULL.
+    - Métriques : KL moyenne, top-1, prose (9 lignes) / chat, positions de chat écrites par le modèle contre texte d'entrée (`model_positions.py`), Δ apparié et IC 95 % bootstrap (`summarize.py`).
+    - (B2) Référence + embeddings 8 bits, pour le coût isolé : **non prévu**, car le code d'évaluation à experts denses n'est pas sur `main`.
+  - **Critère « même KL »** (fixé avant mesure) : Δ prose apparié B1 − R3 ≤ +0,0007 nat (≈ 5 % de 0,0137) et borne haute de l'IC 95 % ≤ +0,0014. Sinon, les embeddings 8 bits ne sont pas retenus et les chiffres sont rapportés pour décision de l'utilisateur. Gain de taille attendu : 0,926 → ≈ 0,49 Go. Le stockage réel des embeddings en 8 bits n'est fait que si le critère est rempli **et** que l'utilisateur le demande.
+- Vérification formelle : Kani non tenté (préférence utilisateur enregistrée « vitesse plutôt que Kani », tests GPU bit à bit conservés) ; `$formal-proof-skill` absent de cet environnement ; CrossHair non tenté pour le script.
+- État : préenregistré, aucun code ni mesure.
+- Révision 2026-11-21 (en cours) — **code et artefact A produits, contrôles GPU en attente** :
+  - Code (worktree `claude/inkling2-slim`, non commité) :
+    - `inkling2::Linear::stored`/`bits` lisent une copie affine stockée (`.weight` U32, `.scales`/`.biases` F16, groupe 64) et refusent toute autre largeur. La tête est `Option<Projection>` : si le checkpoint stocke la copie, la tête dense est absente et `HEAD_BITS` ≠ largeur stockée est refusé.
+    - Nouvel accesseur `padded_vocab`.
+    - Option d'évaluation `MLXL3_INKLING_EMBED_BITS`.
+    - Pont : `mlxl3_array_dequantize`.
+    - `inkling2_draft` : fold stocké `markov_head.fold.{weight,bias}` sinon `fold_from_head` (même calcul qu'avant, factorisé) ; `draft_projections` (test seulement).
+    - Tests : `stored_affine_weights_round_trip_and_refusals` et `dequantized_embedding_rows_match_row_lookup` passés. Mutation (contrôle de largeur désactivé) détectée par « other width accepted », puis code restauré.
+    - `cargo fmt --check` OK ; Clippy strict `mlx,chat`, `chat`, `direct-metal,chat` (toutes cibles) OK.
+  - Export : binaire de test `test-bin-1` SHA-256 `ccc2367a…` (avant `cargo fmt` et la correction Clippy, sans effet sur le code exécuté). Commande : `export_slim_tensors`, 28,5 s. Sortie : `build/inkling2-mini-exl3-20261121/slim/export/` — `head.safetensors` 489 742 288 o, `mtp-replacements.safetensors` 381 088 012 o, `export.json`.
+  - Assemblage : `build/inkling2-mini-exl3-20261121/slim/make_slim.py`, pytest 8 passés. Deux mutations détectées : copie décalée d'un octet, contrôle de couverture désactivé.
+    - `models/Inkling-2-Mini-EXL3-R3-slim/` : **poids 14 751 503 376 → 13 535 683 700 octets (−1 215 819 676, −8,2 %)** ; dossier complet 14 794 166 711 → 13 578 230 679 o.
+    - Tenseurs : 37 536 recopiés octet pour octet (SHA-256 par tenseur), 422 de vision retirés, 28 remplacés (tête + 27 projections du drafter), 86 ajoutés ; couverture complète ; 235 entrées `tensor_storage` retirées.
+    - Shards 2–4 clonés, identiques au bit. Shard 1 3 221 264 764 o `a7f577a6…`, `mtp.safetensors` 493 122 668 o `4e4254a9…`. Rapport : `slim_report.json`.
+  - **Incident** : la première file avait un défaut de script (`timeout` ne lance pas une fonction shell), donc seules les 2 générations CLI ont tourné. Elles donnent un texte identique (`slim/q-failed-run1/`). Le run R3 était à froid ; temps non comparables.
+  - **Second incident** : la deuxième file (23:07–23:15) a chevauché la sonde de prefill de l'autre session (`prefill_probe.py`, moteur `inkling2-r3` sur R3, 14 Go). Avec deux modèles sur 24 Go, les deux processus étaient bloqués en lecture disque.
+    - Ma file a été arrêtée : `decode-R3` passé (empreinte `ec84d901be285027`), `decode-SL` tué (code 143), logs dans `slim/q-aborted-run2/`.
+    - **Les mesures de vitesse de l'autre session entre 23:08 et 23:15 sont faussées par ce chevauchement.**
+    - La file attend désormais qu'aucun autre moteur ou test MLXL3 ne tourne avant chaque étape (`slim/queue.sh`).
+- Révision 2026-11-22 — **A VALIDÉ (parité bit à bit), B INTERROMPU (non mesuré)** :
+  - **File GPU, 4ᵉ passage** (21–22 novembre, 23:34 → 23:57, secteur 100 %, binaire de test `ccc2367a…`, moteur `d46fab25…` ; logs `build/inkling2-mini-exl3-20261121/slim/q/`, analyse `slim/analyze.py` → `q/analysis.json`). Tous les résultats sont identiques au bit entre R3 et slim :
+    - empreinte `decode_profile` (128 décodes gloutons, prompt de l'oracle court) **`ec84d901be285027`** pour les deux, mêmes tokens ;
+    - `dump_draft_case` (tête 8 bits) : `features.f32`, `x.f32`, `base.f32`, `meta.json` identiques par `cmp`, 7 propositions identiques ;
+    - `speculative_profile` (largeurs 2 et 3, 64 tokens) : tout identique hors temps — acceptation 0,508 / 0,412, positions acceptées, 64 tokens égaux à l'AR, état 0,8379 ;
+    - `eval_against_reference` (en0, chat0, tête 8 bits, 1 024 positions) : tableaux de KL identiques (en0 0,011168584…, chat0 0,167124…) ;
+    - refus attendu de `HEAD_BITS=16` sur slim (« this checkpoint stores a 8-bit output head; MLXL3_INKLING_HEAD_BITS=16 is unavailable ») ;
+    - texte CLI identique (déjà identique au 1ᵉʳ passage).
+  - **Chevauchements** (correction non affectée, temps non retenus) :
+    - `evalh8-SL` (23:41:38–23:45:01) et `cli-R3` (23:47:32–23:56:33) ont tourné pendant les ablations de vitesse de l'autre session (`p7/ablate`, 23:42:37–23:45:37 et ≈ 23:48). Sa garde ne voyait pas mes binaires (`test-bin-1`, `engine-bin-1`), renommés ensuite `mlxl3_native-<hex>` et `mlxl3-rs`.
+    - Ma garde avait un défaut (`awk` renvoie 0, attente infinie entre 23:16 et 23:34), corrigé.
+    - Même chose de 00:09:53 à 00:11:52 : leur capture de hessiennes (`p8-bin`, invisible pour ma garde) a chevauché ma porte rel22. Elle ne contient que des empreintes, donc aucune reprise nécessaire.
+  - **B (embeddings 8 bits) : INTERROMPU, non mesuré.** B0 (R3 FULL, 12 lignes, binaire `mlxl3_native-00000000051a3c4e` = `ccc2367a…`) a été lancé à 23:57:45, puis arrêté par l'app ou l'utilisateur pendant son exécution, sans résultat. B1 n'a pas été lancé. Le critère « même KL » reste non évalué. L'option `MLXL3_INKLING_EMBED_BITS` (défaut 16, évaluation seulement) est conservée dans le moteur.
+  - **Décision** : A retenu, publié à la demande de l'utilisateur (« publie le dans le hf à la place de l'autre », « fais un nv moteur aussi qui pourra charger la version »). Moteur 2.0.22 (RELEASE-2026-11-22-ENGINE-2.0.22) et révision HF slim. Desktop 2.0.12 reste épinglé sur `0a455840`.
+
+### RELEASE-2026-11-22-ENGINE-2.0.22 — PUBLIÉ (`engine-v2.0.22`, latest=false ; CI verte) (demandes utilisateur « vas y bah publie le dans le hf à la place de l'autre », « fais un nv moteur aussi qui pourra charger la version », « la v2.0.22 publie la direct » ; Desktop 2.0.13 à faire ensuite)
+
+- Source : branche `claude/inkling2-slim`, commit `ca96f92f5` (chargeur des poids Inkling stockés en 8 bits, SIZE-2026-11-21-INK2M-SLIM), rebasé sur `main` `c9ebc069b` ; version moteur 2.0.21 → **2.0.22** (`Cargo.toml`/`Cargo.lock`). Desktop inchangé.
+- Contrôles (procédure 2.0.21, réduite aux parties touchées) : construction de l'archive avant tout, puis fmt, Clippy strict des 3 variantes, tests des 3 variantes, inventaire MLX, pytest complet ; côté GPU, porte d'empreintes de 2.0.21 avec le binaire de test 2.0.22, empreintes R3/slim et R3 avec le binaire de test 2.0.21 publié, bridge du binaire **extrait** (slim glouton, T=1, `dspark: false` ; R3 glouton), `smoke-release.py` sur slim, refus de slim par 2.0.21. **Non refait (justifié)** : régression des autres modèles (seuls `inkling2*.rs` et des fonctions ajoutées au pont/`array.rs` changent), suite Desktop (Desktop non modifié), campagne de vitesse (aucun gain de vitesse annoncé).
+- Scripts et logs : `build/inkling2-mini-exl3-20261121/slim/rel22/` (`cpu.sh`, `gpu.sh`, `cpu-summary.txt`, `gpu-summary.txt`).
+- Incident de script : le premier `gpu.sh` copiait l'ancien binaire de test. Le changement de version renomme le binaire, `mlxl3_native-0e0432374418b063` au lieu de `fd39924…`. Arrêté avant tout résultat (`gpu-summary-wrongbin.txt`), relancé avec `0e04323…` (SHA-256 `2f1424b0…`).
+- Révision 2026-11-22 — **contrôles passés**. Archive `MLXL3-Engine-v2.0.22-arm64.tar.gz` (69 058 643 o, `ba12fb08…80c3` ; `.sha256` 100 o `ed6a2d45…1d6d` ; `mlxl3` 14 995 072 o `78220a23…0168`), construite à `ca96f92f5` sans modification locale.
+  - Archive extraite : 4 fichiers conformes au manifeste (version 2.0.22, Desktop ≥ 1.4.0, macOS ≥ 26.2.0, rien en trop), signatures strictes et arm64, metallib = MLX 0.32.2, `runtime-info` 2.0.22 / `ca96f92f528a`.
+  - CPU : fmt OK ; Clippy strict `mlx,chat`, `chat`, `direct-metal,chat` (toutes cibles) OK. Tests MLX (8 cibles) **672 / 0 / 344**, dont la bibliothèque 555 / 0 / 326 ; CPU **600 / 0 / 10** ; direct-metal **619 / 0 / 144**. Inventaire MLX 341 OK.
+    - Différence avec les comptes publiés de 2.0.21 (686 / 343, 616 / 10, 635 / 144) : comptes non refaits sur la base, méthode de comptage probablement différente. Le changement n'enlève aucun test.
+  - pytest : premier lancement en erreur de collecte. Le `.venv` du checkout principal importait l'ancien `src/` de `windows-exl3-desktop` (`pytest-wrong-src.log`). Relancé avec `PYTHONPATH=<worktree>/src`, résultat ci-dessous.
+  - GPU (test-bin 2.0.22 `2f1424b0…`, `gpu-summary.txt`) :
+    - porte d'empreintes 2.0.21 **6 / 6 identiques** (`4cc7ad95aff66139`, `20c59539832e972a`, `21751eb3a17fe320`, `73f8b3c2b5d2f92c`, petit modèle `140afb3d9cef3e4a` / `af45501d5c09f625`) ;
+    - empreinte `ec84d901be285027` pour R3 en 2.0.22, slim en 2.0.22 **et R3 avec le binaire de test 2.0.21 publié** (`1c97fff7…`) ;
+    - bridge du binaire extrait, sans variable : slim glouton `passed` (DSpark 63/100, 171/239, 111/172), T=1 `passed` (70/108, 226/366, 108/187), `dspark: false` `passed` (aucune statistique DSpark), R3 glouton `passed`. Réflexions, réponses et hash du 2ᵉ tour (`b2a664d162ce40c5`) identiques entre R3 et slim ; `ready.dspark_supported` true ;
+    - `smoke-release.py` slim `passed` ;
+    - 2.0.21 publié refuse slim (« model.llm.unembed.weight: expected floating-point weights »).
+  - Temps de ces runs non retenus : chevauchement 00:09:53–00:11:52 avec une capture de l'autre session, signalé par elle.
+  - pytest complet (`PYTHONPATH=<worktree>/src`) : **2 842 passés, 0 échec, 121 sautés** (`pytest.log`).
+- HF : révision slim publiée **`a5763a01f6e34c84bdf1a5812c890ff3978d5d75`** (`hf upload`, `build/inkling2-mini-exl3-20261121/hf/upload-slim.log`, fiche `hf/make_card_slim.py`) ; 21 fichiers vérifiés côté HF (SHA-256 LFS des poids, fiche/NOTICE/configs identiques octet pour octet), seul `.gitattributes` en plus. Desktop 2.0.12 reste épinglé sur `0a455840`.
+
+### RELEASE-2026-11-22-DESKTOP-2.0.13 — PUBLIÉ (`v2.0.13`, latest ; installeur Windows joint ; CI verte) (demandes utilisateur « fais une version desktop aussi pour fix le truc du dspark, l'ui est pas comme pour dflash2 », « la nouvelle version desktop tu la feras après » ; pas un essai d'optimisation)
+
+- Constat : la barre d'outils affichait toujours `MTPToolbarControl` (grisé pour Inkling, sans tête MTP) et aucun contrôle DSpark. DSpark n'avait qu'un `Toggle` simple dans l'inspecteur, alors que MTP et DFlash2 ont un bouton On/Off dans la barre d'outils, avec panneau, interrupteur et ligne d'état.
+- Changement (commit `57699d7e5` sur `claude/inkling2-slim`, au-dessus de `main` `114f4a0da`) :
+  - `DSparkSettingsContent.swift` (nouveau) : `DSparkToolbarControl` et `DSparkSettingsContent` (interrupteur « Activer DSpark » verrouillé pendant la génération, état, acceptation de la dernière réponse DSpark, explication).
+  - `StudioModel` : `dsparkToolbarVisible`, `mtpToolbarVisible` (MTP masqué seulement si DSpark est disponible et MTP non), `latestDSparkAcceptance`.
+  - `StudioView` : DSpark dans la barre d'outils. `GenerationInspector` : la carte utilise le panneau partagé.
+  - `ModelLibrary` : Inkling épinglé sur la révision slim `a5763a01`. `Info.plist` 2.0.13 / 66.
+  - `tests/mtp-panel-layout-check.swift` : visibilité par modèle, bornes du bouton, hauteur du panneau en FR/EN, 200–320 pt.
+- Contrôles :
+  - `scripts/check-desktop.sh` complet avec `MLXL3_MACOS_SDK=…/MacOSX26.5.sdk` : **passé en 502 s**, dont « MTP, DFlash2 and DSpark layout checks passed: 78 » (panneau DSpark 105–135 pt, limite 200). Logs `build/inkling2-mini-exl3-20261121/slim/desk13/`.
+  - Premier lancement avec le SDK par défaut (27.x) : échec de compilation sur un fichier inchangé (`AgentStudio.swift`, plugin `SwiftUIMacros` introuvable), log `check-desktop-default-sdk.log`. Problème de chaîne d'outils, comme noté pour les releases précédentes, qui utilisent le SDK 26.5.
+  - Mutation (`mtpToolbarVisible` toujours vrai) détectée par le test (« toolbar shows DSpark true, MTP true »), puis code restauré.
+- Révision 2026-11-22 — **DMG construit et vérifié** (`scripts/build-macos-dmg.sh`, SDK 26.5, 3 min 56 s) : `MLXL3-Desktop-v2.0.13-b66-Apple-Silicon.dmg` 250 548 087 o `17bf9819…cb3d`, `.sha256` 110 o `6421fa99…8a21`.
+  - `hdiutil verify` valide ; app montée : `codesign --deep --strict` OK, 2.0.13 / 66 ; `build-info` commit `57699d7e5e7a`, `tracked_changes: false`, moteur 2.0.22 (`mlxl3` `a05a102b…fe4f`) ; `runtime-info` 2.0.22 / `57699d7e5e7a`.
+  - `libmlx.dylib`, `libjaccl.dylib`, `mlx.metallib` identiques au bit à l'archive 2.0.22 publiée ; `mlxl3` construit depuis le même code moteur, 196 octets diffèrent (commit inscrit, signature).
+  - La construction du DMG reconstruit aussi `dist/MLXL3-Engine-v2.0.22-arm64.tar.gz` (69 058 693 o) : remplacé localement par l'archive publiée retéléchargée (contrôle `.sha256` OK). Aucune conséquence pour la release déjà publiée.
+  - Smoke du moteur intégré, lancé depuis le DMG monté (`smoke-release.py`, slim) : passé à 00:48–00:49, après la capture de l'autre session (créneau convenu par message). Log `desk13/smoke-dmg-slim.log`.
+- Révision 2026-11-22 — **publication et CI** :
+  - **Moteur** : `engine-v2.0.22` publié (https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.22), tag sur `ca96f92f5`, `latest=false`. Les 3 fichiers (`mlxl3`, archive, `.sha256`) ont été retéléchargés et contrôlés ; la release « latest » est restée v2.0.12 jusqu'à la Desktop. `main` avancé `c9ebc069b → 114f4a0da`. Discord `success`. Windows : exécuté, rien joint (tag moteur). CI `114f4a0da` : Apple, EXL3, Native Rust, Flash `success` ; Regression `cancelled` (job `desktop-and-protocol` interrompu par le push suivant sur `main`, refait vert sur `cf88c3b3e`).
+  - **Desktop** : `v2.0.13` publié (https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.13), tag sur `57699d7e5`, latest. DMG retéléchargé, `.sha256` OK. `main` avancé `114f4a0da → cf88c3b3e`. Discord `success`. Windows `success`, installeur joint (`MLXL3-Desktop-v2.0.13-Windows-x64-setup.exe`, 25 898 553 o, et son `.sha256`). CI `cf88c3b3e` : Apple, EXL3, Regression, Flash, Native Rust **tous `success`**.
+  - Non vérifié : le bouton DSpark n'a pas été utilisé à la main dans l'app installée, et le téléchargement complet de la révision slim par l'app n'a pas été refait.
+- Révision 2026-11-22 — **reprise de B préenregistrée** (« Oui, relance-la ») : même protocole et même critère ; binaire de test du moteur 2.0.22 publié (`2f1424b0…`), garde contre les processus de l'autre session.
+- Révision 2026-11-22 — **B (embeddings 8 bits) MESURÉ : critère « même KL » REMPLI** (01:34–01:41, secteur 100 %, binaire `2f1424b0…`, un seul modèle GPU à la fois, créneau entre deux étapes de l'autre session, sans mesure de vitesse ; logs `slim/q-b/`, analyse `slim/analyze_b.py` → `q-b/analysis.json`, runs `localref/runs/SLIM-B0.json`, `SLIM-B1-embed8.json`).
+  - **B0 (contrôle)** : R3 FULL avec le binaire 2.0.22 redonne `runs/R3.json` **au bit près** (12 lignes, 6 144 valeurs).
+  - **B1 contre B0**, Δ apparié et IC 95 % bootstrap :
+
+    | | Positions | B0 | B1 | Δ [IC 95 %] |
+    |---|---|---|---|---|
+    | **Prose** | 4 608 | 0,013738 | 0,013925 | **+0,00019 [−0,00023 ; +0,00063]** (+1,4 %) |
+    | en | 1 536 | | | −0,00012 [−0,00050 ; +0,00020] |
+    | fr | 1 536 | | | +0,00049 [−0,00023 ; +0,00126] |
+    | code | 1 536 | | | +0,00019 [−0,00077 ; +0,00114] |
+    | Chat | 1 536 | 0,0996 | 0,1014 | +0,0018 [−0,0154 ; +0,0187] |
+    | Chat écrit par le modèle | 411 | 0,0182 | 0,0201 | +0,0020 [−0,0081 ; +0,0137] |
+    | Tout | 6 144 | 0,03520 | 0,03579 | +0,0006 [−0,0038 ; +0,0050] |
+
+    Top-1 : prose 95,07 → 95,31 %, global 94,68 → 94,76 %.
+  - Critère fixé avant mesure (Δ prose ≤ +0,0007 et borne haute ≤ +0,0014) : **rempli**. Le coût des embeddings 8 bits n'est pas mesurable avec ce jeu ; aucune différence significative, quel que soit le domaine.
+  - Gain de taille attendu si on les stocke : 926 318 592 → 492 106 752 octets (**−434 Mo**). Le stockage demanderait un chemin moteur « lignes 8 bits puis déquantification » (équivalent exact de l'option mesurée), un moteur, une révision HF et un épinglage Desktop. **Non fait** : décision utilisateur requise (préenregistrement).
+
+### SIZE-2026-11-22-INK2M-EMBED8 — VALIDÉ (parité bit à bit avec l'option mesurée) et PUBLIÉ (moteur 2.0.23, HF `dde31cd0`, Desktop 2.0.14) (préenregistré avant tout code, export ou mesure ; demande utilisateur « Oui, fais-le » après la mesure B de SIZE-2026-11-21-INK2M-SLIM) : embeddings Inkling stockés en 8 bits (moteur 2.0.23, révision HF, Desktop 2.0.14)
+
+- Base : révision HF slim `a5763a01` (`models/Inkling-2-Mini-EXL3-R3-slim/`, poids 13 535 683 700 o) et moteur 2.0.22 (`main` `a3f5bd30b` + journal B `26e14317c`).
+- Qualité déjà mesurée (partie B, critère rempli) : embeddings 8 bits groupe 64, prose +0,00019 nat [−0,00023 ; +0,00063], global +0,0006 [−0,0038 ; +0,0050], contre la référence exacte locale. **Changement avec perte, accepté par l'utilisateur.**
+- Changement :
+  - Moteur : table d'embeddings stockée en affine MLX 8 bits, groupe 64, lignes paddées `[201024, 2304]` (`model.llm.embed.{weight,scales,biases}`). Lecture des lignes demandées (`take` sur les 3 tableaux) puis `mx::dequantize` en FP16, puis le chemin existant (FP32, `rms_norm`). `embed_tokens` et `run` passent par la même fonction. Une largeur demandée différente de la largeur stockée (`MLXL3_INKLING_EMBED_BITS`) est refusée ; table dense inchangée.
+  - Export par le moteur (`quantize_affine` de la table FP16, la même opération que l'option mesurée).
+  - Repack de la révision slim : seul le tenseur `model.llm.embed.weight` est remplacé, tout le reste est recopié octet pour octet.
+- Contrôles (correction avant tout), pour une égalité **bit à bit** avec l'option mesurée (slim + `MLXL3_INKLING_EMBED_BITS=8`) :
+  1. Test CPU/GPU : lecture des lignes stockées = lignes de la table déquantifiée (test existant) ; refus de largeur et de formes invalides.
+  2. Couverture du repack (pytest) : seul l'embedding change.
+  3. Empreinte `decode_profile` de slim2 égale à celle de slim + `EMBED_BITS=8` ; `dump_draft_case` identique par `cmp` (le brouillon embarque l'ancre via `embed_tokens`) ; `speculative_profile` identique hors temps ; `eval_against_reference` sur 2 lignes (tête 8) identique au bit à R3 + `HEAD_BITS=8` + `EMBED_BITS=8` ; refus de `EMBED_BITS=16` sur slim2.
+  4. Porte d'empreintes de 2.0.21/2.0.22 inchangée (6 valeurs, chemins denses).
+  5. Bridge du binaire extrait (glouton, T=1, `dspark: false`) et smoke sur slim2.
+- Publication (autorisée) :
+  - moteur 2.0.23 (`latest=false`) ;
+  - révision HF slim2, avec une fiche qui donne la mesure de KL locale de l'embedding 8 bits ;
+  - Desktop 2.0.14 épinglé sur la nouvelle révision, avec le moteur 2.0.23 intégré.
+- Taille attendue : 13 535 683 700 − 434 211 840 ≈ **13,10 Go** de poids.
+- Kani non tenté (préférence utilisateur).
+- Révision 2026-11-22 — **contrôles passés, publié**. Les étapes :
+  - **Code** (commit `8c792b139`, moteur 2.0.23) : `Embeddings {Dense, Affine}` ; `rows` = `take` des 3 tableaux puis `dequantize_affine`, utilisée par `embed_tokens` et `run` ; refus d'une autre largeur. Test `stored_embeddings_equal_the_rounded_table` passé ; mutation (refus de largeur désactivé) détectée par « other width accepted », puis restaurée. Inventaire MLX régénéré.
+  - **Export** : `export_slim_embeddings`, binaire `cc3cd6f1…`, 0,43 s, `embed.safetensors` 492 107 048 o.
+  - **Repack** : `slim/make_embed8.py`, pytest 5 passés + 8 de `make_slim`, une mutation (index) détectée. `models/Inkling-2-Mini-EXL3-R3-slim2/` : poids **13 101 471 236 o** (slim 13 535 683 700, R3 14 751 503 376) ; shard 1 2 787 052 300 o `b1ca6d03…`, 2 226 tenseurs recopiés octet pour octet ; shards 2–4 et `mtp.safetensors` identiques.
+  - **Porte GPU** (`slim/rel23/`, `analyze23.py` → `analysis.json`), tout est vrai :
+    - empreintes denses 6 / 6 inchangées ;
+    - slim sans option `ec84d901be285027` inchangée ;
+    - **slim2 = slim + `EMBED_BITS=8` = R3 + `EMBED_BITS=8` : `d582053e10aac428`** ;
+    - drafter identique par `cmp`, DSpark identique hors temps, KL 2 lignes identique au bit (R3 + EMBED8 contre slim2) ;
+    - refus `EMBED_BITS=16` ; 2.0.22 refuse slim2 ;
+    - smoke OK ; bridge glouton et `dspark: false` `passed`.
+  - **Bridge T=1 `failed` sur le 2ᵉ tour** (« empty follow-up answer », budget de 120 tokens épuisé par la réflexion échantillonnée). Audit (`rel23/audit-*`) :
+    - le même échec se produit sur **slim (embeddings BF16)** avec le même moteur ;
+    - SL + `EMBED_BITS=8` passe sur un autre tirage ;
+    - slim2 avec un budget de 600 tokens : réponse correcte (« … Wellington. ») ;
+    - le tirage change d'un lancement à l'autre.
+
+    Conclusion : défaut de budget du harnais, déjà latent pour 2.0.21 et 2.0.22, sans lien avec les embeddings 8 bits. Signalé tel quel dans les notes.
+  - **CPU** : fmt ; Clippy des 3 variantes ; tests MLX **673 / 0 / 345**, CPU **600 / 0 / 10**, direct-metal **619 / 0 / 144** ; inventaire 341 ; pytest **2 842 / 0 / 121**.
+  - **HF** : révision **`dde31cd0aea4ca0f61eaa5649559ef01e5baf25a`** (`hf/make_card_slim2.py`, `hf/upload-slim2.log`) ; 21 fichiers vérifiés (SHA-256 LFS, fiche/NOTICE/configs identiques octet pour octet).
+  - **Archive** `MLXL3-Engine-v2.0.23-arm64.tar.gz` : 69 058 312 o `6d3ad2f5…2075`, `.sha256` `a7cf8702…5190`, `mlxl3` `fc99c040…453f` ; 4 fichiers conformes, signatures, metallib, `runtime-info` 2.0.23 / `8c792b13921b`.
+
+### RELEASE-2026-11-22-ENGINE-2.0.23 — PUBLIÉ (`engine-v2.0.23`, latest=false ; CI verte) (demande utilisateur « Oui, fais-le »)
+
+- Source `8c792b139` (chargeur des embeddings stockés), notes `docs/releases/engine/release-engine-v2.0.23.md`. Contrôles : ceux de SIZE-2026-11-22-INK2M-EMBED8 ci-dessus.
+
+### RELEASE-2026-11-22-DESKTOP-2.0.14 — PUBLIÉ (`v2.0.14`, latest ; installeur Windows joint ; CI verte) (demande utilisateur « Oui, fais-le » : embeddings 8 bits avec moteur, HF et Desktop)
+
+- Source `b905ab641` (Inkling épinglé sur `dde31cd0`, 2.0.14 / 67), au-dessus de `main` `e052db54b` (moteur 2.0.23).
+- `scripts/check-desktop.sh` complet (SDK 26.5) : passé (E2E 438 s ; 78 cas de disposition, dont DSpark).
+- DMG `MLXL3-Desktop-v2.0.14-b67-Apple-Silicon.dmg` : 251 056 703 o `d56e87df…145e`, `.sha256` `e0024dde…a21c`.
+  - `hdiutil verify` valide ; `codesign --deep --strict` OK ; 2.0.14 / 67 ; `build-info` commit `b905ab641e75`, `tracked_changes: false`, moteur 2.0.23 (`20ea4998…`).
+  - Bibliothèques et metallib identiques à l'archive 2.0.23 ; `mlxl3` : 197 octets différents (commit inscrit, signature).
+  - Smoke du moteur intégré sur slim2 : passé (02:27, après le processus `p8/check` de l'autre session).
+- Révision 2026-11-22 — **publication et CI (moteur 2.0.23, Desktop 2.0.14)** :
+  - **Moteur** : `engine-v2.0.23` (https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.23), tag `8c792b139`, `latest=false`. Fichiers retéléchargés et contrôlés. `main` `a3f5bd30b → e052db54b`. Discord `success`. Windows exécuté, rien joint. CI `e052db54b` : Apple, EXL3, Flash, Native Rust `success` ; Regression `cancelled` (push suivant, vert sur `bc939c0a5`).
+  - **Desktop** : `v2.0.14` (https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.14), tag `b905ab641`, latest. DMG retéléchargé, `.sha256` OK. `main` `e052db54b → bc939c0a5`. Discord `success`. Windows `success`, installeur joint (`MLXL3-Desktop-v2.0.14-Windows-x64-setup.exe`, 25 902 260 o). CI `bc939c0a5` : Apple, EXL3, Flash, Native Rust, Regression **tous `success`**.
+  - Non vérifié : le téléchargement complet de la révision `dde31cd0` par l'app n'a pas été refait. Le coût des embeddings 8 bits est mesuré en KL sur 12 lignes, sans benchmark de tâches.
+
 
 ### FLASH-PREFILL-AR-FINAL-20261121 — dernier head du prompt MLX
 Avant prototype. Cible Flash Next EXL3 2,05 bpw M5 24 Gio, tag moteur installé 8a67ba993c59. HEADONLY du 27/10 conserve un head par bloc de huit. Tester une propriété nouvelle en AR ordinaire, élider le head du dernier token des blocs qui ont un successeur et dont les logits ne sont pas utilisés, en gardant le découpage, le drain des états et les vérifications d’annulation. Respecter le contrôle historique HEADS=0. Référence binaire même source sans optimisation. Comparer états/logits finis, puis bridge avec deux prompts, chauffe et ABBA, cache de prompt désactivé, génération courte, temps de préfill et de premier token. Essai en cours dans build/flash-prefill-ar.
