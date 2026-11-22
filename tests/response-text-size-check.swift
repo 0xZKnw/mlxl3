@@ -109,7 +109,10 @@ private struct LiveTextSizeFixture: View {
         // Verify the production root injects the setting into existing messages.
         studio.engineState = .idle
         studio.setResponseTextSize(15)
-        let liveHost = NSHostingView(rootView: StudioView().environmentObject(studio).studioAppearance(.dark))
+        // An inactive scene keeps the aurora on its still print: the live SpriteKit aurora
+        // behind the messages would make the pixel comparison below depend on its frame.
+        let liveHost = NSHostingView(rootView: StudioView().environmentObject(studio).studioAppearance(.dark)
+            .environment(\.scenePhase, .inactive))
         let liveWindow = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1100, height: 800),
             styleMask: .borderless, backing: .buffered, defer: false)
         liveWindow.isReleasedWhenClosed = false; liveWindow.contentView = liveHost
