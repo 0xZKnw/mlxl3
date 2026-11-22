@@ -140,6 +140,17 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     check(not responses[0]['result']['isError'] and len(big.encode()) < 33100 and 'truncated' in big, 'Large result bounded')
     _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "write('wide.txt', 'é'.repeat(130000)); return read('wide.txt').length"}})], permissions=js_policy)
     check(responses[0]['result']['content'][0]['text'] == 'Result:\n130000', f"Widest write fits the protocol: {responses[0]['result']['content'][0]['text'][:200]!r}")
+    # search(): a grep error is a tool error (it used to be an empty list), CRLF files match.
+    (root / 'win.txt').write_bytes(b'alpha one\r\nbeta two\r\ngamma one\r\n')
+    _, responses = exchange([
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return search("fetchUser(")'}}, 1),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return search("one", "missing-dir")'}}, 2),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return search("one", "win.txt").map((m) => m.line + ":" + m.text).join("|")'}}, 3),
+    ], permissions=readonly)
+    invalid, missing, crlf = (row['result'] for row in responses)
+    check(invalid['isError'] and 'parentheses not balanced' in invalid['content'][0]['text'], f"Invalid regex is an error through MCP: {invalid['content'][0]['text']!r}")
+    check(missing['isError'] and 'No such file' in missing['content'][0]['text'], f"Missing search path is an error through MCP: {missing['content'][0]['text']!r}")
+    check(not crlf['isError'] and crlf['content'][0]['text'] == 'Result:\n1:alpha one|3:gamma one', f"CRLF matches through MCP: {crlf['content'][0]['text']!r}")
 
     # The JavaScript supervisor and its command die with the MCP parent.
     metadata.write_text(json.dumps({'permissions': js_policy}))

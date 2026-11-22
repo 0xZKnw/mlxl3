@@ -46,7 +46,7 @@ enum AgentJavaScript {
       "list": "list(): string[]  // every file path in the project, relative, sorted",
       "read": "read(path: string): string  // whole UTF-8 file, at most 256 KiB",
       "search":
-        "search(regex: string, path?: string): {path: string, line: number, text: string}[]  // grep -E, at most 200 matches",
+        "search(regex: string, path?: string): {path: string, line: number, text: string}[]  // grep -E, throws on an invalid regex or path; at most 200 matches, 50 per file (a warning says when capped)",
       "write":
         "write(path: string, text: string): void  // create or replace, parent folders created, at most 256 KiB",
       "edit":
@@ -402,24 +402,15 @@ enum AgentJavaScript {
       guard path == "." || AgentSandbox.validPath(path) else {
         return failure("use a relative path inside the project")
       }
+      // No pipe: the status line carries grep's own exit status (a pipe reports the last
+      // command's), and the output limit stops a large search early.
       guard
         let result = sandboxed(
-          "/usr/bin/grep -rnIE --exclude-dir=.git -m 50 -e \(quote(pattern)) -- \(quote(path)) | /usr/bin/head -n 200",
-          limit: 64 * 1024)
+          "/usr/bin/grep -rnIE --exclude-dir=.git -m \(searchPerFile) -e \(quote(pattern)) -- \(quote(path)); printf '\\n\\036\(searchStatus)%d\\n' \"$?\"",
+          limit: searchBytes)
       else { return failure("the sandbox is unavailable") }
-      if result.status != 0 && result.output.contains("grep:") {
-        return failure(result.output.trimmingCharacters(in: .whitespacesAndNewlines))
-      }
-      var matches: [[String: Any]] = []
-      for line in result.output.split(separator: "\n", omittingEmptySubsequences: true) {
-        guard let match = line.firstMatch(of: /^(.+?):(\d+):(.*)$/) else { continue }
-        var file = String(match.1)
-        if file.hasPrefix("./") { file.removeFirst(2) }
-        matches.append([
-          "path": file, "line": Int(match.2) ?? 0, "text": String(match.3.prefix(300)),
-        ])
-      }
-      return ["ok": true, "value": matches]
+      return searchReply(
+        result.raw ?? Data(result.output.utf8), interrupted: result.interrupted, path: path)
     case "write":
       guard let path = text(0), AgentSandbox.validPath(path), let content = text(1) else {
         return failure("use a relative path inside the project and text content")
@@ -483,6 +474,115 @@ enum AgentJavaScript {
     default:
       return failure("unknown function \(op)")
     }
+  }
+
+  // MARK: - search
+
+  static let searchMatches = 200
+  static let searchPerFile = 50
+  static let searchBytes = 64 * 1024
+  /// Last line of a search that ran to the end, after a record separator (0x1E).
+  static let searchStatus = "mlxl3-grep-status="
+
+  /// One `path:line:text` line of `grep -n`; the first `:<digits>:` ends the path, as before.
+  /// Bytes, not `Character`s: Swift reads "\r\n" as one character, which merged the lines of
+  /// a CRLF file so that none of its matches was returned.
+  static func searchLine(_ bytes: Data) -> (path: String, line: Int, text: String)? {
+    var line = [UInt8](bytes)
+    if line.last == 13 { line.removeLast() }
+    var index = 1
+    while index < line.count {
+      if line[index] == 58 {
+        var end = index + 1
+        while end < line.count, (48...57).contains(line[end]) { end += 1 }
+        if end > index + 1, end < line.count, line[end] == 58,
+          let number = Int(String(decoding: line[(index + 1)..<end], as: UTF8.self))
+        {
+          return (
+            String(decoding: line[..<index], as: UTF8.self), number,
+            String(decoding: line[(end + 1)...], as: UTF8.self)
+          )
+        }
+      }
+      index += 1
+    }
+    return nil
+  }
+
+  /// Host reply for one search. `output` is grep's stdout and stderr (they share the pipe),
+  /// then the status line, missing when the sandbox stopped the command (time or size).
+  /// An invalid pattern or path is an error, never an empty list; capped or incomplete
+  /// results keep their matches and add a `note` the program logs as a warning.
+  static func searchReply(_ output: Data, interrupted: Bool, path: String) -> [String: Any] {
+    var lines = output.split(separator: 10, omittingEmptySubsequences: true)
+    let marker = Data([0x1E] + Array(searchStatus.utf8))
+    var status: Int?
+    if !interrupted, let last = lines.last, last.starts(with: marker) {
+      status = Int(String(decoding: last.dropFirst(marker.count), as: UTF8.self))
+      lines.removeLast()
+    }
+    // Match lines start with the searched path ("./" for the project root).
+    let matchPrefix = path == "." ? "./" : path
+    var matches: [[String: Any]] = []
+    var errors: [String] = []
+    var perFile: [String: Int] = [:]
+    var found = 0
+    for bytes in lines {
+      let text = String(decoding: bytes, as: UTF8.self)
+      if text.hasPrefix("grep: ") && !text.hasPrefix(matchPrefix) {
+        errors.append(String(text.dropFirst(6)).trimmingCharacters(in: .whitespacesAndNewlines))
+        continue
+      }
+      guard var match = searchLine(Data(bytes)) else { continue }
+      if match.path.hasPrefix("./") { match.path.removeFirst(2) }
+      found += 1
+      perFile[match.path, default: 0] += 1
+      if matches.count < searchMatches {
+        matches.append(["path": match.path, "line": match.line, "text": String(match.text.prefix(300))])
+      }
+    }
+    func failure(_ text: String) -> [String: Any] { ["ok": false, "error": text] }
+    let detail = errors.prefix(3).joined(separator: "; ")
+    if found == 0 {
+      if let status, status > 1 {
+        let pathProblem = errors.contains {
+          $0.contains("No such file") || $0.contains("Not a directory") || $0.contains("Permission denied")
+        }
+        let reason = detail.isEmpty ? "grep ended with status \(status)" : detail
+        return failure(
+          pathProblem
+            ? reason
+            : reason
+              + "; the pattern is an extended regex (grep -E): put \\ before ( ) [ ] { } . * + ? | ^ $ to match them literally"
+        )
+      }
+      if interrupted {
+        return failure(
+          output.count >= searchBytes
+            ? "the search output exceeded 64 KiB before a match line; narrow the path or the pattern"
+            : "the search did not finish in time; narrow the path or the pattern")
+      }
+      if status == nil { return failure("the search did not finish" + (detail.isEmpty ? "" : ": " + detail)) }
+    }
+    var notes: [String] = []
+    if found > searchMatches {
+      notes.append("stopped at \(searchMatches) matches; narrow the pattern or the path")
+    } else if interrupted || status == nil {
+      notes.append(
+        output.count >= searchBytes
+          ? "output limit reached, results are incomplete; narrow the pattern or the path"
+          : "time limit reached, results are incomplete; narrow the pattern or the path")
+    }
+    let capped = perFile.filter { $0.value >= searchPerFile }.keys.sorted()
+    if !capped.isEmpty {
+      notes.append(
+        "at most \(searchPerFile) matches per file are listed ("
+          + capped.prefix(3).joined(separator: ", ") + (capped.count > 3 ? ", ..." : "") + ")")
+    }
+    if let status, status > 1 { notes.append("some paths could not be searched: " + detail) }
+    var reply: [String: Any] = ["ok": true, "value": matches]
+    if !notes.isEmpty { reply["note"] = notes.joined(separator: "; ") }
+    return reply
   }
 
   // MARK: - Supervisor process
@@ -598,6 +698,7 @@ enum AgentJavaScript {
         warn: logger("warning: "), error: logger("error: ") });
       globalThis.print = console.log;
 
+      const warn = logger("warning: ");
       const hostError = (Type, message) => { const error = new Type(message); error.host = true; return error; };
       const label = (name, value) => name + "(" + (value === undefined ? "" :
         JSON.stringify(value.length > 60 ? value.slice(0, 57) + "..." : value)) + ")";
@@ -609,6 +710,8 @@ enum AgentJavaScript {
         const reply = JSON.parse(line);
         calls.push((reply.ok ? "" : "FAILED ") + name);
         if (!reply.ok) throw hostError(Error, name + " failed: " + reply.error);
+        // Capped or incomplete results stay usable; the warning says so.
+        if (typeof reply.note === "string") warn(name + ": " + reply.note);
         return reply.value;
       };
       const text = (value, what, fn) => {

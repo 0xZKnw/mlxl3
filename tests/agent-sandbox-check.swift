@@ -97,6 +97,112 @@ struct AgentSandboxCheck {
       binary.isError && binary.text.contains("not UTF-8") && binaryBytes == Data([0x61, 0xff, 0x62]),
       "non-UTF-8 file must not be rewritten: \(binary.text)")
 
+    // search(): grep errors are errors (a pipe to head used to hide them as []), CRLF files
+    // match (Swift splits "\r\n" as one character), capped results keep a warning.
+    let invalid = try js(#"return search("add(")"#)
+    check(
+      invalid.isError && invalid.text.contains(#"search("add(") failed: parentheses not balanced"#)
+        && invalid.text.contains("extended regex"), "invalid regex is an error: \(invalid.text)")
+    let brackets = try js(#"return search("[")"#)
+    check(brackets.isError && brackets.text.contains("brackets"), "unbalanced brackets: \(brackets.text)")
+    let nowhere = try js(#"return search("add", "nowhere")"#)
+    check(
+      nowhere.isError && nowhere.text.contains("nowhere: No such file or directory")
+        && !nowhere.text.contains("extended regex"), "missing path is an error: \(nowhere.text)")
+    check(try js(#"return search("zzz-absent")"#).text == "Result:\n[]", "no match is an empty list")
+    check(
+      try js(#"return search("add\\(", "src").map((m) => m.path + ":" + m.line)"#).text
+        == "Result:\n[\n  \"src/app.py:1\"\n]", "escaped parenthesis")
+    let crlf = try js(#"return search("o", "crlf.txt").map((m) => [m.line, m.text])"#)
+    check(
+      crlf.text == "Result:\n[\n  [\n    1,\n    \"one\"\n  ],\n  [\n    2,\n    \"two\"\n  ]\n]",
+      "CRLF matches without carriage returns: \(crlf.text)")
+    try FileManager.default.createDirectory(
+      at: root.appendingPathComponent("many"), withIntermediateDirectories: true)
+    for file in 0..<5 {
+      let lines = (0..<60).map { "hit \(file) \($0)\n" }.joined()
+      try Data(lines.utf8).write(to: root.appendingPathComponent("many/f\(file).txt"))
+    }
+    let capped = try js(#"const r = search("^hit", "many"); return [r.length, new Set(r.map((m) => m.path)).size]"#)
+    check(
+      !capped.isError && capped.text.hasSuffix("Result:\n[\n  200,\n  4\n]")
+        && capped.text.contains(#"warning: search("^hit"): stopped at 200 matches"#)
+        && capped.text.contains("at most 50 matches per file are listed (many/f0.txt, many/f1.txt, many/f2.txt, ...)"),
+      "capped search warns: \(capped.text)")
+    let perFile = try js(#"return search("^hit 3 ", "many/f3.txt").length"#)
+    check(
+      perFile.text == "warning: search(\"^hit 3 \"): at most 50 matches per file are listed (many/f3.txt)\nResult:\n50",
+      "per-file cap warns: \(perFile.text)")
+    try FileManager.default.removeItem(at: root.appendingPathComponent("many"))
+
+    // The reply itself, on outputs the sandbox can produce but a test project cannot force.
+    func reply(_ text: String, interrupted: Bool = false, path: String = ".") -> [String: Any] {
+      AgentJavaScript.searchReply(Data(text.utf8), interrupted: interrupted, path: path)
+    }
+    func paths(_ reply: [String: Any]) -> [String] {
+      ((reply["value"] as? [[String: Any]]) ?? []).map { "\($0["path"]!):\($0["line"]!):\($0["text"]!)" }
+    }
+    let done = "\n\u{1E}\(AgentJavaScript.searchStatus)"
+    let partly = reply("./a.txt:1:x\ngrep: ./b.txt: Permission denied\(done)2\n")
+    check(
+      partly["ok"] as? Bool == true && paths(partly) == ["a.txt:1:x"]
+        && (partly["note"] as? String) == "some paths could not be searched: ./b.txt: Permission denied",
+      "errors beside matches keep the matches: \(partly)")
+    let unfinished = reply("./a.txt:1:x\n", interrupted: true)
+    check(
+      paths(unfinished) == ["a.txt:1:x"] && (unfinished["note"] as? String)?.hasPrefix("time limit reached") == true,
+      "interrupted search is marked incomplete: \(unfinished)")
+    let overflow = AgentJavaScript.searchReply(
+      Data(("./a.txt:1:" + String(repeating: "y", count: AgentJavaScript.searchBytes)).utf8).prefix(AgentJavaScript.searchBytes),
+      interrupted: true, path: ".")
+    check(
+      paths(overflow).count == 1 && (overflow["note"] as? String)?.hasPrefix("output limit reached") == true,
+      "output limit is marked incomplete: \(overflow["note"] ?? "none")")
+    check(
+      (reply("", interrupted: true)["error"] as? String)?.contains("did not finish in time") == true,
+      "interrupted search without a match is an error")
+    check(
+      (reply("./a.txt:1:x\n")["note"] as? String)?.hasPrefix("time limit reached") == true
+        && reply("")["ok"] as? Bool == false,
+      "a missing status line is never a complete result")
+    check(
+      paths(reply("grep: x:3:y\(done)0\n", path: "grep: x")) == ["grep: x:3:y"],
+      "a searched path named like an error stays a match")
+    check(
+      paths(reply("./a.txt:1:\u{1E}\(AgentJavaScript.searchStatus)0\n./b.txt:2:z\(done)0\n")) == [
+        "a.txt:1:\u{1E}\(AgentJavaScript.searchStatus)0", "b.txt:2:z",
+      ], "only the last line is the status")
+    check(reply("\(done)1\n")["ok"] as? Bool == true && paths(reply("\(done)1\n")).isEmpty, "status 1 = no match")
+    check(
+      (reply("grep: parentheses not balanced\(done)2\n")["error"] as? String)?.hasPrefix(
+        "parentheses not balanced; the pattern is an extended regex") == true, "status 2 without a match")
+    // searchLine against the previous parser (Swift Regex) on deterministic random lines.
+    var seed: UInt64 = 0x9E37_79B9_7F4A_7C15
+    let alphabet = Array("a::1:23x é/".unicodeScalars)
+    var mismatch: String?
+    var parsedLines = 0
+    for _ in 0..<20_000 where mismatch == nil {
+      var line = ""
+      seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+      for _ in 0..<Int(seed >> 60) {
+        seed = seed &* 6_364_136_223_846_793_005 &+ 1_442_695_040_888_963_407
+        line.unicodeScalars.append(alphabet[Int(seed >> 33) % alphabet.count])
+      }
+      let parsed = AgentJavaScript.searchLine(Data(line.utf8))
+      let oracle = line.firstMatch(of: /^(.+?):(\d+):(.*)$/).map {
+        (String($0.1), Int($0.2) ?? -1, String($0.3))
+      }
+      if parsed != nil { parsedLines += 1 }
+      if parsed?.path != oracle?.0 || parsed?.line != oracle?.1 || parsed?.text != oracle?.2 {
+        mismatch = "searchLine(\(line.debugDescription)) = \(String(describing: parsed)), regex \(String(describing: oracle))"
+      }
+    }
+    // Both outcomes must be exercised, or the comparison proves nothing.
+    check(mismatch == nil && parsedLines > 1_000 && parsedLines < 19_000, mismatch ?? "searchLine coverage \(parsedLines)")
+    check(
+      AgentJavaScript.searchLine(Data("x.txt:12:a\r".utf8)).map { "\($0.path) \($0.line) \($0.text)" } == "x.txt 12 a",
+      "carriage return removed")
+
     // Errors the model can act on.
     let syntax = try js("let x = ;")
     check(syntax.isError && syntax.text.hasPrefix("Error: SyntaxError"), "syntax error: \(syntax.text)")
