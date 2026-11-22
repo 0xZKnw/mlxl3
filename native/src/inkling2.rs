@@ -646,7 +646,230 @@ fn l2_clip(x: &Array, scale: Option<&Array>, threshold: f32) -> Result<Array> {
 /// `sources`: N arrays `[T, D]` (FP32, already RMS-normalized, also the values); `queries`: `[Q, D]`.
 /// Returns `[T, Q, D]` FP32.
 fn depth_attention(sources: &[&Array], queries: &Array) -> Result<Array> {
+    if let Some(out) = depth_attend_one(sources, queries)? {
+        return Ok(out);
+    }
     depth_attend(&depth_stack(sources)?, queries)
+}
+
+/// Fusion `step` of SPEED-2026-11-22-INK2M-P17 (same bits as the op sequence it replaces): on with the lean
+/// path; `MLXL3_INKLING_P17_OFF=1` turns all of them off, `MLXL3_INKLING_P17_OFF=f1,f2` the listed ones.
+fn p17(step: &str) -> bool {
+    #[cfg(test)]
+    if let Some(off) = P17_TEST_OFF.with(|c| c.borrow().clone()) {
+        return lean() && !off.split(',').any(|s| s == step || s == "all");
+    }
+    static OFF: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    let off = OFF.get_or_init(|| std::env::var("MLXL3_INKLING_P17_OFF").ok());
+    lean()
+        && match off.as_deref() {
+            None => true,
+            Some("1") | Some("all") => false,
+            Some(list) => !list.split(',').any(|s| s == step),
+        }
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Mutation for the component test: the score reduction tree runs in the opposite order.
+    static DEPTH_ONE_MUTATE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// Mutation for the gate component test: the tail's reduction tree runs in the opposite order.
+    static GATE_TAIL_MUTATE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// Paired A/B timing (`fusion_ab_profile`): P17 steps turned off on this thread (`Some("")` = none off).
+    static P17_TEST_OFF: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// SPEED-INK2M-P17 F1: one token, one query (`[1, D]` FP32) over `N` sources (`[1, D]` FP32) in one kernel.
+/// It repeats MLX 0.32.2's kernels for `depth_attend` at these shapes, thread layout and operation order
+/// included: scores `gemv_float32_bm1_bn8_sm1_sn32_tm*_tn4`, the scale `multiply`, `block_softmax_float32`,
+/// output `gemv_t_float32_bm1_bn16_sm8_sn4_tm4_tn4`. Threadgroups of 8 simdgroups, one per 256 output columns.
+const DEPTH_ONE_SOURCE: &str = r#"
+    const int lane = int(thread_index_in_simdgroup);
+    const int sg = int(simdgroup_index_in_threadgroup);
+    const int group = int(threadgroup_position_in_grid.x);
+    const device float* src[NSRC] = { SRCLIST };
+    threadgroup float w[NSRC];
+    // scores: one simdgroup per source row; each lane keeps the partial sums of the 8 simdgroups of
+    // gemv (bn 8, sn 32, tn 4) in the same order, then the same trees and the same final sum
+    for (int r = sg; r < NSRC; r += 8) {
+        float part[8];
+        for (int g = 0; g < 8; ++g) {
+            float result = 0.0f;
+            int bn = (32 * g + lane) * 4;
+            for (int i = 0; i < DIMS / 1024; ++i) {
+                float v[4];
+                float m[4];
+                for (int t = 0; t < 4; ++t) { v[t] = q[bn + t]; }
+                for (int t = 0; t < 4; ++t) { m[t] = src[r][bn + t]; }
+                for (int t = 0; t < 4; ++t) { result += m[t] * v[t]; }
+                bn += 1024;
+            }
+            if (DIMS % 1024 > 0) {
+                float v[4];
+                float m[4];
+                if (bn + 4 <= DIMS) {
+                    for (int t = 0; t < 4; ++t) { v[t] = q[bn + t]; }
+                } else {
+                    for (int t = 0; t < 4; ++t) { v[t] = bn + t < DIMS ? q[bn + t] : 0.0f; }
+                }
+                if (bn + 4 <= DIMS) {
+                    for (int t = 0; t < 4; ++t) { m[t] = src[r][bn + t]; }
+                } else {
+                    for (int t = 0; t < 4; ++t) { m[t] = bn + t < DIMS ? src[r][bn + t] : 0.0f; }
+                }
+                for (int t = 0; t < 4; ++t) { result += m[t] * v[t]; }
+            }
+            SHUFFLE_TREE
+            part[g] = result;
+        }
+        if (lane == 0) {
+            float acc = part[0];
+            for (int g = 1; g < 8; ++g) { acc += part[g]; }
+            w[r] = acc * as_type<float>(SCALEBITSu);
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    // softmax: block_softmax_float32, one simdgroup, 4 values per lane
+    if (sg == 0) {
+        const int base = lane * 4;
+        float ld[4];
+        if (base + 4 <= NSRC) {
+            for (int i = 0; i < 4; ++i) { ld[i] = w[base + i]; }
+        } else {
+            for (int i = 0; i < 4; ++i) { ld[i] = (base + i) < NSRC ? w[base + i] : -INFINITY; }
+        }
+        float maxval = -FLT_MAX;
+        for (int i = 0; i < 4; ++i) { maxval = (maxval < ld[i]) ? ld[i] : maxval; }
+        maxval = simd_max(maxval);
+        maxval = simd_max(lane == 0 ? maxval : -INFINITY);
+        float normalizer = 0.0f;
+        for (int i = 0; i < 4; ++i) {
+            float exp_x = metal::fast::exp(ld[i] - maxval);
+            ld[i] = exp_x;
+            normalizer += exp_x;
+        }
+        normalizer = simd_sum(normalizer);
+        normalizer = simd_sum(lane == 0 ? normalizer : 0.0f);
+        normalizer = 1 / normalizer;
+        if (base + 4 <= NSRC) {
+            for (int i = 0; i < 4; ++i) { w[base + i] = ld[i] * normalizer; }
+        } else {
+            for (int i = 0; i < 4; ++i) {
+                if ((base + i) < NSRC) { w[base + i] = ld[i] * normalizer; }
+            }
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    // output: gemv_t (bn 16, sm 8, sn 4, tm 4, tn 4), 256 columns per threadgroup in two passes
+    const int thr_m = lane / 4;
+    const int thr_n = lane % 4;
+    const int bm = thr_m * 4;
+    for (int pass = 0; pass < 2; ++pass) {
+        const int col = group * 256 + pass * 128 + (4 * sg + thr_n) * 4;
+        float res[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        if (col < DIMS) {
+            for (int tm = 0; tm < 4 && bm + tm < NSRC; ++tm) {
+                float vc = w[bm + tm];
+                float inter[4];
+                for (int tn = 0; tn < 4; ++tn) { inter[tn] = src[bm + tm][col + tn]; }
+                for (int tn = 0; tn < 4; ++tn) { res[tn] += vc * inter[tn]; }
+            }
+        }
+        for (int tn = 0; tn < 4; ++tn) {
+            for (ushort sm = 4; sm >= 1; sm >>= 1) { res[tn] += simd_shuffle_down(res[tn], ushort(4 * sm)); }
+        }
+        if (thr_m == 0 && col < DIMS) {
+            for (int tn = 0; tn < 4; ++tn) { out[col + tn] = res[tn]; }
+        }
+    }
+"#;
+
+/// `depth_attend` of one token and one query in one kernel, or `None` outside that domain (several rows or
+/// queries, 32 sources or more, D below 16 per source or 64, another dtype, the timing ablation).
+fn depth_attend_one(sources: &[&Array], queries: &Array) -> Result<Option<Array>> {
+    if !p17("f1") || ablated("depth") {
+        return Ok(None);
+    }
+    let count = sources.len();
+    let &[1, dims] = queries.shape() else {
+        return Ok(None);
+    };
+    // MLX picks the bn 8 score gemv only when D > 64 and D >= 16 * sources
+    if count == 0
+        || count >= 32
+        || dims <= 64
+        || dims < 16 * count as i32
+        || dims % 4 != 0
+        || queries.dtype() != Dtype::Float32
+        || sources
+            .iter()
+            .any(|s| s.shape() != [1, dims] || s.dtype() != Dtype::Float32)
+    {
+        return Ok(None);
+    }
+    #[cfg(test)]
+    let mutate = DEPTH_ONE_MUTATE.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    let mutate = false;
+    let scale = (dims as f32).powf(-0.5);
+    let names: Vec<String> = (0..count)
+        .map(|i| format!("s{i}"))
+        .chain(["q".to_string()])
+        .collect();
+    let key = [
+        count as i64,
+        i64::from(dims),
+        i64::from(mutate),
+        i64::from(scale.to_bits()),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ];
+    let kernel = crate::array::prepared_kernel("inkling_depth_one", key, || {
+        let tree = if mutate {
+            "for (ushort s = 1; s <= 16; s <<= 1) { result += simd_shuffle_down(result, s); }"
+        } else {
+            "for (ushort s = 16; s >= 1; s >>= 1) { result += simd_shuffle_down(result, s); }"
+        };
+        let source = DEPTH_ONE_SOURCE
+            .replace("NSRC", &count.to_string())
+            .replace("DIMS", &dims.to_string())
+            .replace("SRCLIST", &names[..count].join(", "))
+            .replace("SCALEBITS", &format!("0x{:08x}", scale.to_bits()))
+            .replace("SHUFFLE_TREE", tree);
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        crate::array::PreparedKernel::new(
+            &format!(
+                "inkling_depth_one_{count}_{dims}{}",
+                if mutate { "_m" } else { "" }
+            ),
+            &refs,
+            &["out"],
+            "",
+            &source,
+        )
+    })?;
+    let mut inputs: Vec<&Array> = sources.to_vec();
+    inputs.push(queries);
+    // one threadgroup per 256 output columns, as `gemv_t` (each recomputes the scores and the softmax)
+    let groups = (dims + 255) / 256;
+    let mut outputs = kernel.run(
+        &inputs,
+        &[&[1, 1, dims]],
+        &[Dtype::Float32],
+        [256 * groups, 1, 1],
+        [256, 1, 1],
+    )?;
+    Ok(Some(outputs.pop().context("depth attention output")?))
 }
 
 /// `[T, N, D]` stack of the depth sources.
@@ -1427,6 +1650,7 @@ impl Attention {
                 .transpose(&[1, 0, 2])?
                 .reshape(&[self.heads, time * self.extent])?
         };
+        let sink_raw = self.sink.forward(hq)?;
         let mut bias = if ablated("bias") {
             Array::zeros_dtype(&[self.heads, time, plan.keys], Dtype::Float32)?
         } else {
@@ -1442,7 +1666,7 @@ impl Attention {
         if !(lean && plan.all_visible) {
             bias = bias.add(&plan.visible)?;
         }
-        let sinks = self.sink.forward(hq)?.astype(Dtype::Float32)?;
+        let sinks = sink_raw.astype(Dtype::Float32)?;
         let sinks = if one {
             sinks.reshape(&[self.heads, 1, 1])?
         } else {
@@ -1451,8 +1675,27 @@ impl Attention {
         let mask = Array::concatenate(&[&sinks, &bias], 2)?
             .reshape(&[1, self.heads, time, plan.keys + 1])?
             .astype(Dtype::Float16)?;
-        let attended =
-            Array::sdpa_mask(&q, &keys, &values, (self.head_dim as f32).powf(-0.5), &mask)?;
+        self.finish(
+            hq, &q, &keys, &values, &mask, time, one, state, k_state, v_state,
+        )
+    }
+
+    /// Masked attention, output gate and output projection (shared by the plain and F4 mask paths).
+    #[allow(clippy::too_many_arguments)]
+    fn finish(
+        &self,
+        hq: &Array,
+        q: &Array,
+        keys: &Array,
+        values: &Array,
+        mask: &Array,
+        time: i32,
+        one: bool,
+        state: &mut VisitState,
+        k_state: Array,
+        v_state: Array,
+    ) -> Result<Array> {
+        let attended = Array::sdpa_mask(q, keys, values, (self.head_dim as f32).powf(-0.5), mask)?;
         let attended = if one {
             attended.reshape(&[1, self.heads * self.head_dim])?
         } else {
@@ -1461,11 +1704,21 @@ impl Attention {
                 .transpose(&[1, 0, 2])?
                 .reshape(&[time, self.heads * self.head_dim])?
         };
-        let gate = self.gate.forward(hq)?.astype(Dtype::Float32)?.sigmoid()?;
-        let gated = attended
-            .astype(Dtype::Float32)?
-            .mul(&gate)?
-            .astype(Dtype::Float16)?;
+        let gate_raw = self.gate.forward(hq)?;
+        // SPEED-INK2M-P17 F5: one row: casts, sigmoid and product in one kernel
+        let gated = if one
+            && p17("f5")
+            && attended.dtype() == Dtype::Float16
+            && gate_raw.dtype() == Dtype::Float16
+        {
+            attention_gate_one(&attended, &gate_raw)?
+        } else {
+            let gate = gate_raw.astype(Dtype::Float32)?.sigmoid()?;
+            attended
+                .astype(Dtype::Float32)?
+                .mul(&gate)?
+                .astype(Dtype::Float16)?
+        };
         state.pending_conv[0] = Some(k_state);
         state.pending_conv[1] = Some(v_state);
         capture_dense_input(self.layer, 3, &gated)?;
@@ -1608,6 +1861,10 @@ struct MessageGate {
     /// `[rank, hidden]` FP32 (transposed for matmul).
     forget_t: Array,
     gain_t: Array,
+    /// SPEED-INK2M-P17 F2: the checkpoint's `[hidden, rank]` BF16 tensors (exact in FP32), read by the fused
+    /// gate tail; `None` for another dtype.
+    forget_bf16: Option<Array>,
+    gain_bf16: Option<Array>,
     eps: f32,
 }
 
@@ -1625,6 +1882,14 @@ impl MessageGate {
             w.eval()?;
             Ok(w)
         };
+        let bf16 = |name: &str| -> Result<Option<Array>> {
+            let w = checkpoint_array(checkpoint, &format!("{prefix}.{name}"))?;
+            if w.dtype() != Dtype::BFloat16 || w.shape() != [hidden, rank] {
+                return Ok(None);
+            }
+            w.eval()?;
+            Ok(Some(w))
+        };
         Ok(Self {
             down: Dense::load(
                 checkpoint,
@@ -1634,6 +1899,8 @@ impl MessageGate {
             )?,
             forget_t: t("forget_weight")?,
             gain_t: t("gain_weight")?,
+            forget_bf16: bf16("forget_weight")?,
+            gain_bf16: bf16("gain_weight")?,
             eps,
         })
     }
@@ -1652,10 +1919,11 @@ impl MessageGate {
         if ablated("gates") {
             return hidden.try_clone();
         }
-        let states = Array::concatenate(
-            &[hidden_norm, &message.rms_norm_without_weight(self.eps)?],
-            1,
-        )?;
+        let message_norm = message.rms_norm_without_weight(self.eps)?;
+        if let Some(out) = self.forward_fused(hidden, hidden_norm, &message_norm, message)? {
+            return Ok(out);
+        }
+        let states = Array::concatenate(&[hidden_norm, &message_norm], 1)?;
         let states = self.down.forward(&states)?.astype(Dtype::Float32)?;
         if fused() {
             return Array::message_gate(&states, &self.forget_t, &self.gain_t, hidden, message);
@@ -1663,6 +1931,266 @@ impl MessageGate {
         let forget = states.matmul(&self.forget_t)?.tanh()?;
         let gain = states.matmul(&self.gain_t)?.tanh()?;
         hidden.sub(&forget.mul(hidden)?)?.add(&gain.mul(message)?)
+    }
+}
+
+/// SPEED-INK2M-P17 F5: `half(float(attended) * sigmoid(float(gate)))` in one kernel, with MLX's `Sigmoid`
+/// functor (`1 / (1 + exp(|x|))`, then `y` or `1 - y`) and one statement per op.
+const ATTENTION_GATE_SOURCE: &str = r#"
+    const uint i = thread_position_in_grid.x;
+    if (i < SIZE) {
+        const float x = static_cast<float>(gate[i]);
+        const float ax = metal::abs(x);
+        const float e = metal::precise::exp(ax);
+        const float d = 1 + e;
+        const float y = 1 / d;
+        const float s = (x < 0) ? y : 1 - y;
+        const float a = static_cast<float>(attended[i]);
+        const float p = a * s;
+        out[i] = static_cast<half>(p);
+    }
+"#;
+
+fn attention_gate_one(attended: &Array, gate: &Array) -> Result<Array> {
+    let size = attended.shape().iter().product::<i32>();
+    ensure!(
+        attended.shape().len() == 2 && attended.shape()[0] == 1 && gate.shape() == attended.shape(),
+        "attention gate inputs"
+    );
+    let key = [i64::from(size), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let kernel = crate::array::prepared_kernel("inkling_attention_gate", key, || {
+        crate::array::PreparedKernel::new(
+            &format!("inkling_attention_gate_{size}"),
+            &["attended", "gate"],
+            &["out"],
+            "",
+            &ATTENTION_GATE_SOURCE.replace("SIZE", &format!("{size}u")),
+        )
+    })?;
+    kernel
+        .run(
+            &[attended, gate],
+            &[attended.shape()],
+            &[Dtype::Float16],
+            [(size + 255) / 256 * 256, 1, 1],
+            [256, 1, 1],
+        )?
+        .pop()
+        .context("attention gate")
+}
+
+/// SPEED-INK2M-P17 F2a: `down(half([h_norm, m_norm]))` cast back to FP32 in one kernel, as MLX 0.32.2's
+/// `concatenate`, `astype`, `gemv_float16_bm1_bn8_sm1_sn32_tm4_tn4` and `astype` (16 threadgroups of 8
+/// simdgroups, 4 rows each; same thread layout and operation order).
+const GATE_DOWN_SOURCE: &str = r#"
+    const int lane = int(thread_index_in_simdgroup);
+    const int sg = int(simdgroup_index_in_threadgroup);
+    const int group = int(threadgroup_position_in_grid.x);
+    threadgroup float part[8 * 8];
+    const int out_row = group * 4;
+    float result[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    int bn = (32 * sg + lane) * 4;
+    for (int i = 0; i < (2 * HID) / 1024; ++i) {
+        float v[4];
+        for (int t = 0; t < 4; ++t) {
+            const int k = bn + t;
+            v[t] = static_cast<float>(static_cast<half>(k < HID ? hn[k] : mn[k - HID]));
+        }
+        for (int tm = 0; tm < 4; ++tm) {
+            half inter[4];
+            for (int t = 0; t < 4; ++t) { inter[t] = w[(out_row + tm) * (2 * HID) + bn + t]; }
+            for (int t = 0; t < 4; ++t) { result[tm] += inter[t] * v[t]; }
+        }
+        bn += 1024;
+    }
+    if ((2 * HID) % 1024 > 0) {
+        float v[4];
+        for (int t = 0; t < 4; ++t) {
+            const int k = bn + t;
+            v[t] = k < 2 * HID ? static_cast<float>(static_cast<half>(k < HID ? hn[k] : mn[k - HID])) : 0.0f;
+        }
+        for (int tm = 0; tm < 4; ++tm) {
+            half inter[4];
+            for (int t = 0; t < 4; ++t) {
+                inter[t] = bn + t < 2 * HID ? w[(out_row + tm) * (2 * HID) + bn + t] : half(0);
+            }
+            for (int t = 0; t < 4; ++t) { result[tm] += inter[t] * v[t]; }
+        }
+    }
+    for (int tm = 0; tm < 4; ++tm) {
+        for (ushort sn = 16; sn >= 1; sn >>= 1) { result[tm] += simd_shuffle_down(result[tm], sn); }
+    }
+    if (lane == 0) {
+        for (int tm = 0; tm < 4; ++tm) { part[sg * 8 + tm] = result[tm]; }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (sg == 0 && lane == 0) {
+        for (int g = 1; g < 8; ++g) {
+            for (int tm = 0; tm < 4; ++tm) { result[tm] += part[g * 8 + tm]; }
+        }
+        for (int tm = 0; tm < 4; ++tm) {
+            out[out_row + tm] = static_cast<float>(static_cast<half>(result[tm]));
+        }
+    }
+"#;
+
+/// SPEED-INK2M-P17 F2b: `(h - tanh(s @ F) * h) + tanh(s @ G) * m` in one kernel, as MLX 0.32.2's two
+/// `gemv_float32_bm1_bn1_sm8_sn4_tm4_tn4` (K = 64: one simdgroup per threadgroup, 32 rows) and the compiled
+/// tail (one statement per op); F and G are read in BF16, exact in FP32.
+const GATE_TAIL_SOURCE: &str = r#"
+    const int lane = int(thread_index_in_simdgroup);
+    const int group = int(threadgroup_position_in_grid.x);
+    const int thr_m = lane / 4;
+    const int thr_n = lane % 4;
+    const int out_row = group * 32 + thr_m * 4;
+    float rf[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float rg[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    int bn = thr_n * 4;
+    for (int i = 0; i < RANK / 16; ++i) {
+        float v[4];
+        for (int t = 0; t < 4; ++t) { v[t] = s[bn + t]; }
+        for (int tm = 0; tm < 4; ++tm) {
+            float inter[4];
+            for (int t = 0; t < 4; ++t) { inter[t] = static_cast<float>(f[(out_row + tm) * RANK + bn + t]); }
+            for (int t = 0; t < 4; ++t) { rf[tm] += inter[t] * v[t]; }
+        }
+        for (int tm = 0; tm < 4; ++tm) {
+            float inter[4];
+            for (int t = 0; t < 4; ++t) { inter[t] = static_cast<float>(g[(out_row + tm) * RANK + bn + t]); }
+            for (int t = 0; t < 4; ++t) { rg[tm] += inter[t] * v[t]; }
+        }
+        bn += 16;
+    }
+    for (int tm = 0; tm < 4; ++tm) {
+        for (ushort sn = 2; sn >= 1; sn >>= 1) { rf[tm] += simd_shuffle_down(rf[tm], sn); }
+    }
+    for (int tm = 0; tm < 4; ++tm) {
+        for (ushort sn = 2; sn >= 1; sn >>= 1) { rg[tm] += simd_shuffle_down(rg[tm], sn); }
+    }
+    if (thr_n == 0) {
+        for (int tm = 0; tm < 4; ++tm) {
+            const int row = out_row + tm;
+            const float hv = h[row];
+            const float tf = metal::precise::tanh(rf[tm]);
+            const float a = tf * hv;
+            const float b = hv - a;
+            const float tg = metal::precise::tanh(rg[tm]);
+            const float c = tg * m[row];
+            const float o = b + c;
+            out[row] = o;
+        }
+    }
+"#;
+
+impl MessageGate {
+    /// SPEED-INK2M-P17 F2: the gate of one token in two kernels (same bits), or `None` outside their domain
+    /// (several rows, other shapes or dtypes, BF16 tensors missing, the ablation, `MLXL3_INKLING_P17_OFF`).
+    fn forward_fused(
+        &self,
+        hidden: &Array,
+        hidden_norm: &Array,
+        message_norm: &Array,
+        message: &Array,
+    ) -> Result<Option<Array>> {
+        let (Some(forget), Some(gain)) = (&self.forget_bf16, &self.gain_bf16) else {
+            return Ok(None);
+        };
+        if !p17("f2") || !fused() {
+            return Ok(None);
+        }
+        let &[hid, rank] = forget.shape() else {
+            return Ok(None);
+        };
+        let f32_row = |a: &Array| a.shape() == [1, hid] && a.dtype() == Dtype::Float32;
+        let down = &self.down.weight_t;
+        // MLX picks the bn 8 down gemv only when 2 hid >= 16 * rank (and > 64)
+        if rank != 64
+            || hid % 32 != 0
+            || 2 * hid < 16 * rank
+            || !(f32_row(hidden)
+                && f32_row(hidden_norm)
+                && f32_row(message_norm)
+                && f32_row(message))
+            || down.shape() != [2 * hid, rank]
+            || down.dtype() != Dtype::Float16
+        {
+            return Ok(None);
+        }
+        #[cfg(test)]
+        let mutate = GATE_TAIL_MUTATE.with(std::cell::Cell::get);
+        #[cfg(not(test))]
+        let mutate = false;
+        let key = [
+            i64::from(hid),
+            i64::from(rank),
+            i64::from(mutate),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ];
+        let down_kernel = crate::array::prepared_kernel("inkling_gate_down", key, || {
+            crate::array::PreparedKernel::new(
+                &format!("inkling_gate_down_{hid}_{rank}"),
+                &["hn", "mn", "w"],
+                &["out"],
+                "",
+                &GATE_DOWN_SOURCE.replace("HID", &hid.to_string()),
+            )
+        })?;
+        // `weight_t` is the `[2 hid, rank]` transposed view of the `[rank, 2 hid]` rows the gemv reads
+        let rows = down.transpose(&[1, 0])?;
+        let states = down_kernel
+            .run(
+                &[hidden_norm, message_norm, &rows],
+                &[&[1, rank]],
+                &[Dtype::Float32],
+                [256 * (rank / 4), 1, 1],
+                [256, 1, 1],
+            )?
+            .pop()
+            .context("gate states")?;
+        let tail_kernel = crate::array::prepared_kernel("inkling_gate_tail", key, || {
+            let source = GATE_TAIL_SOURCE.replace("RANK", &rank.to_string());
+            let source = if mutate {
+                source.replace(
+                    "for (ushort sn = 2; sn >= 1; sn >>= 1) { rf[tm]",
+                    "for (ushort sn = 1; sn <= 2; sn <<= 1) { rf[tm]",
+                )
+            } else {
+                source
+            };
+            crate::array::PreparedKernel::new(
+                &format!(
+                    "inkling_gate_tail_{hid}_{rank}{}",
+                    if mutate { "_m" } else { "" }
+                ),
+                &["s", "f", "g", "h", "m"],
+                &["out"],
+                "",
+                &source,
+            )
+        })?;
+        let out = tail_kernel
+            .run(
+                &[&states, forget, gain, hidden, message],
+                &[&[1, hid]],
+                &[Dtype::Float32],
+                [32 * (hid / 32), 1, 1],
+                [32, 1, 1],
+            )?
+            .pop()
+            .context("gate output")?;
+        Ok(Some(out))
     }
 }
 
@@ -1681,10 +2209,123 @@ enum InputNorms {
 struct Moe {
     /// `[hidden, experts]` FP32.
     router_t: Array,
+    /// SPEED-INK2M-P17 F3: the checkpoint's `[experts, hidden]` BF16 router (exact in FP32); `None` for another
+    /// dtype.
+    router_bf16: Option<Array>,
     bias: Array,
     experts: Exl3SwitchGlu,
     top_k: usize,
     scale: f32,
+}
+
+/// SPEED-INK2M-P17 F3: router logits `float(x) @ router_t` in one kernel, as MLX 0.32.2's `astype` and
+/// `gemv_float32_bm1_bn8_sm1_sn32_tm4_tn4` (one threadgroup of 8 simdgroups per 4 experts; same thread
+/// layout and operation order); the router is read in BF16, exact in FP32.
+const ROUTER_SOURCE: &str = r#"
+    const int lane = int(thread_index_in_simdgroup);
+    const int sg = int(simdgroup_index_in_threadgroup);
+    const int group = int(threadgroup_position_in_grid.x);
+    threadgroup float part[8 * 8];
+    const int out_row = group * 4;
+    float result[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    int bn = (32 * sg + lane) * 4;
+    for (int i = 0; i < HID / 1024; ++i) {
+        float v[4];
+        for (int t = 0; t < 4; ++t) { v[t] = static_cast<float>(x[bn + t]); }
+        for (int tm = 0; tm < 4; ++tm) {
+            float inter[4];
+            for (int t = 0; t < 4; ++t) { inter[t] = static_cast<float>(w[(out_row + tm) * HID + bn + t]); }
+            for (int t = 0; t < 4; ++t) { result[tm] += inter[t] * v[t]; }
+        }
+        bn += 1024;
+    }
+    if (HID % 1024 > 0) {
+        float v[4];
+        for (int t = 0; t < 4; ++t) { v[t] = bn + t < HID ? static_cast<float>(x[bn + t]) : 0.0f; }
+        for (int tm = 0; tm < 4; ++tm) {
+            float inter[4];
+            for (int t = 0; t < 4; ++t) {
+                inter[t] = bn + t < HID ? static_cast<float>(w[(out_row + tm) * HID + bn + t]) : 0.0f;
+            }
+            for (int t = 0; t < 4; ++t) { result[tm] += inter[t] * v[t]; }
+        }
+    }
+    for (int tm = 0; tm < 4; ++tm) {
+        for (ushort sn = 16; sn >= 1; sn >>= 1) { result[tm] += simd_shuffle_down(result[tm], sn); }
+    }
+    if (lane == 0) {
+        for (int tm = 0; tm < 4; ++tm) { part[sg * 8 + tm] = result[tm]; }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (sg == 0 && lane == 0) {
+        for (int g = 1; g < 8; ++g) {
+            for (int tm = 0; tm < 4; ++tm) { result[tm] += part[g * 8 + tm]; }
+        }
+        for (int tm = 0; tm < 4; ++tm) { out[out_row + tm] = result[tm]; }
+    }
+"#;
+
+impl Moe {
+    /// SPEED-INK2M-P17 F3: logits `[1, experts]` FP32 of one FP16 row, or `None` outside the kernel's domain
+    /// (several rows, other dtypes or shapes, MLX would pick another gemv, `MLXL3_INKLING_P17_OFF`).
+    fn router_logits_fused(&self, x: &Array) -> Result<Option<Array>> {
+        let Some(w) = &self.router_bf16 else {
+            return Ok(None);
+        };
+        if !p17("f3") {
+            return Ok(None);
+        }
+        let &[experts, hid] = w.shape() else {
+            return Ok(None);
+        };
+        // MLX picks the bn 8 gemv only when hidden > 64 and hidden >= 16 * experts
+        if x.shape() != [1, hid]
+            || x.dtype() != Dtype::Float16
+            || experts % 4 != 0
+            || hid <= 64
+            || hid < 16 * experts
+        {
+            return Ok(None);
+        }
+        let key = [
+            i64::from(experts),
+            i64::from(hid),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ];
+        let kernel = crate::array::prepared_kernel("inkling_router_logits", key, || {
+            crate::array::PreparedKernel::new(
+                &format!("inkling_router_logits_{experts}_{hid}"),
+                &["x", "w"],
+                &["out"],
+                "",
+                &ROUTER_SOURCE.replace("HID", &hid.to_string()),
+            )
+        })?;
+        let out = kernel
+            .run(
+                &[x, w],
+                &[&[1, experts]],
+                &[Dtype::Float32],
+                [256 * (experts / 4), 1, 1],
+                [256, 1, 1],
+            )?
+            .pop()
+            .context("router logits")?;
+        Ok(Some(out))
+    }
 }
 
 impl Moe {
@@ -1692,7 +2333,10 @@ impl Moe {
         if ablated("moe") {
             return x.scalar_mul(0.0);
         }
-        let logits = x.astype(Dtype::Float32)?.matmul(&self.router_t)?;
+        let logits = match self.router_logits_fused(x)? {
+            Some(logits) => logits,
+            None => x.astype(Dtype::Float32)?.matmul(&self.router_t)?,
+        };
         let (selected, scores) =
             router::grouped_topk_biased(&logits, &self.bias, self.top_k, 1, 1, self.scale)?;
         capture_routes(&selected)?;
@@ -1805,6 +2449,15 @@ impl Layer {
         )?
         .transpose(&[1, 0])?;
         router.eval()?;
+        let router_bf16 = {
+            let w = checkpoint_array(checkpoint, &format!("{prefix}.mlp.gate.weight"))?;
+            if w.dtype() == Dtype::BFloat16 && w.shape() == [c.n_routed_experts, hidden] {
+                w.eval()?;
+                Some(w)
+            } else {
+                None
+            }
+        };
         let bias = f32_weight(
             checkpoint,
             &format!("{prefix}.mlp.gate.bias"),
@@ -1830,6 +2483,7 @@ impl Layer {
             )?,
             moe: Moe {
                 router_t: router,
+                router_bf16,
                 bias,
                 experts: Exl3SwitchGlu::from_inkling_checkpoint(
                     checkpoint,
@@ -3618,6 +4272,447 @@ mod tests {
                 .all(|r| r["fingerprint"] == reference_fp.as_str()),
             "a replay differs from the greedy pass"
         );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 F1: the one-query depth kernel gives the MLX op sequence bit for bit for 1-24 sources,
+    /// D = 512 / 2 304, random rows, equal rows (equal scores) and scores 48 apart (saturated softmax); a
+    /// reversed reduction tree is detected; shapes outside its domain keep the op sequence.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn depth_attend_one_matches_ops() -> Result<()> {
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            ((state >> 40) as f32 / (1u64 << 24) as f32) * 2.0 - 1.0
+        };
+        let (mut cases, mut caught) = (0, 0);
+        for dims in [512i32, 2304] {
+            for count in 1..=24usize {
+                for kind in 0..3 {
+                    let first: Vec<f32> = (0..dims).map(|_| uniform()).collect();
+                    let rows: Vec<Vec<f32>> = (0..count)
+                        .map(|r| match kind {
+                            1 => first.clone(),
+                            2 => first.iter().map(|x| x * (1 + r) as f32).collect(),
+                            _ if r == 0 => first.clone(),
+                            _ => (0..dims).map(|_| uniform()).collect(),
+                        })
+                        .collect();
+                    let q: Vec<f32> = if kind == 2 {
+                        first.iter().map(|x| x * 3.0).collect()
+                    } else {
+                        (0..dims).map(|_| uniform()).collect()
+                    };
+                    let sources = rows
+                        .iter()
+                        .map(|r| Array::from_f32(r, &[1, dims]))
+                        .collect::<Result<Vec<_>>>()?;
+                    let refs: Vec<&Array> = sources.iter().collect();
+                    let query = Array::from_f32(&q, &[1, dims])?;
+                    let expected = depth_attend(&depth_stack(&refs)?, &query)?;
+                    ensure!(expected.shape() == [1, 1, dims], "reference shape");
+                    let expected = expected.to_f32()?;
+                    let got = depth_attend_one(&refs, &query)?.context("inside the domain")?;
+                    ensure!(got.shape() == [1, 1, dims], "kernel shape");
+                    let got = got.to_f32()?;
+                    ensure!(
+                        expected.len() == dims as usize && expected.iter().all(|x| x.is_finite()),
+                        "reference values"
+                    );
+                    let same = |a: &[f32], b: &[f32]| {
+                        a.len() == b.len()
+                            && a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits())
+                    };
+                    ensure!(
+                        same(&expected, &got),
+                        "depth kernel differs: {count} sources, D {dims}, kind {kind}"
+                    );
+                    DEPTH_ONE_MUTATE.with(|m| m.set(true));
+                    let mutant = depth_attend_one(&refs, &query);
+                    DEPTH_ONE_MUTATE.with(|m| m.set(false));
+                    let mutant = mutant?.context("mutant")?.to_f32()?;
+                    caught += usize::from(!same(&expected, &mutant));
+                    cases += 1;
+                }
+            }
+        }
+        println!("depth kernel: {cases} cases identical, mutant differs in {caught}");
+        ensure!(caught > 0, "the reversed reduction tree went unnoticed");
+        // outside the domain: two queries, two rows, 32 sources, FP16
+        let row = Array::from_f32(&vec![0.5; 128], &[1, 128])?;
+        let two = Array::from_f32(&vec![0.5; 256], &[2, 128])?;
+        ensure!(
+            depth_attend_one(&[&row, &row], &two)?.is_none(),
+            "two queries"
+        );
+        ensure!(depth_attend_one(&[&two, &two], &row)?.is_none(), "two rows");
+        ensure!(depth_attend_one(&[&row; 32], &row)?.is_none(), "32 sources");
+        ensure!(
+            depth_attend_one(&[&row; 9], &row)?.is_none(),
+            "D < 16 sources (another MLX gemv)"
+        );
+        let half = row.astype(Dtype::Float16)?;
+        ensure!(depth_attend_one(&[&half], &row)?.is_none(), "FP16 source");
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 F1 diagnostic: GPU time of 96 chained one-query depth attentions (8 sources, D 2 304;
+    /// the last source of each call is the previous output), MLX op sequence against the fused kernel.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn depth_kernel_latency() -> Result<()> {
+        const CALLS: usize = 96;
+        let dims = 2304i32;
+        let rows: Vec<Array> = (0..7)
+            .map(|r| {
+                let v: Vec<f32> = (0..dims)
+                    .map(|i| (((i * 31 + r * 17) % 97) as f32 - 48.0) / 97.0)
+                    .collect();
+                Array::from_f32(&v, &[1, dims])
+            })
+            .collect::<Result<_>>()?;
+        let q: Vec<f32> = (0..dims).map(|i| ((i % 13) as f32 - 6.0) / 13.0).collect();
+        let query = Array::from_f32(&q, &[1, dims])?;
+        Array::eval_many(&rows.iter().chain([&query]).collect::<Vec<_>>())?;
+        let chain = |fused: bool| -> Result<f64> {
+            let mut last = rows[0].try_clone()?;
+            let mut outs = Vec::new();
+            for _ in 0..CALLS {
+                let mut sources: Vec<&Array> = rows.iter().collect();
+                sources.push(&last);
+                let out = if fused {
+                    depth_attend_one(&sources, &query)?.context("fused")?
+                } else {
+                    depth_attend(&depth_stack(&sources)?, &query)?
+                };
+                last = out.reshape(&[1, dims])?;
+                outs.push(last.try_clone()?);
+            }
+            let t = Instant::now();
+            Array::eval_many(&outs.iter().collect::<Vec<_>>())?;
+            Ok(t.elapsed().as_secs_f64() * 1e3)
+        };
+        for _ in 0..3 {
+            chain(false)?;
+            chain(true)?;
+        }
+        let (mut ops, mut fused) = (Vec::new(), Vec::new());
+        for i in 0..20 {
+            if i % 2 == 0 {
+                ops.push(chain(false)?);
+                fused.push(chain(true)?);
+            } else {
+                fused.push(chain(true)?);
+                ops.push(chain(false)?);
+            }
+        }
+        let (o, f) = (quantiles(ops).1, quantiles(fused).1);
+        println!(
+            "depth chain of {CALLS}: ops {o:.3} ms ({:.2} us/call), fused {f:.3} ms ({:.2} us/call)",
+            o * 1e3 / CALLS as f64,
+            f * 1e3 / CALLS as f64
+        );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 F2: the fused message gate (down kernel + tail kernel) gives the op sequence bit for
+    /// bit: hidden 512 / 2 304, rank 64, three magnitudes (tanh saturated in the last); a reversed tail tree
+    /// is detected.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn gate_kernels_match_ops() -> Result<()> {
+        let mut state = 0x2545_f491_4f6c_dd1du64;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            ((state >> 40) as f32 / (1u64 << 24) as f32) * 2.0 - 1.0
+        };
+        let rank = 64;
+        let (mut cases, mut caught) = (0, 0);
+        for hid in [512i32, 2304] {
+            for scale in [0.05f32, 0.5, 4.0] {
+                let mut values =
+                    |n: i32, s: f32| (0..n).map(|_| uniform() * s).collect::<Vec<f32>>();
+                let down = Array::from_f32(&values(rank * 2 * hid, scale * 0.1), &[rank, 2 * hid])?
+                    .astype(Dtype::Float16)?;
+                let forget = Array::from_f32(&values(hid * rank, scale), &[hid, rank])?
+                    .astype(Dtype::BFloat16)?;
+                let gain = Array::from_f32(&values(hid * rank, scale), &[hid, rank])?
+                    .astype(Dtype::BFloat16)?;
+                let hidden = Array::from_f32(&values(hid, 2.0), &[1, hid])?;
+                let message = Array::from_f32(&values(hid, 2.0), &[1, hid])?;
+                let transposed = |w: &Array| -> Result<Array> {
+                    let w = w.astype(Dtype::Float32)?.transpose(&[1, 0])?;
+                    w.eval()?;
+                    Ok(w)
+                };
+                let weight_t = down.transpose(&[1, 0])?;
+                Array::eval_many(&[&weight_t, &forget, &gain, &hidden, &message])?;
+                let gate = |bf16: bool| -> Result<MessageGate> {
+                    Ok(MessageGate {
+                        down: Dense {
+                            weight_t: weight_t.try_clone()?,
+                        },
+                        forget_t: transposed(&forget)?,
+                        gain_t: transposed(&gain)?,
+                        forget_bf16: bf16.then(|| forget.try_clone()).transpose()?,
+                        gain_bf16: bf16.then(|| gain.try_clone()).transpose()?,
+                        eps: 1e-5,
+                    })
+                };
+                let (fused_gate, plain_gate) = (gate(true)?, gate(false)?);
+                let expected = plain_gate.forward(&hidden, &message)?;
+                ensure!(expected.shape() == [1, hid], "reference shape");
+                let expected = expected.to_f32()?;
+                let got = fused_gate.forward(&hidden, &message)?;
+                ensure!(got.shape() == [1, hid], "fused shape");
+                let got = got.to_f32()?;
+                ensure!(expected.iter().all(|x| x.is_finite()), "reference values");
+                let same = |a: &[f32], b: &[f32]| {
+                    a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits())
+                };
+                ensure!(
+                    same(&expected, &got),
+                    "fused gate differs: hidden {hid}, scale {scale}"
+                );
+                GATE_TAIL_MUTATE.with(|m| m.set(true));
+                let mutant = fused_gate.forward(&hidden, &message);
+                GATE_TAIL_MUTATE.with(|m| m.set(false));
+                caught += usize::from(!same(&expected, &mutant?.to_f32()?));
+                cases += 1;
+            }
+        }
+        println!("gate kernels: {cases} cases identical, mutant differs in {caught}");
+        ensure!(caught > 0, "the reversed tail tree went unnoticed");
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 F3: the fused router logits give `float(x) @ router_t` bit for bit (2 304 x 128 and
+    /// 2 048 x 128, three magnitudes); a swapped reduction order is detected through the plain op sum.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn router_kernel_matches_ops() -> Result<()> {
+        let mut state = 0x5851_f42d_4c95_7f2du64;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            ((state >> 40) as f32 / (1u64 << 24) as f32) * 2.0 - 1.0
+        };
+        let mut cases = 0;
+        for (experts, hid) in [(128i32, 2304i32), (128, 2048)] {
+            for scale in [0.02f32, 0.3, 3.0] {
+                let w: Vec<f32> = (0..experts * hid).map(|_| uniform() * scale).collect();
+                let w = Array::from_f32(&w, &[experts, hid])?.astype(Dtype::BFloat16)?;
+                let router_t = w.astype(Dtype::Float32)?.transpose(&[1, 0])?;
+                let x: Vec<f32> = (0..hid).map(|_| uniform() * 2.0).collect();
+                let x = Array::from_f32(&x, &[1, hid])?.astype(Dtype::Float16)?;
+                Array::eval_many(&[&w, &router_t, &x])?;
+                let moe_bias = Array::zeros(&[experts])?;
+                let expected = x.astype(Dtype::Float32)?.matmul(&router_t)?;
+                let kernel = crate::array::prepared_kernel(
+                    "inkling_router_logits_test",
+                    [
+                        i64::from(experts),
+                        i64::from(hid),
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ],
+                    || {
+                        crate::array::PreparedKernel::new(
+                            &format!("inkling_router_logits_{experts}_{hid}"),
+                            &["x", "w"],
+                            &["out"],
+                            "",
+                            &ROUTER_SOURCE.replace("HID", &hid.to_string()),
+                        )
+                    },
+                )?;
+                let got = kernel
+                    .run(
+                        &[&x, &w],
+                        &[&[1, experts]],
+                        &[Dtype::Float32],
+                        [256 * (experts / 4), 1, 1],
+                        [256, 1, 1],
+                    )?
+                    .pop()
+                    .context("logits")?;
+                let _ = moe_bias;
+                let (expected, got) = (expected.to_f32()?, got.to_f32()?);
+                ensure!(
+                    expected.len() == experts as usize && expected.iter().all(|v| v.is_finite()),
+                    "reference logits"
+                );
+                ensure!(
+                    expected
+                        .iter()
+                        .zip(&got)
+                        .all(|(a, b)| a.to_bits() == b.to_bits()),
+                    "router kernel differs: {experts} x {hid}, scale {scale}"
+                );
+                // sensitivity: the same products summed in plain order differ somewhere
+                let xs = x.astype(Dtype::Float32)?.to_f32()?;
+                let ws = w.astype(Dtype::Float32)?.to_f32()?;
+                let plain: Vec<f32> = (0..experts as usize)
+                    .map(|e| {
+                        (0..hid as usize)
+                            .fold(0f32, |acc, k| acc + ws[e * hid as usize + k] * xs[k])
+                    })
+                    .collect();
+                ensure!(
+                    plain
+                        .iter()
+                        .zip(&got)
+                        .any(|(a, b)| a.to_bits() != b.to_bits()),
+                    "a plain sequential sum matches too: the check cannot see the order"
+                );
+                cases += 1;
+            }
+        }
+        println!("router kernel: {cases} cases identical");
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 paired timing: one process, the model loaded once, `MLXL3_INKLING_AB_ROUNDS` rounds (8)
+    /// of A (all P17 steps on) and B (`MLXL3_INKLING_AB_OFF` off) in alternating order, 96 one-step-ahead
+    /// steps each; every pass must hash like the greedy reference.
+    #[test]
+    #[ignore = "requires an Apple GPU and MLXL3_INKLING_MODEL"]
+    fn fusion_ab_profile() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let off = std::env::var("MLXL3_INKLING_AB_OFF")?;
+        let rounds: usize = std::env::var("MLXL3_INKLING_AB_ROUNDS")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(8);
+        let steps = 96usize;
+        let prompt = profile_prompt()?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        // greedy reference with every step on
+        P17_TEST_OFF.with(|c| *c.borrow_mut() = Some(String::new()));
+        model.reset();
+        let mut logits = model.forward_tokens(&prompt)?;
+        let (mut fed, mut reference) = (Vec::new(), Vec::new());
+        for _ in 0..steps {
+            let token = logits.chat_greedy_ids()?[0];
+            fed.push(token);
+            logits = model.forward(token)?;
+            reference.push(logits.to_f32()?);
+        }
+        let reference = rows_fingerprint(&reference).0;
+        let pass = |model: &mut Inkling2, off: &str| -> Result<(f64, u64)> {
+            P17_TEST_OFF.with(|c| *c.borrow_mut() = Some(off.to_string()));
+            model.reset();
+            model.forward_tokens(&prompt)?.to_f32()?;
+            ASYNC_SUBMIT.with(|f| f.set(true));
+            let result = (|| -> Result<(Vec<f64>, Vec<Vec<f32>>)> {
+                let (mut times, mut rows) = (Vec::new(), Vec::new());
+                let mut in_flight: Option<Array> = None;
+                let mut mark = Instant::now();
+                for &token in &fed {
+                    let logits = model.forward(token)?;
+                    if let Some(previous) = in_flight.replace(logits) {
+                        rows.push(previous.to_f32()?);
+                    }
+                    times.push(mark.elapsed().as_secs_f64() * 1e3);
+                    mark = Instant::now();
+                }
+                if let Some(last) = in_flight.take() {
+                    rows.push(last.to_f32()?);
+                }
+                Ok((times, rows))
+            })();
+            ASYNC_SUBMIT.with(|f| f.set(false));
+            let (times, rows) = result?;
+            ensure!(rows.len() == steps, "pass rows");
+            Ok((quantiles(times).1, rows_fingerprint(&rows).0))
+        };
+        pass(&mut model, "")?;
+        pass(&mut model, &off)?;
+        let (mut a, mut b, mut diffs) = (Vec::new(), Vec::new(), Vec::new());
+        for round in 0..rounds {
+            let order = if round % 2 == 0 {
+                ["", off.as_str()]
+            } else {
+                [off.as_str(), ""]
+            };
+            let mut times = [0f64; 2];
+            for arm in order {
+                let (median, hash) = pass(&mut model, arm)?;
+                ensure!(
+                    hash == reference,
+                    "round {round}: pass with off={arm:?} differs from the reference"
+                );
+                times[usize::from(!arm.is_empty())] = median;
+            }
+            a.push(times[0]);
+            b.push(times[1]);
+            diffs.push(times[1] - times[0]);
+        }
+        P17_TEST_OFF.with(|c| *c.borrow_mut() = None);
+        let wins = diffs.iter().filter(|d| **d > 0.0).count();
+        println!(
+            "{}",
+            serde_json::json!({"off": off, "rounds": rounds, "reference": format!("{reference:016x}"),
+                "a_ms": a, "b_ms": b, "b_minus_a_ms": diffs, "median_a": quantiles(a.clone()).1,
+                "median_b": quantiles(b.clone()).1, "median_diff": quantiles(diffs.clone()).1,
+                "b_slower_rounds": wins})
+        );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 F5: the attention output gate kernel gives the op sequence bit for bit (3 072 values,
+    /// magnitudes 0.1 / 4 / 40, saturated sigmoid included).
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn attention_gate_kernel_matches_ops() -> Result<()> {
+        let mut state = 0x9e37_79b9_7f4a_7c15u64 ^ 0x1234;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            ((state >> 40) as f32 / (1u64 << 24) as f32) * 2.0 - 1.0
+        };
+        let same = |a: &[f32], b: &[f32]| {
+            a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits())
+        };
+        for scale in [0.1f32, 4.0, 40.0] {
+            let size = 3072;
+            let a: Vec<f32> = (0..size).map(|_| uniform() * 8.0).collect();
+            let g: Vec<f32> = (0..size).map(|_| uniform() * scale).collect();
+            let attended = Array::from_f32(&a, &[1, size])?.astype(Dtype::Float16)?;
+            let gate = Array::from_f32(&g, &[1, size])?.astype(Dtype::Float16)?;
+            let expected = attended
+                .astype(Dtype::Float32)?
+                .mul(&gate.astype(Dtype::Float32)?.sigmoid()?)?
+                .astype(Dtype::Float16)?;
+            let got = attention_gate_one(&attended, &gate)?;
+            let (e, g) = (
+                expected.astype(Dtype::Float32)?.to_f32()?,
+                got.astype(Dtype::Float32)?.to_f32()?,
+            );
+            ensure!(e.iter().all(|x| x.is_finite()), "gate reference");
+            ensure!(same(&e, &g), "gate kernel differs: scale {scale}");
+        }
+        println!("attention gate kernel: identical");
         Ok(())
     }
 
