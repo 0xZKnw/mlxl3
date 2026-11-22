@@ -15,13 +15,15 @@ export const FONTS = {
   monospaced: "var(--mono)",
 };
 export const BUBBLES = ["subtle", "outlined", "tinted"];
+// Window background: the v2 ASCII print, or the soft animated aurora of the 2.0 betas (Windows only).
+export const BACKGROUNDS = ["ascii", "soft"];
 export const SIDEBAR_WIDTHS = { compact: 208, standard: 232, wide: 280 };
 export const TEXT_SIZE = { min: 12, max: 24, default: 15 };
 export const IDLE_DELAYS = { never: 0, "1m": 60, "5m": 300, "10m": 600, "15m": 900, "30m": 1800, "1h": 3600, "2h": 7200 };
 
 export const DEFAULT_APPEARANCE = Object.freeze({
   accent: "violet", custom: DEFAULT_CUSTOM, width: "centered", textSize: TEXT_SIZE.default,
-  density: "comfortable", font: "standard", bubble: "subtle", sidebar: "standard",
+  density: "comfortable", font: "standard", bubble: "subtle", sidebar: "standard", background: "ascii",
 });
 
 const pick = (value, allowed, fallback) => (Object.hasOwn(allowed, value) ? value : fallback);
@@ -51,6 +53,7 @@ export function normalizeAppearance(raw) {
     font: pick(source.font, FONTS, DEFAULT_APPEARANCE.font),
     bubble: BUBBLES.includes(source.bubble) ? source.bubble : DEFAULT_APPEARANCE.bubble,
     sidebar: pick(source.sidebar, SIDEBAR_WIDTHS, DEFAULT_APPEARANCE.sidebar),
+    background: BACKGROUNDS.includes(source.background) ? source.background : DEFAULT_APPEARANCE.background,
   };
 }
 
@@ -76,6 +79,7 @@ export function applyAppearance(root, appearance) {
   const a = normalizeAppearance(appearance);
   for (const [name, value] of Object.entries(cssVariables(a))) root.style.setProperty(name, value);
   root.dataset.bubble = a.bubble;
+  root.dataset.background = a.background;
   return a;
 }
 
