@@ -252,6 +252,87 @@ impl Linear {
     }
 }
 
+/// `MLXL3_INKLING_EMBED_BITS`, if set (4, 8 or 16).
+fn embed_bits_requested() -> Result<Option<i32>> {
+    match std::env::var("MLXL3_INKLING_EMBED_BITS") {
+        Ok(_) => Ok(Some(bits_from_env("MLXL3_INKLING_EMBED_BITS", 16)?)),
+        Err(_) => Ok(None),
+    }
+}
+
+/// Token embedding table `[vocab, D]`: the checkpoint FP16 table, or an MLX affine copy stored in the checkpoint
+/// (SIZE-2026-11-22-INK2M-EMBED8) whose requested rows are dequantized on lookup.
+pub(crate) enum Embeddings {
+    Dense(Array),
+    Affine {
+        w: Array,
+        scales: Array,
+        biases: Array,
+        bits: i32,
+    },
+}
+
+impl Embeddings {
+    /// `requested`: `MLXL3_INKLING_EMBED_BITS`. On a stored copy it must be absent or equal to the stored width.
+    /// On a dense table, 4 or 8 rounds it at load (evaluation option of SIZE-2026-11-21-INK2M-SLIM part B,
+    /// element for element the table a stored copy gives); absent or 16 keeps it.
+    pub(crate) fn load(
+        checkpoint: &Checkpoint,
+        vocab: i32,
+        hidden: i32,
+        requested: Option<i32>,
+    ) -> Result<Self> {
+        if let Some(Linear::Affine {
+            w,
+            scales,
+            biases,
+            bits,
+        }) = Linear::stored(checkpoint, "model.llm.embed", hidden, vocab)?
+        {
+            ensure!(
+                requested.is_none_or(|r| r == bits),
+                "this checkpoint stores {bits}-bit embeddings; MLXL3_INKLING_EMBED_BITS={} is unavailable",
+                requested.unwrap_or(16)
+            );
+            return Ok(Self::Affine {
+                w,
+                scales,
+                biases,
+                bits,
+            });
+        }
+        let table = half_weight(checkpoint, "model.llm.embed.weight", Some(&[vocab, hidden]))?;
+        match requested {
+            Some(bits) if bits < 16 => {
+                let (w, scales, biases) = table.quantize_affine(AFFINE_GROUP, bits)?;
+                let rounded = Array::dequantize_affine(&w, &scales, &biases, AFFINE_GROUP, bits)?;
+                rounded.eval()?;
+                Ok(Self::Dense(rounded))
+            }
+            _ => Ok(Self::Dense(table)),
+        }
+    }
+
+    /// FP16 rows `[n, D]` of the token ids.
+    pub(crate) fn rows(&self, ids: &Array) -> Result<Array> {
+        match self {
+            Self::Dense(table) => table.take(ids, 0),
+            Self::Affine {
+                w,
+                scales,
+                biases,
+                bits,
+            } => Array::dequantize_affine(
+                &w.take(ids, 0)?,
+                &scales.take(ids, 0)?,
+                &biases.take(ids, 0)?,
+                AFFINE_GROUP,
+                *bits,
+            ),
+        }
+    }
+}
+
 #[derive(Deserialize)]
 struct RootConfig {
     model_type: String,
@@ -1570,7 +1651,7 @@ pub struct Inkling2 {
     /// Rows of an uncommitted `verify` call.
     pending: Option<i32>,
     kernel: i32,
-    embeddings: Array,
+    embeddings: Embeddings,
     embed_norm: Array,
     norm: Array,
     final_query: Array,
@@ -1647,19 +1728,8 @@ impl Inkling2 {
             "unsupported Inkling 2 configuration"
         );
         let hidden = c.hidden_size;
-        let mut embeddings = half_weight(
-            checkpoint,
-            "model.llm.embed.weight",
-            Some(&[c.vocab_size, hidden]),
-        )?;
-        // Evaluation option (SIZE-2026-11-21-INK2M-SLIM, part B), default 16 = the checkpoint table: the table an
-        // affine-stored copy would give, i.e. quantized then dequantized element by element (lossy).
-        let embed_bits = bits_from_env("MLXL3_INKLING_EMBED_BITS", 16)?;
-        if embed_bits < 16 {
-            let (w, scales, biases) = embeddings.quantize_affine(AFFINE_GROUP, embed_bits)?;
-            embeddings = Array::dequantize_affine(&w, &scales, &biases, AFFINE_GROUP, embed_bits)?;
-            embeddings.eval()?;
-        }
+        let embeddings =
+            Embeddings::load(checkpoint, c.vocab_size, hidden, embed_bits_requested()?)?;
         let embed_norm = f32_weight(checkpoint, "model.llm.embed_norm.weight", &[hidden])?;
         let norm = f32_weight(checkpoint, "model.llm.norm.weight", &[hidden])?;
         let final_query = f32_weight(checkpoint, "model.llm.attn_res.output_query", &[hidden])?
@@ -1798,7 +1868,7 @@ impl Inkling2 {
     /// Normalized token embeddings `[n, D]` FP32 (`embed_norm(embed(ids))`).
     pub fn embed_tokens(&self, ids: &Array) -> Result<Array> {
         self.embeddings
-            .take(ids, 0)?
+            .rows(ids)?
             .astype(Dtype::Float32)?
             .rms_norm(&self.embed_norm, self.eps)
     }
@@ -1968,11 +2038,7 @@ impl Inkling2 {
             &tokens.iter().map(|&t| t as i32).collect::<Vec<_>>(),
             &[time],
         )?;
-        let hidden = self
-            .embeddings
-            .take(&ids, 0)?
-            .astype(Dtype::Float32)?
-            .rms_norm(&self.embed_norm, self.eps)?;
+        let hidden = self.embed_tokens(&ids)?;
         // Sliding visits keep at most window - 1 past keys; full visits keep everything
         let sliding_first = (start - (self.window - 1)).max(0);
         let sliding = MaskPlan::new(
@@ -2270,6 +2336,109 @@ mod tests {
         // no scales: dense path, nothing stored
         let dense = stored_checkpoint(dir.path(), &[("p.weight".into(), &weight)])?;
         assert!(Linear::stored(&dense, "p", input, output)?.is_none());
+        Ok(())
+    }
+
+    /// SIZE-2026-11-22-INK2M-EMBED8 exporter (not a check): writes `embed.safetensors` into the new directory
+    /// `MLXL3_INKLING_SLIM_OUT` with the 8-bit affine copy of the FP16 embedding table of `MLXL3_INKLING_MODEL`,
+    /// computed as `Embeddings::load` does for the measured option (`half_weight`, then `quantize_affine`).
+    #[test]
+    #[ignore = "writes files; requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_SLIM_OUT"]
+    fn export_slim_embeddings() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let out = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_SLIM_OUT")?);
+        std::fs::create_dir(&out).context("MLXL3_INKLING_SLIM_OUT must not exist yet")?;
+        let checkpoint = checkpoint::inspect(&dir)?;
+        let root: RootConfig = serde_json::from_reader(File::open(dir.join("config.json"))?)?;
+        let (vocab, hidden) = (root.text_config.vocab_size, root.text_config.hidden_size);
+        ensure!(
+            Linear::stored(&checkpoint, "model.llm.embed", hidden, vocab)?.is_none(),
+            "the source already stores an affine embedding table"
+        );
+        let table = half_weight(
+            &checkpoint,
+            "model.llm.embed.weight",
+            Some(&[vocab, hidden]),
+        )?;
+        let (w, scales, biases) = table.quantize_affine(AFFINE_GROUP, 8)?;
+        Array::eval_many(&[&w, &scales, &biases])?;
+        write_safetensors(
+            &out.join("embed.safetensors"),
+            &[
+                ("model.llm.embed.weight".into(), &w),
+                ("model.llm.embed.scales".into(), &scales),
+                ("model.llm.embed.biases".into(), &biases),
+            ],
+        )?;
+        let report = serde_json::json!({"trial": "SIZE-2026-11-22-INK2M-EMBED8", "source": dir,
+            "prefix": "model.llm.embed", "bits": 8, "group": AFFINE_GROUP, "rows": vocab, "hidden": hidden});
+        std::fs::write(
+            out.join("export.json"),
+            serde_json::to_string_pretty(&report)?,
+        )?;
+        println!("{report}");
+        Ok(())
+    }
+
+    /// SIZE-2026-11-22-INK2M-EMBED8: a stored 8-bit table gives, row for row, the bits of the dense table rounded
+    /// at load (the measured option); another requested width is refused; a dense table is unchanged by default.
+    #[test]
+    fn stored_embeddings_equal_the_rounded_table() -> Result<()> {
+        let (vocab, hidden) = (40, 128);
+        let table = Array::from_f32(
+            &pseudo_random((vocab * hidden) as usize, 9, 1.0),
+            &[vocab, hidden],
+        )?
+        .astype(Dtype::Float16)?;
+        let (w, scales, biases) = table.quantize_affine(AFFINE_GROUP, 8)?;
+        let dir = tempfile::tempdir()?;
+        let stored = stored_checkpoint(
+            dir.path(),
+            &[
+                ("model.llm.embed.weight".into(), &w),
+                ("model.llm.embed.scales".into(), &scales),
+                ("model.llm.embed.biases".into(), &biases),
+            ],
+        )?;
+        let dense_dir = tempfile::tempdir()?;
+        let dense = stored_checkpoint(
+            dense_dir.path(),
+            &[("model.llm.embed.weight".into(), &table)],
+        )?;
+        let ids = Array::from_i32(&[0, 39, 7, 7, 21], &[5])?;
+        let from_stored = Embeddings::load(&stored, vocab, hidden, None)?.rows(&ids)?;
+        let explicit = Embeddings::load(&stored, vocab, hidden, Some(8))?.rows(&ids)?;
+        let rounded = Embeddings::load(&dense, vocab, hidden, Some(8))?.rows(&ids)?;
+        assert_eq!(from_stored.dtype(), Dtype::Float16);
+        assert_eq!(from_stored.shape(), [5, hidden]);
+        assert_eq!(from_stored.to_f16_bits()?, rounded.to_f16_bits()?);
+        assert_eq!(explicit.to_f16_bits()?, rounded.to_f16_bits()?);
+        for other in [4, 16] {
+            let error = Embeddings::load(&stored, vocab, hidden, Some(other))
+                .err()
+                .context("other width accepted")?;
+            assert!(
+                error.to_string().contains("stores 8-bit embeddings"),
+                "{error}"
+            );
+        }
+        // dense table: unchanged without a request or with 16, rounded only on request
+        let plain = table.take(&ids, 0)?.to_f16_bits()?;
+        assert_eq!(
+            Embeddings::load(&dense, vocab, hidden, None)?
+                .rows(&ids)?
+                .to_f16_bits()?,
+            plain
+        );
+        assert_eq!(
+            Embeddings::load(&dense, vocab, hidden, Some(16))?
+                .rows(&ids)?
+                .to_f16_bits()?,
+            plain
+        );
+        assert_ne!(rounded.to_f16_bits()?, plain);
+        // a stored copy of the wrong vocabulary size is refused
+        assert!(Embeddings::load(&stored, vocab + 1, hidden, None).is_err());
         Ok(())
     }
 

@@ -30554,3 +30554,24 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
     Top-1 : prose 95,07 → 95,31 %, global 94,68 → 94,76 %.
   - Critère fixé avant mesure (Δ prose ≤ +0,0007 et borne haute ≤ +0,0014) : **rempli**. Le coût des embeddings 8 bits n'est pas mesurable avec ce jeu ; aucune différence significative, quel que soit le domaine.
   - Gain de taille attendu si on les stocke : 926 318 592 → 492 106 752 octets (**−434 Mo**). Le stockage demanderait un chemin moteur « lignes 8 bits puis déquantification » (équivalent exact de l'option mesurée), un moteur, une révision HF et un épinglage Desktop. **Non fait** : décision utilisateur requise (préenregistrement).
+
+### SIZE-2026-11-22-INK2M-EMBED8 — EN COURS (préenregistré avant tout code, export ou mesure ; demande utilisateur « Oui, fais-le » après la mesure B de SIZE-2026-11-21-INK2M-SLIM) : embeddings Inkling stockés en 8 bits (moteur 2.0.23, révision HF, Desktop 2.0.14)
+
+- Base : révision HF slim `a5763a01` (`models/Inkling-2-Mini-EXL3-R3-slim/`, poids 13 535 683 700 o) et moteur 2.0.22 (`main` `a3f5bd30b` + journal B `26e14317c`).
+- Qualité déjà mesurée (partie B, critère rempli) : embeddings 8 bits groupe 64, prose +0,00019 nat [−0,00023 ; +0,00063], global +0,0006 [−0,0038 ; +0,0050], contre la référence exacte locale. **Changement avec perte, accepté par l'utilisateur.**
+- Changement :
+  - Moteur : table d'embeddings stockée en affine MLX 8 bits, groupe 64, lignes paddées `[201024, 2304]` (`model.llm.embed.{weight,scales,biases}`). Lecture des lignes demandées (`take` sur les 3 tableaux) puis `mx::dequantize` en FP16, puis le chemin existant (FP32, `rms_norm`). `embed_tokens` et `run` passent par la même fonction. Une largeur demandée différente de la largeur stockée (`MLXL3_INKLING_EMBED_BITS`) est refusée ; table dense inchangée.
+  - Export par le moteur (`quantize_affine` de la table FP16, la même opération que l'option mesurée).
+  - Repack de la révision slim : seul le tenseur `model.llm.embed.weight` est remplacé, tout le reste est recopié octet pour octet.
+- Contrôles (correction avant tout), pour une égalité **bit à bit** avec l'option mesurée (slim + `MLXL3_INKLING_EMBED_BITS=8`) :
+  1. Test CPU/GPU : lecture des lignes stockées = lignes de la table déquantifiée (test existant) ; refus de largeur et de formes invalides.
+  2. Couverture du repack (pytest) : seul l'embedding change.
+  3. Empreinte `decode_profile` de slim2 égale à celle de slim + `EMBED_BITS=8` ; `dump_draft_case` identique par `cmp` (le brouillon embarque l'ancre via `embed_tokens`) ; `speculative_profile` identique hors temps ; `eval_against_reference` sur 2 lignes (tête 8) identique au bit à R3 + `HEAD_BITS=8` + `EMBED_BITS=8` ; refus de `EMBED_BITS=16` sur slim2.
+  4. Porte d'empreintes de 2.0.21/2.0.22 inchangée (6 valeurs, chemins denses).
+  5. Bridge du binaire extrait (glouton, T=1, `dspark: false`) et smoke sur slim2.
+- Publication (autorisée) :
+  - moteur 2.0.23 (`latest=false`) ;
+  - révision HF slim2, avec une fiche qui donne la mesure de KL locale de l'embedding 8 bits ;
+  - Desktop 2.0.14 épinglé sur la nouvelle révision, avec le moteur 2.0.23 intégré.
+- Taille attendue : 13 535 683 700 − 434 211 840 ≈ **13,10 Go** de poids.
+- Kani non tenté (préférence utilisateur).
