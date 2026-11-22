@@ -14,7 +14,7 @@ Agent mode can now give the model a single `javascript` tool instead of four sep
 - **Results:** the model sees its `console.log` output, the value it returns, and on failure the error with its line, or the call that failed and the calls completed before it.
 - **Same sandbox as before.** The program runs in macOS's JavaScriptCore, interpreter only, inside a compute-only sandbox: it cannot open files, use the network or start processes. Every function goes back through the existing sandboxed commands, so file access, network refusal and permissions are unchanged.
 - **Limits per call:** 10 seconds, 200 function calls, 32 KiB of output, files up to 256 KiB.
-- **Default, and reversible.** New and existing Agent projects use the JavaScript tool. Sandbox (the lock button in Agent Studio) → **Separate tools** restores the four previous tools, with the same instructions as before.
+- **Default, and reversible.** New and existing Agent projects use the JavaScript tool. The **Sandbox** button of Agent Studio → **Separate tools** restores the four previous tools, with the same instructions as before.
 
 ### Reasoning level selector
 
@@ -29,7 +29,7 @@ Models whose chat template supports a reasoning level now show a menu in the com
 
 ### Full-screen code and previews
 
-- Code blocks in conversations have a full-screen button. The full-screen window keeps the Code / Preview switch for HTML.
+- Code blocks in conversations have a full-screen button once they are complete. The full-screen window keeps the Code / Preview switch for HTML.
 - The Preview tab of Agent Studio has the same button.
 - Esc, ⌘W or leaving full screen returns to the conversation. While the preview is full screen, the inline preview pauses, so only one page runs.
 

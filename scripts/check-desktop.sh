@@ -317,6 +317,8 @@ run_response_ui() {
     run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py"
     # A fresh process runs the fixed-size native bitmap/OCR checks.
     run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py" --check-long-visibility
+    # Long replies streamed below long histories must keep the view pinned (own time budget).
+    run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py" --check-scroll-follow
 }
 
 # The focused PR job and the full suite execute the same production fixtures.

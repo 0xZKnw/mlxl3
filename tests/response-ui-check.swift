@@ -1238,8 +1238,8 @@ extension CodeBlockView {
     checkFade()
     try await MarkdownTableRegressionCheck.run()
     try await checkScroll()
-    try await checkScrollFollowStability(exchanges: 4)
-    try await checkScrollFollowStability(exchanges: 16)
+    // The streaming scroll-follow scenarios run in their own process (--check-scroll-follow)
+    // so each fixture stays within check-desktop.sh's 90-second limit on CI runners.
     try await checkHTMLControls()
     try await checkCodeFullscreen()
     try await checkInlinePreviewLifetime()
