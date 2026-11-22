@@ -30818,3 +30818,30 @@ autres GPU et CI distante non testés. Paquet de test signé localement.
 Preuves locales dans le dossier de travail `build/image21-studio/` du dépôt de départ :
 `gui-worker.log`, `kernel-test-final.log`, `studio-build-final.log`, `generation-m5.png`.
 [Utilisation et composants](docs/studio-image21.md).
+
+#### PR 186 · contrôle de visibilité des longues réponses (2026-11-22)
+
+Avant modification, le même test échoue sur main 418836fe et sur 67c8b702 à
+code-hotel. Le journal indique une fenêtre de 700 points, document de 31806 et
+offset de 31106 (fin atteinte). L'OCR transcrit « VISIBLE Long generated source
+remains CODE HOTEL ». Hypothèse : le marqueur multi-mots est coupé sur deux
+lignes et Vision intercale du texte voisin. Essai prévu : identifiant de fin
+unique en un mot pour chaque fragment de code, même ligne source géante et même
+oracle visuel strict. Vérifier tous les points de contrôle sur le Mac et en CI,
+y compris les étapes après le code. Aucun changement de rendu prévu.
+
+Résultat local : macOS M5, binaire du contrôle Swift 6 optimisé, 30/30 vues
+validées par capture native et OCR CPU, zéro première lecture manquée, y compris
+code-hotel, outils, fin et redimensionnement (journal visibility-fixed.log).
+Le premier lancement local s'est terminé avant le premier marqueur ; un second
+a détecté un redimensionnement externe. La capture bitmap s'effectue désormais
+en arrière-plan ; le contrôle explicite d'affichage physique conserve sa fenêtre
+au premier plan. Une compilation intermédiaire interrompue par modification de
+StudioView a été reprise sur les sources finales. Pas de preuve formelle de Vision.
+Le test de clics de desktop-and-protocol a aussi signalé que la nouvelle entrée
+image déplace le bouton de création de conversation. L'action image passe sous
+l'historique pour préserver les coordonnées des commandes existantes. Les essais
+locaux du harnais de clics se sont arrêtés au clic recherche avant l'attestation
+finale ; validation de ce scénario à confirmer par la CI de la PR. Contrôle
+d'inventaire local : 342 fichiers conformes. Aucun poids ou résultat de performance
+modifié. Journaux et captures dans build/image21-studio du dépôt de départ.
