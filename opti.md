@@ -30600,3 +30600,12 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
 ### RELEASE-2026-11-22-ENGINE-2.0.23 — PUBLICATION EN COURS (demande utilisateur « Oui, fais-le »)
 
 - Source `8c792b139` (chargeur des embeddings stockés), notes `docs/releases/engine/release-engine-v2.0.23.md`. Contrôles : ceux de SIZE-2026-11-22-INK2M-EMBED8 ci-dessus.
+
+### RELEASE-2026-11-22-DESKTOP-2.0.14 — PUBLICATION EN COURS (demande utilisateur « Oui, fais-le » : embeddings 8 bits avec moteur, HF et Desktop)
+
+- Source `b905ab641` (Inkling épinglé sur `dde31cd0`, 2.0.14 / 67), au-dessus de `main` `e052db54b` (moteur 2.0.23).
+- `scripts/check-desktop.sh` complet (SDK 26.5) : passé (E2E 438 s ; 78 cas de disposition, dont DSpark).
+- DMG `MLXL3-Desktop-v2.0.14-b67-Apple-Silicon.dmg` : 251 056 703 o `d56e87df…145e`, `.sha256` `e0024dde…a21c`.
+  - `hdiutil verify` valide ; `codesign --deep --strict` OK ; 2.0.14 / 67 ; `build-info` commit `b905ab641e75`, `tracked_changes: false`, moteur 2.0.23 (`20ea4998…`).
+  - Bibliothèques et metallib identiques à l'archive 2.0.23 ; `mlxl3` : 197 octets différents (commit inscrit, signature).
+  - Smoke du moteur intégré sur slim2 : passé (02:27, après le processus `p8/check` de l'autre session).
