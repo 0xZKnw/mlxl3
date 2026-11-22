@@ -19,6 +19,19 @@
   "Cargo.toml": {
     "mlx": 2
   },
+  "apps/MLXL3Studio/Resources/Image21/render.py": {
+    "call mlx.core.device_info": 1,
+    "call mlx.core.fast.metal_kernel": 1,
+    "call mlx.core.hadamard_transform": 2,
+    "call mlx.core.load": 1,
+    "call mlx.core.metal.is_available": 1,
+    "call mlx.core.pad": 1,
+    "call mlx.nn.Module.__init__": 1,
+    "call mlx.utils.tree_flatten": 1,
+    "call mlx.utils.tree_unflatten": 1,
+    "mlx": 6,
+    "mlxl3_decode_codeword": 1
+  },
   "apps/MLXL3Studio/Sources/MLXL3Studio/EngineRuntimeStore.swift": {
     "libjaccl.dylib": 1,
     "libmlx.dylib": 1,
