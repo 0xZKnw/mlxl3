@@ -2142,6 +2142,28 @@ fn inkling_warmup_enabled() -> bool {
     std::env::var("MLXL3_INKLING_WARMUP").as_deref() != Ok("0")
 }
 
+/// DSPARK-INK2M-P10c: the adaptive width policy of a DSpark session. Sampled rows on the 8-bit dense
+/// target use the block costs measured on it and spaced narrow probes; greedy rows (whose acceptances come
+/// in bursts the measured table handled worse, P10b), the FP16 dense target, or `policy` = `p4c`
+/// (`MLXL3_INKLING_DSPARK_POLICY`, kept while measured) keep the P4c linear FP16 costs.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_width_policy(
+    policy: Option<&str>,
+    dense_bits: i32,
+    greedy: bool,
+    width: usize,
+) -> Result<mlxl3_native::inkling2_draft::WidthPolicy> {
+    use mlxl3_native::inkling2_draft::WidthPolicy;
+    match policy {
+        Some("p4c") => Ok(WidthPolicy::new(width)),
+        None | Some("") | Some("p10") if greedy || dense_bits >= 16 => Ok(WidthPolicy::new(width)),
+        None | Some("") | Some("p10") => {
+            WidthPolicy::measured(&WidthPolicy::SAMPLED_8BIT_COSTS, width)
+        }
+        Some(other) => bail!("MLXL3_INKLING_DSPARK_POLICY must be p4c or p10, not {other:?}"),
+    }
+}
+
 /// DSpark for Inkling 2 Mini is on unless `MLXL3_INKLING_DSPARK=0`.
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn inkling_dspark_enabled() -> bool {
@@ -4141,7 +4163,7 @@ fn bridge_generate_round(
     // ordinary path (their stream filter and stops are unchanged).
     #[cfg(feature = "mlx")]
     let mut dspark = match &*model {
-        NativeChatModel::Inkling(_, Some(drafter))
+        NativeChatModel::Inkling(target, Some(drafter))
             if tools.is_empty()
                 && mtp.is_none()
                 && draft.is_none()
@@ -4159,7 +4181,13 @@ fn bridge_generate_round(
             // DSPARK-INK2M-P4: adaptive width by default; `MLXL3_INKLING_DSPARK_ADAPTIVE=0` keeps width 3
             Some(
                 if std::env::var("MLXL3_INKLING_DSPARK_ADAPTIVE").as_deref() != Ok("0") {
-                    session.with_adaptive_width()
+                    let policy = inkling_width_policy(
+                        std::env::var("MLXL3_INKLING_DSPARK_POLICY").ok().as_deref(),
+                        target.precision().dense_bits,
+                        sampler.is_greedy(),
+                        mlxl3_native::inkling2_draft::DsparkSession::DEFAULT_WIDTH,
+                    )?;
+                    session.with_adaptive_width(policy)?
                 } else {
                     session
                 },
@@ -5904,6 +5932,35 @@ fn native_chat(
 #[cfg(all(test, feature = "mlx", feature = "chat"))]
 mod tests {
     use super::*;
+
+    /// DSPARK-INK2M-P10c: sampled rows on the 8-bit target take the measured costs; greedy rows, the FP16
+    /// target and `p4c` the P4c linear costs; any other policy name is refused.
+    #[test]
+    fn inkling_width_policy_follows_target_precision_and_mode() -> Result<()> {
+        use mlxl3_native::inkling2_draft::WidthPolicy;
+        for policy in [None, Some(""), Some("p10")] {
+            let sampled = inkling_width_policy(policy, 8, false, 3)?;
+            for w in 0..=3 {
+                assert_eq!(sampled.cost(w), WidthPolicy::SAMPLED_8BIT_COSTS[w]);
+            }
+        }
+        for (policy, bits, greedy) in [
+            (None, 8, true),
+            (Some("p10"), 8, true),
+            (None, 16, false),
+            (Some(""), 16, false),
+            (Some("p4c"), 8, false),
+            (Some("p4c"), 16, true),
+        ] {
+            let p = inkling_width_policy(policy, bits, greedy, 3)?;
+            for w in 0..=3 {
+                assert_eq!(p.cost(w), WidthPolicy::linear_cost(w), "{policy:?} {bits}");
+            }
+        }
+        assert!(inkling_width_policy(Some("fast"), 8, false, 3).is_err());
+        assert!(inkling_width_policy(None, 8, false, 4).is_err());
+        Ok(())
+    }
 
     #[test]
     fn moe_codec_rejects_invalid_routes_before_gpu_or_checkpoint_loading() -> Result<()> {
