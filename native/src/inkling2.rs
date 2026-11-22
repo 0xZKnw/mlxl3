@@ -20,6 +20,33 @@ use std::{
     time::{Duration, Instant},
 };
 
+/// Accumulated `(x^T x, rows)` per `(layer, slot)`.
+type HessianMap = std::collections::BTreeMap<(usize, u8), (Array, u64)>;
+
+thread_local! {
+    /// SPEED-2026-11-22-INK2M-P8: when set, `Attention::forward` adds x^T x (FP32) of the inputs of the dense
+    /// projections per (layer, slot): 0 = hq (q, r, gate, sink), 1 = hk (k), 2 = hv (v), 3 = input of o.
+    static DENSE_HESSIANS: std::cell::RefCell<Option<HessianMap>> = const { std::cell::RefCell::new(None) };
+}
+
+fn capture_dense_input(layer: usize, slot: u8, x: &Array) -> Result<()> {
+    DENSE_HESSIANS.with(|cell| {
+        let mut cell = cell.borrow_mut();
+        let Some(map) = cell.as_mut() else {
+            return Ok(());
+        };
+        let rows = x.shape()[0];
+        let x = x.astype(Dtype::Float32)?.reshape(&[rows, -1])?;
+        let xtx = x.transpose(&[1, 0])?.matmul(&x)?;
+        let entry = match map.remove(&(layer, slot)) {
+            Some((h, n)) => (h.add(&xtx)?, n + rows as u64),
+            None => (xtx, rows as u64),
+        };
+        map.insert((layer, slot), entry);
+        Ok(())
+    })
+}
+
 /// Group size of the MLX affine copies made at load.
 pub(crate) const AFFINE_GROUP: i32 = 64;
 
@@ -63,9 +90,11 @@ impl DenseSet {
     }
 }
 
-/// Run-time precision of the dense weights that are not EXL3: 16 keeps the checkpoint FP16 tensors; 8 or 4
-/// replaces them by MLX affine copies made at load (lossy). Default: FP16 projections and an 8-bit head
-/// (SPEED-2026-11-21-INK2M-P3: KL 1e-5 against the FP16 head, -7% decode time).
+/// Run-time precision of the dense weights that are not EXL3: 16 keeps the checkpoint tensors; 8 or 4
+/// replaces them by MLX affine copies made at load (lossy). Default: 8-bit group-64 attention projections
+/// (SPEED-2026-11-22-INK2M-P8: no measurable KL change against the exact reference on 12 rows, about -19%
+/// decode time on R3; group 32 was not faster to read and not measurably better) and an 8-bit group-64
+/// head (SPEED-2026-11-21-INK2M-P3: KL 1e-5 against the FP16 head).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct Precision {
     /// q, k, v, r, o, gate and sink projections of every attention.
@@ -74,6 +103,8 @@ pub struct Precision {
     pub head_bits: i32,
     /// Projections that take `dense_bits`; the others stay FP16.
     pub dense_only: DenseSet,
+    /// Affine group of the dense copies: 32, 64 or 128 (the head always uses `AFFINE_GROUP`).
+    pub dense_group: i32,
 }
 
 impl Precision {
@@ -82,16 +113,19 @@ impl Precision {
         dense_bits: 16,
         head_bits: 16,
         dense_only: DenseSet::ALL,
+        dense_group: AFFINE_GROUP,
     };
 
     /// What generation uses unless the environment says otherwise.
     pub const DEFAULT: Self = Self {
-        dense_bits: 16,
+        dense_bits: 8,
         head_bits: 8,
         dense_only: DenseSet::ALL,
+        dense_group: AFFINE_GROUP,
     };
 
-    /// `MLXL3_INKLING_DENSE_BITS` (default 16) and `MLXL3_INKLING_HEAD_BITS` (default 8), each 4, 8 or 16.
+    /// `MLXL3_INKLING_DENSE_BITS` (default 8), `MLXL3_INKLING_HEAD_BITS` (default 8), each 4, 8 or 16, and
+    /// `MLXL3_INKLING_DENSE_GROUP` (default 64): 32, 64 or 128.
     pub fn from_env() -> Result<Self> {
         Self::from_env_or(Self::DEFAULT)
     }
@@ -105,6 +139,12 @@ impl Precision {
                 Ok(list) => DenseSet::parse(&list)?,
                 Err(_) => default.dense_only,
             },
+            dense_group: match std::env::var("MLXL3_INKLING_DENSE_GROUP") {
+                Ok(group) => group
+                    .parse()
+                    .context("MLXL3_INKLING_DENSE_GROUP must be 32, 64 or 128")?,
+                Err(_) => default.dense_group,
+            },
         })
     }
 
@@ -112,6 +152,10 @@ impl Precision {
         ensure!(
             matches!(self.dense_bits, 4 | 8 | 16) && matches!(self.head_bits, 4 | 8 | 16),
             "Inkling precision bits must be 4, 8 or 16"
+        );
+        ensure!(
+            matches!(self.dense_group, 32 | 64 | 128),
+            "Inkling dense group must be 32, 64 or 128"
         );
         Ok(self)
     }
@@ -125,6 +169,7 @@ pub(crate) enum Linear {
         scales: Array,
         biases: Array,
         bits: i32,
+        group: i32,
     },
 }
 
@@ -145,20 +190,64 @@ impl Linear {
 
     /// `weight`: `[output, input]`, `input` a multiple of the group size.
     pub(crate) fn quantized(weight: &Array, bits: i32) -> Result<Self> {
+        Self::quantized_group(weight, bits, AFFINE_GROUP)
+    }
+
+    pub(crate) fn quantized_group(weight: &Array, bits: i32, group: i32) -> Result<Self> {
         let shape = weight.shape();
         ensure!(
-            shape.len() == 2 && shape[1] % AFFINE_GROUP == 0 && matches!(bits, 4 | 8),
-            "unsupported affine projection {shape:?} at {bits} bits"
+            shape.len() == 2
+                && matches!(group, 32 | 64 | 128)
+                && shape[1] % group == 0
+                && matches!(bits, 4 | 8),
+            "unsupported affine projection {shape:?} at {bits} bits, group {group}"
         );
         let (w, scales, biases) = weight
             .astype(Dtype::Float16)?
-            .quantize_affine(AFFINE_GROUP, bits)?;
+            .quantize_affine(group, bits)?;
         Array::eval_many(&[&w, &scales, &biases])?;
         Ok(Self::Affine {
             w,
             scales,
             biases,
             bits,
+            group,
+        })
+    }
+
+    /// SPEED-2026-11-22-INK2M-P8: precomputed MLX affine 8-bit tensors (`{prefix}.weight` packed u32,
+    /// `{prefix}.scales` / `{prefix}.biases` FP16, `mx.quantize` layout) instead of a copy made at load.
+    fn from_sidecar(sidecar: &Checkpoint, prefix: &str, input: i32, output: i32) -> Result<Self> {
+        let w = checkpoint_array(sidecar, &format!("{prefix}.weight"))?;
+        let scales = checkpoint_array(sidecar, &format!("{prefix}.scales"))?;
+        let biases = checkpoint_array(sidecar, &format!("{prefix}.biases"))?;
+        let groups = scales.shape().get(1).copied().unwrap_or(0);
+        ensure!(
+            groups > 0 && input % groups == 0,
+            "{prefix}: side-car scales {:?} do not divide {input} inputs",
+            scales.shape()
+        );
+        let group = input / groups;
+        ensure!(
+            matches!(group, 32 | 64 | 128)
+                && w.dtype() == Dtype::UInt32
+                && w.shape() == [output, input / 4]
+                && scales.dtype() == Dtype::Float16
+                && biases.dtype() == Dtype::Float16
+                && scales.shape() == [output, groups]
+                && biases.shape() == [output, groups],
+            "{prefix}: side-car tensors {:?} {:?} {:?} are not 8-bit affine [{output}, {input}]",
+            w.shape(),
+            scales.shape(),
+            biases.shape()
+        );
+        Array::eval_many(&[&w, &scales, &biases])?;
+        Ok(Self::Affine {
+            w,
+            scales,
+            biases,
+            bits: 8,
+            group,
         })
     }
 
@@ -182,9 +271,10 @@ impl Linear {
                 scales,
                 biases,
                 bits,
+                group,
             } => x
                 .astype(Dtype::Float16)?
-                .quantized_matmul(w, scales, biases, AFFINE_GROUP, *bits),
+                .quantized_matmul(w, scales, biases, *group, *bits),
         }
     }
 }
@@ -213,6 +303,12 @@ struct TextConfig {
     /// Names of the attention projections that take `dense_bits` (the others stay FP16).
     #[serde(skip)]
     dense_only: DenseSet,
+    /// Affine group of the dense copies (`MLXL3_INKLING_DENSE_GROUP`, default 64; P8 option).
+    #[serde(skip)]
+    dense_group: i32,
+    /// Precomputed 8-bit dense tensors (`MLXL3_INKLING_DENSE_SIDECAR`; P8 option).
+    #[serde(skip)]
+    dense_sidecar: Option<std::sync::Arc<Checkpoint>>,
     hidden_size: i32,
     num_hidden_layers: usize,
     vocab_size: i32,
@@ -796,6 +892,7 @@ impl VisitState {
 }
 
 struct Attention {
+    layer: usize,
     q: Linear,
     k: Linear,
     v: Linear,
@@ -844,17 +941,26 @@ impl Attention {
         let q_dim = heads * head_dim;
         let kv_dim = kv_heads * head_dim;
         let proj = |role: &str, name: &str, input: i32, output: i32| {
-            Linear::load(
-                checkpoint,
-                &format!("{prefix}.{name}"),
-                input,
-                output,
-                if c.dense_only.contains(role) {
-                    c.dense_bits
-                } else {
-                    16
-                },
-            )
+            let prefix = format!("{prefix}.{name}");
+            let bits = if c.dense_only.contains(role) {
+                c.dense_bits
+            } else {
+                16
+            };
+            match (&c.dense_sidecar, bits) {
+                (Some(sidecar), 8) => Linear::from_sidecar(sidecar, &prefix, input, output),
+                (_, 16) | (None, _) if c.dense_group == AFFINE_GROUP || bits >= 16 => {
+                    Linear::load(checkpoint, &prefix, input, output, bits)
+                }
+                _ => {
+                    let dense = Projection::load(checkpoint, &prefix, input, output, false)?;
+                    Linear::quantized_group(
+                        dense.dense_weight().context("dense weight")?,
+                        bits,
+                        c.dense_group,
+                    )
+                }
+            }
         };
         let conv = if sliding {
             KvConv::Static {
@@ -892,6 +998,7 @@ impl Attention {
             }
         };
         Ok(Self {
+            layer,
             q: proj("q", "wq_du", hidden, q_dim)?,
             k: proj("k", "wk_dv", hidden, kv_dim)?,
             v: proj("v", "wv_dv", hidden, kv_dim)?,
@@ -951,6 +1058,9 @@ impl Attention {
         state: &mut VisitState,
     ) -> Result<Array> {
         let time = hq.shape()[0];
+        capture_dense_input(self.layer, 0, hq)?;
+        capture_dense_input(self.layer, 1, hk)?;
+        capture_dense_input(self.layer, 2, hv)?;
         let (k, v, k_state, v_state) = match &self.conv {
             KvConv::Static { k, v } => {
                 let (ko, ks) = k.forward(&self.k.forward(hk)?, state.conv[0].as_ref())?;
@@ -1073,6 +1183,7 @@ impl Attention {
             .astype(Dtype::Float16)?;
         state.pending_conv[0] = Some(k_state);
         state.pending_conv[1] = Some(v_state);
+        capture_dense_input(self.layer, 3, &gated)?;
         self.o.forward(&gated)
     }
 
@@ -1561,6 +1672,23 @@ impl Inkling2 {
         let mut c = root.text_config;
         c.dense_bits = precision.dense_bits;
         c.dense_only = precision.dense_only;
+        c.dense_group = precision.dense_group;
+        // the side-car replaces the 8-bit copies only: an FP16 load (the reference of the checks) ignores it
+        c.dense_sidecar = match std::env::var_os("MLXL3_INKLING_DENSE_SIDECAR") {
+            Some(path) if c.dense_bits == 8 => {
+                let path = Path::new(&path);
+                Some(std::sync::Arc::new(Checkpoint {
+                    path: path.to_path_buf(),
+                    model_type: "inkling2-dense-sidecar".into(),
+                    bits: Some(8.0),
+                    size_bytes: std::fs::metadata(path)?.len(),
+                    modules: Vec::new(),
+                    tensors: checkpoint::read_header(path)
+                        .with_context(|| format!("dense side-car {}", path.display()))?,
+                }))
+            }
+            _ => None,
+        };
         let lc = &c.loop_config;
         ensure!(
             c.hidden_size > 0
@@ -2043,11 +2171,23 @@ mod tests {
 
     #[test]
     fn precision_defaults_and_projection_sets() -> Result<()> {
-        // generation default: exact projections, 8-bit head; numerical reference: everything exact
+        // generation default: 8-bit group-64 projections, 8-bit head; numerical reference: everything exact
         assert_eq!(
-            (Precision::DEFAULT.dense_bits, Precision::DEFAULT.head_bits),
-            (16, 8)
+            (
+                Precision::DEFAULT.dense_bits,
+                Precision::DEFAULT.head_bits,
+                Precision::DEFAULT.dense_group
+            ),
+            (8, 8, 64)
         );
+        assert_eq!(Precision::FULL.dense_group, AFFINE_GROUP);
+        for bad in [0, 16, 48, 256] {
+            let precision = Precision {
+                dense_group: bad,
+                ..Precision::DEFAULT
+            };
+            assert!(precision.validate().is_err(), "dense group {bad} accepted");
+        }
         assert_eq!(
             (Precision::FULL.dense_bits, Precision::FULL.head_bits),
             (16, 16)
@@ -2555,6 +2695,7 @@ mod tests {
                     dense_bits: d.parse()?,
                     head_bits: h.parse()?,
                     dense_only: only,
+                    dense_group: Precision::from_env_or(Precision::FULL)?.dense_group,
                 })
             })
             .collect::<Result<_>>()?;
@@ -2638,6 +2779,72 @@ mod tests {
             }));
         }
         println!("{}", serde_json::to_string_pretty(&report)?);
+        Ok(())
+    }
+
+    /// SPEED-2026-11-22-INK2M-P8: input Hessians H = sum x^T x (FP32) of the dense projections on the rows of
+    /// `MLXL3_INKLING_ROWS`, written as raw little-endian f32 `h_{layer}_{slot}.f32` plus `index.json` under
+    /// `MLXL3_INKLING_HESSIAN_OUT` (slots: 0 hq, 1 hk, 2 hv, 3 input of o).
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL, MLXL3_INKLING_ROWS and MLXL3_INKLING_HESSIAN_OUT"]
+    fn dense_hessians() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let out = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_HESSIAN_OUT")?);
+        std::fs::create_dir_all(&out)?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let rows: Vec<Vec<u32>> = rows["rows"]
+            .as_array()
+            .context("rows")?
+            .iter()
+            .map(|r| Ok(serde_json::from_value(r["tokens"].clone())?))
+            .collect::<Result<_>>()?;
+        ensure!(!rows.is_empty(), "no calibration rows");
+        let mut model = Inkling2::load_with(&dir, Precision::FULL)?;
+        let layers = model.layers.len();
+        DENSE_HESSIANS.with(|c| *c.borrow_mut() = Some(Default::default()));
+        let mut tokens = 0usize;
+        for (i, row) in rows.iter().enumerate() {
+            ensure!(!row.is_empty(), "row {i} is empty");
+            model.reset();
+            let logits = model.forward_all(row)?;
+            DENSE_HESSIANS.with(|c| -> Result<()> {
+                let c = c.borrow();
+                let map = c.as_ref().context("capture")?;
+                let mut all: Vec<&Array> = map.values().map(|(h, _)| h).collect();
+                all.push(&logits);
+                Array::eval_many(&all)
+            })?;
+            tokens += row.len();
+            eprintln!("row {i}: {} tokens", row.len());
+        }
+        let map = DENSE_HESSIANS
+            .with(|c| c.borrow_mut().take())
+            .context("capture")?;
+        ensure!(
+            map.len() == layers * 4,
+            "{} Hessians for {layers} layers",
+            map.len()
+        );
+        let mut index = Vec::new();
+        for ((layer, slot), (h, n)) in &map {
+            let dim = h.shape()[0];
+            ensure!(h.shape() == [dim, dim], "Hessian shape {:?}", h.shape());
+            let values = h.to_f32()?;
+            ensure!(
+                values.len() == (dim * dim) as usize && values.iter().all(|x| x.is_finite()),
+                "layer {layer} slot {slot}: empty or non-finite Hessian"
+            );
+            let bytes: Vec<u8> = values.iter().flat_map(|x| x.to_le_bytes()).collect();
+            std::fs::write(out.join(format!("h_{layer}_{slot}.f32")), bytes)?;
+            index.push(serde_json::json!({"layer": layer, "slot": slot, "dim": dim, "rows": n}));
+        }
+        std::fs::write(
+            out.join("index.json"),
+            serde_json::to_string_pretty(
+                &serde_json::json!({"tokens": tokens, "rows": rows.len(), "hessians": index}),
+            )?,
+        )?;
         Ok(())
     }
 

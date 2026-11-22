@@ -658,10 +658,12 @@ pub fn warm_up(target: &mut Inkling2, draft: Option<&mut Inkling2Draft>) -> Resu
         draft.append_context(&features)?;
         let rows = features.shape()[0];
         let mut last = features.slice(0, rows - 1, rows)?;
-        for count in 1..=draft.max_proposals().min(3) {
-            let anchor = Array::from_u32(&[tokens[count]], &[1])?;
+        let counts = draft.max_proposals().min(3);
+        ensure!(tokens.len() > counts, "warm-up prompt too short");
+        for (count, &token) in tokens.iter().enumerate().skip(1).take(counts) {
+            let anchor = Array::from_u32(&[token], &[1])?;
             let proposals = draft.propose(target, &anchor, &last, count)?.to_u32()?;
-            let mut block = vec![tokens[count]];
+            let mut block = vec![token];
             block.extend(&proposals);
             let (logits, features) = target.verify(&block, &taps)?;
             logits.eval()?;
