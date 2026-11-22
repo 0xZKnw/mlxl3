@@ -1211,6 +1211,60 @@ struct ModelAssets {
     context: i32,
 }
 
+#[cfg(feature = "chat")]
+#[derive(Clone, Copy)]
+enum PromptMode {
+    Serial,
+    FinalHead,
+    Experts { serial_tail: bool },
+}
+
+#[cfg(feature = "chat")]
+impl PromptMode {
+    fn flag(name: &str, value: Option<&std::ffi::OsStr>) -> Result<bool> {
+        match value {
+            None => Ok(false),
+            Some(v) if v == "0" => Ok(false),
+            Some(v) if v == "1" => Ok(true),
+            _ => anyhow::bail!("{name} must be 0 or 1"),
+        }
+    }
+
+    fn load() -> Result<Self> {
+        let flag = |name| Self::flag(name, std::env::var_os(name).as_deref());
+        let experts = flag("MLXL3_FLASH_PREFILL_EXPERT4")?;
+        let serial_tail = flag("MLXL3_FLASH_PREFILL_SERIAL_TAIL")?;
+        let final_head = flag("MLXL3_FLASH_PROMPT_FINAL_HEAD")?;
+        Ok(if experts {
+            Self::Experts { serial_tail }
+        } else if final_head {
+            Self::FinalHead
+        } else {
+            Self::Serial
+        })
+    }
+}
+
+#[cfg(all(test, feature = "chat"))]
+#[test]
+fn chat_prefill_flags_require_exact_literals() {
+    use std::ffi::OsStr;
+    for (input, expected) in [(None, false), (Some("0"), false), (Some("1"), true)] {
+        assert_eq!(
+            PromptMode::flag("FLAG", input.map(OsStr::new)).unwrap(),
+            expected
+        );
+    }
+    for invalid in ["", "true", "2", "01", "1 "] {
+        assert_eq!(
+            PromptMode::flag("FLAG", Some(OsStr::new(invalid)))
+                .unwrap_err()
+                .to_string(),
+            "FLAG must be 0 or 1"
+        );
+    }
+}
+
 /// One inference session. Layer caches, transactions and the draft are session-local.
 pub struct FlashNext {
     assets: ModelAssets,
@@ -1221,6 +1275,8 @@ pub struct FlashNext {
     verification: Option<PairState>,
     multi_token: bool,
     prefill_heads: bool,
+    #[cfg(feature = "chat")]
+    prompt_mode: PromptMode,
     lookahead_depth: usize,
     lookahead_pool: Option<Rc<RefCell<ReaderPool>>>,
     #[cfg(feature = "chat")]
@@ -1234,6 +1290,8 @@ struct PairState {
 impl FlashNext {
     pub fn from_checkpoint(c: &Checkpoint) -> Result<Self> {
         ensure!(c.model_type == "qwen4_exp", "expected qwen4_exp");
+        #[cfg(feature = "chat")]
+        let prompt_mode = PromptMode::load()?;
         let multi_token = flash_support::multi_token_verifier()?;
         let prefill_heads = match std::env::var("MLXL3_FLASH_PREFILL_HEADS") {
             Ok(v) if v == "0" => false,
@@ -1326,6 +1384,8 @@ impl FlashNext {
             verification: None,
             multi_token,
             prefill_heads,
+            #[cfg(feature = "chat")]
+            prompt_mode,
             lookahead_depth,
             lookahead_pool,
             #[cfg(feature = "chat")]
@@ -1580,6 +1640,29 @@ impl FlashNext {
         }
         Ok(last)
     }
+    /// Advance an intermediate plain-chat span if the session enables the fast path.
+    #[cfg(feature = "chat")]
+    pub fn advance_chat_prompt(
+        &mut self,
+        tokens: &[u32],
+        total: usize,
+        end: usize,
+        cancelled: &AtomicBool,
+    ) -> Result<bool> {
+        match self.prompt_mode {
+            PromptMode::Experts { serial_tail }
+                if flash_support::group_prompt_span(total, end, serial_tail) =>
+            {
+                self.prefill_experts(tokens, cancelled)?;
+            }
+            PromptMode::FinalHead if end < total => {
+                self.forward_prompt_chunk(tokens, false)?;
+            }
+            _ => return Ok(false),
+        }
+        Ok(true)
+    }
+
     /// Prefill an intermediate chat span. Only the expert stage groups rows.
     #[cfg(feature = "chat")]
     pub fn prefill_experts(&mut self, tokens: &[u32], cancelled: &AtomicBool) -> Result<()> {

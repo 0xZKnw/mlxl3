@@ -255,6 +255,23 @@ Performance depends on the checkpoint, quantization, context, prompt, output
 budget, acceleration mode, Mac and memory pressure. Decode, prefill, time to
 first token, total latency and memory measure different parts of the workload.
 
+For Flash Next in plain autoregressive chat, set `MLXL3_FLASH_PREFILL_EXPERT4=1`
+to group the routed experts of up to four prompt tokens. Add
+`MLXL3_FLASH_PREFILL_SERIAL_TAIL=1` to process the final spans of long prompts
+serially before decode. The standalone `MLXL3_FLASH_PROMPT_FINAL_HEAD=1` option
+skips intermediate vocabulary projections and has no demonstrated speed gain on
+its own. Grouped mode takes precedence. Each switch accepts only `0` or `1`,
+defaults to off, and is read when loading a Flash session.
+
+At a 3 GiB expert budget, grouped prefill shortened time to first token but the
+long-prompt CLI series measured about 4.9–5.0 tok/s in decode versus 6.1 with
+serial prefill. With an optional 5 GiB cache and early resident-expert processing,
+a separate 654+128 bridge comparison finished in 80.3 s versus 113.5 s for the
+3 GiB serial reference. Its average process peak rose from 7.06 to 9.13 GiB.
+The two comparisons use different protocols. See the
+[CLI measurements](docs/measurements/flash-long-decode-20261121/summary.json) and
+[bridge measurements and settings](docs/measurements/flash-long-stability-20261122/README.md).
+
 Recorded campaigns include:
 
 - [Six-model Apple M5 / 24 GiB baseline](docs/measurements/v2-models-20261111/), with exact weights, source revisions, timings and quality checks.

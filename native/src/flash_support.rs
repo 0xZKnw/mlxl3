@@ -33,13 +33,24 @@ fn serial_tail_keeps_last_logits_and_groups_only_complete_prefixes() {
     let end: usize = kani::any();
     let tail: bool = kani::any();
     let grouped = group_prompt_span(total, end, tail);
-    assert_eq!(
-        grouped,
-        end < total && (!tail || total < 256 || end as u128 + 48 <= total as u128)
-    );
-    kani::cover!(grouped && tail && total >= 256);
-    kani::cover!(!grouped && tail && end < total);
+    if end >= total {
+        assert!(!grouped);
+    } else if !tail || total < 256 {
+        assert!(grouped);
+    } else if grouped {
+        assert!(total - end >= 48);
+        // Every earlier boundary also belongs to the grouped prefix.
+        let earlier: usize = kani::any();
+        if earlier <= end {
+            assert!(group_prompt_span(total, earlier, true));
+        }
+    } else {
+        assert!(total - end < 48);
+    }
+    kani::cover!(tail && total >= 256 && grouped && total - end == 48);
+    kani::cover!(tail && total >= 256 && end < total && !grouped && total - end == 47);
     kani::cover!(!grouped && end == total);
+    kani::cover!(grouped && tail && total < 256);
 }
 
 #[cfg(any(feature = "mlx", test, kani))]
