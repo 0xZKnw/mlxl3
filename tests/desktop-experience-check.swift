@@ -4,7 +4,25 @@ import Foundation
 import SwiftUI
 
 @main struct DesktopExperienceCheck {
-    @MainActor static func main() async throws {
+    @MainActor static func main() {
+        let app = NSApplication.shared
+        app.setActivationPolicy(.accessory)
+        // Native text fields run a nested event loop while tracking the mouse.
+        // Keep AppKit's main loop alive until every asynchronous check completes.
+        Task { @MainActor in
+            do {
+                try await runChecks()
+                exit(EXIT_SUCCESS)
+            } catch {
+                progress(String(describing: error))
+                exit(EXIT_FAILURE)
+            }
+        }
+        app.run()
+        exit(EXIT_FAILURE)
+    }
+
+    @MainActor private static func runChecks() async throws {
         var checks = 0
         func check(_ condition: Bool, _ label: String) throws {
             checks += 1

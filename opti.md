@@ -30845,3 +30845,18 @@ locaux du harnais de clics se sont arrêtés au clic recherche avant l'attestati
 finale ; validation de ce scénario à confirmer par la CI de la PR. Contrôle
 d'inventaire local : 342 fichiers conformes. Aucun poids ou résultat de performance
 modifié. Journaux et captures dans build/image21-studio du dépôt de départ.
+
+Complément : CI du commit b3c5d550, 29 contrôles verts ; dans les journaux, les
+30 captures de visibilité passent (aucune première lecture manquée) et les deux
+historiques se terminent à zéro point du bas. Mais le test de clics sort à zéro
+avant sa fin, à la recherche (même symptôme sur Mac local). Ne pas compter ce
+premier résultat comme validation des clics. Pile obtenue au breakpoint exit :
+swift_task_asyncMainDrainQueue termine le processus. Le harnais pilote désormais
+sa boucle AppKit et termine explicitement après les assertions ; le lanceur CI
+vérifie aussi sa ligne finale. Reproduction locale de l'ancien faux succès
+(journal tronqué rejeté) puis exécution du binaire corrigé : contrôles physiques
+de la zone du bouton, du champ de recherche et du pied de barre atteints,
+3212 assertions terminées, aucune ignorée. Signature finale acceptée sur ce
+journal. Preuves : experience-debug.log, experience-check-retry.log et
+experience-lifecycle.log dans le dossier de validation. Ce complément ne change
+aucun code de Studio. Vérification macOS distante suivie sur la PR 186.

@@ -372,7 +372,8 @@ run_after_preferences() {
     "${test_dir}/sampling-check" "$PWD/tests/fake-desktop-engine.py" \
         "$PWD/apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift"
     await_compile experience
-    run_fixture_check "${test_dir}/experience-check" "$PWD/tests/fake-desktop-engine.py"
+    run_fixture_check "${test_dir}/experience-check" "$PWD/tests/fake-desktop-engine.py" | tee "${test_dir}/experience.log"
+    grep -q "^Desktop experience checks passed:" "${test_dir}/experience.log"
     await_compile text-size
     run_fixture_check "${test_dir}/text-size-check"
     await_compile mtp-layout
