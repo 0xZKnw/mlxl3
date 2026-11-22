@@ -12,6 +12,10 @@ pub struct Message {
     pub content: String,
 }
 
+/// Levels the bridge accepts as `reasoning_effort` (`none` turns thinking off). Each
+/// template supports its own subset: Inkling 2 all of them, Qwen3.8 none/low/medium/xhigh.
+pub const REASONING_EFFORTS: [&str; 6] = ["none", "low", "medium", "high", "xhigh", "max"];
+
 pub struct ChatTokenizer {
     tokenizer: Tokenizer,
     environment: Environment<'static>,
@@ -260,7 +264,7 @@ impl ChatTokenizer {
     }
 
     pub fn render_values(&self, messages: &Value, tools: Option<&[Value]>) -> Result<String> {
-        self.render_values_options(messages, tools, None)
+        self.render_values_options(messages, tools, None, None)
     }
 
     pub fn render_values_with_thinking(
@@ -269,7 +273,32 @@ impl ChatTokenizer {
         tools: Option<&[Value]>,
         thinking: bool,
     ) -> Result<String> {
-        self.render_values_options(messages, tools, Some(thinking))
+        self.render_values_options(messages, tools, Some(thinking), None)
+    }
+
+    /// Renders with a requested reasoning level: `None` keeps the template default, `none`
+    /// turns thinking off, any other level enables thinking with `reasoning_effort` set to it
+    /// (the template rejects a level it does not support).
+    pub fn render_values_with_effort(
+        &self,
+        messages: &Value,
+        tools: Option<&[Value]>,
+        effort: Option<&str>,
+    ) -> Result<String> {
+        match effort {
+            None => self.render_values_options(messages, tools, None, None),
+            Some(level) => {
+                ensure!(
+                    REASONING_EFFORTS.contains(&level),
+                    "unsupported reasoning effort {level:?}"
+                );
+                if level == "none" {
+                    self.render_values_options(messages, tools, Some(false), None)
+                } else {
+                    self.render_values_options(messages, tools, Some(true), Some(level))
+                }
+            }
+        }
     }
 
     fn render_values_options(
@@ -277,6 +306,7 @@ impl ChatTokenizer {
         messages: &Value,
         tools: Option<&[Value]>,
         thinking: Option<bool>,
+        effort: Option<&str>,
     ) -> Result<String> {
         let messages = messages.as_array().context("messages must be an array")?;
         ensure!(!messages.is_empty(), "chat requires at least one message");
@@ -306,8 +336,11 @@ impl ChatTokenizer {
             documents => Option::<bool>::None,
         };
         let values = if let Some(thinking) = thinking {
-            // Inkling 2 reads `reasoning_effort` (0 = no thinking, default 0.9); other templates ignore it
-            if thinking {
+            // Inkling 2 reads `reasoning_effort` (0 = no thinking, default 0.9); Qwen3.8 reads
+            // low/medium/xhigh; other templates ignore it
+            if let Some(effort) = effort.filter(|_| thinking) {
+                context! { enable_thinking => thinking, reasoning_effort => effort, ..values }
+            } else if thinking {
                 context! { enable_thinking => thinking, ..values }
             } else {
                 context! { enable_thinking => thinking, reasoning_effort => 0.0, ..values }
@@ -429,6 +462,27 @@ mod tests {
             };
             assert_eq!(content(Channel::Thinking), "hello");
             assert_eq!(content(Channel::Answer), "hello<think>");
+        }
+    }
+
+    #[test]
+    fn reasoning_effort_reaches_the_template_or_turns_thinking_off() {
+        let root = fixture(
+            "{{ enable_thinking is undefined }}|{{ enable_thinking }}|{{ reasoning_effort | default('unset') }}|{{ messages[0].content }}",
+        );
+        let tokenizer = ChatTokenizer::load(root.path()).unwrap();
+        let messages = json!([{"role":"user","content":"hi"}]);
+        let render = |effort| tokenizer.render_values_with_effort(&messages, None, effort);
+        assert_eq!(render(None).unwrap(), "True||unset|hi", "template default");
+        assert_eq!(render(Some("none")).unwrap(), "False|False|0.0|hi");
+        for level in ["low", "medium", "high", "xhigh", "max"] {
+            assert_eq!(
+                render(Some(level)).unwrap(),
+                format!("False|True|{level}|hi")
+            );
+        }
+        for invalid in ["", "minimal", "HIGH", "0.5", "ultra"] {
+            assert!(render(Some(invalid)).is_err(), "{invalid:?}");
         }
     }
 

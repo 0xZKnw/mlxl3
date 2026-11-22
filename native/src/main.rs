@@ -2483,6 +2483,11 @@ struct BridgeRequest {
     #[serde(default = "reuse_cache_by_default")]
     #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
     dspark: bool,
+    /// Requested `reasoning_effort` (one of `tokenizer::REASONING_EFFORTS`); omitted = the
+    /// chat template's default.
+    #[serde(default)]
+    #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
+    reasoning_effort: Option<String>,
 }
 
 #[cfg(all(
@@ -2672,6 +2677,80 @@ impl Drop for DsparkRequest {
     fn drop(&mut self) {
         DSPARK_REQUESTED.with(|cell| cell.set(true));
     }
+}
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+thread_local! {
+    /// Reasoning level of the request being served (the bridge serves one request at a time).
+    static REASONING_REQUESTED: std::cell::RefCell<Option<String>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Sets the reasoning level for one request; dropping it restores the template default.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+struct ReasoningRequest;
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl ReasoningRequest {
+    fn set(effort: Option<String>) -> Result<Self> {
+        if let Some(level) = &effort {
+            anyhow::ensure!(
+                mlxl3_native::tokenizer::REASONING_EFFORTS.contains(&level.as_str()),
+                "unsupported reasoning effort {level:?}"
+            );
+        }
+        REASONING_REQUESTED.with(|cell| *cell.borrow_mut() = effort);
+        Ok(Self)
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl Drop for ReasoningRequest {
+    fn drop(&mut self) {
+        REASONING_REQUESTED.with(|cell| *cell.borrow_mut() = None);
+    }
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn bridge_reasoning_effort_is_optional_validated_and_scoped() -> Result<()> {
+    let current = || REASONING_REQUESTED.with(|cell| cell.borrow().clone());
+    let legacy: BridgeRequest = serde_json::from_value(json!({"type":"generate"}))?;
+    assert!(
+        legacy.reasoning_effort.is_none(),
+        "older apps keep the template default"
+    );
+    for level in mlxl3_native::tokenizer::REASONING_EFFORTS {
+        let request: BridgeRequest =
+            serde_json::from_value(json!({"type":"generate", "reasoning_effort":level}))?;
+        {
+            let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;
+            assert_eq!(current().as_deref(), Some(level));
+        }
+        assert!(
+            current().is_none(),
+            "the next request starts from the default"
+        );
+    }
+    for invalid in ["", "ultra", "High", "0.9"] {
+        assert!(
+            ReasoningRequest::set(Some(invalid.into())).is_err(),
+            "{invalid:?}"
+        );
+        assert!(current().is_none());
+    }
+    for invalid in [json!(1), json!(true), json!(["low"])] {
+        assert!(
+            serde_json::from_value::<BridgeRequest>(
+                json!({"type":"generate", "reasoning_effort":invalid})
+            )
+            .is_err()
+        );
+    }
+    Ok(())
 }
 
 #[cfg(all(test, feature = "mlx", feature = "chat"))]
@@ -4127,7 +4206,13 @@ fn bridge_generate_round(
     );
     let (prepared, images) =
         mlxl3_native::vision_input::prepare_messages(messages, model.supports_images())?;
-    let rendered = tokenizer.render_values(&Value::Array(prepared), Some(tools))?;
+    let rendered = REASONING_REQUESTED.with(|effort| {
+        tokenizer.render_values_with_effort(
+            &Value::Array(prepared),
+            Some(tools),
+            effort.borrow().as_deref(),
+        )
+    })?;
     let tokens = tokenizer.encode(&rendered)?;
     anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
     anyhow::ensure!(
@@ -5260,6 +5345,7 @@ fn native_bridge(
         "flash":match &model { NativeChatModel::Flash(target) => Some(target.runtime_manifest()?), _ => None },
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "images_supported":model.supports_images(),
+        "reasoning_effort_supported":true,
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
         "memory":memory,
         "runtime_commit":env!("MLXL3_BUILD_REVISION"),
@@ -5649,6 +5735,7 @@ fn native_bridge(
                     )?;
                     #[cfg(feature = "mlx")]
                     let _dspark = DsparkRequest::set(request.dspark);
+                    let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;
                     bridge_generate(
                         &mut model,
                         &tokenizer,
