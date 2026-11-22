@@ -29,6 +29,29 @@ thread_local! {
     static DENSE_HESSIANS: std::cell::RefCell<Option<HessianMap>> = const { std::cell::RefCell::new(None) };
 }
 
+#[cfg(test)]
+thread_local! {
+    /// SPEED-2026-11-22-INK2M-P11 D3 (tests only): when set, every MoE call appends its routes `[rows, top_k]`.
+    static MOE_ROUTES: std::cell::RefCell<Option<Vec<(usize, Vec<u32>)>>> = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn capture_routes(selected: &Array) -> Result<()> {
+    MOE_ROUTES.with(|cell| {
+        if let Some(routes) = cell.borrow_mut().as_mut() {
+            let rows = usize::try_from(selected.shape()[0])?;
+            routes.push((rows, selected.to_u32()?));
+        }
+        Ok(())
+    })
+}
+
+#[cfg(not(test))]
+#[inline(always)]
+fn capture_routes(_selected: &Array) -> Result<()> {
+    Ok(())
+}
+
 fn capture_dense_input(layer: usize, slot: u8, x: &Array) -> Result<()> {
     DENSE_HESSIANS.with(|cell| {
         let mut cell = cell.borrow_mut();
@@ -1331,6 +1354,7 @@ impl Moe {
         let logits = x.astype(Dtype::Float32)?.matmul(&self.router_t)?;
         let (selected, scores) =
             router::grouped_topk_biased(&logits, &self.bias, self.top_k, 1, 1, self.scale)?;
+        capture_routes(&selected)?;
         if ablated("experts") {
             // keep the router in the graph, drop the expert kernels
             return x
@@ -2642,6 +2666,55 @@ mod tests {
             rel < 0.05,
             "speculative state differs from teacher-forced AR: {rel}"
         );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P11 D3 (diagnostic): share of duplicated expert routes inside verification blocks of
+    /// T = 2..4 consecutive real tokens (distinct experts per MoE call over T * top_k), against random routes.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn verify_expert_overlap() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let taps: Vec<usize> = vec![5, 23, 41, model.visit_count()];
+        let mut report = Vec::new();
+        for t in 2..=4usize {
+            let (mut slots, mut distinct, mut calls) = (0usize, 0usize, 0usize);
+            for row in rows["rows"].as_array().context("rows")? {
+                let tokens: Vec<u32> = serde_json::from_value(row["tokens"].clone())?;
+                let prefix = 64.min(tokens.len().saturating_sub(8 * t + 1));
+                ensure!(prefix >= 16, "row too short");
+                model.reset();
+                model.forward_tokens(&tokens[..prefix])?.eval()?;
+                for block in tokens[prefix..].chunks_exact(t).take(8) {
+                    MOE_ROUTES.with(|c| *c.borrow_mut() = Some(Vec::new()));
+                    let (logits, _) = model.verify(block, &taps)?;
+                    logits.eval()?;
+                    let routes = MOE_ROUTES.with(|c| c.borrow_mut().take()).context("routes")?;
+                    model.commit(t)?;
+                    for (r, ids) in routes {
+                        ensure!(r == t && ids.len() % t == 0, "unexpected MoE call shape");
+                        let set: std::collections::BTreeSet<u32> = ids.iter().copied().collect();
+                        slots += ids.len();
+                        distinct += set.len();
+                        calls += 1;
+                    }
+                }
+            }
+            ensure!(calls > 0, "no MoE call captured");
+            // random top-k routes: expected distinct experts of t independent draws of 8 among 128
+            let (k, e) = (8.0f64, 128.0f64);
+            let random = e * (1.0 - (1.0 - k / e).powi(t as i32)) / (k * t as f64);
+            report.push(serde_json::json!({
+                "rows": t, "calls": calls,
+                "distinct_share": distinct as f64 / slots as f64,
+                "duplicated_share": 1.0 - distinct as f64 / slots as f64,
+                "random_distinct_share": random,
+            }));
+        }
+        println!("{}", serde_json::to_string(&report)?);
         Ok(())
     }
 
