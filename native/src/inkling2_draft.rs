@@ -664,6 +664,51 @@ impl Inkling2Draft {
     }
 }
 
+/// SPEED-INK2M-P6a: runs every kernel shape a generation uses once (long prefill on the TensorOps
+/// expert path, short prefill, plain decode step, DSpark verifications of 2 to 4 rows, the committed
+/// width-0 step with features, the drafter's context and proposals), then resets both models and
+/// releases the buffer cache. The first request after loading otherwise paid the Metal kernel
+/// compilation (about 8.5 s measured on Inkling 2 Mini). No state survives: logits after it are
+/// identical to logits of a model that never ran it.
+pub fn warm_up(target: &mut Inkling2, draft: Option<&mut Inkling2Draft>) -> Result<()> {
+    // ordinary text token ids, inside every vocabulary of the family
+    let tokens: Vec<u32> = (0..72u32).map(|i| 1000 + 37 * i).collect();
+    target.reset();
+    target.forward_tokens(&tokens)?.eval()?;
+    target.reset();
+    target.forward_tokens(&tokens[..16])?.eval()?;
+    target.forward(tokens[16])?.eval()?;
+    if let Some(draft) = draft {
+        let taps = draft.taps().to_vec();
+        target.reset();
+        draft.reset();
+        let (_, features) = target.forward_with_features(&tokens, &taps)?;
+        draft.append_context(&features)?;
+        let rows = features.shape()[0];
+        let mut last = features.slice(0, rows - 1, rows)?;
+        let counts = draft.max_proposals().min(3);
+        ensure!(tokens.len() > counts, "warm-up prompt too short");
+        for (count, &token) in tokens.iter().enumerate().skip(1).take(counts) {
+            let anchor = Array::from_u32(&[token], &[1])?;
+            let proposals = draft.propose(target, &anchor, &last, count)?.to_u32()?;
+            let mut block = vec![token];
+            block.extend(&proposals);
+            let (logits, features) = target.verify(&block, &taps)?;
+            logits.eval()?;
+            target.commit(1)?;
+            draft.append_context(&features.slice(0, 0, 1)?)?;
+            last = features.slice(0, 0, 1)?;
+        }
+        let (logits, features) = target.forward_with_features(&tokens[..1], &taps)?;
+        logits.eval()?;
+        draft.append_context(&features)?;
+        draft.reset();
+    }
+    target.reset();
+    crate::array::synchronize()?;
+    crate::array::clear_cache()
+}
+
 /// One draw per row of `logits` (`[rows, vocab]`) from softmax(logits / temperature):
 /// argmax(logits / T + G) with G = -log(-log U), U ~ uniform[0, 1) seeded by `seed` (U = 0 gives -inf
 /// and is never chosen). Returns `[rows]` token ids on the GPU.
@@ -784,10 +829,15 @@ impl DsparkSession {
     }
 
     /// Choose each block's width (0 to the session width) from the acceptance observed so far.
-    pub fn with_adaptive_width(mut self) -> Self {
-        self.policy = Some(WidthPolicy::new(self.width));
+    pub fn with_adaptive_width(mut self, policy: WidthPolicy) -> Result<Self> {
+        ensure!(
+            policy.max_width() == self.width,
+            "DSpark width policy does not match the session width"
+        );
+        self.policy = Some(policy);
         self.stats.width_blocks = vec![0; self.width + 1];
-        self
+        self.stats.width_ms = vec![0.0; self.width + 1];
+        Ok(self)
     }
 
     /// Resets both models and prefills `tokens` by chunks, giving the drafter its context. Returns the
@@ -863,6 +913,7 @@ impl DsparkSession {
             .last_feature
             .take()
             .context("DSpark session without context")?;
+        let block_started = Instant::now();
         let t = Instant::now();
         let mut draft_rows: Option<Vec<Vec<f32>>> = None;
         let proposals = if count == 0 {
@@ -930,6 +981,9 @@ impl DsparkSession {
             if let Some(slot) = self.stats.width_blocks.get_mut(proposals.len()) {
                 *slot += 1;
             }
+            if let Some(slot) = self.stats.width_ms.get_mut(proposals.len()) {
+                *slot += block_started.elapsed().as_secs_f64() * 1e3;
+            }
         }
         for slot in self.stats.accepted_at.iter_mut().take(accepted) {
             *slot += 1;
@@ -946,31 +1000,80 @@ impl DsparkSession {
 ///
 /// `acceptance[i]` estimates the probability that proposal `i` is accepted given that proposals `0..i`
 /// were (exponential average over the blocks that reached it). A block of width `w` delivers
-/// E(w) = 1 + sum over i < w of the product of acceptance[0..=i] tokens and costs C(w) = 1 + (VERIFY_COST +
-/// DRAFT_COST) * w plain decoding steps (one extra verified row, about +0.2 of a step on Inkling 2 Mini
-/// because every row reads its own experts, and one draft position, about +0.07). The width maximizing
-/// E(w) / C(w) is used; width 0 is a plain step. Every `PROBE_EVERY` blocks the full width is tried so the
-/// estimates of the positions not used meanwhile stay current. The choice depends only on the accepted
-/// counts, never on timings, so a generation stays reproducible; the acceptance rule, and so the law of
-/// every token, does not depend on the width.
+/// E(w) = 1 + sum over i < w of the product of acceptance[0..=i] tokens and costs C(w) plain decoding
+/// steps. The width maximizing E(w) / C(w) is used; width 0 is a plain step. Every `PROBE_EVERY` blocks a
+/// wider block is tried so the estimates stay current. The choice depends only on the accepted counts and
+/// constant costs, never on timings, so a generation stays reproducible; the acceptance rule, and so the
+/// law of every token, does not depend on the width.
+///
+/// Two settings: P4c (`new`), C(w) = 1 + (VERIFY_COST + DRAFT_COST) * w calibrated on the FP16 dense target
+/// and probes at the full width every `PROBE_EVERY` blocks; P10c (`measured`), C(w) from the block times
+/// measured on the 8-bit dense target and probes one position past the best width, spaced out (8, 16, 32,
+/// up to `PROBE_MAX` blocks) while the best width stays 0 after them, so plain steps pay little for them.
 #[derive(Clone, Debug)]
 pub struct WidthPolicy {
     acceptance: Vec<f64>,
+    /// costs[w]: cost of a block of width w, in plain decoding steps (costs[0] = 1)
+    costs: Vec<f64>,
+    /// probe at best + 1, spaced out while DSpark does not pay (P10c), instead of the full width every
+    /// `PROBE_EVERY` blocks (P4)
+    narrow_probes: bool,
     blocks: usize,
+    /// P10c: blocks between probes, blocks since the last probe, and whether the last block was a probe
+    probe_gap: usize,
+    since_probe: usize,
+    probing: bool,
 }
 
 impl WidthPolicy {
     pub const ALPHA: f64 = 0.15;
     pub const PRIOR: f64 = 0.75;
     pub const PROBE_EVERY: usize = 8;
+    /// P10c: largest gap between probes while the best width stays 0.
+    pub const PROBE_MAX: usize = 64;
     pub const VERIFY_COST: f64 = 0.20;
     pub const DRAFT_COST: f64 = 0.07;
+    /// DSPARK-INK2M-P10a: block wall time of widths 0..=3 over the width-0 block, Inkling 2 Mini R3 with
+    /// 8-bit dense projections in the bridge, sampled rows (T = 1: every verified row is drawn on the CPU).
+    pub const SAMPLED_8BIT_COSTS: [f64; 4] = [1.0, 1.56, 1.83, 2.17];
+    /// Same, greedy rows (argmax of every verified row; width-0 cost = the bridge greedy AR step). Measured
+    /// only: greedy sessions keep the P4c costs, this table lost 2.2 % on short greedy answers (P10b).
+    pub const GREEDY_8BIT_COSTS: [f64; 4] = [1.0, 1.62, 1.95, 2.22];
 
+    /// P4c setting: linear FP16 costs, full-width probes.
     pub fn new(max_width: usize) -> Self {
         Self {
             acceptance: vec![Self::PRIOR; max_width],
+            costs: (0..=max_width).map(Self::linear_cost).collect(),
+            narrow_probes: false,
             blocks: 0,
+            probe_gap: Self::PROBE_EVERY,
+            since_probe: 0,
+            probing: false,
         }
+    }
+
+    /// P10c setting: measured costs of widths `0..=max_width` (the first `max_width + 1` of `costs`),
+    /// probes one position past the best width, spaced out while the best width stays 0.
+    pub fn measured(costs: &[f64], max_width: usize) -> Result<Self> {
+        ensure!(max_width >= 1, "adaptive DSpark width needs a proposal");
+        let costs = costs
+            .get(..=max_width)
+            .context("no measured cost for the DSpark width")?;
+        ensure!(costs[0] == 1.0, "a width-0 block is one plain step");
+        ensure!(
+            costs.windows(2).all(|w| w[1].is_finite() && w[1] > w[0]),
+            "DSpark block costs must grow with the width"
+        );
+        Ok(Self {
+            acceptance: vec![Self::PRIOR; max_width],
+            costs: costs.to_vec(),
+            narrow_probes: true,
+            blocks: 0,
+            probe_gap: Self::PROBE_EVERY,
+            since_probe: 0,
+            probing: false,
+        })
     }
 
     pub fn max_width(&self) -> usize {
@@ -988,15 +1091,20 @@ impl WidthPolicy {
         total
     }
 
-    /// Cost of a block of `width`, in plain decoding steps.
-    pub fn cost(width: usize) -> f64 {
+    /// P4 cost model of a block of `width`, in plain decoding steps.
+    pub fn linear_cost(width: usize) -> f64 {
         1.0 + (Self::VERIFY_COST + Self::DRAFT_COST) * width as f64
+    }
+
+    /// Cost of a block of `width` (at most `max_width`) under this policy, in plain decoding steps.
+    pub fn cost(&self, width: usize) -> f64 {
+        self.costs[width]
     }
 
     /// The width with the most tokens per unit of cost (the smaller one on a tie).
     pub fn best(&self) -> usize {
         (0..=self.max_width())
-            .map(|w| (w, self.expected_tokens(w) / Self::cost(w)))
+            .map(|w| (w, self.expected_tokens(w) / self.cost(w)))
             .fold((0, f64::MIN), |best, (w, rate)| {
                 if rate > best.1 + 1e-12 {
                     (w, rate)
@@ -1007,14 +1115,29 @@ impl WidthPolicy {
             .0
     }
 
-    /// The width of the next block: the best one, or the full width on a probe block.
+    /// The width of the next block: the best one, or a wider one on a probe block.
     pub fn next_width(&mut self) -> usize {
         self.blocks += 1;
-        if self.blocks.is_multiple_of(Self::PROBE_EVERY) {
-            self.max_width()
-        } else {
-            self.best()
+        let best = self.best();
+        if !self.narrow_probes {
+            return if self.blocks.is_multiple_of(Self::PROBE_EVERY) {
+                self.max_width()
+            } else {
+                best
+            };
         }
+        self.since_probe += 1;
+        if self.since_probe < self.probe_gap {
+            return best;
+        }
+        self.since_probe = 0;
+        self.probing = true;
+        (best + 1).min(self.max_width())
+    }
+
+    /// P10c: blocks until the next probe may run (the current gap).
+    pub fn probe_gap(&self) -> usize {
+        self.probe_gap
     }
 
     /// Records a block of `width` proposals of which the first `accepted` were accepted.
@@ -1027,6 +1150,15 @@ impl WidthPolicy {
             let hit = if accepted > i { 1.0 } else { 0.0 };
             *a = (1.0 - Self::ALPHA) * *a + Self::ALPHA * hit;
         }
+        // P10c: a probe after which plain steps stay best doubles the gap; one that makes DSpark pay
+        // again resets it
+        if std::mem::take(&mut self.probing) {
+            self.probe_gap = if self.best() == 0 {
+                (self.probe_gap * 2).min(Self::PROBE_MAX)
+            } else {
+                Self::PROBE_EVERY
+            };
+        }
     }
 
     pub fn acceptance(&self) -> &[f64] {
@@ -1035,10 +1167,9 @@ impl WidthPolicy {
 
     #[cfg(test)]
     fn with_acceptance(acceptance: Vec<f64>) -> Self {
-        Self {
-            acceptance,
-            blocks: 0,
-        }
+        let mut p = Self::new(acceptance.len());
+        p.acceptance = acceptance;
+        p
     }
 }
 
@@ -1057,6 +1188,9 @@ pub struct SpecStats {
     /// DSPARK-INK2M-P4: blocks verified at each width (index = width), filled when the width adapts.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub width_blocks: Vec<usize>,
+    /// DSPARK-INK2M-P10a: wall time (ms) of the blocks of each width (draft + verification + commit).
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub width_ms: Vec<f64>,
 }
 
 fn argmax_rows(logits: &Array) -> Result<Vec<u32>> {
@@ -1285,6 +1419,7 @@ mod tests {
                     scales,
                     biases,
                     bits: 8,
+                    group: crate::inkling2::AFFINE_GROUP,
                 } => Ok([w, scales, biases]),
                 _ => anyhow::bail!("{name}: expected an 8-bit affine copy"),
             }
@@ -1360,6 +1495,66 @@ mod tests {
             serde_json::to_string_pretty(&report)?,
         )?;
         println!("{report}");
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P6a: `warm_up` leaves no state: the logits of a prompt and three decode steps, and
+    /// a DSpark session's first proposals, are bit-identical before and after it; also reports how long
+    /// the first and the second warm-up take.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ORACLE"]
+    fn warm_up_leaves_no_state() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let prompt = prompt()?;
+        let mut target = Inkling2::load(&dir)?;
+        let mut draft = Inkling2Draft::load(&dir, &target)?;
+        let run = |target: &mut Inkling2, draft: &mut Inkling2Draft| -> Result<Vec<u32>> {
+            target.reset();
+            draft.reset();
+            let mut bits = Vec::new();
+            let logits = target.forward_tokens(&prompt)?;
+            bits.extend(logits.to_f32()?.iter().map(|v| v.to_bits()));
+            for t in [1234u32, 278, 13] {
+                bits.extend(target.forward(t)?.to_f32()?.iter().map(|v| v.to_bits()));
+            }
+            let mut session = DsparkSession::new(draft, DsparkSession::DEFAULT_WIDTH)?;
+            let logits = session.prefill(target, draft, &prompt, &|| false)?;
+            let mut next = *logits.chat_greedy_ids()?.first().context("prefill")?;
+            for _ in 0..6 {
+                let mut choose = |proposals: &[u32],
+                                  _drafts: Option<&[Vec<f32>]>,
+                                  verified: &Array|
+                 -> Result<(usize, u32)> {
+                    let a =
+                        crate::speculative::greedy_accept(proposals, &verified.chat_greedy_ids()?)
+                            .context("acceptance")?;
+                    Ok((a.accepted_draft_tokens, a.target_token))
+                };
+                next = session.advance(target, draft, next, 4096, 64, &mut choose)?;
+                bits.push(next);
+            }
+            Ok(bits)
+        };
+        let before = run(&mut target, &mut draft)?;
+        let t = Instant::now();
+        warm_up(&mut target, Some(&mut draft))?;
+        let first = t.elapsed().as_secs_f64();
+        let t = Instant::now();
+        warm_up(&mut target, Some(&mut draft))?;
+        let second = t.elapsed().as_secs_f64();
+        let after = run(&mut target, &mut draft)?;
+        ensure!(
+            !before.is_empty() && before.len() == after.len(),
+            "runs differ in length"
+        );
+        ensure!(
+            before == after,
+            "warm_up changed the logits or the DSpark tokens"
+        );
+        println!(
+            "warm_up leaves no state ({} values compared); warm-up {first:.2} s, again {second:.2} s",
+            before.len()
+        );
         Ok(())
     }
 
@@ -1498,7 +1693,7 @@ mod tests {
         assert_eq!(prior.max_width(), 3);
         assert!((prior.expected_tokens(0) - 1.0).abs() < 1e-12);
         assert!((prior.expected_tokens(2) - 2.3125).abs() < 1e-12);
-        assert!((WidthPolicy::cost(3) - 1.81).abs() < 1e-12);
+        assert!((prior.cost(3) - 1.81).abs() < 1e-12);
         assert_eq!(
             prior.best(),
             3,
@@ -1554,6 +1749,89 @@ mod tests {
                 .collect::<Vec<_>>()
         };
         assert_eq!(run(7), run(7));
+    }
+
+    /// DSPARK-INK2M-P10b/P10c: measured 8-bit costs and narrow, spaced probes. At the sampled free-text
+    /// acceptance measured in P10a (0.45 / 0.4 / 0.35) the policy stays on plain steps and probes at width
+    /// 1 after 8, 16, 32 then every 64 blocks; at the greedy code acceptance of P4b (0.84 / 0.82 / 0.85) it
+    /// uses the full width; acceptance back after rejections resets the gap; costs are validated.
+    #[test]
+    fn measured_width_policy_probes_one_past_the_best_width() {
+        let costs = WidthPolicy::SAMPLED_8BIT_COSTS;
+        let mut p = WidthPolicy::measured(&costs, 3).unwrap();
+        assert!((p.cost(1) - 1.56).abs() < 1e-12 && (p.cost(3) - 2.17).abs() < 1e-12);
+        assert!(p.best() >= 2, "prior 0.75 still starts wide");
+        p.acceptance = vec![0.45, 0.4, 0.35];
+        assert_eq!(p.best(), 0, "1.45 tokens for 1.56 steps does not pay");
+        let old = WidthPolicy::with_acceptance(vec![0.45, 0.4, 0.35]);
+        assert_eq!(old.best(), 1, "the P4c linear costs pick width 1 here");
+        p.acceptance = vec![0.84, 0.82, 0.85];
+        assert_eq!(p.best(), 3);
+        p.acceptance = vec![0.6, 0.3, 0.3];
+        assert_eq!(
+            p.best(),
+            1,
+            "1.6 tokens for 1.56 steps pays, the second proposal does not"
+        );
+        // probes: best + 1 (width 1 while plain steps are best), after 8, 16, 32 then every 64 blocks
+        // while they are rejected
+        let mut p = WidthPolicy::measured(&costs, 3).unwrap();
+        p.acceptance = vec![0.1, 0.1, 0.1];
+        let mut probes = Vec::new();
+        for block in 1..=400 {
+            let w = p.next_width();
+            assert!(w <= 1, "block {block}: {w}");
+            if w == 1 {
+                probes.push(block);
+            }
+            p.observe(w, 0);
+        }
+        assert_eq!(&probes[..6], &[8, 24, 56, 120, 184, 248], "{probes:?}");
+        assert_eq!(p.probe_gap(), WidthPolicy::PROBE_MAX);
+        // an accepted probe that makes width 1 pay resets the gap
+        p.acceptance = vec![0.55, 0.3, 0.3];
+        while p.next_width() == 0 {}
+        p.observe(1, 1);
+        assert!(p.best() >= 1, "{:?}", p.acceptance());
+        assert_eq!(p.probe_gap(), WidthPolicy::PROBE_EVERY);
+        // the P4c setting keeps its fixed full-width probes
+        let mut old = WidthPolicy::with_acceptance(vec![0.1, 0.1, 0.1]);
+        let widths: Vec<usize> = (1..=32)
+            .map(|_| {
+                let w = old.next_width();
+                old.observe(w, 0);
+                w
+            })
+            .collect();
+        for (i, &w) in widths.iter().enumerate() {
+            let probe = (i + 1).is_multiple_of(WidthPolicy::PROBE_EVERY);
+            assert_eq!(w, if probe { 3 } else { 0 }, "P4c block {i}");
+        }
+        // a probe at the full width stays at the full width
+        let mut p = WidthPolicy::measured(&costs, 3).unwrap();
+        p.acceptance = vec![0.9, 0.9, 0.9];
+        assert!((0..16).all(|_| p.next_width() == 3));
+        // every rejection: plain steps; repeated acceptance: back to the full width
+        let mut p = WidthPolicy::measured(&costs, 3).unwrap();
+        for _ in 0..200 {
+            let w = p.next_width();
+            p.observe(w, 0);
+        }
+        assert_eq!(p.best(), 0);
+        let mut widths = Vec::new();
+        for _ in 0..400 {
+            let w = p.next_width();
+            widths.push(w);
+            p.observe(w, w);
+        }
+        assert_eq!(*widths.last().unwrap(), 3, "{:?}", p.acceptance());
+        // invalid costs
+        assert!(WidthPolicy::measured(&costs, 0).is_err());
+        assert!(WidthPolicy::measured(&costs, 4).is_err());
+        assert!(WidthPolicy::measured(&[1.1, 1.5], 1).is_err());
+        assert!(WidthPolicy::measured(&[1.0, 0.9], 1).is_err());
+        assert!(WidthPolicy::measured(&[1.0, f64::NAN], 1).is_err());
+        assert_eq!(WidthPolicy::measured(&costs, 2).unwrap().max_width(), 2);
     }
 
     /// DSPARK-INK2M-P3: the GPU Gumbel draw follows softmax(logits / T): 40 000 independent rows per
