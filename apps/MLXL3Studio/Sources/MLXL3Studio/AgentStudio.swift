@@ -16,6 +16,7 @@ struct AgentStudioView: View {
   @State private var confirmRestore = false
   @State private var confirmApply = false
   @State private var previewRoot: URL?
+  @State private var fullscreen = false
 
   init(
     workspace: URL, file: URL? = nil, onClose: (() -> Void)? = nil,
@@ -270,6 +271,23 @@ struct AgentStudioView: View {
           }.buttonStyle(.plain).accessibilityIdentifier("studio.tab.\(tab.rawValue)")
         }
         Spacer(minLength: 8)
+        if model.tab == .preview, let root = previewRoot {
+          Button {
+            let state = $fullscreen
+            studio.presentCodeFullscreen(
+              language: URL(fileURLWithPath: model.selected).pathExtension, source: model.savedCode,
+              canPreview: true, showingPreview: true, workspace: root,
+              file: root.appendingPathComponent(model.selected),
+              onClose: { state.wrappedValue = false })
+            state.wrappedValue = true
+          } label: {
+            Label(L("Plein écran", "Full screen"), systemImage: "arrow.up.left.and.arrow.down.right")
+              .font(.system(size: 11)).padding(.horizontal, 11).frame(height: 28)
+          }
+          .buttonStyle(StudioControlStyle())
+          .accessibilityIdentifier("studio.preview.fullscreen")
+          .help(L("Afficher l’aperçu en plein écran", "Show the preview full screen"))
+        }
         if model.tab == .code {
           Button {
             Task { _ = await model.save() }
@@ -409,7 +427,12 @@ struct AgentStudioView: View {
 
   private var preview: some View {
     Group {
-      if let root = previewRoot {
+      if fullscreen {
+        // One running page at a time: the full-screen window owns the preview.
+        Label(L("Aperçu affiché en plein écran", "Preview shown full screen"),
+              systemImage: "arrow.up.left.and.arrow.down.right")
+          .font(.system(size: 11)).foregroundStyle(StudioTheme.quiet)
+      } else if let root = previewRoot {
         InlineHTMLPreview(
           source: model.savedCode, workspace: root,
           file: root.appendingPathComponent(model.selected))
@@ -494,6 +517,34 @@ struct AgentStudioView: View {
       Text(L("Hors ligne, dans la copie isolée.", "Offline, inside the isolated copy.")).font(
         .system(size: 11)
       ).foregroundStyle(StudioTheme.quiet)
+      Picker(
+        L("Outils du modèle", "Model tools"),
+        selection: Binding(
+          get: { model.state.permissions.harness },
+          set: { harness in
+            var value = model.state.permissions
+            value.harness = harness
+            Task {
+              await model.setPermissions(value)
+              studio.refreshAgentPermissions()
+            }
+          })
+      ) {
+        Text("JavaScript").tag(AgentHarness.javascript)
+        Text(L("Outils séparés", "Separate tools")).tag(AgentHarness.tools)
+      }
+      .pickerStyle(.segmented).labelsHidden().font(.system(size: 11))
+      .accessibilityIdentifier("agent.harness")
+      Text(
+        model.state.permissions.harness == .javascript
+          ? L(
+            "Un seul outil : le modèle écrit un court programme JavaScript qui lit, modifie et teste en un appel.",
+            "One tool: the model writes a short JavaScript program that reads, edits and tests in one call.")
+          : L(
+            "Quatre outils : lister, lire, écrire et lancer une commande, un appel à la fois.",
+            "Four tools: list, read, write and run a command, one call at a time.")
+      ).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet).fixedSize(
+        horizontal: false, vertical: true)
       permission(L("Outil de lecture", "Read tool"), key: \.read)
       permission(L("Écriture des fichiers", "File writes"), key: \.write)
       permission(L("Commandes", "Commands"), key: \.run)

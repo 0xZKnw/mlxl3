@@ -6,6 +6,19 @@ struct AgentPermissions: Codable, Equatable, Sendable {
   var write = true
   var run = true
   var commandSeconds = 5
+  var harness = AgentHarness.javascript
+
+  init() {}
+
+  /// Fields missing from older `project.json` files keep their defaults.
+  init(from decoder: Decoder) throws {
+    let container = try decoder.container(keyedBy: CodingKeys.self)
+    read = try container.decodeIfPresent(Bool.self, forKey: .read) ?? read
+    write = try container.decodeIfPresent(Bool.self, forKey: .write) ?? write
+    run = try container.decodeIfPresent(Bool.self, forKey: .run) ?? run
+    commandSeconds = try container.decodeIfPresent(Int.self, forKey: .commandSeconds) ?? commandSeconds
+    harness = try container.decodeIfPresent(AgentHarness.self, forKey: .harness) ?? harness
+  }
 }
 
 /// All model-controlled executable text crosses this kernel-enforced boundary.
@@ -61,12 +74,43 @@ enum AgentSandbox {
     let output: String
     let status: Int32
     let interrupted: Bool
+    /// Exact bytes read, for callers that must not rewrite invalid UTF-8; not serialized.
+    var raw: Data?
+
+    enum CodingKeys: String, CodingKey { case output, status, interrupted }
+  }
+
+  /// Relative, `/`-separated path inside the workspace: no absolute path, `.`/`..`, `.git`,
+  /// empty segment or control character.
+  static func validPath(_ path: String) -> Bool {
+    !path.isEmpty && path.utf8.count <= 1024 && !path.hasPrefix("/")
+      && !path.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 })
+      && path.split(separator: "/", omittingEmptySubsequences: false).allSatisfy {
+        !$0.isEmpty && $0 != "." && $0 != ".." && $0 != ".git"
+      }
+  }
+
+  /// Agent-mode system instructions for the harness the model is given.
+  static func instructions(for permissions: AgentPermissions) -> String {
+    let limits =
+      "Commands use macOS system tools, have no network or personal-file access, and have a configurable deadline (at most 30 seconds) and 32 KiB output limit."
+    switch permissions.harness {
+    case .tools:
+      return
+        "You are a local coding agent. Use list_files and read_file to explore the project, write_file to edit it, and run to execute commands and verify your changes. Only enabled tools are available. You work on an isolated copy; originals are changed only after user review. \(limits) Use relative paths. Never claim to have executed a command unless its tool result confirms it. Explain failures and limits honestly."
+    case .javascript:
+      return
+        "You are a local coding agent with one tool, `javascript`: write a short JavaScript program that calls the project functions listed in its description (list, read, search, write, edit, run when enabled). Do several steps in one call when you do not need to see a result first, for example read files and search together, or edit then run the tests. `return` what you need to see, then decide the next step from the result. You work on an isolated copy; originals are changed only after user review. \(limits) Use relative paths. Never claim to have executed something unless the tool result confirms it. Explain failures and limits honestly."
+    }
   }
 
   /// A separate trusted supervisor survives loss of the MCP transport and reaps its job.
-  static func execute(root: URL, command: String, seconds: Double = 5, writable: Bool = true) throws -> Result {
+  static func execute(
+    root: URL, command: String, seconds: Double = 5, writable: Bool = true,
+    limit: Int = maximumOutput
+  ) throws -> Result {
     guard !command.isEmpty, command.utf8.count <= maximumCommand, !command.contains("\0"),
-      seconds.isFinite, seconds > 0, seconds <= 30
+      seconds.isFinite, seconds > 0, seconds <= 30, (1...(1 << 20)).contains(limit)
     else { throw CocoaError(.fileReadCorruptFile) }
     let root = try canonicalRoot(root)
     let policy = try profile(root: root, writable: writable)
@@ -129,8 +173,8 @@ enum AgentSandbox {
       let count = read(descriptors[0], &bytes, bytes.count)
       if count > 0 {
         data.append(contentsOf: bytes.prefix(count))
-        if data.count > maximumOutput {
-          data = data.prefix(maximumOutput)
+        if data.count > limit {
+          data = data.prefix(limit)
           interrupted = true
           break
         }
@@ -149,7 +193,8 @@ enum AgentSandbox {
     }
     let exitCode = status & 0x7f == 0 ? (status >> 8) & 0xff : 128 + (status & 0x7f)
     return Result(
-      output: String(decoding: data, as: UTF8.self), status: exitCode, interrupted: interrupted)
+      output: String(decoding: data, as: UTF8.self), status: exitCode, interrupted: interrupted,
+      raw: data)
   }
 
   static func commandMode(root: String, command: String, seconds: Double = 5, writable: Bool = true) -> Never {
@@ -162,13 +207,14 @@ enum AgentSandbox {
   }
 
   static func serve(root: String, permissionsPath: String? = nil) -> Never {
-    // The native engine already bounds MCP responses; bound requests here as well.
+    // The native engine already bounds MCP responses; bound requests here as well
+    // (a 32 KiB program can double when JSON-escaped).
     var buffer = Data()
     while true {
       let chunk = FileHandle.standardInput.availableData
       if chunk.isEmpty { break }
       buffer.append(chunk)
-      if buffer.count > 65_536 { exit(1) }
+      if buffer.count > 196_608 { exit(1) }
       while let end = buffer.firstIndex(of: 10) {
         let line = Data(buffer[..<end])
         buffer.removeSubrange(...end)
@@ -191,6 +237,71 @@ enum AgentSandbox {
             "protocolVersion": "2025-11-25", "capabilities": ["tools": [:]],
             "serverInfo": ["name": "mlxl3-sandbox", "version": "1"],
           ]
+        case "tools/list" where permissions.harness == .javascript:
+          response["result"] = [
+            "tools": AgentJavaScript.functions(permissions).isEmpty ? [] : [
+              [
+                "name": AgentJavaScript.toolName,
+                "description": AgentJavaScript.toolDescription(permissions),
+                "inputSchema": AgentJavaScript.inputSchema,
+              ] as [String: Any]
+            ]
+          ]
+        case "tools/call"
+        where permissions.harness == .javascript
+          && (request["params"] as? [String: Any])?["name"] as? String == AgentJavaScript.toolName:
+          do {
+            guard let params = request["params"] as? [String: Any],
+              let args = params["arguments"] as? [String: Any],
+              !AgentJavaScript.functions(permissions).isEmpty
+            else { throw CocoaError(.fileReadNoPermission) }
+            // The engine decodes XML parameters that look like JSON; keep what the model wrote.
+            let code: String
+            switch args["code"] {
+            case let text as String: code = text
+            case nil, is NSNull: throw CocoaError(.fileReadCorruptFile)
+            case let value?:
+              guard JSONSerialization.isValidJSONObject([value]),
+                let data = try? JSONSerialization.data(withJSONObject: [value]),
+                let text = String(data: data, encoding: .utf8)
+              else { throw CocoaError(.fileReadCorruptFile) }
+              code = String(text.dropFirst().dropLast())
+            }
+            // Refused here: a supervisor stops reading past the limit, and writing the rest
+            // into its closed pipe would end this server with SIGPIPE.
+            guard !code.isEmpty, code.utf8.count <= AgentJavaScript.maximumCode else {
+              throw CocoaError(.fileReadTooLarge)
+            }
+            let supervisor = Process()
+            supervisor.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+            supervisor.arguments = [
+              "--agent-js", root, permissions.read ? "read" : "-", permissions.write ? "write" : "-",
+              permissions.run ? "run" : "-", String(permissions.commandSeconds),
+            ]
+            supervisor.environment = ["PATH": "/usr/bin:/bin"]
+            supervisor.standardError = FileHandle.nullDevice
+            let input = Pipe()
+            let output = Pipe()
+            supervisor.standardInput = input
+            supervisor.standardOutput = output
+            try supervisor.run()
+            try? input.fileHandleForWriting.write(contentsOf: Data(code.utf8))
+            try? input.fileHandleForWriting.close()
+            let data = output.fileHandleForReading.readDataToEndOfFile()
+            supervisor.waitUntilExit()
+            guard supervisor.terminationStatus == 0 else {
+              throw CocoaError(.executableRuntimeMismatch)
+            }
+            let outcome = try JSONDecoder().decode(AgentJavaScript.Outcome.self, from: data)
+            response["result"] = [
+              "content": [["type": "text", "text": outcome.text]], "isError": outcome.isError,
+            ]
+          } catch {
+            response["result"] = [
+              "content": [["type": "text", "text": "JavaScript sandbox refused or unavailable."]],
+              "isError": true,
+            ]
+          }
         case "tools/list":
           response["result"] = [
             "tools": ([
@@ -224,11 +335,11 @@ enum AgentSandbox {
             let args = params["arguments"] as? [String: Any] ?? [:]
             func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
             func path() throws -> String {
-              guard let path = args["path"] as? String, !path.isEmpty, path.utf8.count <= 1024,
-                !path.hasPrefix("/"), !path.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 }),
-                path.split(separator: "/", omittingEmptySubsequences: false).allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." && $0 != ".git" }) else { throw CocoaError(.fileReadNoPermission) }
+              guard let path = args["path"] as? String, validPath(path) else { throw CocoaError(.fileReadNoPermission) }
               return path
             }
+            // Each harness exposes its own tools only; the others are refused, not just hidden.
+            guard permissions.harness == .tools else { throw CocoaError(.fileReadNoPermission) }
             let command: String
             switch name {
             case "run":

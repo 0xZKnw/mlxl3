@@ -232,7 +232,7 @@ queue_rest() {
     combine StudioHardeningCombined.swift "${app_sources}/UpdateManager.swift" tests/studio-hardening-check.swift
     queue_compile hardening "${(@)sources:#*/UpdateManager.swift}" "${math_objects[@]}" \
         "${test_dir}/StudioHardeningCombined.swift" -o "${test_dir}/check"
-    queue_compile agent-sandbox -O "${app_sources}/AgentSandbox.swift" \
+    queue_compile agent-sandbox -O "${app_sources}/AgentSandbox.swift" "${app_sources}/AgentJavaScript.swift" \
         tests/agent-sandbox-check.swift -o "${test_dir}/agent-sandbox-check"
     queue_studio_model_check studio-modes StudioModesCombined.swift tests/studio-modes-check.swift
     queue_app_check decision tests/decision-studio-check.swift
@@ -292,7 +292,7 @@ queue_tail() {
     [[ -n "${MLXL3_MACOS_SDK:-}" ]] && swiftc_args+=(-sdk "${MLXL3_MACOS_SDK}")
     swiftc_args+=(-I "${binary_dir}" -I "${binary_dir}/Modules")
     queue_compile studios "${sources[@]}" "${math_objects[@]}" tests/studios-check.swift -o "${test_dir}/studios-check"
-    queue_compile studios-agent "${app_sources}/AgentSandbox.swift" tests/agent-sandbox-check.swift \
+    queue_compile studios-agent "${app_sources}/AgentSandbox.swift" "${app_sources}/AgentJavaScript.swift" tests/agent-sandbox-check.swift \
         -o "${test_dir}/studios-agent-check"
     swiftc_args=(-swift-version 6 -warnings-as-errors -parse-as-library)
     [[ -n "${MLXL3_MACOS_SDK:-}" ]] && swiftc_args+=(-sdk "${MLXL3_MACOS_SDK}")

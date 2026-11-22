@@ -1106,6 +1106,7 @@ struct CodeBlockView: View, Equatable {
     var htmlPreviewEnabled = false
     @EnvironmentObject private var studio: StudioModel
     @State private var showingPreview = false
+    @State private var fullscreen = false
     @State private var copied = false
     @State private var codeScroll = StreamingScrollState()
     @State private var chunkCache = CodeTextChunker.Cache()
@@ -1140,6 +1141,19 @@ struct CodeBlockView: View, Equatable {
                     }
                     .padding(3).background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
                 }
+                if !streaming {
+                    Button(action: openFullscreen) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .foregroundStyle(StudioTheme.secondary)
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(StudioControlStyle())
+                    .accessibilityIdentifier("code.fullscreen")
+                    .accessibilityLabel(L("Plein écran", "Full screen"))
+                    .help(canPreview && showingPreview
+                          ? L("Afficher l’aperçu en plein écran", "Show the preview full screen")
+                          : L("Afficher le code en plein écran", "Show the code full screen"))
+                }
                 Button(action: copySource) {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc")
                         .foregroundStyle(copied ? StudioTheme.accent : StudioTheme.secondary)
@@ -1153,7 +1167,14 @@ struct CodeBlockView: View, Equatable {
             .padding(.horizontal, 14).frame(height: 48)
             .background(Color.white.opacity(0.025))
             Rectangle().fill(StudioTheme.edge).frame(height: 1)
-            if showingPreview && canPreview && studio.studioDocument == nil {
+            if showingPreview && canPreview && studio.studioDocument == nil && fullscreen {
+                // One running page at a time: the full-screen window owns the preview.
+                Label(L("Aperçu affiché en plein écran", "Preview shown full screen"),
+                      systemImage: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 11)).foregroundStyle(StudioTheme.quiet)
+                    .frame(maxWidth: .infinity).frame(height: 76)
+                    .accessibilityIdentifier("code.fullscreen.placeholder")
+            } else if showingPreview && canPreview && studio.studioDocument == nil {
                 InlineHTMLPreview(source: source, workspace: studio.selectedMode == .agent ? studio.agentWorkspaceURL : nil)
                     .frame(height: 440)
             } else if !streaming {
@@ -1222,6 +1243,18 @@ struct CodeBlockView: View, Equatable {
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func openFullscreen() {
+        let state = $fullscreen
+        // Presenting closes any previous window first, which runs that window's `onClose`.
+        studio.presentCodeFullscreen(
+            language: language, source: source, canPreview: canPreview,
+            showingPreview: showingPreview && canPreview,
+            workspace: studio.selectedMode == .agent ? studio.agentWorkspaceURL : nil,
+            textScale: textScale,
+            onClose: { state.wrappedValue = false })
+        state.wrappedValue = true
     }
 
     private func copySource() {

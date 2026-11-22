@@ -197,6 +197,8 @@ struct BridgeEvent: Decodable {
     var rows: [MTPTuningRow]? = nil
     var workspaceFeatures: Bool? = nil
     var imagesSupported: Bool? = nil
+    /// Engines that pass a request's `reasoning_effort` to the chat template.
+    var reasoningEffortSupported: Bool? = nil
     var bridgeProtocol: Int? = nil
     var memorySaverSupported: Bool? = nil
     var mcpToolCatalog: [MCPToolDescriptor]? = nil
@@ -258,6 +260,7 @@ struct BridgeEvent: Decodable {
         case bestDepth = "best_depth", tuningKey = "tuning_key"
         case workspaceFeatures = "workspace_features"
         case imagesSupported = "images_supported"
+        case reasoningEffortSupported = "reasoning_effort_supported"
         case bridgeProtocol = "bridge_protocol"
         case mcpToolCatalog = "mcp_tool_catalog"
     }
@@ -332,6 +335,8 @@ struct GenerationRequest: Encodable {
     var dspark: Bool = true
     var allowedTools: [String]? = nil
     var responseSchema: String? = nil
+    /// Omitted (nil) keeps the chat template's default level; older engines ignore it.
+    var reasoningEffort: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -353,6 +358,7 @@ struct GenerationRequest: Encodable {
         case dspark
         case allowedTools = "allowed_tools"
         case responseSchema = "response_schema"
+        case reasoningEffort = "reasoning_effort"
     }
 }
 
