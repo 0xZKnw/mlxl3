@@ -1041,6 +1041,37 @@ thread_local! {
     static KV_INPLACE_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
     /// Mutation for the parity test: skip the sink rewrite of sliding visits.
     static KV_SKIP_SINK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// SPEED-INK2M-P13: `run` submits by `async_eval` and returns without waiting for the GPU.
+    static ASYNC_SUBMIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// SPEED-INK2M-P13: thread CPU time spent in `run` (construction, evaluation) since the last take.
+    static RUN_CPU: std::cell::Cell<(Duration, Duration)> =
+        const { std::cell::Cell::new((Duration::ZERO, Duration::ZERO)) };
+}
+
+/// CPU time of the calling thread (zero if the clock is unavailable).
+#[cfg(test)]
+fn thread_cpu() -> Duration {
+    let mut t = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    // SAFETY: `t` is a valid out-pointer for the duration of the call.
+    if unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut t) } != 0 {
+        return Duration::ZERO;
+    }
+    Duration::new(
+        t.tv_sec.max(0) as u64,
+        t.tv_nsec.clamp(0, 999_999_999) as u32,
+    )
+}
+
+/// Evaluate the outputs of one `run` (tests may submit them asynchronously instead).
+fn submit(pending: &[&Array]) -> Result<()> {
+    #[cfg(test)]
+    if ASYNC_SUBMIT.with(std::cell::Cell::get) {
+        return Array::async_eval_all(pending);
+    }
+    Array::eval_many(pending)
 }
 
 /// K/V stored in place (`MLXL3_INKLING_KV_INPLACE=0` keeps the concatenation); lean layout only.
@@ -1936,6 +1967,169 @@ impl Layer {
     }
 }
 
+/// Input tokens of one `run`: host ids, or one id still on the GPU (`[1]` integers).
+#[derive(Clone, Copy)]
+enum Ids<'a> {
+    Host(&'a [u32]),
+    Device(&'a Array),
+}
+
+/// SPEED-INK2M-P14: a token choice computed on the GPU inside the decode graph.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum DrawRule {
+    /// argmax of the log probabilities: the bridge's greedy rule (`Array::chat_greedy_ids`).
+    Greedy,
+    /// One draw from softmax(log probabilities / temperature) over the whole vocabulary (Gumbel-max).
+    Softmax(f32),
+}
+
+impl DrawRule {
+    /// The rule giving the same law as `sampler`, or `None` where the CPU sampler must stay (penalties,
+    /// top-k, top-p, a non-positive or non-finite temperature).
+    pub fn for_sampler(sampler: &crate::sampling::Sampler) -> Option<Self> {
+        if sampler.is_greedy() {
+            return Some(Self::Greedy);
+        }
+        (sampler.top_k == 0
+            && sampler.top_p >= 1.0
+            && sampler.repetition_penalty == 1.0
+            && sampler.presence_penalty == 0.0
+            && sampler.temperature.is_finite()
+            && sampler.temperature > 0.0)
+            .then_some(Self::Softmax(sampler.temperature))
+    }
+}
+
+/// One token per row of `[rows, vocab]` logits under `rule`: `[rows]` u32, lazy. Softmax rows add standard
+/// Gumbel noise (`Array::gumbel_noise`, seeded by `seed`) to log_probs / temperature: each row is one draw
+/// from softmax(log_probs / temperature), up to FP32 rounding of the scores.
+pub fn draw_rows(logits: &Array, rule: DrawRule, seed: u64) -> Result<Array> {
+    ensure!(
+        logits.shape().len() == 2,
+        "draw_rows expects [rows, vocab] logits"
+    );
+    let log_probs = logits.log_probs()?;
+    match rule {
+        DrawRule::Greedy => log_probs.argmax(),
+        DrawRule::Softmax(temperature) => {
+            ensure!(
+                temperature.is_finite() && temperature > 0.0,
+                "a softmax draw needs a positive finite temperature"
+            );
+            let noise = Array::gumbel_noise(log_probs.shape(), seed)?;
+            let scores = if temperature == 1.0 {
+                log_probs
+            } else {
+                log_probs.scalar_mul(1.0 / temperature)?
+            };
+            scores.add(&noise)?.argmax()
+        }
+    }
+}
+
+/// The token after the last row of `logits` (`[1, rows, vocab]` or `[rows, vocab]`) under `rule`: `[1]`
+/// u32, lazy.
+pub fn draw_token(logits: &Array, rule: DrawRule, seed: u64) -> Result<Array> {
+    let shape = logits.shape();
+    ensure!(
+        shape.len() >= 2 && shape[..shape.len() - 2].iter().all(|&d| d == 1),
+        "draw_token expects [1, rows, vocab] logits"
+    );
+    let (rows, vocab) = (shape[shape.len() - 2], shape[shape.len() - 1]);
+    ensure!(rows >= 1 && vocab >= 1, "draw_token needs at least one row");
+    let last = logits.reshape(&[rows, vocab])?.slice(0, rows - 1, rows)?;
+    draw_rows(&last, rule, seed)
+}
+
+/// Seeds of successive GPU draws: splitmix64 of a Weyl sequence started at `seed`.
+#[derive(Clone, Debug)]
+pub struct DrawSeeds(u64);
+
+impl DrawSeeds {
+    pub fn new(seed: u64) -> Self {
+        Self(seed)
+    }
+
+    pub fn next_seed(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9e37_79b9_7f4a_7c15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+        z ^ (z >> 31)
+    }
+}
+
+/// SPEED-INK2M-P14: plain decoding with every token chosen on the GPU. When `pipelined`, the step that
+/// consumes a token is built and submitted before the token is read, so the GPU computes it while the
+/// caller handles the token (one step ahead).
+pub struct DeviceDecode {
+    rule: DrawRule,
+    seeds: DrawSeeds,
+    pipelined: bool,
+    /// The next token to deliver, on the GPU.
+    next: Array,
+    /// The token after `next`, when the step consuming `next` was already submitted.
+    after: Option<Array>,
+}
+
+impl DeviceDecode {
+    /// Draws the first token from the prompt logits (`[1, rows, vocab]`, last row used).
+    pub fn start(
+        logits: &Array,
+        rule: DrawRule,
+        seeds: DrawSeeds,
+        pipelined: bool,
+    ) -> Result<Self> {
+        let mut seeds = seeds;
+        let next = draw_token(logits, rule, seeds.next_seed())?;
+        if pipelined {
+            next.async_eval()?;
+        }
+        Ok(Self {
+            rule,
+            seeds,
+            pipelined,
+            next,
+            after: None,
+        })
+    }
+
+    /// Delivers the next token. `more`: a token will be delivered after this one, so the step consuming
+    /// it runs (exactly when the plain loop would call `forward` with it). Without `more`, `target` is not
+    /// touched.
+    pub fn next_token(&mut self, target: &mut Inkling2, more: bool) -> Result<u32> {
+        if more && self.pipelined && self.after.is_none() {
+            self.after = Some(self.step(target)?);
+        }
+        let token = single_token(&self.next)?;
+        if more {
+            let after = match self.after.take() {
+                Some(after) => after,
+                None => self.step(target)?,
+            };
+            self.next = after;
+        }
+        Ok(token)
+    }
+
+    /// The committed decode step of `next`, and the token drawn from its logits.
+    fn step(&mut self, target: &mut Inkling2) -> Result<Array> {
+        let (logits, _) = target.forward_device(&self.next, None, self.pipelined)?;
+        let token = draw_token(&logits, self.rule, self.seeds.next_seed())?;
+        if self.pipelined {
+            token.async_eval()?;
+        }
+        Ok(token)
+    }
+}
+
+/// The value of a `[1]` token array (waits for it).
+pub(crate) fn single_token(token: &Array) -> Result<u32> {
+    let values = token.to_u32()?;
+    ensure!(values.len() == 1, "expected one drawn token");
+    Ok(values[0])
+}
+
 /// Time spent in `run` since the last `take_profile`: graph construction (CPU) and evaluation.
 #[derive(Clone, Copy, Debug, Default)]
 pub struct RunProfile {
@@ -2163,7 +2357,7 @@ impl Inkling2 {
 
     /// Logits `[1, unpadded_vocab]` FP32 of the last token.
     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
-        match self.run(tokens, false, None, true) {
+        match self.run(Ids::Host(tokens), false, None, true, false) {
             Ok((logits, _)) => Ok(logits),
             Err(error) => {
                 self.reset();
@@ -2174,7 +2368,7 @@ impl Inkling2 {
 
     /// Logits `[T, unpadded_vocab]` FP32 of every token (parity checks).
     pub fn forward_all(&mut self, tokens: &[u32]) -> Result<Array> {
-        match self.run(tokens, true, None, true) {
+        match self.run(Ids::Host(tokens), true, None, true, false) {
             Ok((logits, _)) => Ok(logits),
             Err(error) => {
                 self.reset();
@@ -2253,7 +2447,7 @@ impl Inkling2 {
                 && *taps.last().unwrap_or(&0) == self.visits.len(),
             "Inkling draft taps must be increasing and end at the visit count"
         );
-        match self.run(tokens, true, Some(taps), false) {
+        match self.run(Ids::Host(tokens), true, Some(taps), false, false) {
             Ok((logits, features)) => Ok((logits, features.context("features")?)),
             Err(error) => {
                 self.reset();
@@ -2275,8 +2469,34 @@ impl Inkling2 {
                 && *taps.last().unwrap_or(&0) == self.visits.len(),
             "Inkling draft taps must be increasing and end at the visit count"
         );
-        match self.run(tokens, false, Some(taps), true) {
+        match self.run(Ids::Host(tokens), false, Some(taps), true, false) {
             Ok((logits, features)) => Ok((logits, features.context("features")?)),
+            Err(error) => {
+                self.reset();
+                Err(error.context("Inkling forward failed; its cache was reset"))
+            }
+        }
+    }
+
+    /// SPEED-INK2M-P14: committed decode step of one token still on the GPU (`[1]` integer id, e.g. a
+    /// `draw_token` result, below the unpadded vocabulary). Logits `[1, 1, vocab]` FP32 and, with `taps`,
+    /// the drafter features `[1, taps * D]`. With `asynchronous`, the step is submitted without waiting.
+    pub fn forward_device(
+        &mut self,
+        id: &Array,
+        taps: Option<&[usize]>,
+        asynchronous: bool,
+    ) -> Result<(Array, Option<Array>)> {
+        if let Some(taps) = taps {
+            ensure!(
+                !taps.is_empty()
+                    && taps.windows(2).all(|w| w[0] < w[1])
+                    && *taps.last().unwrap_or(&0) == self.visits.len(),
+                "Inkling draft taps must be increasing and end at the visit count"
+            );
+        }
+        match self.run(Ids::Device(id), false, taps, true, asynchronous) {
+            Ok(outputs) => Ok(outputs),
             Err(error) => {
                 self.reset();
                 Err(error.context("Inkling forward failed; its cache was reset"))
@@ -2334,31 +2554,49 @@ impl Inkling2 {
 
     fn run(
         &mut self,
-        tokens: &[u32],
+        ids: Ids<'_>,
         all: bool,
         taps: Option<&[usize]>,
         commit: bool,
+        asynchronous: bool,
     ) -> Result<(Array, Option<Array>)> {
         let started = Instant::now();
+        #[cfg(test)]
+        let cpu_started = thread_cpu();
         ensure!(
             self.pending.is_none(),
             "Inkling has an uncommitted verify call"
         );
-        ensure!(!tokens.is_empty(), "Inkling needs at least one token");
-        ensure!(
-            tokens.iter().all(|&t| t < self.vocab as u32),
-            "Inkling token is outside vocabulary"
-        );
-        let time = i32::try_from(tokens.len()).context("Inkling batch is too large")?;
+        let time = match ids {
+            Ids::Host(tokens) => {
+                ensure!(!tokens.is_empty(), "Inkling needs at least one token");
+                ensure!(
+                    tokens.iter().all(|&t| t < self.vocab as u32),
+                    "Inkling token is outside vocabulary"
+                );
+                i32::try_from(tokens.len()).context("Inkling batch is too large")?
+            }
+            Ids::Device(id) => {
+                ensure!(
+                    id.shape() == [1],
+                    "Inkling device token must have shape [1]"
+                );
+                1
+            }
+        };
         let start = self.offset;
         let end = start
             .checked_add(time)
             .context("Inkling position overflow")?;
         ensure!(end <= self.context_limit, "Inkling context is full");
-        let ids = Array::from_i32(
-            &tokens.iter().map(|&t| t as i32).collect::<Vec<_>>(),
-            &[time],
-        )?;
+        // a device token comes from `draw_token` (below the unpadded vocabulary by construction)
+        let ids = match ids {
+            Ids::Host(tokens) => Array::from_i32(
+                &tokens.iter().map(|&t| t as i32).collect::<Vec<_>>(),
+                &[time],
+            )?,
+            Ids::Device(id) => id.astype(Dtype::Int32)?,
+        };
         let hidden = self.embed_tokens(&ids)?;
         // Sliding visits keep at most window - 1 past keys; full visits keep everything
         let sliding_first = (start - (self.window - 1)).max(0);
@@ -2518,8 +2756,25 @@ impl Inkling2 {
             );
         }
         let built = Instant::now();
-        Array::eval_many(&pending)?;
+        #[cfg(test)]
+        let cpu_built = thread_cpu();
+        if asynchronous {
+            Array::async_eval_all(&pending)?;
+        } else {
+            submit(&pending)?;
+        }
         let done = Instant::now();
+        #[cfg(test)]
+        {
+            let cpu_done = thread_cpu();
+            RUN_CPU.with(|cell| {
+                let (build, eval) = cell.get();
+                cell.set((
+                    build + cpu_built.saturating_sub(cpu_started),
+                    eval + cpu_done.saturating_sub(cpu_built),
+                ));
+            });
+        }
         self.profile.calls += 1;
         self.profile.build += built - started;
         self.profile.eval += done - built;
@@ -3132,14 +3387,7 @@ mod tests {
         };
         let steps = var("MLXL3_INKLING_STEPS", 128)?;
         let reps = var("MLXL3_INKLING_REPS", 3)?;
-        let prompt: Vec<u32> = match std::env::var("MLXL3_INKLING_ORACLE") {
-            Ok(dir) => {
-                let manifest: serde_json::Value =
-                    serde_json::from_reader(File::open(Path::new(&dir).join("manifest.json"))?)?;
-                serde_json::from_value(manifest["rows"][0]["tokens"].clone())?
-            }
-            Err(_) => vec![200002, 200004, 34182, 279],
-        };
+        let prompt = profile_prompt()?;
         let mut model = Inkling2::load(Path::new(&model_dir))?;
         let argmax_of = |v: &[f32]| {
             v.iter()
@@ -3193,6 +3441,469 @@ mod tests {
                 .all(|r| r["fingerprint"] == runs[0]["fingerprint"]),
             "decode is not deterministic across repetitions"
         );
+        Ok(())
+    }
+
+    /// Prompt of the decode harnesses: first row of `MLXL3_INKLING_ORACLE`, else a fixed 4-token prompt.
+    fn profile_prompt() -> Result<Vec<u32>> {
+        Ok(match std::env::var("MLXL3_INKLING_ORACLE") {
+            Ok(dir) => {
+                let manifest: serde_json::Value =
+                    serde_json::from_reader(File::open(Path::new(&dir).join("manifest.json"))?)?;
+                serde_json::from_value(manifest["rows"][0]["tokens"].clone())?
+            }
+            Err(_) => vec![200002, 200004, 34182, 279],
+        })
+    }
+
+    /// `decode_profile` fingerprint of decoded logit rows: FNV-1a of each FP32 row, then of its argmax.
+    fn rows_fingerprint(rows: &[Vec<f32>]) -> (u64, Vec<u32>) {
+        let mut hash = 0xcbf2_9ce4_8422_2325u64;
+        let mut argmax = Vec::with_capacity(rows.len());
+        for row in rows {
+            for x in row {
+                fnv(&mut hash, &x.to_le_bytes());
+            }
+            let best = row
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.total_cmp(b.1))
+                .map_or(0, |(i, _)| i as u32);
+            fnv(&mut hash, &best.to_le_bytes());
+            argmax.push(best);
+        }
+        (hash, argmax)
+    }
+
+    fn take_run_cpu() -> (Duration, Duration) {
+        RUN_CPU.with(|cell| cell.replace((Duration::ZERO, Duration::ZERO)))
+    }
+
+    /// SPEED-INK2M-P13: CPU/GPU split of a decode step and the ceiling of a one-step-ahead pipeline. A
+    /// greedy pass fixes the fed tokens; they are replayed synchronously (`sync`) and with step i submitted
+    /// before the logits of step i - 1 are read (`ahead`). Every mode must hash like the greedy pass.
+    /// `MLXL3_INKLING_PIPE_MUTATE=1` feeds a wrong token at step 10 of the `ahead` replays (must fail).
+    #[test]
+    #[ignore = "requires an Apple GPU and MLXL3_INKLING_MODEL"]
+    fn decode_pipeline_profile() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let var = |name: &str, default: usize| -> Result<usize> {
+            Ok(std::env::var(name)
+                .ok()
+                .map(|v| v.parse())
+                .transpose()?
+                .unwrap_or(default))
+        };
+        let steps = var("MLXL3_INKLING_STEPS", 96)?;
+        let reps = var("MLXL3_INKLING_REPS", 3)?;
+        let mutate = std::env::var("MLXL3_INKLING_PIPE_MUTATE").is_ok_and(|v| v == "1");
+        ensure!(steps > 10, "MLXL3_INKLING_STEPS must exceed 10");
+        let prompt = profile_prompt()?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = usize::try_from(model.unpadded_vocab())?;
+        let ms = |d: Duration| d.as_secs_f64() * 1e3;
+        let median = |v: Vec<f64>| quantiles(v).1;
+        // Greedy reference: the fed tokens and the rows they produce.
+        let greedy = |model: &mut Inkling2, steps: usize| -> Result<(Vec<u32>, Vec<Vec<f32>>)> {
+            model.reset();
+            let first = model.forward_tokens(&prompt)?.to_f32()?;
+            let mut fed = vec![rows_fingerprint(&[first]).1[0]];
+            let mut rows = Vec::with_capacity(steps);
+            for _ in 0..steps {
+                let row = model.forward(*fed.last().context("fed")?)?.to_f32()?;
+                fed.push(rows_fingerprint(std::slice::from_ref(&row)).1[0]);
+                rows.push(row);
+            }
+            fed.pop();
+            Ok((fed, rows))
+        };
+        let replay =
+            |model: &mut Inkling2, fed: &[u32], ahead: bool| -> Result<serde_json::Value> {
+                model.reset();
+                model.forward_tokens(&prompt)?.to_f32()?;
+                model.take_profile();
+                take_run_cpu();
+                let mut rows = Vec::with_capacity(fed.len());
+                let (mut step, mut build, mut eval, mut read) = (vec![], vec![], vec![], vec![]);
+                let (mut build_cpu, mut eval_cpu) = (vec![], vec![]);
+                ASYNC_SUBMIT.with(|f| f.set(ahead));
+                let started = Instant::now();
+                let result = (|| -> Result<()> {
+                    let mut in_flight: Option<Array> = None;
+                    let mut mark = Instant::now();
+                    for (i, &token) in fed.iter().enumerate() {
+                        let token = if mutate && ahead && i == 10 {
+                            (token + 1) % vocab as u32
+                        } else {
+                            token
+                        };
+                        let logits = model.forward(token)?;
+                        let p = model.take_profile();
+                        let (b, e) = take_run_cpu();
+                        build.push(ms(p.build));
+                        eval.push(ms(p.eval));
+                        build_cpu.push(ms(b));
+                        eval_cpu.push(ms(e));
+                        let t = Instant::now();
+                        if let Some(previous) = in_flight.replace(logits) {
+                            rows.push(previous.to_f32()?);
+                        }
+                        if !ahead {
+                            rows.push(in_flight.take().context("logits")?.to_f32()?);
+                        }
+                        read.push(ms(t.elapsed()));
+                        step.push(ms(mark.elapsed()));
+                        mark = Instant::now();
+                    }
+                    if let Some(last) = in_flight.take() {
+                        rows.push(last.to_f32()?);
+                    }
+                    Ok(())
+                })();
+                let wall = started.elapsed();
+                ASYNC_SUBMIT.with(|f| f.set(false));
+                result?;
+                ensure!(
+                    rows.len() == fed.len(),
+                    "replay rows {} != {}",
+                    rows.len(),
+                    fed.len()
+                );
+                ensure!(
+                    rows.iter()
+                        .all(|r| r.len() == vocab && r.iter().all(|x| x.is_finite())),
+                    "replay rows have a wrong width or non-finite logits"
+                );
+                let (hash, argmax) = rows_fingerprint(&rows);
+                let diverged = (1..fed.len()).find(|&i| argmax[i - 1] != fed[i]);
+                Ok(
+                    serde_json::json!({"mode": if ahead {"ahead"} else {"sync"}, "steps": fed.len(),
+                "step_ms_median": median(step), "step_ms_mean": ms(wall) / fed.len() as f64,
+                "build_ms_median": median(build), "build_cpu_ms_median": median(build_cpu),
+                "eval_ms_median": median(eval), "eval_cpu_ms_median": median(eval_cpu),
+                "read_ms_median": median(read), "fingerprint": format!("{hash:016x}"),
+                "first_divergent_feed": diverged}),
+                )
+            };
+        greedy(&mut model, 16)?;
+        let (fed, reference) = greedy(&mut model, steps)?;
+        let (reference_hash, _) = rows_fingerprint(&reference);
+        let reference_fp = format!("{reference_hash:016x}");
+        ensure!(
+            reference
+                .iter()
+                .all(|r| r.len() == vocab && r.iter().all(|x| x.is_finite())),
+            "greedy rows have a wrong width or non-finite logits"
+        );
+        drop(reference);
+        let mut runs = Vec::new();
+        for rep in 0..reps {
+            let order = if rep % 2 == 0 {
+                [false, true]
+            } else {
+                [true, false]
+            };
+            for ahead in order {
+                runs.push(replay(&mut model, &fed, ahead)?);
+            }
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "greedy_fingerprint": reference_fp, "prompt_tokens": prompt.len(),
+                "fed_head": &fed[..fed.len().min(16)], "runs": runs}))?
+        );
+        ensure!(
+            runs.iter()
+                .all(|r| r["fingerprint"] == reference_fp.as_str()),
+            "a replay differs from the greedy pass"
+        );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P14: the GPU rule exists exactly for greedy samplers and plain tempered softmax.
+    #[test]
+    fn draw_rule_follows_the_sampler() -> Result<()> {
+        use crate::sampling::Sampler;
+        let rule = |t, k, p, r, q| -> Result<Option<DrawRule>> {
+            Ok(DrawRule::for_sampler(&Sampler::new(t, k, p, r, q)?))
+        };
+        assert_eq!(
+            DrawRule::for_sampler(&Sampler::greedy()),
+            Some(DrawRule::Greedy)
+        );
+        assert_eq!(rule(0.0, 0, 1.0, 1.0, 0.0)?, Some(DrawRule::Greedy));
+        assert_eq!(rule(0.8, 1, 1.0, 1.0, 0.0)?, Some(DrawRule::Greedy));
+        assert_eq!(rule(1.0, 0, 1.0, 1.0, 0.0)?, Some(DrawRule::Softmax(1.0)));
+        assert_eq!(rule(0.7, 0, 1.0, 1.0, 0.0)?, Some(DrawRule::Softmax(0.7)));
+        // anything the GPU draw does not reproduce stays on the CPU sampler
+        assert_eq!(rule(1.0, 40, 1.0, 1.0, 0.0)?, None);
+        assert_eq!(rule(1.0, 0, 0.95, 1.0, 0.0)?, None);
+        assert_eq!(rule(1.0, 0, 1.0, 1.1, 0.0)?, None);
+        assert_eq!(rule(1.0, 0, 1.0, 1.0, 0.5)?, None);
+        assert_eq!(rule(0.0, 0, 1.0, 1.1, 0.0)?, None);
+        assert_eq!(rule(0.0, 0, 1.0, 1.0, -0.5)?, None);
+        // seeds: deterministic, distinct
+        let (mut a, mut b) = (DrawSeeds::new(7), DrawSeeds::new(7));
+        let first: Vec<u64> = (0..1000).map(|_| a.next_seed()).collect();
+        assert!(
+            first
+                .iter()
+                .zip((0..1000).map(|_| b.next_seed()))
+                .all(|(x, y)| *x == y)
+        );
+        let distinct: std::collections::HashSet<u64> = first.iter().copied().collect();
+        assert_eq!(distinct.len(), first.len());
+        assert_ne!(DrawSeeds::new(8).next_seed(), first[0]);
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P14: `Array::gumbel_noise` is finite, within its bounds, follows the Gumbel CDF and reaches
+    /// values `random::uniform` cannot give (G > 16.64), all from fixed seeds.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn gumbel_noise_follows_the_gumbel_law_and_tail() -> Result<()> {
+        const BATCH: i32 = 1 << 23;
+        const BATCHES: u64 = 32;
+        let points = [-1.0f64, 0.0, 1.0, 2.0, 4.0, 8.0];
+        let mut below = [0u64; 6];
+        let (mut lowest, mut highest, mut tail, mut cdf_n) =
+            (f32::INFINITY, f32::NEG_INFINITY, 0u64, 0u64);
+        for batch in 0..BATCHES {
+            let noise = Array::gumbel_noise(&[BATCH], 1000 + batch)?.to_f32()?;
+            ensure!(noise.len() == BATCH as usize, "noise length");
+            for &g in &noise {
+                ensure!(g.is_finite(), "non-finite Gumbel noise");
+                lowest = lowest.min(g);
+                highest = highest.max(g);
+                tail += u64::from(g > 16.7);
+            }
+            if batch < 2 {
+                cdf_n += noise.len() as u64;
+                for (count, &x) in below.iter_mut().zip(&points) {
+                    *count += noise.iter().filter(|&&g| f64::from(g) <= x).count() as u64;
+                }
+            }
+        }
+        println!(
+            "gumbel noise: min {lowest} max {highest} tail(>16.7) {tail} of {}",
+            BATCHES * BATCH as u64
+        );
+        ensure!(
+            lowest >= -2.82 && highest <= 22.88,
+            "noise outside [-2.82, 22.88]"
+        );
+        ensure!(tail >= 1, "no noise above 16.7: the high tail is missing");
+        for (count, &x) in below.iter().zip(&points) {
+            let p = (-(-x).exp()).exp();
+            let observed = *count as f64 / cdf_n as f64;
+            let sigma = (p * (1.0 - p) / cdf_n as f64).sqrt();
+            ensure!(
+                (observed - p).abs() <= 4.0 * sigma + 1e-9,
+                "CDF at {x}: {observed} against {p} (sigma {sigma})"
+            );
+        }
+        // same seed, same noise; another seed, other noise
+        let a = Array::gumbel_noise(&[64], 5)?.to_f32()?;
+        ensure!(
+            a == Array::gumbel_noise(&[64], 5)?.to_f32()?,
+            "same seed, different noise"
+        );
+        ensure!(
+            a != Array::gumbel_noise(&[64], 6)?.to_f32()?,
+            "the seed does not change the noise"
+        );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P14: `draw_rows` follows softmax(logits / T) (Pearson chi-square over 4 M independent
+    /// rows, bins of expectation below 5 merged, p < 1e-4 bound by Wilson-Hilferty), and its greedy rule is
+    /// `chat_greedy_ids`.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn draw_rows_follow_the_tempered_softmax() -> Result<()> {
+        const ROWS: i32 = 1 << 20;
+        let logits = [
+            3.0f32, 2.5, 2.0, 1.0, 0.0, -1.0, -2.0, -3.0, -4.0, -5.0, -6.0, -7.0, -8.0, -9.0, 1.5,
+            0.5,
+        ];
+        let vocab = logits.len() as i32;
+        let row: Vec<f32> = (0..ROWS).flat_map(|_| logits).collect();
+        let batch = Array::from_f32(&row, &[ROWS, vocab])?;
+        for (temperature, seed) in [(1.0f32, 21u64), (0.7, 22)] {
+            let mut counts = vec![0f64; logits.len()];
+            let mut draws_total = 0f64;
+            for part in 0..4u64 {
+                let draws = draw_rows(&batch, DrawRule::Softmax(temperature), seed * 10 + part)?
+                    .to_u32()?;
+                ensure!(draws.len() == ROWS as usize, "one draw per row");
+                for &token in &draws {
+                    ensure!(
+                        (token as usize) < logits.len(),
+                        "draw outside the vocabulary"
+                    );
+                    counts[token as usize] += 1.0;
+                }
+                draws_total += draws.len() as f64;
+            }
+            let weights: Vec<f64> = logits
+                .iter()
+                .map(|&v| (f64::from(v) / f64::from(temperature)).exp())
+                .collect();
+            let total: f64 = weights.iter().sum();
+            // merge the least likely bins until every bin expects at least 5 draws
+            let mut order: Vec<usize> = (0..logits.len()).collect();
+            order.sort_by(|&a, &b| weights[b].total_cmp(&weights[a]));
+            let (mut bins, mut rest) = (Vec::new(), (0f64, 0f64));
+            for &i in &order {
+                let expected = weights[i] / total * draws_total;
+                if expected >= 5.0 {
+                    bins.push((counts[i], expected));
+                } else {
+                    rest = (rest.0 + counts[i], rest.1 + expected);
+                }
+            }
+            if rest.1 > 0.0 {
+                bins.push(rest);
+            }
+            let chi2: f64 = bins.iter().map(|(c, e)| (c - e).powi(2) / e).sum();
+            let dof = (bins.len() - 1) as f64;
+            let z = 3.719f64;
+            let bound = dof * (1.0 - 2.0 / (9.0 * dof) + z * (2.0 / (9.0 * dof)).sqrt()).powi(3);
+            println!(
+                "T={temperature} bins={} chi2={chi2:.2} bound={bound:.2}",
+                bins.len()
+            );
+            ensure!(
+                chi2 < bound,
+                "draws do not follow softmax(logits / T): chi2 {chi2} >= {bound}"
+            );
+        }
+        // greedy: the bridge's rule on random rows, including ties
+        let mut values: Vec<f32> = (0..64 * 1000)
+            .map(|i| ((i * 7919) % 1013) as f32 * 0.01)
+            .collect();
+        values[5] = values[3];
+        let rows = Array::from_f32(&values, &[64, 1000])?;
+        ensure!(
+            draw_rows(&rows, DrawRule::Greedy, 0)?.to_u32()? == rows.chat_greedy_ids()?,
+            "greedy draw differs from chat_greedy_ids"
+        );
+        let three = Array::from_f32(&values[..2000], &[1, 2, 1000])?;
+        ensure!(
+            draw_token(&three, DrawRule::Greedy, 0)?.to_u32()?
+                == three.slice(1, 1, 2)?.chat_greedy_ids()?,
+            "draw_token does not draw from the last row"
+        );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P14: decoding with the token on the GPU, one step ahead, gives the bridge's host decode
+    /// bit for bit (greedy: every logit row and token), the pipelined and synchronous device decodes agree
+    /// at T = 1 for one seed stream, and a wrong fed token is detected. `MLXL3_INKLING_STEPS` steps.
+    #[test]
+    #[ignore = "requires an Apple GPU and MLXL3_INKLING_MODEL"]
+    fn device_decode_matches_the_host_decode() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let steps: usize = std::env::var("MLXL3_INKLING_STEPS")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(96);
+        ensure!(steps > 10, "MLXL3_INKLING_STEPS must exceed 10");
+        let prompt = profile_prompt()?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = usize::try_from(model.unpadded_vocab())?;
+        // host decode, the bridge's greedy rule: rows and fed tokens
+        model.reset();
+        let mut logits = model.forward_tokens(&prompt)?;
+        let (mut host_rows, mut host_fed) = (Vec::new(), Vec::new());
+        for _ in 0..steps {
+            let token = logits.chat_greedy_ids()?[0];
+            host_fed.push(token);
+            logits = model.forward(token)?;
+            host_rows.push(logits.to_f32()?);
+        }
+        let (host_hash, _) = rows_fingerprint(&host_rows);
+        // device decode, one step ahead, rows read back (`mutate`: wrong token fed at step 10)
+        let device_rows =
+            |model: &mut Inkling2, mutate: bool| -> Result<(Vec<Vec<f32>>, Vec<u32>)> {
+                model.reset();
+                let prompt_logits = model.forward_tokens(&prompt)?;
+                let mut next = draw_token(&prompt_logits, DrawRule::Greedy, 0)?;
+                next.async_eval()?;
+                let (mut rows, mut fed) = (Vec::new(), Vec::new());
+                let mut in_flight: Option<Array> = None;
+                for i in 0..steps {
+                    let input = if mutate && i == 10 {
+                        Array::from_u32(&[(single_token(&next)? + 1) % vocab as u32], &[1])?
+                    } else {
+                        next.try_clone()?
+                    };
+                    let (step_logits, _) = model.forward_device(&input, None, true)?;
+                    let after = draw_token(&step_logits, DrawRule::Greedy, 0)?;
+                    after.async_eval()?;
+                    fed.push(single_token(&input)?);
+                    if let Some(previous) = in_flight.replace(step_logits) {
+                        rows.push(previous.to_f32()?);
+                    }
+                    next = after;
+                }
+                if let Some(last) = in_flight.take() {
+                    rows.push(last.to_f32()?);
+                }
+                Ok((rows, fed))
+            };
+        let (rows, fed) = device_rows(&mut model, false)?;
+        ensure!(
+            rows.len() == steps
+                && rows
+                    .iter()
+                    .all(|r| r.len() == vocab && r.iter().all(|x| x.is_finite())),
+            "device rows have a wrong count, width or non-finite logits"
+        );
+        let (device_hash, _) = rows_fingerprint(&rows);
+        println!(
+            "host {host_hash:016x} device {device_hash:016x} fed head {:?}",
+            &fed[..16]
+        );
+        ensure!(
+            fed == host_fed,
+            "device greedy tokens differ from the host decode"
+        );
+        ensure!(
+            device_hash == host_hash,
+            "device logits differ from the host decode"
+        );
+        let (mutated, _) = device_rows(&mut model, true)?;
+        ensure!(
+            rows_fingerprint(&mutated).0 != host_hash,
+            "a wrong fed token went unnoticed"
+        );
+        // the production decoder: greedy = host tokens; T = 1 pipelined = synchronous for one seed stream
+        let decode = |model: &mut Inkling2, rule: DrawRule, pipelined: bool| -> Result<Vec<u32>> {
+            model.reset();
+            let prompt_logits = model.forward_tokens(&prompt)?;
+            let mut decode =
+                DeviceDecode::start(&prompt_logits, rule, DrawSeeds::new(42), pipelined)?;
+            (0..steps)
+                .map(|i| decode.next_token(model, i + 1 < steps))
+                .collect()
+        };
+        ensure!(
+            decode(&mut model, DrawRule::Greedy, true)? == host_fed,
+            "DeviceDecode greedy differs from the host decode"
+        );
+        let sampled = decode(&mut model, DrawRule::Softmax(1.0), true)?;
+        ensure!(
+            sampled == decode(&mut model, DrawRule::Softmax(1.0), false)?,
+            "pipelined and synchronous T = 1 decodes differ for one seed stream"
+        );
+        ensure!(
+            sampled.iter().all(|&t| (t as usize) < vocab),
+            "sampled token outside the vocabulary"
+        );
+        ensure!(sampled != host_fed, "T = 1 decode equals the greedy decode");
         Ok(())
     }
 
