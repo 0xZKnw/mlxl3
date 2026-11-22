@@ -52,7 +52,7 @@ enum AgentJavaScript {
       "edit":
         "edit(path: string, find: string, replace: string): void  // `find` must occur exactly once",
       "run":
-        "run(command: string): {output: string, status: number, stopped: boolean}  // /bin/sh in the project, at most \(min(permissions.commandSeconds, Int(seconds))) s",
+        "run(command: string): {status: number, stopped: boolean, omitted: number, output: string}  // /bin/sh in the project, at most \(min(permissions.commandSeconds, Int(seconds))) s; past 32 KiB, output keeps its first 8 KiB and last 24 KiB (omitted: bytes cut)",
     ]
     let api = functions(permissions).compactMap { signatures[$0] }.joined(separator: "\n")
     return """
@@ -272,9 +272,14 @@ enum AgentJavaScript {
       parts.append("Done, without output: `return` a value or console.log to see results.")
     }
     var text = parts.joined(separator: "\n")
-    if text.utf8.count > maximumText {
-      text = String(decoding: Data(text.utf8.prefix(maximumText)), as: UTF8.self)
-        + "\n[Output truncated at 32 KiB]"
+    let bytes = Data(text.utf8)
+    if bytes.count > maximumText {
+      // Start and end: a result, an error or a command summary comes last.
+      let head = AgentSandbox.utf8Prefix(bytes.prefix(maximumText / 4))
+      let tail = AgentSandbox.utf8Suffix(Data(bytes.suffix(maximumText - maximumText / 4)))
+      text = String(decoding: head, as: UTF8.self)
+        + "\n[... \(bytes.count - head.count - tail.count) bytes of output omitted (32 KiB limit) ...]\n"
+        + String(decoding: tail, as: UTF8.self)
     }
     return Outcome(text: text, isError: error != nil)
   }
@@ -350,12 +355,14 @@ enum AgentJavaScript {
     let remaining = deadline - ProcessInfo.processInfo.systemUptime
     guard remaining > 0.3 else { return failure("no time left in this call") }
     guard getppid() == parent else { return failure("the agent stopped") }
-    func sandboxed(_ command: String, seconds: Double? = nil, writable: Bool = false, limit: Int)
-      -> AgentSandbox.Result?
-    {
+    func sandboxed(
+      _ command: String, seconds: Double? = nil, writable: Bool = false, limit: Int,
+      mode: AgentSandbox.OutputMode = .stop
+    ) -> AgentSandbox.Result? {
       let budget = min(seconds ?? 5, remaining - 0.2)
       return try? AgentSandbox.execute(
-        root: root, command: command, seconds: max(0.1, budget), writable: writable, limit: limit)
+        root: root, command: command, seconds: max(0.1, budget), writable: writable, limit: limit,
+        mode: mode)
     }
     func quote(_ value: String) -> String {
       "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
@@ -462,14 +469,18 @@ enum AgentJavaScript {
       guard let command = text(0), !command.isEmpty, command.utf8.count <= AgentSandbox.maximumCommand,
         !command.contains("\0")
       else { return failure("the command must be 1 to 16384 bytes") }
+      // The command runs to its end: long output keeps its start and end, never stops it.
       guard
         let result = sandboxed(
           command, seconds: Double(permissions.commandSeconds), writable: permissions.write,
-          limit: AgentSandbox.maximumOutput)
+          limit: AgentSandbox.maximumOutput, mode: .headAndTail)
       else { return failure("the sandbox refused the command") }
       return [
         "ok": true,
-        "value": ["output": result.output, "status": Int(result.status), "stopped": result.interrupted],
+        "value": [
+          "output": result.output, "status": Int(result.status), "stopped": result.interrupted,
+          "omitted": result.omitted ?? 0,
+        ],
       ]
     default:
       return failure("unknown function \(op)")
@@ -739,7 +750,11 @@ enum AgentJavaScript {
             : "edit: the text to find occurs " + count + " times in " + path + "; include more context");
           host("write", [path, source.replace(find, () => replace)], label("write", path));
         },
-        run: (command) => host("run", [text(command, "command", "run")], label("run", command)),
+        // Fixed key order: the status stays readable even when a long output is cut.
+        run: (command) => {
+          const r = host("run", [text(command, "command", "run")], label("run", command));
+          return { status: r.status, stopped: r.stopped, omitted: r.omitted, output: r.output };
+        },
       };
 
       let request;
@@ -773,7 +788,8 @@ enum AgentJavaScript {
         (value) => {
           if (value === undefined) { finish({}); return; }
           const text = show(value);
-          finish({ value: text.length > 33000 ? text.slice(0, 33000) + "\n[result truncated]" : text });
+          finish({ value: text.length <= 33000 ? text : text.slice(0, 8000) + "\n[... " + (text.length - 33000)
+            + " characters of the result omitted ...]\n" + text.slice(-25000) });
         },
         (error) => finish({ error: describe(error) }));
     })();

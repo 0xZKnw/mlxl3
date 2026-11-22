@@ -13,8 +13,9 @@ struct MLXL3StudioApp: App {
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
-        if (arguments.count == 4 || arguments.count == 6), arguments[1] == "--agent-command" {
-            AgentSandbox.commandMode(root: arguments[2], command: arguments[3], seconds: arguments.count == 6 ? Double(arguments[4]) ?? 0 : 5, writable: arguments.count == 4 || arguments[5] == "write")
+        if [4, 6, 7].contains(arguments.count), arguments[1] == "--agent-command" {
+            AgentSandbox.commandMode(root: arguments[2], command: arguments[3], seconds: arguments.count >= 6 ? Double(arguments[4]) ?? 0 : 5, writable: arguments.count == 4 || arguments[5] == "write",
+                                     mode: arguments.count == 7 && arguments[6] == "tail" ? .headAndTail : .stop)
         }
         if arguments.count == 7, arguments[1] == "--agent-js" {
             AgentJavaScript.supervisorMode(arguments: arguments)

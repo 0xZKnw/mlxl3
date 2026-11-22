@@ -137,9 +137,23 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
               f'Oversized code refused without ending the server ({len(code.encode())} bytes)')
     _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "return 'r'.repeat(100000)"}})], permissions=js_policy)
     big = responses[0]['result']['content'][0]['text']
-    check(not responses[0]['result']['isError'] and len(big.encode()) < 33100 and 'truncated' in big, 'Large result bounded')
+    # The result keeps its start and end (it used to keep the start and say "truncated").
+    check(not responses[0]['result']['isError'] and len(big.encode()) < 33100 and 'omitted' in big
+          and big.startswith('Result:\nrrr') and big.endswith('rrr'), f'Large result bounded, start and end kept: {big[:80]!r}…{big[-80:]!r}')
     _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "write('wide.txt', 'é'.repeat(130000)); return read('wide.txt').length"}})], permissions=js_policy)
     check(responses[0]['result']['content'][0]['text'] == 'Result:\n130000', f"Widest write fits the protocol: {responses[0]['result']['content'][0]['text'][:200]!r}")
+    # run() lets a talkative command finish: start and end of its output, real status.
+    chatty = 'i=0; while [ $i -lt 2000 ]; do echo line-$i-xxxxxxxxxxxxxxxxxxxx; i=$((i+1)); done; echo FINISHED > run-done.txt; echo tests: 42 passed'
+    _, responses = exchange([
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': f'const r = run({json.dumps(chatty)}); return [r.status, r.stopped, r.omitted > 0, r.output.endsWith("tests: 42 passed\\n")]'}}, 1),
+    ], permissions=js_policy)
+    text = responses[0]['result']['content'][0]['text']
+    check(text == 'Result:\n[\n  0,\n  false,\n  true,\n  true\n]' and (root / 'run-done.txt').read_text() == 'FINISHED\n', f'JavaScript run() finishes a talkative command: {text!r}')
+    (root / 'run-done.txt').unlink()
+    _, responses = exchange([request('tools/call', {'name': 'run', 'arguments': {'command': chatty}}, 1)], permissions=dict(js_policy, harness='tools'))
+    text = responses[0]['result']['content'][0]['text']
+    check(not responses[0]['result']['isError'] and text.endswith('tests: 42 passed\n\nExit status: 0') and 'bytes of output omitted' in text
+          and text.startswith('line-0-') and (root / 'run-done.txt').exists(), f'Structured run finishes a talkative command: {text[:80]!r}…{text[-80:]!r}')
     # search(): a grep error is a tool error (it used to be an empty list), CRLF files match.
     (root / 'win.txt').write_bytes(b'alpha one\r\nbeta two\r\ngamma one\r\n')
     _, responses = exchange([

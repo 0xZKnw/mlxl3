@@ -203,6 +203,32 @@ struct AgentSandboxCheck {
       AgentJavaScript.searchLine(Data("x.txt:12:a\r".utf8)).map { "\($0.path) \($0.line) \($0.text)" } == "x.txt 12 a",
       "carriage return removed")
 
+    // run(): a talkative command finishes; its status and the end of its output reach the model.
+    let talkative = try js("""
+      return run("i=0; while [ $i -lt 2000 ]; do echo line-$i-xxxxxxxxxxxxxxxxxxxx; i=$((i+1)); done; echo FINISHED > ran.txt; echo tests: 42 passed")
+      """)
+    check(
+      !talkative.isError
+        && talkative.text.hasPrefix("Result:\n{\n  \"status\": 0,\n  \"stopped\": false,\n  \"omitted\": ")
+        && talkative.text.hasSuffix("tests: 42 passed\\n\"\n}") && talkative.text.utf8.count < 33_000
+        && FileManager.default.fileExists(atPath: root.appendingPathComponent("ran.txt").path),
+      "talkative run(): \(talkative.text.prefix(120).debugDescription)…\(talkative.text.suffix(80).debugDescription)")
+    var quick = all
+    quick.commandSeconds = 1
+    let stoppedRun = try js("const r = run('sleep 30'); return [r.status, r.stopped, r.omitted]", quick)
+    check(stoppedRun.text == "Result:\n[\n  137,\n  true,\n  0\n]", "stopped run() status: \(stoppedRun.text)")
+    // Results past 32 KiB keep their start and their end (the end used to be cut).
+    let both = try js("console.log('a'.repeat(20000)); return 'b'.repeat(20000) + 'END'")
+    check(
+      !both.isError && both.text.hasPrefix("aaaa") && both.text.hasSuffix("bbbEND")
+        && both.text.contains("bytes of output omitted (32 KiB limit)") && both.text.utf8.count < 33_000,
+      "long outcome keeps start and end: \(both.text.utf8.count) bytes")
+    let long = try js("return 'q'.repeat(50000) + 'END'")
+    check(
+      !long.isError && long.text.hasSuffix("qqqEND") && long.text.contains("characters of the result omitted")
+        && long.text.utf8.count < 33_000,
+      "long return value keeps start and end: \(long.text.suffix(40).debugDescription)")
+
     // Errors the model can act on.
     let syntax = try js("let x = ;")
     check(syntax.isError && syntax.text.hasPrefix("Error: SyntaxError"), "syntax error: \(syntax.text)")
@@ -325,8 +351,10 @@ struct AgentSandboxCheck {
 
   static func main() throws {
     let args = CommandLine.arguments
-    if (args.count == 4 || args.count == 6) && args[1] == "--agent-command" {
-      AgentSandbox.commandMode(root: args[2], command: args[3], seconds: args.count == 6 ? Double(args[4]) ?? 0 : 5, writable: args.count == 4 || args[5] == "write")
+    if [4, 6, 7].contains(args.count) && args[1] == "--agent-command" {
+      AgentSandbox.commandMode(
+        root: args[2], command: args[3], seconds: args.count >= 6 ? Double(args[4]) ?? 0 : 5,
+        writable: args.count == 4 || args[5] == "write", mode: args.count == 7 && args[6] == "tail" ? .headAndTail : .stop)
     }
     if args.count == 7 && args[1] == "--agent-js" { AgentJavaScript.supervisorMode(arguments: args) }
     if (args.count == 3 || args.count == 4) && args[1] == "--agent-tools" { AgentSandbox.serve(root: args[2], permissionsPath: args.count == 4 ? args[3] : nil) }
@@ -388,8 +416,57 @@ struct AgentSandboxCheck {
     check(timeout.interrupted, "silent process did not time out")
     let large = try run("yes data")
     check(
-      large.interrupted && large.output.utf8.count <= AgentSandbox.maximumOutput,
+      large.interrupted && large.output.utf8.count <= AgentSandbox.maximumOutput && large.omitted == nil
+        && !large.output.contains("omitted"),
       "output limit failed")
+    // A stopped command reports the signal that ended it, not the 0 of an uncollected process.
+    check(timeout.status == 137 && large.status == 137, "stopped status: \(timeout.status) \(large.status)")
+
+    // `run` commands finish: the output keeps its first 8 KiB and last 24 KiB.
+    func command(_ text: String, seconds: Double = 5) throws -> AgentSandbox.Result {
+      try AgentSandbox.execute(root: root, command: text, seconds: seconds, mode: .headAndTail)
+    }
+    let chatty = try command(
+      "i=0; while [ $i -lt 2000 ]; do echo line-$i-xxxxxxxxxxxxxxxxxxxx; i=$((i+1)); done; echo FINISHED > done.txt; echo tests: 42 passed")
+    // Independent oracle: the same output built here, then cut at the documented sizes.
+    let expected = Data(((0..<2000).map { "line-\($0)-xxxxxxxxxxxxxxxxxxxx\n" }.joined() + "tests: 42 passed\n").utf8)
+    let omittedBytes = expected.count - 8192 - 24576
+    check(
+      chatty.status == 0 && !chatty.interrupted && chatty.omitted == omittedBytes
+        && chatty.raw == expected.prefix(8192) + Data("\n[... \(omittedBytes) bytes of output omitted ...]\n".utf8)
+          + expected.suffix(24576)
+        && (try? String(contentsOf: root.appendingPathComponent("done.txt"), encoding: .utf8)) == "FINISHED\n",
+      "talkative command finishes with its start and end: status \(chatty.status) omitted \(String(describing: chatty.omitted)) end \(chatty.output.suffix(60).debugDescription)")
+    for (size, cut) in [(20_000, false), (32_768, false), (32_769, true)] {
+      let exact = try command("/usr/bin/perl -e 'print \"a\" x \(size)'")
+      check(
+        exact.status == 0 && (exact.omitted != nil) == cut
+          && (cut ? exact.omitted == 1 : exact.raw == Data(repeating: 97, count: size)),
+        "\(size) bytes: omitted \(String(describing: exact.omitted))")
+    }
+    // Cuts fall on UTF-8 boundaries: "x" + 20,000 "é" + "y" splits both ends inside an "é".
+    let accents = try command("/usr/bin/perl -e 'print \"x\", \"\\xc3\\xa9\" x 20000, \"y\"'")
+    check(
+      accents.status == 0 && accents.omitted == 40_002 - 8191 - 24575 && !accents.output.contains("\u{FFFD}")
+        && accents.output.hasPrefix("xé") && accents.output.hasSuffix("éy"),
+      "UTF-8 boundaries: omitted \(String(describing: accents.omitted))")
+    // Drained, not throttled: 10 MB well inside the deadline.
+    let started10 = Date()
+    let bulk = try command("/usr/bin/perl -e 'print \"z\" x 10000000'; echo END")
+    check(
+      bulk.status == 0 && !bulk.interrupted && bulk.omitted == 10_000_004 - 8192 - 24576
+        && bulk.output.hasSuffix("zEND\n") && Date().timeIntervalSince(started10) < 4,
+      "10 MB drained: status \(bulk.status) omitted \(String(describing: bulk.omitted)) in \(Date().timeIntervalSince(started10)) s")
+    let endless = try command("yes data", seconds: 0.5)
+    check(
+      endless.interrupted && endless.status == 137 && (endless.omitted ?? 0) > 0
+        // The deadline can stop it mid-line: the end is the latest "data" lines, maybe cut.
+        && endless.output.suffix(64).contains("data\ndata") && endless.output.utf8.count < AgentSandbox.maximumOutput + 100,
+      "endless output stops at the deadline with its end: status \(endless.status)")
+    let silent = try command("sleep 30", seconds: 0.2)
+    check(silent.interrupted && silent.status == 137 && silent.omitted == nil, "silent command stopped: \(silent)")
+    let failing = try command("printf ok; exit 3")
+    check(failing.status == 3 && failing.output == "ok" && !failing.interrupted, "exit status kept: \(failing)")
     let descendants = try run("sleep 30 & echo $! > child.pid; wait", seconds: 0.2)
     check(descendants.interrupted, "background child did not time out")
     let pid = Int32(

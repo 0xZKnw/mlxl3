@@ -76,8 +76,38 @@ enum AgentSandbox {
     let interrupted: Bool
     /// Exact bytes read, for callers that must not rewrite invalid UTF-8; not serialized.
     var raw: Data?
+    /// Bytes left out of the middle of a `.headAndTail` output; nil when nothing was cut.
+    var omitted: Int?
 
-    enum CodingKeys: String, CodingKey { case output, status, interrupted }
+    enum CodingKeys: String, CodingKey { case output, status, interrupted, omitted }
+  }
+
+  /// What `execute` does with output past its limit.
+  enum OutputMode: Sendable {
+    /// Stop the command at the limit: reads, lists and searches that only need a prefix.
+    case stop
+    /// Let the command finish and keep the first quarter and the last three quarters of
+    /// the limit (commands: their errors and summaries come last).
+    case headAndTail
+  }
+
+  /// Longest prefix that does not end inside a UTF-8 sequence.
+  static func utf8Prefix(_ data: Data) -> Data {
+    let bytes = [UInt8](data)
+    var index = bytes.count - 1
+    while index >= 0, bytes.count - index <= 4, bytes[index] & 0xC0 == 0x80 { index -= 1 }
+    guard index >= 0 else { return Data(bytes) }
+    let lead = bytes[index]
+    let length = lead >= 0xF0 ? 4 : lead >= 0xE0 ? 3 : lead >= 0xC0 ? 2 : 1
+    return Data(bytes[..<(index + length > bytes.count ? index : bytes.count)])
+  }
+
+  /// Suffix that does not start inside a UTF-8 sequence.
+  static func utf8Suffix(_ data: Data) -> Data {
+    let bytes = [UInt8](data)
+    var start = 0
+    while start < bytes.count, start < 3, bytes[start] & 0xC0 == 0x80 { start += 1 }
+    return Data(bytes[start...])
   }
 
   /// Relative, `/`-separated path inside the workspace: no absolute path, `.`/`..`, `.git`,
@@ -107,10 +137,10 @@ enum AgentSandbox {
   /// A separate trusted supervisor survives loss of the MCP transport and reaps its job.
   static func execute(
     root: URL, command: String, seconds: Double = 5, writable: Bool = true,
-    limit: Int = maximumOutput
+    limit: Int = maximumOutput, mode: OutputMode = .stop
   ) throws -> Result {
     guard !command.isEmpty, command.utf8.count <= maximumCommand, !command.contains("\0"),
-      seconds.isFinite, seconds > 0, seconds <= 30, (1...(1 << 20)).contains(limit)
+      seconds.isFinite, seconds > 0, seconds <= 30, (16...(1 << 20)).contains(limit)
     else { throw CocoaError(.fileReadCorruptFile) }
     let root = try canonicalRoot(root)
     let policy = try profile(root: root, writable: writable)
@@ -161,6 +191,11 @@ enum AgentSandbox {
     _ = fcntl(descriptors[0], F_SETFL, O_NONBLOCK)
     let deadline = ProcessInfo.processInfo.systemUptime + seconds
     var data = Data()
+    // `.headAndTail`: `data` holds the head, `tail` a rolling window of the latest bytes.
+    let headLimit = mode == .stop ? limit : limit / 4
+    let tailLimit = limit - headLimit
+    var tail = Data()
+    var total = 0
     var status: Int32 = 0
     var interrupted = false
     var reaped = false
@@ -168,15 +203,20 @@ enum AgentSandbox {
       kill(-pid, SIGKILL)
       if !reaped { while waitpid(pid, &status, 0) < 0 && errno == EINTR {} }
     }
-    var bytes = [UInt8](repeating: 0, count: 4096)
+    var bytes = [UInt8](repeating: 0, count: 65_536)
     while true {
       let count = read(descriptors[0], &bytes, bytes.count)
       if count > 0 {
-        data.append(contentsOf: bytes.prefix(count))
-        if data.count > limit {
-          data = data.prefix(limit)
-          interrupted = true
-          break
+        total += count
+        let room = max(0, headLimit - data.count)
+        data.append(contentsOf: bytes.prefix(min(room, count)))
+        if count > room {
+          if mode == .stop {
+            interrupted = true
+            break
+          }
+          tail.append(contentsOf: bytes[room..<count])
+          if tail.count > 2 * tailLimit { tail = Data(tail.suffix(tailLimit)) }
         }
       }
       if !reaped {
@@ -191,15 +231,40 @@ enum AgentSandbox {
       var descriptor = pollfd(fd: descriptors[0], events: Int16(POLLIN), revents: 0)
       _ = poll(&descriptor, 1, 20)
     }
+    // A stopped command is reaped before its status is read: it reports the signal that
+    // ended it (137 for SIGKILL), never the 0 of a process that was not collected yet.
+    if !reaped {
+      kill(-pid, SIGKILL)
+      while waitpid(pid, &status, 0) < 0 && errno == EINTR {}
+      reaped = true
+    }
+    var omitted: Int?
+    if mode == .stop {
+      // Unchanged: the first `limit` bytes, `interrupted` when more came.
+    } else if total > data.count + tail.count || tail.count > tailLimit {
+      let head = utf8Prefix(data)
+      let end = utf8Suffix(Data(tail.suffix(tailLimit)))
+      let cut = total - head.count - end.count
+      data = head + Data("\n[... \(cut) bytes of output omitted ...]\n".utf8) + end
+      omitted = cut
+    } else {
+      data += tail
+    }
     let exitCode = status & 0x7f == 0 ? (status >> 8) & 0xff : 128 + (status & 0x7f)
     return Result(
       output: String(decoding: data, as: UTF8.self), status: exitCode, interrupted: interrupted,
-      raw: data)
+      raw: data, omitted: omitted)
   }
 
-  static func commandMode(root: String, command: String, seconds: Double = 5, writable: Bool = true) -> Never {
+  /// `--agent-command <root> <command> [<seconds> <write|readonly> [tail]]`; `tail` lets a
+  /// `run` command finish and keeps the start and end of its output.
+  static func commandMode(
+    root: String, command: String, seconds: Double = 5, writable: Bool = true, mode: OutputMode = .stop
+  ) -> Never {
     do {
-      let result = try execute(root: URL(fileURLWithPath: root), command: command, seconds: seconds, writable: writable)
+      let result = try execute(
+        root: URL(fileURLWithPath: root), command: command, seconds: seconds, writable: writable,
+        mode: mode)
       let data = try JSONEncoder().encode(result)
       try FileHandle.standardOutput.write(contentsOf: data)
       exit(0)
@@ -308,7 +373,7 @@ enum AgentSandbox {
               [
                 "name": "run",
                 "description":
-                  "Run a shell command in your private macOS sandbox. No network or personal files. Use relative paths. Deadline: \(permissions.commandSeconds) seconds; output: 32 KiB. Writing is \(permissions.write ? "enabled" : "disabled"). System tools in /usr/bin and /bin only.",
+                  "Run a shell command in your private macOS sandbox. No network or personal files. Use relative paths. Deadline: \(permissions.commandSeconds) seconds; output: 32 KiB (longer output keeps its first 8 KiB and last 24 KiB). Writing is \(permissions.write ? "enabled" : "disabled"). System tools in /usr/bin and /bin only.",
                 "inputSchema": [
                   "type": "object",
                   "properties": ["command": ["type": "string", "maxLength": maximumCommand]],
@@ -362,6 +427,7 @@ enum AgentSandbox {
             let supervisor = Process()
             supervisor.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
             supervisor.arguments = ["--agent-command", root, command, String(permissions.commandSeconds), permissions.write ? "write" : "readonly"]
+              + (name == "run" ? ["tail"] : [])
             supervisor.environment = ["PATH": "/usr/bin:/bin"]
             supervisor.standardInput = FileHandle.nullDevice
             supervisor.standardError = FileHandle.nullDevice
