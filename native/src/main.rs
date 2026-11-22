@@ -2096,10 +2096,12 @@ fn model_payload(name: &str, entry: &registry::ModelEntry) -> Result<Value> {
 #[cfg(all(feature = "mlx", feature = "chat"))]
 enum NativeChatModel {
     Gemma4(mlxl3_native::gemma4::Gemma4),
-    /// Inkling 2 Mini and its DSpark drafter (`mtp.safetensors`), when present and not disabled.
+    /// Inkling 2 Mini, its DSpark drafter when loaded, and the checkpoint directory of a drafter that can
+    /// be loaded on demand (`mtp.safetensors` present and DSpark not disabled).
     Inkling(
         Box<mlxl3_native::inkling2::Inkling2>,
         Option<Box<mlxl3_native::inkling2_draft::Inkling2Draft>>,
+        Option<std::path::PathBuf>,
     ),
     Lfm2(mlxl3_native::lfm2::Lfm2),
     Lfm3(Box<mlxl3_native::lfm3::Lfm3>),
@@ -2154,10 +2156,14 @@ fn inkling_draw_seeds(random: u64) -> mlxl3_native::inkling2::DrawSeeds {
     ))
 }
 
-/// The loaded model is Inkling 2 with its DSpark drafter (`ready.dspark_supported`).
+/// The loaded model is Inkling 2 with a DSpark drafter, loaded or loadable on demand
+/// (`ready.dspark_supported`).
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn inkling_has_drafter(model: &NativeChatModel) -> bool {
-    matches!(model, NativeChatModel::Inkling(_, Some(_)))
+    matches!(
+        model,
+        NativeChatModel::Inkling(_, Some(_), _) | NativeChatModel::Inkling(_, _, Some(_))
+    )
 }
 
 /// SPEED-INK2M-P6a: Inkling 2 is warmed up at load unless `MLXL3_INKLING_WARMUP=0`.
@@ -2213,29 +2219,19 @@ impl NativeChatModel {
                 checkpoint,
             )?)),
             "inkling2_loop" => {
-                let target = mlxl3_native::inkling2::Inkling2::from_checkpoint(checkpoint)?;
-                let draft = if checkpoint.path.join("mtp.safetensors").is_file()
-                    && inkling_dspark_enabled()
-                {
-                    Some(Box::new(
-                        mlxl3_native::inkling2_draft::Inkling2Draft::load(
-                            &checkpoint.path,
-                            &target,
-                        )
-                        .context("loading the Inkling DSpark drafter")?,
-                    ))
-                } else {
-                    None
-                };
-                let mut target = target;
-                let mut draft = draft;
+                let mut target = mlxl3_native::inkling2::Inkling2::from_checkpoint(checkpoint)?;
+                // DECISION-2026-11-22-INK2M-DSPARK-OFF: DSpark is off by default, so its drafter is
+                // loaded by the first request that asks for it (`prepare_inkling_drafter`)
+                let drafter_source = (checkpoint.path.join("mtp.safetensors").is_file()
+                    && inkling_dspark_enabled())
+                .then(|| checkpoint.path.clone());
                 // SPEED-INK2M-P6a: pay the Metal kernel compilation while loading, not on the first
                 // request (`MLXL3_INKLING_WARMUP=0` skips it)
                 if inkling_warmup_enabled() {
-                    mlxl3_native::inkling2_draft::warm_up(&mut target, draft.as_deref_mut())
+                    mlxl3_native::inkling2_draft::warm_up(&mut target, None)
                         .context("warming up Inkling 2")?;
                 }
-                Ok(Self::Inkling(Box::new(target), draft))
+                Ok(Self::Inkling(Box::new(target), None, drafter_source))
             }
             "lfm3" | "lfm3_vl" => Ok(Self::Lfm3(Box::new(
                 mlxl3_native::lfm3::Lfm3::from_checkpoint(checkpoint)?,
@@ -2253,7 +2249,7 @@ impl NativeChatModel {
     fn forward(&mut self, token: u32) -> Result<mlxl3_native::array::Array> {
         match self {
             Self::Gemma4(model) => model.forward(token),
-            Self::Inkling(model, _) => model.forward(token),
+            Self::Inkling(model, ..) => model.forward(token),
             Self::Lfm2(model) => model.forward(&[token]),
             Self::Lfm3(model) => model.forward(&[token]),
             Self::Ling(model) => model.forward(token),
@@ -2290,7 +2286,7 @@ impl NativeChatModel {
                 }
                 Self::Lfm2(model) if model.supports_batched_prefill() => model.forward(tokens),
                 Self::Lfm3(model) => model.forward(tokens),
-                Self::Inkling(model, _) => model.forward_tokens(tokens),
+                Self::Inkling(model, ..) => model.forward_tokens(tokens),
                 Self::Ling(_) => self.forward_many_serial(tokens),
                 Self::Qwen(model) => model.forward_tokens(tokens),
                 Self::Flash(model) => model.forward_tokens(tokens),
@@ -2305,7 +2301,7 @@ impl NativeChatModel {
             Self::Qwen(model) => return model.prefill_serial(tokens),
             Self::Flash(model) => return model.forward_tokens(tokens),
             Self::Ling(model) => return model.prefill_serial(tokens),
-            Self::Inkling(model, _) => return model.forward_tokens(tokens),
+            Self::Inkling(model, ..) => return model.forward_tokens(tokens),
             _ => {}
         }
         let mut output = None;
@@ -2378,7 +2374,7 @@ impl NativeChatModel {
     fn context_limit(&self) -> i32 {
         match self {
             Self::Gemma4(model) => model.context_limit(),
-            Self::Inkling(model, _) => model.context_limit(),
+            Self::Inkling(model, ..) => model.context_limit(),
             Self::Lfm2(model) => model.context_limit(),
             Self::Lfm3(model) => model.context_limit(),
             Self::Ling(model) => model.context_limit(),
@@ -2390,7 +2386,7 @@ impl NativeChatModel {
     fn reset(&mut self) {
         match self {
             Self::Gemma4(model) => model.reset(),
-            Self::Inkling(model, draft) => {
+            Self::Inkling(model, draft, _) => {
                 model.reset();
                 if let Some(draft) = draft {
                     draft.reset();
@@ -2402,6 +2398,31 @@ impl NativeChatModel {
             Self::Qwen(model) => model.reset(),
             Self::Flash(model) => model.reset(),
         }
+    }
+
+    /// Loads the Inkling DSpark drafter when a request wants DSpark and only its source is known, and frees
+    /// it when a request does not (DECISION-2026-11-22-INK2M-DSPARK-OFF). Returns whether it loaded one.
+    fn prepare_inkling_drafter(&mut self, wanted: bool) -> Result<bool> {
+        let Self::Inkling(target, draft, source) = self else {
+            return Ok(false);
+        };
+        if !wanted {
+            *draft = None;
+            return Ok(false);
+        }
+        let Some(path) = source.as_ref().filter(|_| draft.is_none()) else {
+            return Ok(false);
+        };
+        let mut loaded = Box::new(
+            mlxl3_native::inkling2_draft::Inkling2Draft::load(path, target)
+                .context("loading the Inkling DSpark drafter")?,
+        );
+        if inkling_warmup_enabled() {
+            mlxl3_native::inkling2_draft::warm_up(target, Some(loaded.as_mut()))
+                .context("warming up the Inkling DSpark drafter")?;
+        }
+        *draft = Some(loaded);
+        Ok(true)
     }
 
     fn eval_state(&self) -> Result<()> {
@@ -2416,7 +2437,7 @@ impl NativeChatModel {
                     state.eval()?;
                 }
             }
-            Self::Inkling(model, _) => model.eval_state()?,
+            Self::Inkling(model, ..) => model.eval_state()?,
             Self::Gemma4(_) | Self::Ling(_) | Self::Qwen(_) | Self::Flash(_) => {}
         }
         Ok(())
@@ -2503,8 +2524,9 @@ struct BridgeRequest {
     mtp_head_path: String,
     #[serde(default = "default_mtp_depth")]
     mtp_depth: usize,
-    /// Inkling 2 DSpark drafter; on unless a request turns it off (older apps omit the field).
-    #[serde(default = "reuse_cache_by_default")]
+    /// Inkling 2 DSpark drafter; off unless a request turns it on (DECISION-2026-11-22-INK2M-DSPARK-OFF:
+    /// at temperature 1 plain decoding is as fast).
+    #[serde(default)]
     #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
     dspark: bool,
     /// Requested `reasoning_effort` (one of `tokenizer::REASONING_EFFORTS`); omitted = the
@@ -2680,11 +2702,12 @@ fn reuse_cache_by_default() -> bool {
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 thread_local! {
-    /// DSpark choice of the request being served (the bridge serves one request at a time).
-    static DSPARK_REQUESTED: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+    /// DSpark choice of the request being served (the bridge serves one request at a time); off by
+    /// default, also for the CLI and the server.
+    static DSPARK_REQUESTED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
-/// Sets the DSpark choice for the duration of one request; dropping it restores the default (on).
+/// Sets the DSpark choice for the duration of one request; dropping it restores the default (off).
 #[cfg(all(feature = "mlx", feature = "chat"))]
 struct DsparkRequest;
 
@@ -2699,7 +2722,7 @@ impl DsparkRequest {
 #[cfg(all(feature = "mlx", feature = "chat"))]
 impl Drop for DsparkRequest {
     fn drop(&mut self) {
-        DSPARK_REQUESTED.with(|cell| cell.set(true));
+        DSPARK_REQUESTED.with(|cell| cell.set(false));
     }
 }
 
@@ -2772,6 +2795,36 @@ fn bridge_reasoning_effort_is_optional_validated_and_scoped() -> Result<()> {
                 json!({"type":"generate", "reasoning_effort":invalid})
             )
             .is_err()
+        );
+    }
+    Ok(())
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn bridge_dspark_is_opt_in_and_scoped_to_one_request() -> Result<()> {
+    // DECISION-2026-11-22-INK2M-DSPARK-OFF: a request without the field decodes plainly
+    let current = || DSPARK_REQUESTED.with(std::cell::Cell::get);
+    let legacy: BridgeRequest = serde_json::from_value(json!({"type":"generate"}))?;
+    assert!(
+        !legacy.dspark,
+        "older apps and other clients get plain decoding"
+    );
+    assert!(!current(), "no request: off");
+    for enabled in [false, true] {
+        let request: BridgeRequest =
+            serde_json::from_value(json!({"type":"generate", "dspark":enabled}))?;
+        assert_eq!(request.dspark, enabled);
+        {
+            let _dspark = DsparkRequest::set(request.dspark);
+            assert_eq!(current(), enabled);
+        }
+        assert!(!current(), "the next request starts from the default (off)");
+    }
+    for invalid in [json!(null), json!(1), json!("true")] {
+        assert!(
+            serde_json::from_value::<BridgeRequest>(json!({"type":"generate", "dspark":invalid}))
+                .is_err()
         );
     }
     Ok(())
@@ -4272,7 +4325,7 @@ fn bridge_generate_round(
     // ordinary path (their stream filter and stops are unchanged).
     #[cfg(feature = "mlx")]
     let mut dspark = match &*model {
-        NativeChatModel::Inkling(target, Some(drafter))
+        NativeChatModel::Inkling(target, Some(drafter), _)
             if tools.is_empty()
                 && mtp.is_none()
                 && draft.is_none()
@@ -4320,7 +4373,7 @@ fn bridge_generate_round(
     #[cfg(feature = "mlx")]
     let (mut logits, mut dflash, cached, mut mtp_session) = {
         let (logits, mut dflash, cached) =
-            if let (Some(session), NativeChatModel::Inkling(target, Some(drafter))) =
+            if let (Some(session), NativeChatModel::Inkling(target, Some(drafter), _)) =
                 (dspark.as_mut(), &mut *model)
             {
                 let logits = session.prefill(target, drafter, &tokens, &|| {
@@ -4512,7 +4565,7 @@ fn bridge_generate_round(
             token
         } else {
             #[cfg(feature = "mlx")]
-            let sampled = if let (Some(decode), NativeChatModel::Inkling(target, _)) =
+            let sampled = if let (Some(decode), NativeChatModel::Inkling(target, ..)) =
                 (inkling_decode.as_mut(), &mut *model)
             {
                 // the step consuming this token runs when one more token will be delivered
@@ -4585,7 +4638,7 @@ fn bridge_generate_round(
         if generated.len() < budget {
             #[cfg(feature = "mlx")]
             {
-                if let (Some(session), NativeChatModel::Inkling(target, Some(drafter))) =
+                if let (Some(session), NativeChatModel::Inkling(target, Some(drafter), _)) =
                     (dspark.as_mut(), &mut *model)
                 {
                     let mut choose = |proposals: &[u32],
@@ -5797,6 +5850,21 @@ fn native_bridge(
                         proposals,
                         draft_path,
                     )?;
+                    #[cfg(feature = "mlx")]
+                    if request.dspark
+                        && inkling_has_drafter(&model)
+                        && !matches!(model, NativeChatModel::Inkling(_, Some(_), _))
+                    {
+                        emit_event(json!({
+                            "type":"generation_status", "request_id":request.request_id,
+                            "phase":"dspark_loading", "text":"Loading DSpark…"
+                        }))?;
+                    }
+                    #[cfg(feature = "mlx")]
+                    if let Err(error) = model.prepare_inkling_drafter(request.dspark) {
+                        // the round decodes plainly; the source stays known for a later request
+                        eprintln!("DSpark drafter unavailable: {error:#}");
+                    }
                     #[cfg(feature = "mlx")]
                     let _dspark = DsparkRequest::set(request.dspark);
                     let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;

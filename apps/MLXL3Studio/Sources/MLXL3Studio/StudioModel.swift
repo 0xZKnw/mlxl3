@@ -134,7 +134,7 @@ final class StudioModel: ObservableObject {
     /// The loaded model ships a DSpark drafter (Inkling 2); nil until the engine reports it.
     @Published private(set) var dsparkSupported: Bool?
     /// DSpark on or off, kept across launches (on by default).
-    @Published private(set) var dsparkEnabled = true
+    @Published private(set) var dsparkEnabled = false
     /// Reasoning levels the selected model's chat template accepts; nil when it has none.
     @Published private(set) var reasoningSupport: ReasoningSupport?
     /// Level chosen for the selected model (kept per model); nil = the template default.
@@ -292,7 +292,8 @@ final class StudioModel: ObservableObject {
         self.loadModelOnStartup = StartupModelPreference.load(from: preferences)
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
         self.memorySaverEnabled = preferences.bool(forKey: "studio.memorySaverEnabled")
-        self.dsparkEnabled = (preferences.object(forKey: "studio.dsparkEnabled") as? Bool) ?? true
+        // DECISION-2026-11-22-INK2M-DSPARK-OFF: plain decoding unless the user turns DSpark on
+        self.dsparkEnabled = (preferences.object(forKey: "studio.dsparkEnabled") as? Bool) ?? false
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
         self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
