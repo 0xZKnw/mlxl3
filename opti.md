@@ -30555,7 +30555,7 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
   - Critère fixé avant mesure (Δ prose ≤ +0,0007 et borne haute ≤ +0,0014) : **rempli**. Le coût des embeddings 8 bits n'est pas mesurable avec ce jeu ; aucune différence significative, quel que soit le domaine.
   - Gain de taille attendu si on les stocke : 926 318 592 → 492 106 752 octets (**−434 Mo**). Le stockage demanderait un chemin moteur « lignes 8 bits puis déquantification » (équivalent exact de l'option mesurée), un moteur, une révision HF et un épinglage Desktop. **Non fait** : décision utilisateur requise (préenregistrement).
 
-### SIZE-2026-11-22-INK2M-EMBED8 — EN COURS (préenregistré avant tout code, export ou mesure ; demande utilisateur « Oui, fais-le » après la mesure B de SIZE-2026-11-21-INK2M-SLIM) : embeddings Inkling stockés en 8 bits (moteur 2.0.23, révision HF, Desktop 2.0.14)
+### SIZE-2026-11-22-INK2M-EMBED8 — VALIDÉ (parité bit à bit avec l'option mesurée) et PUBLIÉ (moteur 2.0.23, HF `dde31cd0`, Desktop 2.0.14) (préenregistré avant tout code, export ou mesure ; demande utilisateur « Oui, fais-le » après la mesure B de SIZE-2026-11-21-INK2M-SLIM) : embeddings Inkling stockés en 8 bits (moteur 2.0.23, révision HF, Desktop 2.0.14)
 
 - Base : révision HF slim `a5763a01` (`models/Inkling-2-Mini-EXL3-R3-slim/`, poids 13 535 683 700 o) et moteur 2.0.22 (`main` `a3f5bd30b` + journal B `26e14317c`).
 - Qualité déjà mesurée (partie B, critère rempli) : embeddings 8 bits groupe 64, prose +0,00019 nat [−0,00023 ; +0,00063], global +0,0006 [−0,0038 ; +0,0050], contre la référence exacte locale. **Changement avec perte, accepté par l'utilisateur.**
@@ -30597,11 +30597,11 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
   - **HF** : révision **`dde31cd0aea4ca0f61eaa5649559ef01e5baf25a`** (`hf/make_card_slim2.py`, `hf/upload-slim2.log`) ; 21 fichiers vérifiés (SHA-256 LFS, fiche/NOTICE/configs identiques octet pour octet).
   - **Archive** `MLXL3-Engine-v2.0.23-arm64.tar.gz` : 69 058 312 o `6d3ad2f5…2075`, `.sha256` `a7cf8702…5190`, `mlxl3` `fc99c040…453f` ; 4 fichiers conformes, signatures, metallib, `runtime-info` 2.0.23 / `8c792b13921b`.
 
-### RELEASE-2026-11-22-ENGINE-2.0.23 — PUBLICATION EN COURS (demande utilisateur « Oui, fais-le »)
+### RELEASE-2026-11-22-ENGINE-2.0.23 — PUBLIÉ (`engine-v2.0.23`, latest=false ; CI verte) (demande utilisateur « Oui, fais-le »)
 
 - Source `8c792b139` (chargeur des embeddings stockés), notes `docs/releases/engine/release-engine-v2.0.23.md`. Contrôles : ceux de SIZE-2026-11-22-INK2M-EMBED8 ci-dessus.
 
-### RELEASE-2026-11-22-DESKTOP-2.0.14 — PUBLICATION EN COURS (demande utilisateur « Oui, fais-le » : embeddings 8 bits avec moteur, HF et Desktop)
+### RELEASE-2026-11-22-DESKTOP-2.0.14 — PUBLIÉ (`v2.0.14`, latest ; installeur Windows joint ; CI verte) (demande utilisateur « Oui, fais-le » : embeddings 8 bits avec moteur, HF et Desktop)
 
 - Source `b905ab641` (Inkling épinglé sur `dde31cd0`, 2.0.14 / 67), au-dessus de `main` `e052db54b` (moteur 2.0.23).
 - `scripts/check-desktop.sh` complet (SDK 26.5) : passé (E2E 438 s ; 78 cas de disposition, dont DSpark).
@@ -30609,3 +30609,7 @@ Même base 3de208e0. Les deux comparaisons initiales du prefill exact donnent +1
   - `hdiutil verify` valide ; `codesign --deep --strict` OK ; 2.0.14 / 67 ; `build-info` commit `b905ab641e75`, `tracked_changes: false`, moteur 2.0.23 (`20ea4998…`).
   - Bibliothèques et metallib identiques à l'archive 2.0.23 ; `mlxl3` : 197 octets différents (commit inscrit, signature).
   - Smoke du moteur intégré sur slim2 : passé (02:27, après le processus `p8/check` de l'autre session).
+- Révision 2026-11-22 — **publication et CI (moteur 2.0.23, Desktop 2.0.14)** :
+  - **Moteur** : `engine-v2.0.23` (https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.23), tag `8c792b139`, `latest=false`. Fichiers retéléchargés et contrôlés. `main` `a3f5bd30b → e052db54b`. Discord `success`. Windows exécuté, rien joint. CI `e052db54b` : Apple, EXL3, Flash, Native Rust `success` ; Regression `cancelled` (push suivant, vert sur `bc939c0a5`).
+  - **Desktop** : `v2.0.14` (https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.14), tag `b905ab641`, latest. DMG retéléchargé, `.sha256` OK. `main` `e052db54b → bc939c0a5`. Discord `success`. Windows `success`, installeur joint (`MLXL3-Desktop-v2.0.14-Windows-x64-setup.exe`, 25 902 260 o). CI `bc939c0a5` : Apple, EXL3, Flash, Native Rust, Regression **tous `success`**.
+  - Non vérifié : le téléchargement complet de la révision `dde31cd0` par l'app n'a pas été refait. Le coût des embeddings 8 bits est mesuré en KL sur 12 lignes, sans benchmark de tâches.
