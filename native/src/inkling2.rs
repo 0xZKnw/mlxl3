@@ -646,7 +646,230 @@ fn l2_clip(x: &Array, scale: Option<&Array>, threshold: f32) -> Result<Array> {
 /// `sources`: N arrays `[T, D]` (FP32, already RMS-normalized, also the values); `queries`: `[Q, D]`.
 /// Returns `[T, Q, D]` FP32.
 fn depth_attention(sources: &[&Array], queries: &Array) -> Result<Array> {
+    if let Some(out) = depth_attend_one(sources, queries)? {
+        return Ok(out);
+    }
     depth_attend(&depth_stack(sources)?, queries)
+}
+
+/// Fusion `step` of SPEED-2026-11-22-INK2M-P17 (same bits as the op sequence it replaces): on with the lean
+/// path; `MLXL3_INKLING_P17_OFF=1` turns all of them off, `MLXL3_INKLING_P17_OFF=f1,f2` the listed ones.
+fn p17(step: &str) -> bool {
+    #[cfg(test)]
+    if let Some(off) = P17_TEST_OFF.with(|c| c.borrow().clone()) {
+        return lean() && !off.split(',').any(|s| s == step || s == "all");
+    }
+    static OFF: std::sync::OnceLock<Option<String>> = std::sync::OnceLock::new();
+    let off = OFF.get_or_init(|| std::env::var("MLXL3_INKLING_P17_OFF").ok());
+    lean()
+        && match off.as_deref() {
+            None => true,
+            Some("1") | Some("all") => false,
+            Some(list) => !list.split(',').any(|s| s == step),
+        }
+}
+
+#[cfg(test)]
+thread_local! {
+    /// Mutation for the component test: the score reduction tree runs in the opposite order.
+    static DEPTH_ONE_MUTATE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// Mutation for the gate component test: the tail's reduction tree runs in the opposite order.
+    static GATE_TAIL_MUTATE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// Paired A/B timing (`fusion_ab_profile`): P17 steps turned off on this thread (`Some("")` = none off).
+    static P17_TEST_OFF: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// SPEED-INK2M-P17 F1: one token, one query (`[1, D]` FP32) over `N` sources (`[1, D]` FP32) in one kernel.
+/// It repeats MLX 0.32.2's kernels for `depth_attend` at these shapes, thread layout and operation order
+/// included: scores `gemv_float32_bm1_bn8_sm1_sn32_tm*_tn4`, the scale `multiply`, `block_softmax_float32`,
+/// output `gemv_t_float32_bm1_bn16_sm8_sn4_tm4_tn4`. Threadgroups of 8 simdgroups, one per 256 output columns.
+const DEPTH_ONE_SOURCE: &str = r#"
+    const int lane = int(thread_index_in_simdgroup);
+    const int sg = int(simdgroup_index_in_threadgroup);
+    const int group = int(threadgroup_position_in_grid.x);
+    const device float* src[NSRC] = { SRCLIST };
+    threadgroup float w[NSRC];
+    // scores: one simdgroup per source row; each lane keeps the partial sums of the 8 simdgroups of
+    // gemv (bn 8, sn 32, tn 4) in the same order, then the same trees and the same final sum
+    for (int r = sg; r < NSRC; r += 8) {
+        float part[8];
+        for (int g = 0; g < 8; ++g) {
+            float result = 0.0f;
+            int bn = (32 * g + lane) * 4;
+            for (int i = 0; i < DIMS / 1024; ++i) {
+                float v[4];
+                float m[4];
+                for (int t = 0; t < 4; ++t) { v[t] = q[bn + t]; }
+                for (int t = 0; t < 4; ++t) { m[t] = src[r][bn + t]; }
+                for (int t = 0; t < 4; ++t) { result += m[t] * v[t]; }
+                bn += 1024;
+            }
+            if (DIMS % 1024 > 0) {
+                float v[4];
+                float m[4];
+                if (bn + 4 <= DIMS) {
+                    for (int t = 0; t < 4; ++t) { v[t] = q[bn + t]; }
+                } else {
+                    for (int t = 0; t < 4; ++t) { v[t] = bn + t < DIMS ? q[bn + t] : 0.0f; }
+                }
+                if (bn + 4 <= DIMS) {
+                    for (int t = 0; t < 4; ++t) { m[t] = src[r][bn + t]; }
+                } else {
+                    for (int t = 0; t < 4; ++t) { m[t] = bn + t < DIMS ? src[r][bn + t] : 0.0f; }
+                }
+                for (int t = 0; t < 4; ++t) { result += m[t] * v[t]; }
+            }
+            SHUFFLE_TREE
+            part[g] = result;
+        }
+        if (lane == 0) {
+            float acc = part[0];
+            for (int g = 1; g < 8; ++g) { acc += part[g]; }
+            w[r] = acc * as_type<float>(SCALEBITSu);
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    // softmax: block_softmax_float32, one simdgroup, 4 values per lane
+    if (sg == 0) {
+        const int base = lane * 4;
+        float ld[4];
+        if (base + 4 <= NSRC) {
+            for (int i = 0; i < 4; ++i) { ld[i] = w[base + i]; }
+        } else {
+            for (int i = 0; i < 4; ++i) { ld[i] = (base + i) < NSRC ? w[base + i] : -INFINITY; }
+        }
+        float maxval = -FLT_MAX;
+        for (int i = 0; i < 4; ++i) { maxval = (maxval < ld[i]) ? ld[i] : maxval; }
+        maxval = simd_max(maxval);
+        maxval = simd_max(lane == 0 ? maxval : -INFINITY);
+        float normalizer = 0.0f;
+        for (int i = 0; i < 4; ++i) {
+            float exp_x = metal::fast::exp(ld[i] - maxval);
+            ld[i] = exp_x;
+            normalizer += exp_x;
+        }
+        normalizer = simd_sum(normalizer);
+        normalizer = simd_sum(lane == 0 ? normalizer : 0.0f);
+        normalizer = 1 / normalizer;
+        if (base + 4 <= NSRC) {
+            for (int i = 0; i < 4; ++i) { w[base + i] = ld[i] * normalizer; }
+        } else {
+            for (int i = 0; i < 4; ++i) {
+                if ((base + i) < NSRC) { w[base + i] = ld[i] * normalizer; }
+            }
+        }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    // output: gemv_t (bn 16, sm 8, sn 4, tm 4, tn 4), 256 columns per threadgroup in two passes
+    const int thr_m = lane / 4;
+    const int thr_n = lane % 4;
+    const int bm = thr_m * 4;
+    for (int pass = 0; pass < 2; ++pass) {
+        const int col = group * 256 + pass * 128 + (4 * sg + thr_n) * 4;
+        float res[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+        if (col < DIMS) {
+            for (int tm = 0; tm < 4 && bm + tm < NSRC; ++tm) {
+                float vc = w[bm + tm];
+                float inter[4];
+                for (int tn = 0; tn < 4; ++tn) { inter[tn] = src[bm + tm][col + tn]; }
+                for (int tn = 0; tn < 4; ++tn) { res[tn] += vc * inter[tn]; }
+            }
+        }
+        for (int tn = 0; tn < 4; ++tn) {
+            for (ushort sm = 4; sm >= 1; sm >>= 1) { res[tn] += simd_shuffle_down(res[tn], ushort(4 * sm)); }
+        }
+        if (thr_m == 0 && col < DIMS) {
+            for (int tn = 0; tn < 4; ++tn) { out[col + tn] = res[tn]; }
+        }
+    }
+"#;
+
+/// `depth_attend` of one token and one query in one kernel, or `None` outside that domain (several rows or
+/// queries, 32 sources or more, D below 16 per source or 64, another dtype, the timing ablation).
+fn depth_attend_one(sources: &[&Array], queries: &Array) -> Result<Option<Array>> {
+    if !p17("f1") || ablated("depth") {
+        return Ok(None);
+    }
+    let count = sources.len();
+    let &[1, dims] = queries.shape() else {
+        return Ok(None);
+    };
+    // MLX picks the bn 8 score gemv only when D > 64 and D >= 16 * sources
+    if count == 0
+        || count >= 32
+        || dims <= 64
+        || dims < 16 * count as i32
+        || dims % 4 != 0
+        || queries.dtype() != Dtype::Float32
+        || sources
+            .iter()
+            .any(|s| s.shape() != [1, dims] || s.dtype() != Dtype::Float32)
+    {
+        return Ok(None);
+    }
+    #[cfg(test)]
+    let mutate = DEPTH_ONE_MUTATE.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    let mutate = false;
+    let scale = (dims as f32).powf(-0.5);
+    let names: Vec<String> = (0..count)
+        .map(|i| format!("s{i}"))
+        .chain(["q".to_string()])
+        .collect();
+    let key = [
+        count as i64,
+        i64::from(dims),
+        i64::from(mutate),
+        i64::from(scale.to_bits()),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ];
+    let kernel = crate::array::prepared_kernel("inkling_depth_one", key, || {
+        let tree = if mutate {
+            "for (ushort s = 1; s <= 16; s <<= 1) { result += simd_shuffle_down(result, s); }"
+        } else {
+            "for (ushort s = 16; s >= 1; s >>= 1) { result += simd_shuffle_down(result, s); }"
+        };
+        let source = DEPTH_ONE_SOURCE
+            .replace("NSRC", &count.to_string())
+            .replace("DIMS", &dims.to_string())
+            .replace("SRCLIST", &names[..count].join(", "))
+            .replace("SCALEBITS", &format!("0x{:08x}", scale.to_bits()))
+            .replace("SHUFFLE_TREE", tree);
+        let refs: Vec<&str> = names.iter().map(String::as_str).collect();
+        crate::array::PreparedKernel::new(
+            &format!(
+                "inkling_depth_one_{count}_{dims}{}",
+                if mutate { "_m" } else { "" }
+            ),
+            &refs,
+            &["out"],
+            "",
+            &source,
+        )
+    })?;
+    let mut inputs: Vec<&Array> = sources.to_vec();
+    inputs.push(queries);
+    // one threadgroup per 256 output columns, as `gemv_t` (each recomputes the scores and the softmax)
+    let groups = (dims + 255) / 256;
+    let mut outputs = kernel.run(
+        &inputs,
+        &[&[1, 1, dims]],
+        &[Dtype::Float32],
+        [256 * groups, 1, 1],
+        [256, 1, 1],
+    )?;
+    Ok(Some(outputs.pop().context("depth attention output")?))
 }
 
 /// `[T, N, D]` stack of the depth sources.
@@ -1041,6 +1264,37 @@ thread_local! {
     static KV_INPLACE_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
     /// Mutation for the parity test: skip the sink rewrite of sliding visits.
     static KV_SKIP_SINK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// SPEED-INK2M-P13: `run` submits by `async_eval` and returns without waiting for the GPU.
+    static ASYNC_SUBMIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// SPEED-INK2M-P13: thread CPU time spent in `run` (construction, evaluation) since the last take.
+    static RUN_CPU: std::cell::Cell<(Duration, Duration)> =
+        const { std::cell::Cell::new((Duration::ZERO, Duration::ZERO)) };
+}
+
+/// CPU time of the calling thread (zero if the clock is unavailable).
+#[cfg(test)]
+fn thread_cpu() -> Duration {
+    let mut t = libc::timespec {
+        tv_sec: 0,
+        tv_nsec: 0,
+    };
+    // SAFETY: `t` is a valid out-pointer for the duration of the call.
+    if unsafe { libc::clock_gettime(libc::CLOCK_THREAD_CPUTIME_ID, &mut t) } != 0 {
+        return Duration::ZERO;
+    }
+    Duration::new(
+        t.tv_sec.max(0) as u64,
+        t.tv_nsec.clamp(0, 999_999_999) as u32,
+    )
+}
+
+/// Evaluate the outputs of one `run` (tests may submit them asynchronously instead).
+fn submit(pending: &[&Array]) -> Result<()> {
+    #[cfg(test)]
+    if ASYNC_SUBMIT.with(std::cell::Cell::get) {
+        return Array::async_eval_all(pending);
+    }
+    Array::eval_many(pending)
 }
 
 /// K/V stored in place (`MLXL3_INKLING_KV_INPLACE=0` keeps the concatenation); lean layout only.
@@ -1396,6 +1650,7 @@ impl Attention {
                 .transpose(&[1, 0, 2])?
                 .reshape(&[self.heads, time * self.extent])?
         };
+        let sink_raw = self.sink.forward(hq)?;
         let mut bias = if ablated("bias") {
             Array::zeros_dtype(&[self.heads, time, plan.keys], Dtype::Float32)?
         } else {
@@ -1411,7 +1666,7 @@ impl Attention {
         if !(lean && plan.all_visible) {
             bias = bias.add(&plan.visible)?;
         }
-        let sinks = self.sink.forward(hq)?.astype(Dtype::Float32)?;
+        let sinks = sink_raw.astype(Dtype::Float32)?;
         let sinks = if one {
             sinks.reshape(&[self.heads, 1, 1])?
         } else {
@@ -1420,8 +1675,27 @@ impl Attention {
         let mask = Array::concatenate(&[&sinks, &bias], 2)?
             .reshape(&[1, self.heads, time, plan.keys + 1])?
             .astype(Dtype::Float16)?;
-        let attended =
-            Array::sdpa_mask(&q, &keys, &values, (self.head_dim as f32).powf(-0.5), &mask)?;
+        self.finish(
+            hq, &q, &keys, &values, &mask, time, one, state, k_state, v_state,
+        )
+    }
+
+    /// Masked attention, output gate and output projection (shared by the plain and F4 mask paths).
+    #[allow(clippy::too_many_arguments)]
+    fn finish(
+        &self,
+        hq: &Array,
+        q: &Array,
+        keys: &Array,
+        values: &Array,
+        mask: &Array,
+        time: i32,
+        one: bool,
+        state: &mut VisitState,
+        k_state: Array,
+        v_state: Array,
+    ) -> Result<Array> {
+        let attended = Array::sdpa_mask(q, keys, values, (self.head_dim as f32).powf(-0.5), mask)?;
         let attended = if one {
             attended.reshape(&[1, self.heads * self.head_dim])?
         } else {
@@ -1430,11 +1704,21 @@ impl Attention {
                 .transpose(&[1, 0, 2])?
                 .reshape(&[time, self.heads * self.head_dim])?
         };
-        let gate = self.gate.forward(hq)?.astype(Dtype::Float32)?.sigmoid()?;
-        let gated = attended
-            .astype(Dtype::Float32)?
-            .mul(&gate)?
-            .astype(Dtype::Float16)?;
+        let gate_raw = self.gate.forward(hq)?;
+        // SPEED-INK2M-P17 F5: one row: casts, sigmoid and product in one kernel
+        let gated = if one
+            && p17("f5")
+            && attended.dtype() == Dtype::Float16
+            && gate_raw.dtype() == Dtype::Float16
+        {
+            attention_gate_one(&attended, &gate_raw)?
+        } else {
+            let gate = gate_raw.astype(Dtype::Float32)?.sigmoid()?;
+            attended
+                .astype(Dtype::Float32)?
+                .mul(&gate)?
+                .astype(Dtype::Float16)?
+        };
         state.pending_conv[0] = Some(k_state);
         state.pending_conv[1] = Some(v_state);
         capture_dense_input(self.layer, 3, &gated)?;
@@ -1577,6 +1861,10 @@ struct MessageGate {
     /// `[rank, hidden]` FP32 (transposed for matmul).
     forget_t: Array,
     gain_t: Array,
+    /// SPEED-INK2M-P17 F2: the checkpoint's `[hidden, rank]` BF16 tensors (exact in FP32), read by the fused
+    /// gate tail; `None` for another dtype.
+    forget_bf16: Option<Array>,
+    gain_bf16: Option<Array>,
     eps: f32,
 }
 
@@ -1594,6 +1882,14 @@ impl MessageGate {
             w.eval()?;
             Ok(w)
         };
+        let bf16 = |name: &str| -> Result<Option<Array>> {
+            let w = checkpoint_array(checkpoint, &format!("{prefix}.{name}"))?;
+            if w.dtype() != Dtype::BFloat16 || w.shape() != [hidden, rank] {
+                return Ok(None);
+            }
+            w.eval()?;
+            Ok(Some(w))
+        };
         Ok(Self {
             down: Dense::load(
                 checkpoint,
@@ -1603,6 +1899,8 @@ impl MessageGate {
             )?,
             forget_t: t("forget_weight")?,
             gain_t: t("gain_weight")?,
+            forget_bf16: bf16("forget_weight")?,
+            gain_bf16: bf16("gain_weight")?,
             eps,
         })
     }
@@ -1621,10 +1919,11 @@ impl MessageGate {
         if ablated("gates") {
             return hidden.try_clone();
         }
-        let states = Array::concatenate(
-            &[hidden_norm, &message.rms_norm_without_weight(self.eps)?],
-            1,
-        )?;
+        let message_norm = message.rms_norm_without_weight(self.eps)?;
+        if let Some(out) = self.forward_fused(hidden, hidden_norm, &message_norm, message)? {
+            return Ok(out);
+        }
+        let states = Array::concatenate(&[hidden_norm, &message_norm], 1)?;
         let states = self.down.forward(&states)?.astype(Dtype::Float32)?;
         if fused() {
             return Array::message_gate(&states, &self.forget_t, &self.gain_t, hidden, message);
@@ -1632,6 +1931,266 @@ impl MessageGate {
         let forget = states.matmul(&self.forget_t)?.tanh()?;
         let gain = states.matmul(&self.gain_t)?.tanh()?;
         hidden.sub(&forget.mul(hidden)?)?.add(&gain.mul(message)?)
+    }
+}
+
+/// SPEED-INK2M-P17 F5: `half(float(attended) * sigmoid(float(gate)))` in one kernel, with MLX's `Sigmoid`
+/// functor (`1 / (1 + exp(|x|))`, then `y` or `1 - y`) and one statement per op.
+const ATTENTION_GATE_SOURCE: &str = r#"
+    const uint i = thread_position_in_grid.x;
+    if (i < SIZE) {
+        const float x = static_cast<float>(gate[i]);
+        const float ax = metal::abs(x);
+        const float e = metal::precise::exp(ax);
+        const float d = 1 + e;
+        const float y = 1 / d;
+        const float s = (x < 0) ? y : 1 - y;
+        const float a = static_cast<float>(attended[i]);
+        const float p = a * s;
+        out[i] = static_cast<half>(p);
+    }
+"#;
+
+fn attention_gate_one(attended: &Array, gate: &Array) -> Result<Array> {
+    let size = attended.shape().iter().product::<i32>();
+    ensure!(
+        attended.shape().len() == 2 && attended.shape()[0] == 1 && gate.shape() == attended.shape(),
+        "attention gate inputs"
+    );
+    let key = [i64::from(size), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    let kernel = crate::array::prepared_kernel("inkling_attention_gate", key, || {
+        crate::array::PreparedKernel::new(
+            &format!("inkling_attention_gate_{size}"),
+            &["attended", "gate"],
+            &["out"],
+            "",
+            &ATTENTION_GATE_SOURCE.replace("SIZE", &format!("{size}u")),
+        )
+    })?;
+    kernel
+        .run(
+            &[attended, gate],
+            &[attended.shape()],
+            &[Dtype::Float16],
+            [(size + 255) / 256 * 256, 1, 1],
+            [256, 1, 1],
+        )?
+        .pop()
+        .context("attention gate")
+}
+
+/// SPEED-INK2M-P17 F2a: `down(half([h_norm, m_norm]))` cast back to FP32 in one kernel, as MLX 0.32.2's
+/// `concatenate`, `astype`, `gemv_float16_bm1_bn8_sm1_sn32_tm4_tn4` and `astype` (16 threadgroups of 8
+/// simdgroups, 4 rows each; same thread layout and operation order).
+const GATE_DOWN_SOURCE: &str = r#"
+    const int lane = int(thread_index_in_simdgroup);
+    const int sg = int(simdgroup_index_in_threadgroup);
+    const int group = int(threadgroup_position_in_grid.x);
+    threadgroup float part[8 * 8];
+    const int out_row = group * 4;
+    float result[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    int bn = (32 * sg + lane) * 4;
+    for (int i = 0; i < (2 * HID) / 1024; ++i) {
+        float v[4];
+        for (int t = 0; t < 4; ++t) {
+            const int k = bn + t;
+            v[t] = static_cast<float>(static_cast<half>(k < HID ? hn[k] : mn[k - HID]));
+        }
+        for (int tm = 0; tm < 4; ++tm) {
+            half inter[4];
+            for (int t = 0; t < 4; ++t) { inter[t] = w[(out_row + tm) * (2 * HID) + bn + t]; }
+            for (int t = 0; t < 4; ++t) { result[tm] += inter[t] * v[t]; }
+        }
+        bn += 1024;
+    }
+    if ((2 * HID) % 1024 > 0) {
+        float v[4];
+        for (int t = 0; t < 4; ++t) {
+            const int k = bn + t;
+            v[t] = k < 2 * HID ? static_cast<float>(static_cast<half>(k < HID ? hn[k] : mn[k - HID])) : 0.0f;
+        }
+        for (int tm = 0; tm < 4; ++tm) {
+            half inter[4];
+            for (int t = 0; t < 4; ++t) {
+                inter[t] = bn + t < 2 * HID ? w[(out_row + tm) * (2 * HID) + bn + t] : half(0);
+            }
+            for (int t = 0; t < 4; ++t) { result[tm] += inter[t] * v[t]; }
+        }
+    }
+    for (int tm = 0; tm < 4; ++tm) {
+        for (ushort sn = 16; sn >= 1; sn >>= 1) { result[tm] += simd_shuffle_down(result[tm], sn); }
+    }
+    if (lane == 0) {
+        for (int tm = 0; tm < 4; ++tm) { part[sg * 8 + tm] = result[tm]; }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (sg == 0 && lane == 0) {
+        for (int g = 1; g < 8; ++g) {
+            for (int tm = 0; tm < 4; ++tm) { result[tm] += part[g * 8 + tm]; }
+        }
+        for (int tm = 0; tm < 4; ++tm) {
+            out[out_row + tm] = static_cast<float>(static_cast<half>(result[tm]));
+        }
+    }
+"#;
+
+/// SPEED-INK2M-P17 F2b: `(h - tanh(s @ F) * h) + tanh(s @ G) * m` in one kernel, as MLX 0.32.2's two
+/// `gemv_float32_bm1_bn1_sm8_sn4_tm4_tn4` (K = 64: one simdgroup per threadgroup, 32 rows) and the compiled
+/// tail (one statement per op); F and G are read in BF16, exact in FP32.
+const GATE_TAIL_SOURCE: &str = r#"
+    const int lane = int(thread_index_in_simdgroup);
+    const int group = int(threadgroup_position_in_grid.x);
+    const int thr_m = lane / 4;
+    const int thr_n = lane % 4;
+    const int out_row = group * 32 + thr_m * 4;
+    float rf[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    float rg[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    int bn = thr_n * 4;
+    for (int i = 0; i < RANK / 16; ++i) {
+        float v[4];
+        for (int t = 0; t < 4; ++t) { v[t] = s[bn + t]; }
+        for (int tm = 0; tm < 4; ++tm) {
+            float inter[4];
+            for (int t = 0; t < 4; ++t) { inter[t] = static_cast<float>(f[(out_row + tm) * RANK + bn + t]); }
+            for (int t = 0; t < 4; ++t) { rf[tm] += inter[t] * v[t]; }
+        }
+        for (int tm = 0; tm < 4; ++tm) {
+            float inter[4];
+            for (int t = 0; t < 4; ++t) { inter[t] = static_cast<float>(g[(out_row + tm) * RANK + bn + t]); }
+            for (int t = 0; t < 4; ++t) { rg[tm] += inter[t] * v[t]; }
+        }
+        bn += 16;
+    }
+    for (int tm = 0; tm < 4; ++tm) {
+        for (ushort sn = 2; sn >= 1; sn >>= 1) { rf[tm] += simd_shuffle_down(rf[tm], sn); }
+    }
+    for (int tm = 0; tm < 4; ++tm) {
+        for (ushort sn = 2; sn >= 1; sn >>= 1) { rg[tm] += simd_shuffle_down(rg[tm], sn); }
+    }
+    if (thr_n == 0) {
+        for (int tm = 0; tm < 4; ++tm) {
+            const int row = out_row + tm;
+            const float hv = h[row];
+            const float tf = metal::precise::tanh(rf[tm]);
+            const float a = tf * hv;
+            const float b = hv - a;
+            const float tg = metal::precise::tanh(rg[tm]);
+            const float c = tg * m[row];
+            const float o = b + c;
+            out[row] = o;
+        }
+    }
+"#;
+
+impl MessageGate {
+    /// SPEED-INK2M-P17 F2: the gate of one token in two kernels (same bits), or `None` outside their domain
+    /// (several rows, other shapes or dtypes, BF16 tensors missing, the ablation, `MLXL3_INKLING_P17_OFF`).
+    fn forward_fused(
+        &self,
+        hidden: &Array,
+        hidden_norm: &Array,
+        message_norm: &Array,
+        message: &Array,
+    ) -> Result<Option<Array>> {
+        let (Some(forget), Some(gain)) = (&self.forget_bf16, &self.gain_bf16) else {
+            return Ok(None);
+        };
+        if !p17("f2") || !fused() {
+            return Ok(None);
+        }
+        let &[hid, rank] = forget.shape() else {
+            return Ok(None);
+        };
+        let f32_row = |a: &Array| a.shape() == [1, hid] && a.dtype() == Dtype::Float32;
+        let down = &self.down.weight_t;
+        // MLX picks the bn 8 down gemv only when 2 hid >= 16 * rank (and > 64)
+        if rank != 64
+            || hid % 32 != 0
+            || 2 * hid < 16 * rank
+            || !(f32_row(hidden)
+                && f32_row(hidden_norm)
+                && f32_row(message_norm)
+                && f32_row(message))
+            || down.shape() != [2 * hid, rank]
+            || down.dtype() != Dtype::Float16
+        {
+            return Ok(None);
+        }
+        #[cfg(test)]
+        let mutate = GATE_TAIL_MUTATE.with(std::cell::Cell::get);
+        #[cfg(not(test))]
+        let mutate = false;
+        let key = [
+            i64::from(hid),
+            i64::from(rank),
+            i64::from(mutate),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ];
+        let down_kernel = crate::array::prepared_kernel("inkling_gate_down", key, || {
+            crate::array::PreparedKernel::new(
+                &format!("inkling_gate_down_{hid}_{rank}"),
+                &["hn", "mn", "w"],
+                &["out"],
+                "",
+                &GATE_DOWN_SOURCE.replace("HID", &hid.to_string()),
+            )
+        })?;
+        // `weight_t` is the `[2 hid, rank]` transposed view of the `[rank, 2 hid]` rows the gemv reads
+        let rows = down.transpose(&[1, 0])?;
+        let states = down_kernel
+            .run(
+                &[hidden_norm, message_norm, &rows],
+                &[&[1, rank]],
+                &[Dtype::Float32],
+                [256 * (rank / 4), 1, 1],
+                [256, 1, 1],
+            )?
+            .pop()
+            .context("gate states")?;
+        let tail_kernel = crate::array::prepared_kernel("inkling_gate_tail", key, || {
+            let source = GATE_TAIL_SOURCE.replace("RANK", &rank.to_string());
+            let source = if mutate {
+                source.replace(
+                    "for (ushort sn = 2; sn >= 1; sn >>= 1) { rf[tm]",
+                    "for (ushort sn = 1; sn <= 2; sn <<= 1) { rf[tm]",
+                )
+            } else {
+                source
+            };
+            crate::array::PreparedKernel::new(
+                &format!(
+                    "inkling_gate_tail_{hid}_{rank}{}",
+                    if mutate { "_m" } else { "" }
+                ),
+                &["s", "f", "g", "h", "m"],
+                &["out"],
+                "",
+                &source,
+            )
+        })?;
+        let out = tail_kernel
+            .run(
+                &[&states, forget, gain, hidden, message],
+                &[&[1, hid]],
+                &[Dtype::Float32],
+                [32 * (hid / 32), 1, 1],
+                [32, 1, 1],
+            )?
+            .pop()
+            .context("gate output")?;
+        Ok(Some(out))
     }
 }
 
@@ -1650,10 +2209,123 @@ enum InputNorms {
 struct Moe {
     /// `[hidden, experts]` FP32.
     router_t: Array,
+    /// SPEED-INK2M-P17 F3: the checkpoint's `[experts, hidden]` BF16 router (exact in FP32); `None` for another
+    /// dtype.
+    router_bf16: Option<Array>,
     bias: Array,
     experts: Exl3SwitchGlu,
     top_k: usize,
     scale: f32,
+}
+
+/// SPEED-INK2M-P17 F3: router logits `float(x) @ router_t` in one kernel, as MLX 0.32.2's `astype` and
+/// `gemv_float32_bm1_bn8_sm1_sn32_tm4_tn4` (one threadgroup of 8 simdgroups per 4 experts; same thread
+/// layout and operation order); the router is read in BF16, exact in FP32.
+const ROUTER_SOURCE: &str = r#"
+    const int lane = int(thread_index_in_simdgroup);
+    const int sg = int(simdgroup_index_in_threadgroup);
+    const int group = int(threadgroup_position_in_grid.x);
+    threadgroup float part[8 * 8];
+    const int out_row = group * 4;
+    float result[4] = {0.0f, 0.0f, 0.0f, 0.0f};
+    int bn = (32 * sg + lane) * 4;
+    for (int i = 0; i < HID / 1024; ++i) {
+        float v[4];
+        for (int t = 0; t < 4; ++t) { v[t] = static_cast<float>(x[bn + t]); }
+        for (int tm = 0; tm < 4; ++tm) {
+            float inter[4];
+            for (int t = 0; t < 4; ++t) { inter[t] = static_cast<float>(w[(out_row + tm) * HID + bn + t]); }
+            for (int t = 0; t < 4; ++t) { result[tm] += inter[t] * v[t]; }
+        }
+        bn += 1024;
+    }
+    if (HID % 1024 > 0) {
+        float v[4];
+        for (int t = 0; t < 4; ++t) { v[t] = bn + t < HID ? static_cast<float>(x[bn + t]) : 0.0f; }
+        for (int tm = 0; tm < 4; ++tm) {
+            float inter[4];
+            for (int t = 0; t < 4; ++t) {
+                inter[t] = bn + t < HID ? static_cast<float>(w[(out_row + tm) * HID + bn + t]) : 0.0f;
+            }
+            for (int t = 0; t < 4; ++t) { result[tm] += inter[t] * v[t]; }
+        }
+    }
+    for (int tm = 0; tm < 4; ++tm) {
+        for (ushort sn = 16; sn >= 1; sn >>= 1) { result[tm] += simd_shuffle_down(result[tm], sn); }
+    }
+    if (lane == 0) {
+        for (int tm = 0; tm < 4; ++tm) { part[sg * 8 + tm] = result[tm]; }
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (sg == 0 && lane == 0) {
+        for (int g = 1; g < 8; ++g) {
+            for (int tm = 0; tm < 4; ++tm) { result[tm] += part[g * 8 + tm]; }
+        }
+        for (int tm = 0; tm < 4; ++tm) { out[out_row + tm] = result[tm]; }
+    }
+"#;
+
+impl Moe {
+    /// SPEED-INK2M-P17 F3: logits `[1, experts]` FP32 of one FP16 row, or `None` outside the kernel's domain
+    /// (several rows, other dtypes or shapes, MLX would pick another gemv, `MLXL3_INKLING_P17_OFF`).
+    fn router_logits_fused(&self, x: &Array) -> Result<Option<Array>> {
+        let Some(w) = &self.router_bf16 else {
+            return Ok(None);
+        };
+        if !p17("f3") {
+            return Ok(None);
+        }
+        let &[experts, hid] = w.shape() else {
+            return Ok(None);
+        };
+        // MLX picks the bn 8 gemv only when hidden > 64 and hidden >= 16 * experts
+        if x.shape() != [1, hid]
+            || x.dtype() != Dtype::Float16
+            || experts % 4 != 0
+            || hid <= 64
+            || hid < 16 * experts
+        {
+            return Ok(None);
+        }
+        let key = [
+            i64::from(experts),
+            i64::from(hid),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ];
+        let kernel = crate::array::prepared_kernel("inkling_router_logits", key, || {
+            crate::array::PreparedKernel::new(
+                &format!("inkling_router_logits_{experts}_{hid}"),
+                &["x", "w"],
+                &["out"],
+                "",
+                &ROUTER_SOURCE.replace("HID", &hid.to_string()),
+            )
+        })?;
+        let out = kernel
+            .run(
+                &[x, w],
+                &[&[1, experts]],
+                &[Dtype::Float32],
+                [256 * (experts / 4), 1, 1],
+                [256, 1, 1],
+            )?
+            .pop()
+            .context("router logits")?;
+        Ok(Some(out))
+    }
 }
 
 impl Moe {
@@ -1661,7 +2333,10 @@ impl Moe {
         if ablated("moe") {
             return x.scalar_mul(0.0);
         }
-        let logits = x.astype(Dtype::Float32)?.matmul(&self.router_t)?;
+        let logits = match self.router_logits_fused(x)? {
+            Some(logits) => logits,
+            None => x.astype(Dtype::Float32)?.matmul(&self.router_t)?,
+        };
         let (selected, scores) =
             router::grouped_topk_biased(&logits, &self.bias, self.top_k, 1, 1, self.scale)?;
         capture_routes(&selected)?;
@@ -1774,6 +2449,15 @@ impl Layer {
         )?
         .transpose(&[1, 0])?;
         router.eval()?;
+        let router_bf16 = {
+            let w = checkpoint_array(checkpoint, &format!("{prefix}.mlp.gate.weight"))?;
+            if w.dtype() == Dtype::BFloat16 && w.shape() == [c.n_routed_experts, hidden] {
+                w.eval()?;
+                Some(w)
+            } else {
+                None
+            }
+        };
         let bias = f32_weight(
             checkpoint,
             &format!("{prefix}.mlp.gate.bias"),
@@ -1799,6 +2483,7 @@ impl Layer {
             )?,
             moe: Moe {
                 router_t: router,
+                router_bf16,
                 bias,
                 experts: Exl3SwitchGlu::from_inkling_checkpoint(
                     checkpoint,
@@ -1934,6 +2619,169 @@ impl Layer {
         state.pending_conv[3] = Some(conv_state);
         residual.add(&mlp)
     }
+}
+
+/// Input tokens of one `run`: host ids, or one id still on the GPU (`[1]` integers).
+#[derive(Clone, Copy)]
+enum Ids<'a> {
+    Host(&'a [u32]),
+    Device(&'a Array),
+}
+
+/// SPEED-INK2M-P14: a token choice computed on the GPU inside the decode graph.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub enum DrawRule {
+    /// argmax of the log probabilities: the bridge's greedy rule (`Array::chat_greedy_ids`).
+    Greedy,
+    /// One draw from softmax(log probabilities / temperature) over the whole vocabulary (Gumbel-max).
+    Softmax(f32),
+}
+
+impl DrawRule {
+    /// The rule giving the same law as `sampler`, or `None` where the CPU sampler must stay (penalties,
+    /// top-k, top-p, a non-positive or non-finite temperature).
+    pub fn for_sampler(sampler: &crate::sampling::Sampler) -> Option<Self> {
+        if sampler.is_greedy() {
+            return Some(Self::Greedy);
+        }
+        (sampler.top_k == 0
+            && sampler.top_p >= 1.0
+            && sampler.repetition_penalty == 1.0
+            && sampler.presence_penalty == 0.0
+            && sampler.temperature.is_finite()
+            && sampler.temperature > 0.0)
+            .then_some(Self::Softmax(sampler.temperature))
+    }
+}
+
+/// One token per row of `[rows, vocab]` logits under `rule`: `[rows]` u32, lazy. Softmax rows add standard
+/// Gumbel noise (`Array::gumbel_noise`, seeded by `seed`) to log_probs / temperature: each row is one draw
+/// from softmax(log_probs / temperature), up to FP32 rounding of the scores.
+pub fn draw_rows(logits: &Array, rule: DrawRule, seed: u64) -> Result<Array> {
+    ensure!(
+        logits.shape().len() == 2,
+        "draw_rows expects [rows, vocab] logits"
+    );
+    let log_probs = logits.log_probs()?;
+    match rule {
+        DrawRule::Greedy => log_probs.argmax(),
+        DrawRule::Softmax(temperature) => {
+            ensure!(
+                temperature.is_finite() && temperature > 0.0,
+                "a softmax draw needs a positive finite temperature"
+            );
+            let noise = Array::gumbel_noise(log_probs.shape(), seed)?;
+            let scores = if temperature == 1.0 {
+                log_probs
+            } else {
+                log_probs.scalar_mul(1.0 / temperature)?
+            };
+            scores.add(&noise)?.argmax()
+        }
+    }
+}
+
+/// The token after the last row of `logits` (`[1, rows, vocab]` or `[rows, vocab]`) under `rule`: `[1]`
+/// u32, lazy.
+pub fn draw_token(logits: &Array, rule: DrawRule, seed: u64) -> Result<Array> {
+    let shape = logits.shape();
+    ensure!(
+        shape.len() >= 2 && shape[..shape.len() - 2].iter().all(|&d| d == 1),
+        "draw_token expects [1, rows, vocab] logits"
+    );
+    let (rows, vocab) = (shape[shape.len() - 2], shape[shape.len() - 1]);
+    ensure!(rows >= 1 && vocab >= 1, "draw_token needs at least one row");
+    let last = logits.reshape(&[rows, vocab])?.slice(0, rows - 1, rows)?;
+    draw_rows(&last, rule, seed)
+}
+
+/// Seeds of successive GPU draws: splitmix64 of a Weyl sequence started at `seed`.
+#[derive(Clone, Debug)]
+pub struct DrawSeeds(u64);
+
+impl DrawSeeds {
+    pub fn new(seed: u64) -> Self {
+        Self(seed)
+    }
+
+    pub fn next_seed(&mut self) -> u64 {
+        self.0 = self.0.wrapping_add(0x9e37_79b9_7f4a_7c15);
+        let mut z = self.0;
+        z = (z ^ (z >> 30)).wrapping_mul(0xbf58_476d_1ce4_e5b9);
+        z = (z ^ (z >> 27)).wrapping_mul(0x94d0_49bb_1331_11eb);
+        z ^ (z >> 31)
+    }
+}
+
+/// SPEED-INK2M-P14: plain decoding with every token chosen on the GPU. When `pipelined`, the step that
+/// consumes a token is built and submitted before the token is read, so the GPU computes it while the
+/// caller handles the token (one step ahead).
+pub struct DeviceDecode {
+    rule: DrawRule,
+    seeds: DrawSeeds,
+    pipelined: bool,
+    /// The next token to deliver, on the GPU.
+    next: Array,
+    /// The token after `next`, when the step consuming `next` was already submitted.
+    after: Option<Array>,
+}
+
+impl DeviceDecode {
+    /// Draws the first token from the prompt logits (`[1, rows, vocab]`, last row used).
+    pub fn start(
+        logits: &Array,
+        rule: DrawRule,
+        seeds: DrawSeeds,
+        pipelined: bool,
+    ) -> Result<Self> {
+        let mut seeds = seeds;
+        let next = draw_token(logits, rule, seeds.next_seed())?;
+        if pipelined {
+            next.async_eval()?;
+        }
+        Ok(Self {
+            rule,
+            seeds,
+            pipelined,
+            next,
+            after: None,
+        })
+    }
+
+    /// Delivers the next token. `more`: a token will be delivered after this one, so the step consuming
+    /// it runs (exactly when the plain loop would call `forward` with it). Without `more`, `target` is not
+    /// touched.
+    pub fn next_token(&mut self, target: &mut Inkling2, more: bool) -> Result<u32> {
+        if more && self.pipelined && self.after.is_none() {
+            self.after = Some(self.step(target)?);
+        }
+        let token = single_token(&self.next)?;
+        if more {
+            let after = match self.after.take() {
+                Some(after) => after,
+                None => self.step(target)?,
+            };
+            self.next = after;
+        }
+        Ok(token)
+    }
+
+    /// The committed decode step of `next`, and the token drawn from its logits.
+    fn step(&mut self, target: &mut Inkling2) -> Result<Array> {
+        let (logits, _) = target.forward_device(&self.next, None, self.pipelined)?;
+        let token = draw_token(&logits, self.rule, self.seeds.next_seed())?;
+        if self.pipelined {
+            token.async_eval()?;
+        }
+        Ok(token)
+    }
+}
+
+/// The value of a `[1]` token array (waits for it).
+pub(crate) fn single_token(token: &Array) -> Result<u32> {
+    let values = token.to_u32()?;
+    ensure!(values.len() == 1, "expected one drawn token");
+    Ok(values[0])
 }
 
 /// Time spent in `run` since the last `take_profile`: graph construction (CPU) and evaluation.
@@ -2163,7 +3011,7 @@ impl Inkling2 {
 
     /// Logits `[1, unpadded_vocab]` FP32 of the last token.
     pub fn forward_tokens(&mut self, tokens: &[u32]) -> Result<Array> {
-        match self.run(tokens, false, None, true) {
+        match self.run(Ids::Host(tokens), false, None, true, false) {
             Ok((logits, _)) => Ok(logits),
             Err(error) => {
                 self.reset();
@@ -2174,7 +3022,7 @@ impl Inkling2 {
 
     /// Logits `[T, unpadded_vocab]` FP32 of every token (parity checks).
     pub fn forward_all(&mut self, tokens: &[u32]) -> Result<Array> {
-        match self.run(tokens, true, None, true) {
+        match self.run(Ids::Host(tokens), true, None, true, false) {
             Ok((logits, _)) => Ok(logits),
             Err(error) => {
                 self.reset();
@@ -2253,7 +3101,7 @@ impl Inkling2 {
                 && *taps.last().unwrap_or(&0) == self.visits.len(),
             "Inkling draft taps must be increasing and end at the visit count"
         );
-        match self.run(tokens, true, Some(taps), false) {
+        match self.run(Ids::Host(tokens), true, Some(taps), false, false) {
             Ok((logits, features)) => Ok((logits, features.context("features")?)),
             Err(error) => {
                 self.reset();
@@ -2275,8 +3123,34 @@ impl Inkling2 {
                 && *taps.last().unwrap_or(&0) == self.visits.len(),
             "Inkling draft taps must be increasing and end at the visit count"
         );
-        match self.run(tokens, false, Some(taps), true) {
+        match self.run(Ids::Host(tokens), false, Some(taps), true, false) {
             Ok((logits, features)) => Ok((logits, features.context("features")?)),
+            Err(error) => {
+                self.reset();
+                Err(error.context("Inkling forward failed; its cache was reset"))
+            }
+        }
+    }
+
+    /// SPEED-INK2M-P14: committed decode step of one token still on the GPU (`[1]` integer id, e.g. a
+    /// `draw_token` result, below the unpadded vocabulary). Logits `[1, 1, vocab]` FP32 and, with `taps`,
+    /// the drafter features `[1, taps * D]`. With `asynchronous`, the step is submitted without waiting.
+    pub fn forward_device(
+        &mut self,
+        id: &Array,
+        taps: Option<&[usize]>,
+        asynchronous: bool,
+    ) -> Result<(Array, Option<Array>)> {
+        if let Some(taps) = taps {
+            ensure!(
+                !taps.is_empty()
+                    && taps.windows(2).all(|w| w[0] < w[1])
+                    && *taps.last().unwrap_or(&0) == self.visits.len(),
+                "Inkling draft taps must be increasing and end at the visit count"
+            );
+        }
+        match self.run(Ids::Device(id), false, taps, true, asynchronous) {
+            Ok(outputs) => Ok(outputs),
             Err(error) => {
                 self.reset();
                 Err(error.context("Inkling forward failed; its cache was reset"))
@@ -2334,31 +3208,49 @@ impl Inkling2 {
 
     fn run(
         &mut self,
-        tokens: &[u32],
+        ids: Ids<'_>,
         all: bool,
         taps: Option<&[usize]>,
         commit: bool,
+        asynchronous: bool,
     ) -> Result<(Array, Option<Array>)> {
         let started = Instant::now();
+        #[cfg(test)]
+        let cpu_started = thread_cpu();
         ensure!(
             self.pending.is_none(),
             "Inkling has an uncommitted verify call"
         );
-        ensure!(!tokens.is_empty(), "Inkling needs at least one token");
-        ensure!(
-            tokens.iter().all(|&t| t < self.vocab as u32),
-            "Inkling token is outside vocabulary"
-        );
-        let time = i32::try_from(tokens.len()).context("Inkling batch is too large")?;
+        let time = match ids {
+            Ids::Host(tokens) => {
+                ensure!(!tokens.is_empty(), "Inkling needs at least one token");
+                ensure!(
+                    tokens.iter().all(|&t| t < self.vocab as u32),
+                    "Inkling token is outside vocabulary"
+                );
+                i32::try_from(tokens.len()).context("Inkling batch is too large")?
+            }
+            Ids::Device(id) => {
+                ensure!(
+                    id.shape() == [1],
+                    "Inkling device token must have shape [1]"
+                );
+                1
+            }
+        };
         let start = self.offset;
         let end = start
             .checked_add(time)
             .context("Inkling position overflow")?;
         ensure!(end <= self.context_limit, "Inkling context is full");
-        let ids = Array::from_i32(
-            &tokens.iter().map(|&t| t as i32).collect::<Vec<_>>(),
-            &[time],
-        )?;
+        // a device token comes from `draw_token` (below the unpadded vocabulary by construction)
+        let ids = match ids {
+            Ids::Host(tokens) => Array::from_i32(
+                &tokens.iter().map(|&t| t as i32).collect::<Vec<_>>(),
+                &[time],
+            )?,
+            Ids::Device(id) => id.astype(Dtype::Int32)?,
+        };
         let hidden = self.embed_tokens(&ids)?;
         // Sliding visits keep at most window - 1 past keys; full visits keep everything
         let sliding_first = (start - (self.window - 1)).max(0);
@@ -2518,8 +3410,25 @@ impl Inkling2 {
             );
         }
         let built = Instant::now();
-        Array::eval_many(&pending)?;
+        #[cfg(test)]
+        let cpu_built = thread_cpu();
+        if asynchronous {
+            Array::async_eval_all(&pending)?;
+        } else {
+            submit(&pending)?;
+        }
         let done = Instant::now();
+        #[cfg(test)]
+        {
+            let cpu_done = thread_cpu();
+            RUN_CPU.with(|cell| {
+                let (build, eval) = cell.get();
+                cell.set((
+                    build + cpu_built.saturating_sub(cpu_started),
+                    eval + cpu_done.saturating_sub(cpu_built),
+                ));
+            });
+        }
         self.profile.calls += 1;
         self.profile.build += built - started;
         self.profile.eval += done - built;
@@ -3132,14 +4041,7 @@ mod tests {
         };
         let steps = var("MLXL3_INKLING_STEPS", 128)?;
         let reps = var("MLXL3_INKLING_REPS", 3)?;
-        let prompt: Vec<u32> = match std::env::var("MLXL3_INKLING_ORACLE") {
-            Ok(dir) => {
-                let manifest: serde_json::Value =
-                    serde_json::from_reader(File::open(Path::new(&dir).join("manifest.json"))?)?;
-                serde_json::from_value(manifest["rows"][0]["tokens"].clone())?
-            }
-            Err(_) => vec![200002, 200004, 34182, 279],
-        };
+        let prompt = profile_prompt()?;
         let mut model = Inkling2::load(Path::new(&model_dir))?;
         let argmax_of = |v: &[f32]| {
             v.iter()
@@ -3193,6 +4095,910 @@ mod tests {
                 .all(|r| r["fingerprint"] == runs[0]["fingerprint"]),
             "decode is not deterministic across repetitions"
         );
+        Ok(())
+    }
+
+    /// Prompt of the decode harnesses: first row of `MLXL3_INKLING_ORACLE`, else a fixed 4-token prompt.
+    fn profile_prompt() -> Result<Vec<u32>> {
+        Ok(match std::env::var("MLXL3_INKLING_ORACLE") {
+            Ok(dir) => {
+                let manifest: serde_json::Value =
+                    serde_json::from_reader(File::open(Path::new(&dir).join("manifest.json"))?)?;
+                serde_json::from_value(manifest["rows"][0]["tokens"].clone())?
+            }
+            Err(_) => vec![200002, 200004, 34182, 279],
+        })
+    }
+
+    /// `decode_profile` fingerprint of decoded logit rows: FNV-1a of each FP32 row, then of its argmax.
+    fn rows_fingerprint(rows: &[Vec<f32>]) -> (u64, Vec<u32>) {
+        let mut hash = 0xcbf2_9ce4_8422_2325u64;
+        let mut argmax = Vec::with_capacity(rows.len());
+        for row in rows {
+            for x in row {
+                fnv(&mut hash, &x.to_le_bytes());
+            }
+            let best = row
+                .iter()
+                .enumerate()
+                .max_by(|a, b| a.1.total_cmp(b.1))
+                .map_or(0, |(i, _)| i as u32);
+            fnv(&mut hash, &best.to_le_bytes());
+            argmax.push(best);
+        }
+        (hash, argmax)
+    }
+
+    fn take_run_cpu() -> (Duration, Duration) {
+        RUN_CPU.with(|cell| cell.replace((Duration::ZERO, Duration::ZERO)))
+    }
+
+    /// SPEED-INK2M-P13: CPU/GPU split of a decode step and the ceiling of a one-step-ahead pipeline. A
+    /// greedy pass fixes the fed tokens; they are replayed synchronously (`sync`) and with step i submitted
+    /// before the logits of step i - 1 are read (`ahead`). Every mode must hash like the greedy pass.
+    /// `MLXL3_INKLING_PIPE_MUTATE=1` feeds a wrong token at step 10 of the `ahead` replays (must fail).
+    #[test]
+    #[ignore = "requires an Apple GPU and MLXL3_INKLING_MODEL"]
+    fn decode_pipeline_profile() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let var = |name: &str, default: usize| -> Result<usize> {
+            Ok(std::env::var(name)
+                .ok()
+                .map(|v| v.parse())
+                .transpose()?
+                .unwrap_or(default))
+        };
+        let steps = var("MLXL3_INKLING_STEPS", 96)?;
+        let reps = var("MLXL3_INKLING_REPS", 3)?;
+        let mutate = std::env::var("MLXL3_INKLING_PIPE_MUTATE").is_ok_and(|v| v == "1");
+        ensure!(steps > 10, "MLXL3_INKLING_STEPS must exceed 10");
+        let prompt = profile_prompt()?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = usize::try_from(model.unpadded_vocab())?;
+        let ms = |d: Duration| d.as_secs_f64() * 1e3;
+        let median = |v: Vec<f64>| quantiles(v).1;
+        // Greedy reference: the fed tokens and the rows they produce.
+        let greedy = |model: &mut Inkling2, steps: usize| -> Result<(Vec<u32>, Vec<Vec<f32>>)> {
+            model.reset();
+            let first = model.forward_tokens(&prompt)?.to_f32()?;
+            let mut fed = vec![rows_fingerprint(&[first]).1[0]];
+            let mut rows = Vec::with_capacity(steps);
+            for _ in 0..steps {
+                let row = model.forward(*fed.last().context("fed")?)?.to_f32()?;
+                fed.push(rows_fingerprint(std::slice::from_ref(&row)).1[0]);
+                rows.push(row);
+            }
+            fed.pop();
+            Ok((fed, rows))
+        };
+        let replay =
+            |model: &mut Inkling2, fed: &[u32], ahead: bool| -> Result<serde_json::Value> {
+                model.reset();
+                model.forward_tokens(&prompt)?.to_f32()?;
+                model.take_profile();
+                take_run_cpu();
+                let mut rows = Vec::with_capacity(fed.len());
+                let (mut step, mut build, mut eval, mut read) = (vec![], vec![], vec![], vec![]);
+                let (mut build_cpu, mut eval_cpu) = (vec![], vec![]);
+                ASYNC_SUBMIT.with(|f| f.set(ahead));
+                let started = Instant::now();
+                let result = (|| -> Result<()> {
+                    let mut in_flight: Option<Array> = None;
+                    let mut mark = Instant::now();
+                    for (i, &token) in fed.iter().enumerate() {
+                        let token = if mutate && ahead && i == 10 {
+                            (token + 1) % vocab as u32
+                        } else {
+                            token
+                        };
+                        let logits = model.forward(token)?;
+                        let p = model.take_profile();
+                        let (b, e) = take_run_cpu();
+                        build.push(ms(p.build));
+                        eval.push(ms(p.eval));
+                        build_cpu.push(ms(b));
+                        eval_cpu.push(ms(e));
+                        let t = Instant::now();
+                        if let Some(previous) = in_flight.replace(logits) {
+                            rows.push(previous.to_f32()?);
+                        }
+                        if !ahead {
+                            rows.push(in_flight.take().context("logits")?.to_f32()?);
+                        }
+                        read.push(ms(t.elapsed()));
+                        step.push(ms(mark.elapsed()));
+                        mark = Instant::now();
+                    }
+                    if let Some(last) = in_flight.take() {
+                        rows.push(last.to_f32()?);
+                    }
+                    Ok(())
+                })();
+                let wall = started.elapsed();
+                ASYNC_SUBMIT.with(|f| f.set(false));
+                result?;
+                ensure!(
+                    rows.len() == fed.len(),
+                    "replay rows {} != {}",
+                    rows.len(),
+                    fed.len()
+                );
+                ensure!(
+                    rows.iter()
+                        .all(|r| r.len() == vocab && r.iter().all(|x| x.is_finite())),
+                    "replay rows have a wrong width or non-finite logits"
+                );
+                let (hash, argmax) = rows_fingerprint(&rows);
+                let diverged = (1..fed.len()).find(|&i| argmax[i - 1] != fed[i]);
+                Ok(
+                    serde_json::json!({"mode": if ahead {"ahead"} else {"sync"}, "steps": fed.len(),
+                "step_ms_median": median(step), "step_ms_mean": ms(wall) / fed.len() as f64,
+                "build_ms_median": median(build), "build_cpu_ms_median": median(build_cpu),
+                "eval_ms_median": median(eval), "eval_cpu_ms_median": median(eval_cpu),
+                "read_ms_median": median(read), "fingerprint": format!("{hash:016x}"),
+                "first_divergent_feed": diverged}),
+                )
+            };
+        greedy(&mut model, 16)?;
+        let (fed, reference) = greedy(&mut model, steps)?;
+        let (reference_hash, _) = rows_fingerprint(&reference);
+        let reference_fp = format!("{reference_hash:016x}");
+        ensure!(
+            reference
+                .iter()
+                .all(|r| r.len() == vocab && r.iter().all(|x| x.is_finite())),
+            "greedy rows have a wrong width or non-finite logits"
+        );
+        drop(reference);
+        let mut runs = Vec::new();
+        for rep in 0..reps {
+            let order = if rep % 2 == 0 {
+                [false, true]
+            } else {
+                [true, false]
+            };
+            for ahead in order {
+                runs.push(replay(&mut model, &fed, ahead)?);
+            }
+        }
+        println!(
+            "{}",
+            serde_json::to_string_pretty(&serde_json::json!({
+                "greedy_fingerprint": reference_fp, "prompt_tokens": prompt.len(),
+                "fed_head": &fed[..fed.len().min(16)], "runs": runs}))?
+        );
+        ensure!(
+            runs.iter()
+                .all(|r| r["fingerprint"] == reference_fp.as_str()),
+            "a replay differs from the greedy pass"
+        );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 F1: the one-query depth kernel gives the MLX op sequence bit for bit for 1-24 sources,
+    /// D = 512 / 2 304, random rows, equal rows (equal scores) and scores 48 apart (saturated softmax); a
+    /// reversed reduction tree is detected; shapes outside its domain keep the op sequence.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn depth_attend_one_matches_ops() -> Result<()> {
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            ((state >> 40) as f32 / (1u64 << 24) as f32) * 2.0 - 1.0
+        };
+        let (mut cases, mut caught) = (0, 0);
+        for dims in [512i32, 2304] {
+            for count in 1..=24usize {
+                for kind in 0..3 {
+                    let first: Vec<f32> = (0..dims).map(|_| uniform()).collect();
+                    let rows: Vec<Vec<f32>> = (0..count)
+                        .map(|r| match kind {
+                            1 => first.clone(),
+                            2 => first.iter().map(|x| x * (1 + r) as f32).collect(),
+                            _ if r == 0 => first.clone(),
+                            _ => (0..dims).map(|_| uniform()).collect(),
+                        })
+                        .collect();
+                    let q: Vec<f32> = if kind == 2 {
+                        first.iter().map(|x| x * 3.0).collect()
+                    } else {
+                        (0..dims).map(|_| uniform()).collect()
+                    };
+                    let sources = rows
+                        .iter()
+                        .map(|r| Array::from_f32(r, &[1, dims]))
+                        .collect::<Result<Vec<_>>>()?;
+                    let refs: Vec<&Array> = sources.iter().collect();
+                    let query = Array::from_f32(&q, &[1, dims])?;
+                    let expected = depth_attend(&depth_stack(&refs)?, &query)?;
+                    ensure!(expected.shape() == [1, 1, dims], "reference shape");
+                    let expected = expected.to_f32()?;
+                    let got = depth_attend_one(&refs, &query)?.context("inside the domain")?;
+                    ensure!(got.shape() == [1, 1, dims], "kernel shape");
+                    let got = got.to_f32()?;
+                    ensure!(
+                        expected.len() == dims as usize && expected.iter().all(|x| x.is_finite()),
+                        "reference values"
+                    );
+                    let same = |a: &[f32], b: &[f32]| {
+                        a.len() == b.len()
+                            && a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits())
+                    };
+                    ensure!(
+                        same(&expected, &got),
+                        "depth kernel differs: {count} sources, D {dims}, kind {kind}"
+                    );
+                    DEPTH_ONE_MUTATE.with(|m| m.set(true));
+                    let mutant = depth_attend_one(&refs, &query);
+                    DEPTH_ONE_MUTATE.with(|m| m.set(false));
+                    let mutant = mutant?.context("mutant")?.to_f32()?;
+                    caught += usize::from(!same(&expected, &mutant));
+                    cases += 1;
+                }
+            }
+        }
+        println!("depth kernel: {cases} cases identical, mutant differs in {caught}");
+        ensure!(caught > 0, "the reversed reduction tree went unnoticed");
+        // outside the domain: two queries, two rows, 32 sources, FP16
+        let row = Array::from_f32(&vec![0.5; 128], &[1, 128])?;
+        let two = Array::from_f32(&vec![0.5; 256], &[2, 128])?;
+        ensure!(
+            depth_attend_one(&[&row, &row], &two)?.is_none(),
+            "two queries"
+        );
+        ensure!(depth_attend_one(&[&two, &two], &row)?.is_none(), "two rows");
+        ensure!(depth_attend_one(&[&row; 32], &row)?.is_none(), "32 sources");
+        ensure!(
+            depth_attend_one(&[&row; 9], &row)?.is_none(),
+            "D < 16 sources (another MLX gemv)"
+        );
+        let half = row.astype(Dtype::Float16)?;
+        ensure!(depth_attend_one(&[&half], &row)?.is_none(), "FP16 source");
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 F1 diagnostic: GPU time of 96 chained one-query depth attentions (8 sources, D 2 304;
+    /// the last source of each call is the previous output), MLX op sequence against the fused kernel.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn depth_kernel_latency() -> Result<()> {
+        const CALLS: usize = 96;
+        let dims = 2304i32;
+        let rows: Vec<Array> = (0..7)
+            .map(|r| {
+                let v: Vec<f32> = (0..dims)
+                    .map(|i| (((i * 31 + r * 17) % 97) as f32 - 48.0) / 97.0)
+                    .collect();
+                Array::from_f32(&v, &[1, dims])
+            })
+            .collect::<Result<_>>()?;
+        let q: Vec<f32> = (0..dims).map(|i| ((i % 13) as f32 - 6.0) / 13.0).collect();
+        let query = Array::from_f32(&q, &[1, dims])?;
+        Array::eval_many(&rows.iter().chain([&query]).collect::<Vec<_>>())?;
+        let chain = |fused: bool| -> Result<f64> {
+            let mut last = rows[0].try_clone()?;
+            let mut outs = Vec::new();
+            for _ in 0..CALLS {
+                let mut sources: Vec<&Array> = rows.iter().collect();
+                sources.push(&last);
+                let out = if fused {
+                    depth_attend_one(&sources, &query)?.context("fused")?
+                } else {
+                    depth_attend(&depth_stack(&sources)?, &query)?
+                };
+                last = out.reshape(&[1, dims])?;
+                outs.push(last.try_clone()?);
+            }
+            let t = Instant::now();
+            Array::eval_many(&outs.iter().collect::<Vec<_>>())?;
+            Ok(t.elapsed().as_secs_f64() * 1e3)
+        };
+        for _ in 0..3 {
+            chain(false)?;
+            chain(true)?;
+        }
+        let (mut ops, mut fused) = (Vec::new(), Vec::new());
+        for i in 0..20 {
+            if i % 2 == 0 {
+                ops.push(chain(false)?);
+                fused.push(chain(true)?);
+            } else {
+                fused.push(chain(true)?);
+                ops.push(chain(false)?);
+            }
+        }
+        let (o, f) = (quantiles(ops).1, quantiles(fused).1);
+        println!(
+            "depth chain of {CALLS}: ops {o:.3} ms ({:.2} us/call), fused {f:.3} ms ({:.2} us/call)",
+            o * 1e3 / CALLS as f64,
+            f * 1e3 / CALLS as f64
+        );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 F2: the fused message gate (down kernel + tail kernel) gives the op sequence bit for
+    /// bit: hidden 512 / 2 304, rank 64, three magnitudes (tanh saturated in the last); a reversed tail tree
+    /// is detected.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn gate_kernels_match_ops() -> Result<()> {
+        let mut state = 0x2545_f491_4f6c_dd1du64;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            ((state >> 40) as f32 / (1u64 << 24) as f32) * 2.0 - 1.0
+        };
+        let rank = 64;
+        let (mut cases, mut caught) = (0, 0);
+        for hid in [512i32, 2304] {
+            for scale in [0.05f32, 0.5, 4.0] {
+                let mut values =
+                    |n: i32, s: f32| (0..n).map(|_| uniform() * s).collect::<Vec<f32>>();
+                let down = Array::from_f32(&values(rank * 2 * hid, scale * 0.1), &[rank, 2 * hid])?
+                    .astype(Dtype::Float16)?;
+                let forget = Array::from_f32(&values(hid * rank, scale), &[hid, rank])?
+                    .astype(Dtype::BFloat16)?;
+                let gain = Array::from_f32(&values(hid * rank, scale), &[hid, rank])?
+                    .astype(Dtype::BFloat16)?;
+                let hidden = Array::from_f32(&values(hid, 2.0), &[1, hid])?;
+                let message = Array::from_f32(&values(hid, 2.0), &[1, hid])?;
+                let transposed = |w: &Array| -> Result<Array> {
+                    let w = w.astype(Dtype::Float32)?.transpose(&[1, 0])?;
+                    w.eval()?;
+                    Ok(w)
+                };
+                let weight_t = down.transpose(&[1, 0])?;
+                Array::eval_many(&[&weight_t, &forget, &gain, &hidden, &message])?;
+                let gate = |bf16: bool| -> Result<MessageGate> {
+                    Ok(MessageGate {
+                        down: Dense {
+                            weight_t: weight_t.try_clone()?,
+                        },
+                        forget_t: transposed(&forget)?,
+                        gain_t: transposed(&gain)?,
+                        forget_bf16: bf16.then(|| forget.try_clone()).transpose()?,
+                        gain_bf16: bf16.then(|| gain.try_clone()).transpose()?,
+                        eps: 1e-5,
+                    })
+                };
+                let (fused_gate, plain_gate) = (gate(true)?, gate(false)?);
+                let expected = plain_gate.forward(&hidden, &message)?;
+                ensure!(expected.shape() == [1, hid], "reference shape");
+                let expected = expected.to_f32()?;
+                let got = fused_gate.forward(&hidden, &message)?;
+                ensure!(got.shape() == [1, hid], "fused shape");
+                let got = got.to_f32()?;
+                ensure!(expected.iter().all(|x| x.is_finite()), "reference values");
+                let same = |a: &[f32], b: &[f32]| {
+                    a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits())
+                };
+                ensure!(
+                    same(&expected, &got),
+                    "fused gate differs: hidden {hid}, scale {scale}"
+                );
+                GATE_TAIL_MUTATE.with(|m| m.set(true));
+                let mutant = fused_gate.forward(&hidden, &message);
+                GATE_TAIL_MUTATE.with(|m| m.set(false));
+                caught += usize::from(!same(&expected, &mutant?.to_f32()?));
+                cases += 1;
+            }
+        }
+        println!("gate kernels: {cases} cases identical, mutant differs in {caught}");
+        ensure!(caught > 0, "the reversed tail tree went unnoticed");
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 F3: the fused router logits give `float(x) @ router_t` bit for bit (2 304 x 128 and
+    /// 2 048 x 128, three magnitudes); a swapped reduction order is detected through the plain op sum.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn router_kernel_matches_ops() -> Result<()> {
+        let mut state = 0x5851_f42d_4c95_7f2du64;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            ((state >> 40) as f32 / (1u64 << 24) as f32) * 2.0 - 1.0
+        };
+        let mut cases = 0;
+        for (experts, hid) in [(128i32, 2304i32), (128, 2048)] {
+            for scale in [0.02f32, 0.3, 3.0] {
+                let w: Vec<f32> = (0..experts * hid).map(|_| uniform() * scale).collect();
+                let w = Array::from_f32(&w, &[experts, hid])?.astype(Dtype::BFloat16)?;
+                let router_t = w.astype(Dtype::Float32)?.transpose(&[1, 0])?;
+                let x: Vec<f32> = (0..hid).map(|_| uniform() * 2.0).collect();
+                let x = Array::from_f32(&x, &[1, hid])?.astype(Dtype::Float16)?;
+                Array::eval_many(&[&w, &router_t, &x])?;
+                let moe_bias = Array::zeros(&[experts])?;
+                let expected = x.astype(Dtype::Float32)?.matmul(&router_t)?;
+                let kernel = crate::array::prepared_kernel(
+                    "inkling_router_logits_test",
+                    [
+                        i64::from(experts),
+                        i64::from(hid),
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                        0,
+                    ],
+                    || {
+                        crate::array::PreparedKernel::new(
+                            &format!("inkling_router_logits_{experts}_{hid}"),
+                            &["x", "w"],
+                            &["out"],
+                            "",
+                            &ROUTER_SOURCE.replace("HID", &hid.to_string()),
+                        )
+                    },
+                )?;
+                let got = kernel
+                    .run(
+                        &[&x, &w],
+                        &[&[1, experts]],
+                        &[Dtype::Float32],
+                        [256 * (experts / 4), 1, 1],
+                        [256, 1, 1],
+                    )?
+                    .pop()
+                    .context("logits")?;
+                let _ = moe_bias;
+                let (expected, got) = (expected.to_f32()?, got.to_f32()?);
+                ensure!(
+                    expected.len() == experts as usize && expected.iter().all(|v| v.is_finite()),
+                    "reference logits"
+                );
+                ensure!(
+                    expected
+                        .iter()
+                        .zip(&got)
+                        .all(|(a, b)| a.to_bits() == b.to_bits()),
+                    "router kernel differs: {experts} x {hid}, scale {scale}"
+                );
+                // sensitivity: the same products summed in plain order differ somewhere
+                let xs = x.astype(Dtype::Float32)?.to_f32()?;
+                let ws = w.astype(Dtype::Float32)?.to_f32()?;
+                let plain: Vec<f32> = (0..experts as usize)
+                    .map(|e| {
+                        (0..hid as usize)
+                            .fold(0f32, |acc, k| acc + ws[e * hid as usize + k] * xs[k])
+                    })
+                    .collect();
+                ensure!(
+                    plain
+                        .iter()
+                        .zip(&got)
+                        .any(|(a, b)| a.to_bits() != b.to_bits()),
+                    "a plain sequential sum matches too: the check cannot see the order"
+                );
+                cases += 1;
+            }
+        }
+        println!("router kernel: {cases} cases identical");
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 paired timing: one process, the model loaded once, `MLXL3_INKLING_AB_ROUNDS` rounds (8)
+    /// of A (all P17 steps on) and B (`MLXL3_INKLING_AB_OFF` off) in alternating order, 96 one-step-ahead
+    /// steps each; every pass must hash like the greedy reference.
+    #[test]
+    #[ignore = "requires an Apple GPU and MLXL3_INKLING_MODEL"]
+    fn fusion_ab_profile() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let off = std::env::var("MLXL3_INKLING_AB_OFF")?;
+        let rounds: usize = std::env::var("MLXL3_INKLING_AB_ROUNDS")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(8);
+        let steps = 96usize;
+        let prompt = profile_prompt()?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        // greedy reference with every step on
+        P17_TEST_OFF.with(|c| *c.borrow_mut() = Some(String::new()));
+        model.reset();
+        let mut logits = model.forward_tokens(&prompt)?;
+        let (mut fed, mut reference) = (Vec::new(), Vec::new());
+        for _ in 0..steps {
+            let token = logits.chat_greedy_ids()?[0];
+            fed.push(token);
+            logits = model.forward(token)?;
+            reference.push(logits.to_f32()?);
+        }
+        let reference = rows_fingerprint(&reference).0;
+        let pass = |model: &mut Inkling2, off: &str| -> Result<(f64, u64)> {
+            P17_TEST_OFF.with(|c| *c.borrow_mut() = Some(off.to_string()));
+            model.reset();
+            model.forward_tokens(&prompt)?.to_f32()?;
+            ASYNC_SUBMIT.with(|f| f.set(true));
+            let result = (|| -> Result<(Vec<f64>, Vec<Vec<f32>>)> {
+                let (mut times, mut rows) = (Vec::new(), Vec::new());
+                let mut in_flight: Option<Array> = None;
+                let mut mark = Instant::now();
+                for &token in &fed {
+                    let logits = model.forward(token)?;
+                    if let Some(previous) = in_flight.replace(logits) {
+                        rows.push(previous.to_f32()?);
+                    }
+                    times.push(mark.elapsed().as_secs_f64() * 1e3);
+                    mark = Instant::now();
+                }
+                if let Some(last) = in_flight.take() {
+                    rows.push(last.to_f32()?);
+                }
+                Ok((times, rows))
+            })();
+            ASYNC_SUBMIT.with(|f| f.set(false));
+            let (times, rows) = result?;
+            ensure!(rows.len() == steps, "pass rows");
+            Ok((quantiles(times).1, rows_fingerprint(&rows).0))
+        };
+        pass(&mut model, "")?;
+        pass(&mut model, &off)?;
+        let (mut a, mut b, mut diffs) = (Vec::new(), Vec::new(), Vec::new());
+        for round in 0..rounds {
+            let order = if round % 2 == 0 {
+                ["", off.as_str()]
+            } else {
+                [off.as_str(), ""]
+            };
+            let mut times = [0f64; 2];
+            for arm in order {
+                let (median, hash) = pass(&mut model, arm)?;
+                ensure!(
+                    hash == reference,
+                    "round {round}: pass with off={arm:?} differs from the reference"
+                );
+                times[usize::from(!arm.is_empty())] = median;
+            }
+            a.push(times[0]);
+            b.push(times[1]);
+            diffs.push(times[1] - times[0]);
+        }
+        P17_TEST_OFF.with(|c| *c.borrow_mut() = None);
+        let wins = diffs.iter().filter(|d| **d > 0.0).count();
+        println!(
+            "{}",
+            serde_json::json!({"off": off, "rounds": rounds, "reference": format!("{reference:016x}"),
+                "a_ms": a, "b_ms": b, "b_minus_a_ms": diffs, "median_a": quantiles(a.clone()).1,
+                "median_b": quantiles(b.clone()).1, "median_diff": quantiles(diffs.clone()).1,
+                "b_slower_rounds": wins})
+        );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P17 F5: the attention output gate kernel gives the op sequence bit for bit (3 072 values,
+    /// magnitudes 0.1 / 4 / 40, saturated sigmoid included).
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn attention_gate_kernel_matches_ops() -> Result<()> {
+        let mut state = 0x9e37_79b9_7f4a_7c15u64 ^ 0x1234;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            ((state >> 40) as f32 / (1u64 << 24) as f32) * 2.0 - 1.0
+        };
+        let same = |a: &[f32], b: &[f32]| {
+            a.len() == b.len() && a.iter().zip(b).all(|(x, y)| x.to_bits() == y.to_bits())
+        };
+        for scale in [0.1f32, 4.0, 40.0] {
+            let size = 3072;
+            let a: Vec<f32> = (0..size).map(|_| uniform() * 8.0).collect();
+            let g: Vec<f32> = (0..size).map(|_| uniform() * scale).collect();
+            let attended = Array::from_f32(&a, &[1, size])?.astype(Dtype::Float16)?;
+            let gate = Array::from_f32(&g, &[1, size])?.astype(Dtype::Float16)?;
+            let expected = attended
+                .astype(Dtype::Float32)?
+                .mul(&gate.astype(Dtype::Float32)?.sigmoid()?)?
+                .astype(Dtype::Float16)?;
+            let got = attention_gate_one(&attended, &gate)?;
+            let (e, g) = (
+                expected.astype(Dtype::Float32)?.to_f32()?,
+                got.astype(Dtype::Float32)?.to_f32()?,
+            );
+            ensure!(e.iter().all(|x| x.is_finite()), "gate reference");
+            ensure!(same(&e, &g), "gate kernel differs: scale {scale}");
+        }
+        println!("attention gate kernel: identical");
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P14: the GPU rule exists exactly for greedy samplers and plain tempered softmax.
+    #[test]
+    fn draw_rule_follows_the_sampler() -> Result<()> {
+        use crate::sampling::Sampler;
+        let rule = |t, k, p, r, q| -> Result<Option<DrawRule>> {
+            Ok(DrawRule::for_sampler(&Sampler::new(t, k, p, r, q)?))
+        };
+        assert_eq!(
+            DrawRule::for_sampler(&Sampler::greedy()),
+            Some(DrawRule::Greedy)
+        );
+        assert_eq!(rule(0.0, 0, 1.0, 1.0, 0.0)?, Some(DrawRule::Greedy));
+        assert_eq!(rule(0.8, 1, 1.0, 1.0, 0.0)?, Some(DrawRule::Greedy));
+        assert_eq!(rule(1.0, 0, 1.0, 1.0, 0.0)?, Some(DrawRule::Softmax(1.0)));
+        assert_eq!(rule(0.7, 0, 1.0, 1.0, 0.0)?, Some(DrawRule::Softmax(0.7)));
+        // anything the GPU draw does not reproduce stays on the CPU sampler
+        assert_eq!(rule(1.0, 40, 1.0, 1.0, 0.0)?, None);
+        assert_eq!(rule(1.0, 0, 0.95, 1.0, 0.0)?, None);
+        assert_eq!(rule(1.0, 0, 1.0, 1.1, 0.0)?, None);
+        assert_eq!(rule(1.0, 0, 1.0, 1.0, 0.5)?, None);
+        assert_eq!(rule(0.0, 0, 1.0, 1.1, 0.0)?, None);
+        assert_eq!(rule(0.0, 0, 1.0, 1.0, -0.5)?, None);
+        // seeds: deterministic, distinct
+        let (mut a, mut b) = (DrawSeeds::new(7), DrawSeeds::new(7));
+        let first: Vec<u64> = (0..1000).map(|_| a.next_seed()).collect();
+        assert!(
+            first
+                .iter()
+                .zip((0..1000).map(|_| b.next_seed()))
+                .all(|(x, y)| *x == y)
+        );
+        let distinct: std::collections::HashSet<u64> = first.iter().copied().collect();
+        assert_eq!(distinct.len(), first.len());
+        assert_ne!(DrawSeeds::new(8).next_seed(), first[0]);
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P14: `Array::gumbel_noise` is finite, within its bounds, follows the Gumbel CDF and reaches
+    /// values `random::uniform` cannot give (G > 16.64), all from fixed seeds.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn gumbel_noise_follows_the_gumbel_law_and_tail() -> Result<()> {
+        const BATCH: i32 = 1 << 23;
+        const BATCHES: u64 = 32;
+        let points = [-1.0f64, 0.0, 1.0, 2.0, 4.0, 8.0];
+        let mut below = [0u64; 6];
+        let (mut lowest, mut highest, mut tail, mut cdf_n) =
+            (f32::INFINITY, f32::NEG_INFINITY, 0u64, 0u64);
+        for batch in 0..BATCHES {
+            let noise = Array::gumbel_noise(&[BATCH], 1000 + batch)?.to_f32()?;
+            ensure!(noise.len() == BATCH as usize, "noise length");
+            for &g in &noise {
+                ensure!(g.is_finite(), "non-finite Gumbel noise");
+                lowest = lowest.min(g);
+                highest = highest.max(g);
+                tail += u64::from(g > 16.7);
+            }
+            if batch < 2 {
+                cdf_n += noise.len() as u64;
+                for (count, &x) in below.iter_mut().zip(&points) {
+                    *count += noise.iter().filter(|&&g| f64::from(g) <= x).count() as u64;
+                }
+            }
+        }
+        println!(
+            "gumbel noise: min {lowest} max {highest} tail(>16.7) {tail} of {}",
+            BATCHES * BATCH as u64
+        );
+        ensure!(
+            lowest >= -2.82 && highest <= 22.88,
+            "noise outside [-2.82, 22.88]"
+        );
+        ensure!(tail >= 1, "no noise above 16.7: the high tail is missing");
+        for (count, &x) in below.iter().zip(&points) {
+            let p = (-(-x).exp()).exp();
+            let observed = *count as f64 / cdf_n as f64;
+            let sigma = (p * (1.0 - p) / cdf_n as f64).sqrt();
+            ensure!(
+                (observed - p).abs() <= 4.0 * sigma + 1e-9,
+                "CDF at {x}: {observed} against {p} (sigma {sigma})"
+            );
+        }
+        // same seed, same noise; another seed, other noise
+        let a = Array::gumbel_noise(&[64], 5)?.to_f32()?;
+        ensure!(
+            a == Array::gumbel_noise(&[64], 5)?.to_f32()?,
+            "same seed, different noise"
+        );
+        ensure!(
+            a != Array::gumbel_noise(&[64], 6)?.to_f32()?,
+            "the seed does not change the noise"
+        );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P14: `draw_rows` follows softmax(logits / T) (Pearson chi-square over 4 M independent
+    /// rows, bins of expectation below 5 merged, p < 1e-4 bound by Wilson-Hilferty), and its greedy rule is
+    /// `chat_greedy_ids`.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn draw_rows_follow_the_tempered_softmax() -> Result<()> {
+        const ROWS: i32 = 1 << 20;
+        let logits = [
+            3.0f32, 2.5, 2.0, 1.0, 0.0, -1.0, -2.0, -3.0, -4.0, -5.0, -6.0, -7.0, -8.0, -9.0, 1.5,
+            0.5,
+        ];
+        let vocab = logits.len() as i32;
+        let row: Vec<f32> = (0..ROWS).flat_map(|_| logits).collect();
+        let batch = Array::from_f32(&row, &[ROWS, vocab])?;
+        for (temperature, seed) in [(1.0f32, 21u64), (0.7, 22)] {
+            let mut counts = vec![0f64; logits.len()];
+            let mut draws_total = 0f64;
+            for part in 0..4u64 {
+                let draws = draw_rows(&batch, DrawRule::Softmax(temperature), seed * 10 + part)?
+                    .to_u32()?;
+                ensure!(draws.len() == ROWS as usize, "one draw per row");
+                for &token in &draws {
+                    ensure!(
+                        (token as usize) < logits.len(),
+                        "draw outside the vocabulary"
+                    );
+                    counts[token as usize] += 1.0;
+                }
+                draws_total += draws.len() as f64;
+            }
+            let weights: Vec<f64> = logits
+                .iter()
+                .map(|&v| (f64::from(v) / f64::from(temperature)).exp())
+                .collect();
+            let total: f64 = weights.iter().sum();
+            // merge the least likely bins until every bin expects at least 5 draws
+            let mut order: Vec<usize> = (0..logits.len()).collect();
+            order.sort_by(|&a, &b| weights[b].total_cmp(&weights[a]));
+            let (mut bins, mut rest) = (Vec::new(), (0f64, 0f64));
+            for &i in &order {
+                let expected = weights[i] / total * draws_total;
+                if expected >= 5.0 {
+                    bins.push((counts[i], expected));
+                } else {
+                    rest = (rest.0 + counts[i], rest.1 + expected);
+                }
+            }
+            if rest.1 > 0.0 {
+                bins.push(rest);
+            }
+            let chi2: f64 = bins.iter().map(|(c, e)| (c - e).powi(2) / e).sum();
+            let dof = (bins.len() - 1) as f64;
+            let z = 3.719f64;
+            let bound = dof * (1.0 - 2.0 / (9.0 * dof) + z * (2.0 / (9.0 * dof)).sqrt()).powi(3);
+            println!(
+                "T={temperature} bins={} chi2={chi2:.2} bound={bound:.2}",
+                bins.len()
+            );
+            ensure!(
+                chi2 < bound,
+                "draws do not follow softmax(logits / T): chi2 {chi2} >= {bound}"
+            );
+        }
+        // greedy: the bridge's rule on random rows, including ties
+        let mut values: Vec<f32> = (0..64 * 1000)
+            .map(|i| ((i * 7919) % 1013) as f32 * 0.01)
+            .collect();
+        values[5] = values[3];
+        let rows = Array::from_f32(&values, &[64, 1000])?;
+        ensure!(
+            draw_rows(&rows, DrawRule::Greedy, 0)?.to_u32()? == rows.chat_greedy_ids()?,
+            "greedy draw differs from chat_greedy_ids"
+        );
+        let three = Array::from_f32(&values[..2000], &[1, 2, 1000])?;
+        ensure!(
+            draw_token(&three, DrawRule::Greedy, 0)?.to_u32()?
+                == three.slice(1, 1, 2)?.chat_greedy_ids()?,
+            "draw_token does not draw from the last row"
+        );
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P14: decoding with the token on the GPU, one step ahead, gives the bridge's host decode
+    /// bit for bit (greedy: every logit row and token), the pipelined and synchronous device decodes agree
+    /// at T = 1 for one seed stream, and a wrong fed token is detected. `MLXL3_INKLING_STEPS` steps.
+    #[test]
+    #[ignore = "requires an Apple GPU and MLXL3_INKLING_MODEL"]
+    fn device_decode_matches_the_host_decode() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let steps: usize = std::env::var("MLXL3_INKLING_STEPS")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(96);
+        ensure!(steps > 10, "MLXL3_INKLING_STEPS must exceed 10");
+        let prompt = profile_prompt()?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = usize::try_from(model.unpadded_vocab())?;
+        // host decode, the bridge's greedy rule: rows and fed tokens
+        model.reset();
+        let mut logits = model.forward_tokens(&prompt)?;
+        let (mut host_rows, mut host_fed) = (Vec::new(), Vec::new());
+        for _ in 0..steps {
+            let token = logits.chat_greedy_ids()?[0];
+            host_fed.push(token);
+            logits = model.forward(token)?;
+            host_rows.push(logits.to_f32()?);
+        }
+        let (host_hash, _) = rows_fingerprint(&host_rows);
+        // device decode, one step ahead, rows read back (`mutate`: wrong token fed at step 10)
+        let device_rows =
+            |model: &mut Inkling2, mutate: bool| -> Result<(Vec<Vec<f32>>, Vec<u32>)> {
+                model.reset();
+                let prompt_logits = model.forward_tokens(&prompt)?;
+                let mut next = draw_token(&prompt_logits, DrawRule::Greedy, 0)?;
+                next.async_eval()?;
+                let (mut rows, mut fed) = (Vec::new(), Vec::new());
+                let mut in_flight: Option<Array> = None;
+                for i in 0..steps {
+                    let input = if mutate && i == 10 {
+                        Array::from_u32(&[(single_token(&next)? + 1) % vocab as u32], &[1])?
+                    } else {
+                        next.try_clone()?
+                    };
+                    let (step_logits, _) = model.forward_device(&input, None, true)?;
+                    let after = draw_token(&step_logits, DrawRule::Greedy, 0)?;
+                    after.async_eval()?;
+                    fed.push(single_token(&input)?);
+                    if let Some(previous) = in_flight.replace(step_logits) {
+                        rows.push(previous.to_f32()?);
+                    }
+                    next = after;
+                }
+                if let Some(last) = in_flight.take() {
+                    rows.push(last.to_f32()?);
+                }
+                Ok((rows, fed))
+            };
+        let (rows, fed) = device_rows(&mut model, false)?;
+        ensure!(
+            rows.len() == steps
+                && rows
+                    .iter()
+                    .all(|r| r.len() == vocab && r.iter().all(|x| x.is_finite())),
+            "device rows have a wrong count, width or non-finite logits"
+        );
+        let (device_hash, _) = rows_fingerprint(&rows);
+        println!(
+            "host {host_hash:016x} device {device_hash:016x} fed head {:?}",
+            &fed[..16]
+        );
+        ensure!(
+            fed == host_fed,
+            "device greedy tokens differ from the host decode"
+        );
+        ensure!(
+            device_hash == host_hash,
+            "device logits differ from the host decode"
+        );
+        let (mutated, _) = device_rows(&mut model, true)?;
+        ensure!(
+            rows_fingerprint(&mutated).0 != host_hash,
+            "a wrong fed token went unnoticed"
+        );
+        // the production decoder: greedy = host tokens; T = 1 pipelined = synchronous for one seed stream
+        let decode = |model: &mut Inkling2, rule: DrawRule, pipelined: bool| -> Result<Vec<u32>> {
+            model.reset();
+            let prompt_logits = model.forward_tokens(&prompt)?;
+            let mut decode =
+                DeviceDecode::start(&prompt_logits, rule, DrawSeeds::new(42), pipelined)?;
+            (0..steps)
+                .map(|i| decode.next_token(model, i + 1 < steps))
+                .collect()
+        };
+        ensure!(
+            decode(&mut model, DrawRule::Greedy, true)? == host_fed,
+            "DeviceDecode greedy differs from the host decode"
+        );
+        let sampled = decode(&mut model, DrawRule::Softmax(1.0), true)?;
+        ensure!(
+            sampled == decode(&mut model, DrawRule::Softmax(1.0), false)?,
+            "pipelined and synchronous T = 1 decodes differ for one seed stream"
+        );
+        ensure!(
+            sampled.iter().all(|&t| (t as usize) < vocab),
+            "sampled token outside the vocabulary"
+        );
+        ensure!(sampled != host_fed, "T = 1 decode equals the greedy decode");
         Ok(())
     }
 
