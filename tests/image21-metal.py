@@ -48,7 +48,7 @@ for bits in (3, 4, 5):
         (cols, rows),
         bits,
     )
-    for batch in (1, 32, 35):
+    for batch in (1, 32, 35, 127, 128, 129, 255, 256, 257):
         x = rng.normal(size=(batch, rows)).astype("f2")
         y = np.asarray(proj(mx.array(x)), dtype="f")
         want = (((x * su) @ h) @ w).reshape(-1, 128) @ h
@@ -56,6 +56,10 @@ for bits in (3, 4, 5):
         assert np.isfinite(y).all() and y.shape == want.shape
         err = np.linalg.norm(y - want) / np.linalg.norm(want)
         assert err < 0.004, (bits, batch, err)
+        if batch >= 128:
+            # Splitting forces the original single-SIMD path for an independent dispatch comparison.
+            original = mx.concatenate([proj(mx.array(x[i : i + 32])) for i in range(0, batch, 32)])
+            np.testing.assert_array_equal(y.view("u4"), np.asarray(original, dtype="f").view("u4"))
         print(bits, batch, err)
 
 # Exercise the production loader before it can access any auxiliary network service.

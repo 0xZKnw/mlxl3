@@ -30,11 +30,13 @@ PROJECTIONS = (
 )
 
 
-@lru_cache(maxsize=8)
-def qmm(inputs, outputs, bits):
-    shader = Path(__file__).with_name("_qmm_tensor_kernel.metal")
+@lru_cache(maxsize=32)
+def qmm(inputs, outputs, bits, block_rows, group):
+    shared = group > 1
+    filename = "_qmm_tensor_window_kernel.metal" if shared else "_qmm_tensor_kernel.metal"
+    shader = Path(__file__).with_name(filename)
     if not shader.is_file():
-        shader = Path(__file__).resolve().parents[4] / "native/shaders/_qmm_tensor_kernel.metal"
+        shader = Path(__file__).resolve().parents[4] / "native/shaders" / filename
     inverse = [0] * 256
     for lane in range(32):
         r, c = 2 * (lane % 4), lane // 4
@@ -54,7 +56,9 @@ inline float mlxl3_decode_codeword(uint state, int unused) {
 """
     header += "constant ushort mlxl3_perm_inv[256] = {" + ",".join(map(str, inverse)) + "};\n"
     for name, value in {
-        "BM": 32,
+        "BM": block_rows,
+        "STEP_TILES": 4,
+        "ROW_GROUP": group,
         "BN": 32,
         "BK": 16,
         "INPUT_DIMS": inputs,
@@ -66,7 +70,7 @@ inline float mlxl3_decode_codeword(uint state, int unused) {
     }.items():
         header += f"#define {name} {value}u\n"
     return mx.fast.metal_kernel(
-        name=f"image21_qmm_{inputs}_{outputs}_{bits}",
+        name=f"image21_qmm_{inputs}_{outputs}_{bits}_{block_rows}_{group}",
         input_names=["xhat", "trellis"],
         output_names=["yhat"],
         header=header,
@@ -105,16 +109,19 @@ class EXL3Linear(nn.Module):
         if x.shape[-1] != k:
             raise ValueError("EXL3 input width mismatch")
         rows = x.size // k
-        padded = (rows + 31) // 32 * 32
+        # Image tokens reuse each decoded weight tile across four SIMD groups.
+        block_rows, group = (64, 4) if rows >= 128 else (32, 1)
+        blocks = (rows + block_rows - 1) // block_rows
+        padded = blocks * block_rows
         rotated = mx.hadamard_transform((x.astype(mx.float16) * self.suh).reshape(-1, 128)).reshape(
             rows, k
         )
         if padded != rows:
             rotated = mx.pad(rotated, [(0, padded - rows), (0, 0)])
-        y = qmm(k, n, self.bits)(
+        y = qmm(k, n, self.bits, block_rows, group)(
             inputs=[rotated, self.words],
-            grid=(n, padded // 32, 1),
-            threadgroup=(32, 1, 1),
+            grid=(n * group, (blocks + group - 1) // group, 1),
+            threadgroup=(32 * group, 1, 1),
             output_shapes=[(padded, n)],
             output_dtypes=[mx.float16],
         )[0]

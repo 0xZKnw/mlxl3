@@ -18,6 +18,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - name: Check bundled image worker and Metal kernels
+        run: |
+          bundle="$RUNNER_TEMP/Studio Resources/Image21"
+          sh scripts/copy-image21-resources.sh "$bundle"
+          cmp apps/MLXL3Studio/Resources/Image21/render.py "$bundle/render.py"
+          for shader in _qmm_tensor_kernel.metal _qmm_tensor_window_kernel.metal; do
+            cmp "native/shaders/$shader" "$bundle/$shader"
+          done
       - run: python -m unittest discover -s tests -p test_discord_release.py
       - run: python -m unittest discover -s tests -p test_native_coverage.py
       - run: python -m unittest discover -s tests -p test_flash_run_report.py
