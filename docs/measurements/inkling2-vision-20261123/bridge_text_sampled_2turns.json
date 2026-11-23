@@ -1,0 +1,193 @@
+{
+ "status": "ok",
+ "ready": {
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Inkling-2-Mini-EXL3-R3-vision",
+  "images_supported": true,
+  "dspark_supported": true,
+  "runtime_commit": "d87a9ff8d994-dirty"
+ },
+ "complete": {
+  "assistant_context": "59",
+  "cache_context": "<|message_model|><|content_thinking|>We need answer image arithmetic. Need be careful: image shows black text \"MLXL3 sees\" and red \"42 + 17 = ?\". User asks result of operation shown in red. Operation in red is 42+17. Compute 59. Need answer number only. Ensure not trick involving MLXL3? The black text says MLXL3 sees, perhaps MLXL3? But question specifically red operation. 42+17=59. Final number only.<|end_message|><|message_model|><|content_text|>59<|end_message|>",
+  "context_full": false,
+  "elapsed_seconds": 6.865845791,
+  "first_text_seconds": 2.8133054570000002,
+  "request_id": "img1",
+  "round_stats": [
+   {
+    "cached_prompt_tokens": 0,
+    "context_limit": 16384,
+    "context_used": 225,
+    "decode_seconds": 4.139710417,
+    "decode_tokens": 103,
+    "decode_tps": 24.88096741671194,
+    "dflash_accepted_tokens": null,
+    "dflash_block_seconds": 0.0,
+    "dflash_blocks": null,
+    "dflash_lookup_blocks": null,
+    "dflash_profile": null,
+    "dflash_proposed_tokens": null,
+    "draft_load_seconds": 0.0,
+    "dspark_accepted_tokens": 48,
+    "dspark_blocks": 58,
+    "dspark_profile": {
+     "accepted": 48,
+     "accepted_at": [
+      28,
+      19,
+      1
+     ],
+     "blocks": 58,
+     "commit_ms": 21.24304400000001,
+     "draft_ms": 440.1524170000002,
+     "prefill_ms": 1087.046583,
+     "proposed": 84,
+     "verify_ms": 3664.506450000001,
+     "width_blocks": [
+      18,
+      2,
+      32,
+      6
+     ],
+     "width_ms": [
+      663.9697879999999,
+      145.847917,
+      2723.0153739999996,
+      593.091458
+     ]
+    },
+    "dspark_proposed_tokens": 84,
+    "elapsed_seconds": 5.231207625,
+    "end_to_end_ttft_seconds": null,
+    "evaluated_prompt_tokens": 121,
+    "generated_tokens": 104,
+    "memory": {
+     "mlx_active_bytes": 13458920724,
+     "mlx_cache_bytes": 935191188,
+     "mlx_peak_bytes": 13897899520,
+     "process_compressed_lifetime_logical_bytes": 1262174208,
+     "process_compressed_logical_bytes": 1229881344,
+     "process_compressed_peak_logical_bytes": 1230012416,
+     "process_decompressions": 400366,
+     "process_footprint_bytes": 14748307416,
+     "process_id": 4170,
+     "process_ledger_swapins_logical_bytes": 0,
+     "process_lifetime_peak_bytes": 14748307416,
+     "process_start_abstime": 20655170933408
+    },
+    "model_size_gb": 13.777442851,
+    "mtp_accepted_tokens": null,
+    "mtp_blocks": null,
+    "mtp_depth_blocks": null,
+    "mtp_lookup_blocks": null,
+    "mtp_proposed_tokens": null,
+    "prefill_seconds": 1.087062084,
+    "prefill_tps": 111.30918995423264,
+    "prepare_seconds": 0.00106475,
+    "prompt_tokens": 121,
+    "round_count": 1,
+    "tool_rounds": 0,
+    "tool_seconds": 0.0,
+    "topk_readback_rows": [
+     0,
+     1
+    ],
+    "ttft_seconds": 1.091497208
+   }
+  ],
+  "stats": {
+   "cached_prompt_tokens": 0,
+   "context_limit": 16384,
+   "context_used": 225,
+   "decode_seconds": 4.139710417,
+   "decode_tokens": 103,
+   "decode_tps": 24.88096741671194,
+   "dflash_accepted_tokens": null,
+   "dflash_block_seconds": 0.0,
+   "dflash_blocks": null,
+   "dflash_lookup_blocks": null,
+   "dflash_profile": null,
+   "dflash_proposed_tokens": null,
+   "draft_load_seconds": 0.0,
+   "dspark_accepted_tokens": 48,
+   "dspark_blocks": 58,
+   "dspark_profile": {
+    "accepted": 48,
+    "accepted_at": [
+     28,
+     19,
+     1
+    ],
+    "blocks": 58,
+    "commit_ms": 21.24304400000001,
+    "draft_ms": 440.1524170000002,
+    "prefill_ms": 1087.046583,
+    "proposed": 84,
+    "verify_ms": 3664.506450000001,
+    "width_blocks": [
+     18,
+     2,
+     32,
+     6
+    ],
+    "width_ms": [
+     663.9697879999999,
+     145.847917,
+     2723.0153739999996,
+     593.091458
+    ]
+   },
+   "dspark_proposed_tokens": 84,
+   "elapsed_seconds": 6.865831083,
+   "end_to_end_ttft_seconds": 2.8133054570000002,
+   "evaluated_prompt_tokens": 121,
+   "generated_tokens": 104,
+   "memory": {
+    "mlx_active_bytes": 13458920724,
+    "mlx_cache_bytes": 935191188,
+    "mlx_peak_bytes": 13897899520,
+    "process_compressed_lifetime_logical_bytes": 1262174208,
+    "process_compressed_logical_bytes": 1229881344,
+    "process_compressed_peak_logical_bytes": 1230012416,
+    "process_decompressions": 400366,
+    "process_footprint_bytes": 14748307416,
+    "process_id": 4170,
+    "process_ledger_swapins_logical_bytes": 0,
+    "process_lifetime_peak_bytes": 14748307416,
+    "process_start_abstime": 20655170933408
+   },
+   "model_size_gb": 13.777442851,
+   "mtp_accepted_tokens": null,
+   "mtp_blocks": null,
+   "mtp_depth_blocks": null,
+   "mtp_lookup_blocks": null,
+   "mtp_proposed_tokens": null,
+   "prefill_seconds": 1.087062084,
+   "prefill_tps": 111.30918995423264,
+   "prepare_seconds": 0.00106475,
+   "prompt_tokens": 121,
+   "round_count": 1,
+   "tool_rounds": 0,
+   "tool_seconds": 0.0,
+   "topk_readback_rows": [
+    0,
+    1
+   ],
+   "ttft_seconds": 2.726098374
+  },
+  "stop_reason": "eos",
+  "token_hash": "6e3312dd45d7b45e",
+  "tool_rounds": 0,
+  "turn_context": null,
+  "type": "complete"
+ },
+ "text": {
+  "thinking": "We need answer image arithmetic. Need be careful: image shows black text \"MLXL3 sees\" and red \"42 + 17 = ?\". User asks result of operation shown in red. Operation in red is 42+17. Compute 59. Need answer number only. Ensure not trick involving MLXL3? The black text says MLXL3 sees, perhaps MLXL3? But question specifically red operation. 42+17=59. Final number only.",
+  "answer": "59"
+ },
+ "other_events": [
+  "context_usage",
+  "generation_mode",
+  "generation_status"
+ ]
+}

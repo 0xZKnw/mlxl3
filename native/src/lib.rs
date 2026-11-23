@@ -111,6 +111,7 @@ pub mod inkling2;
 pub mod inkling2_draft;
 #[cfg(feature = "mlx")]
 pub mod inkling2_lookup;
+pub mod inkling2_vision;
 #[cfg(feature = "mlx")]
 pub mod lfm2;
 pub mod lfm3;

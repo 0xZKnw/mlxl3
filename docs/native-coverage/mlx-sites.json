@@ -2481,7 +2481,7 @@
     ".add": 13,
     ".add_scaled": 1,
     ".argmax": 4,
-    ".astype": 67,
+    ".astype": 68,
     ".async_eval": 4,
     ".broadcast_to": 2,
     ".chat_greedy_ids": 4,
@@ -2489,7 +2489,7 @@
     ".conv1d": 1,
     ".div": 1,
     ".dtype": 25,
-    ".eval": 21,
+    ".eval": 22,
     ".exp": 5,
     ".finish": 1,
     ".l2_clip": 1,
@@ -2506,10 +2506,10 @@
     ".run": 13,
     ".scalar_add": 2,
     ".scalar_mul": 10,
-    ".shape": 84,
+    ".shape": 87,
     ".sigmoid": 2,
-    ".slice": 33,
-    ".slice_update": 6,
+    ".slice": 34,
+    ".slice_update": 7,
     ".softcap": 1,
     ".softmax_precise": 1,
     ".sqrt": 8,
@@ -2577,6 +2577,7 @@
     "config MLXL3_INKLING_STRIDE": 1,
     "config MLXL3_INKLING_UNFUSED": 1,
     "config MLXL3_INKLING_VARIANTS": 1,
+    "config MLXL3_INKLING_VISION": 1,
     "mlx-lm": 1
   },
   "native/src/inkling2_draft.rs": {
@@ -2644,6 +2645,34 @@
     "array::Array": 1,
     "config MLXL3_INKLING_MODEL": 1,
     "config MLXL3_INKLING_ROWS": 1
+  },
+  "native/src/inkling2_vision.rs": {
+    ".add": 7,
+    ".astype": 17,
+    ".dtype": 3,
+    ".eval": 4,
+    ".gelu": 2,
+    ".layer_norm_without_weight": 1,
+    ".matmul": 2,
+    ".mul": 8,
+    ".reshape": 10,
+    ".shape": 4,
+    ".slice": 3,
+    ".sqrt": 2,
+    ".sub": 1,
+    ".sum": 6,
+    ".take": 1,
+    ".to_f32": 4,
+    ".transpose": 5,
+    "Array::concatenate": 2,
+    "Array::from_f32": 6,
+    "Array::from_i32": 1,
+    "Array::sdpa": 1,
+    "array::Array": 1,
+    "array::Dtype": 1,
+    "config MLXL3_INKLING_MODEL": 1,
+    "config MLXL3_INKLING_VISION_ORACLE": 1,
+    "mlx": 4
   },
   "native/src/lfm2.rs": {
     ".add": 10,
@@ -3209,7 +3238,7 @@
     "config MLXL3_PROMPT_CACHE_MIB": 1,
     "config MLXL3_Q36_MOE_GROUP": 1,
     "config MLXL3_RETAIN_LOAD_CACHE": 1,
-    "mlx": 316,
+    "mlx": 320,
     "mlx_enabled": 1
   },
   "native/src/mcp.rs": {
@@ -4091,7 +4120,10 @@
   },
   "native/src/vision_input.rs": {
     ".sqrt": 3,
-    ".take": 1
+    ".sum": 1,
+    ".take": 1,
+    ".transpose": 1,
+    "config MLXL3_INKLING_IMAGE_MAX_PIXELS": 1
   },
   "native/src/weighted_epilogue.rs": {
     ".dtype": 4,
