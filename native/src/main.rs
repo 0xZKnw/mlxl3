@@ -2444,7 +2444,17 @@ impl NativeChatModel {
     }
 
     fn supports_images(&self) -> bool {
-        matches!(self, Self::Lfm3(model) if model.supports_images())
+        self.image_format().is_some()
+    }
+
+    /// Image input layout of the loaded model (`None`: text only).
+    fn image_format(&self) -> Option<mlxl3_native::vision_input::ImageFormat> {
+        use mlxl3_native::vision_input::ImageFormat;
+        match self {
+            Self::Lfm3(model) if model.supports_images() => Some(ImageFormat::Lfm3),
+            Self::Inkling(model, ..) if model.supports_images() => Some(ImageFormat::Inkling2),
+            _ => None,
+        }
     }
 
     fn prepare_images(
@@ -2452,6 +2462,10 @@ impl NativeChatModel {
         tokens: &[u32],
         images: &[mlxl3_native::lfm3::PreparedImage],
     ) -> Result<()> {
+        // Inkling also clears the features of a previous prompt when this one has no image
+        if let Self::Inkling(model, ..) = self {
+            return model.prepare_images(tokens, images);
+        }
         if images.is_empty() {
             return Ok(());
         }
@@ -3142,6 +3156,8 @@ fn prefill_round(
         *cache = None;
         return Ok((target.prefill_dflash2(tokens, cancelled)?, None, 0));
     }
+    // a state computed from image features is neither resumed nor saved for a later turn
+    let reuse = reuse && images.is_empty();
     let chunk_size = if draft.is_some() {
         mlxl3_native::dflash::PREFILL_CHUNK
     } else {
@@ -4431,6 +4447,25 @@ fn lfm3_lookup_is_opt_in_greedy_and_exclusive() {
     }
 }
 
+/// Image input layout of the loaded chat model (`None`: text only).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn chat_image_format(model: &NativeChatModel) -> Option<mlxl3_native::vision_input::ImageFormat> {
+    model.image_format()
+}
+
+/// Image input layout of the loaded chat model (`None`: text only); the direct engine reads LFM3 only.
+#[cfg(all(
+    not(feature = "mlx"),
+    feature = "chat",
+    target_os = "macos",
+    feature = "direct-metal"
+))]
+fn chat_image_format(model: &NativeChatModel) -> Option<mlxl3_native::vision_input::ImageFormat> {
+    model
+        .supports_images()
+        .then_some(mlxl3_native::vision_input::ImageFormat::Lfm3)
+}
+
 #[cfg(all(
     feature = "chat",
     any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
@@ -4476,8 +4511,9 @@ fn bridge_generate_round(
         max_tokens == -1 || max_tokens > 0,
         "max_tokens must be positive, or -1"
     );
+    let image_format = chat_image_format(model);
     let (prepared, images) =
-        mlxl3_native::vision_input::prepare_messages(messages, model.supports_images())?;
+        mlxl3_native::vision_input::prepare_messages_as(messages, image_format)?;
     let rendered = REASONING_REQUESTED.with(|effort| {
         tokenizer.render_values_with_effort(
             &Value::Array(prepared),
@@ -4485,6 +4521,8 @@ fn bridge_generate_round(
             effort.borrow().as_deref(),
         )
     })?;
+    let rendered =
+        mlxl3_native::vision_input::expand_image_placeholders(image_format, rendered, &images)?;
     let tokens = tokenizer.encode(&rendered)?;
     anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
     anyhow::ensure!(
@@ -4601,9 +4639,10 @@ fn bridge_generate_round(
             if let (Some(session), NativeChatModel::Inkling(target, Some(drafter), _)) =
                 (dspark.as_mut(), &mut *model)
             {
-                let logits = session.prefill(target, drafter, &tokens, &|| {
-                    cancelled.load(Ordering::Relaxed)
-                })?;
+                let logits =
+                    session.prefill_with_images(target, drafter, &tokens, &images, &|| {
+                        cancelled.load(Ordering::Relaxed)
+                    })?;
                 (logits, None, 0)
             } else if let Some(head) = mtp.as_deref_mut() {
                 match head {
@@ -6348,11 +6387,19 @@ fn native_chat(
             json!(parts)
         };
         messages.push(json!({"role":"user","content":content}));
+        #[cfg(feature = "mlx")]
+        let image_format = model.image_format();
+        #[cfg(not(feature = "mlx"))]
+        let image_format = model
+            .supports_images()
+            .then_some(mlxl3_native::vision_input::ImageFormat::Lfm3);
         let (prepared, images) =
-            mlxl3_native::vision_input::prepare_messages(&messages, model.supports_images())?;
+            mlxl3_native::vision_input::prepare_messages_as(&messages, image_format)?;
         #[cfg(not(feature = "mlx"))]
         let _ = &images;
         let rendered = tokenizer.render_values(&json!(prepared), None)?;
+        let rendered =
+            mlxl3_native::vision_input::expand_image_placeholders(image_format, rendered, &images)?;
         let tokens = tokenizer.encode(&rendered)?;
         anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
         let available = (model.context_limit() as usize).saturating_sub(tokens.len());

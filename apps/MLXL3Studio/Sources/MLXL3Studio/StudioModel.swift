@@ -803,7 +803,10 @@ final class StudioModel: ObservableObject {
             if selectedModel?.modelType == "lfm3_vl" {
                 return L("Mettez le moteur à jour pour envoyer des images avec LFM3-VL.", "Update the engine to send images with LFM3-VL.")
             }
-            return L("Cette conversation contient des images. Chargez LFM3-VL pour continuer.", "This conversation contains images. Load LFM3-VL to continue.")
+            if selectedModel?.modelType == "inkling2_loop" {
+                return L("Cette version d’Inkling 2 Mini n’a pas son encodeur vision. Téléchargez la dernière révision et mettez le moteur à jour.", "This Inkling 2 Mini download has no vision encoder. Download the latest revision and update the engine.")
+            }
+            return L("Cette conversation contient des images. Chargez LFM3-VL ou Inkling 2 Mini pour continuer.", "This conversation contains images. Load LFM3-VL or Inkling 2 Mini to continue.")
         }
         if !imageInputWithinLimits {
             return L("Limite de 8 images et 8 Mio par conversation. Retirez des images ou ouvrez une nouvelle conversation.", "Limit of 8 images and 8 MiB per conversation. Remove images or start a new conversation.")
@@ -825,8 +828,12 @@ final class StudioModel: ObservableObject {
         !isGenerating && !isImportingFiles && currentConversation != nil
     }
 
+    /// Model types whose engine path reads images (the engine still confirms it per checkpoint with
+    /// `images_supported`: an Inkling 2 revision without its vision encoder stays text only).
+    static let visionModelTypes: Set<String> = ["lfm3_vl", "inkling2_loop"]
+
     var canImportImages: Bool {
-        readyInfo != nil && selectedModel?.modelType == "lfm3_vl" && imagesSupported
+        readyInfo != nil && Self.visionModelTypes.contains(selectedModel?.modelType ?? "") && imagesSupported
     }
 
     private var conversationImages: [ChatImage] {
