@@ -104,10 +104,16 @@ Install the archive through the Desktop engine updater, or extract all its files
 
 | File | Size | SHA-256 |
 |---|---|---|
-| `MLXL3-Engine-v2.0.30-arm64.tar.gz` | ARCHIVE_SIZE bytes | `ARCHIVE_SHA256` |
-| `MLXL3-Engine-v2.0.30-arm64.tar.gz.sha256` | CHECKSUM_SIZE bytes | `CHECKSUM_SHA256` |
+| `MLXL3-Engine-v2.0.30-arm64.tar.gz` | 69,185,549 bytes | `d4002c085b1bf11532bf96bd7c2e6f0710b7ba879cbf52a2905254decaa5ee75` |
+| `MLXL3-Engine-v2.0.30-arm64.tar.gz.sha256` | 100 bytes | `99b67cf13bebe5217c2efcae5b83991835b14a1e56a592d0dcb2fb7bbfa5ad2e` |
 
-Source: `SOURCE_SHA`.
+Source: `dc20d6693583` (tag `engine-v2.0.30`).
+
+The released archive was extracted into a new directory and checked:
+- **Manifest:** its four files match it (`engine-v2.0.30`, version 2.0.30, minimum Desktop 1.4.0, minimum macOS 26.2.0, arm64, bridge protocol 1).
+- **Binaries:** the three Mach-O files pass strict signature and arm64 checks, and `mlx.metallib` is identical to MLX 0.32.2's.
+- **`runtime-info`:** it reports 2.0.30 from source `dc20d6693583`; `mlxl3` is 15,262,944 bytes, SHA-256 `ffbd7c6a326081c0bd400ec0fd906a7d96b34447e40008aade184bec8a1d1564`.
+- **Bridge:** without any environment variable, on the installed Inkling 2 Mini, a real Agent call ran `return list().length`, got `3` and answered "3 files". `"dspark": true` ran 57 DSpark blocks; without the field, and with `false`, none ran.
 
 ## Thanks
 
