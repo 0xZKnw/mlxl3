@@ -410,7 +410,9 @@ struct AgentSandboxCheck {
     check(
       spin.isError && spin.text.contains("time limit") && Date().timeIntervalSince(started) < 13,
       "time limit: \(spin.text)")
-    let many = try js("for (let i = 0; i < 300; i++) list()")
+    // Refused paths answer at once: the limit is reached without depending on the runner's
+    // speed (300 real list() calls could exceed the 10 s wall on a slow CI runner first).
+    let many = try js("for (let i = 0; i < 300; i++) { try { read('../x'); } catch (e) { if (String(e.message).includes('more than')) throw e; } }")
     check(many.isError && many.text.contains("more than 200"), "call limit: \(many.text)")
     started = Date()
     let memory = try js("const a = []; for (;;) a.push(new Array(1e6).fill(1.5))")

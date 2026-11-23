@@ -67,9 +67,14 @@ enum AgentSandbox {
     if let developer = developerDirectory, FileManager.default.fileExists(atPath: developer + "/usr/bin/python3") {
       let bin = home.appendingPathComponent("bin", isDirectory: true)
       try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+      let script = Data("#!/bin/sh\nexec python3 -m pip \"$@\"\n".utf8)
       for name in ["pip3", "pip"] {
+        // Written once (every command passes here); a changed or missing one is restored.
         let file = bin.appendingPathComponent(name)
-        try Data("#!/bin/sh\nexec python3 -m pip \"$@\"\n".utf8).write(to: file)
+        guard FileManager.default.contents(atPath: file.path) != script
+          || !FileManager.default.isExecutableFile(atPath: file.path) else { continue }
+        try? FileManager.default.removeItem(at: file)
+        try script.write(to: file)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
       }
     }
