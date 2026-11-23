@@ -267,9 +267,25 @@ enum AgentSandbox {
     }
   }
 
-  /// System tools first, then Homebrew and `/usr/local` when they exist.
+  /// Tool folders and SDK of the developer folder `xcode-select` names. `/usr/bin/python3`,
+  /// `git` or `cc` are `xcrun` shims: with Xcode selected, each call in the sandbox started
+  /// `xcodebuild` (seconds, and its warnings mixed into the output), so the real tools come first.
+  static func developerTools(_ developer: String?) -> (paths: [String], sdk: String?) {
+    guard let developer, developer.hasPrefix("/") else { return ([], nil) }
+    let paths = [developer + "/usr/bin", developer + "/Toolchains/XcodeDefault.xctoolchain/usr/bin"]
+      .filter { FileManager.default.fileExists(atPath: $0) }
+    let sdk = [developer + "/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk", developer + "/SDKs/MacOSX.sdk"]
+      .first { FileManager.default.fileExists(atPath: $0) }
+    return (paths, sdk)
+  }
+
+  static var developerDirectory: String? {
+    try? FileManager.default.destinationOfSymbolicLink(atPath: "/private/var/db/xcode_select_link")
+  }
+
+  /// Developer tools first, then the system's, then Homebrew and `/usr/local` when they exist.
   static var commandPath: String {
-    (["/usr/bin", "/bin", "/usr/sbin", "/sbin"]
+    (developerTools(developerDirectory).paths + ["/usr/bin", "/bin", "/usr/sbin", "/sbin"]
       + ["/opt/homebrew/bin", "/usr/local/bin"].filter { FileManager.default.fileExists(atPath: $0) })
       .joined(separator: ":")
   }
@@ -399,6 +415,7 @@ enum AgentSandbox {
     ]
     let environment = [
       "PATH=\(commandPath)", "HOME=\(home.path)", "TMPDIR=\(home.path)/tmp/", "LC_ALL=C",
+    ] + (developerTools(developerDirectory).sdk.map { ["SDKROOT=\($0)"] } ?? []) + [
       // Non-interactive tools (mini-swe-agent): no pager, colors, prompts or update checks.
       "PAGER=cat", "GIT_PAGER=cat", "NO_COLOR=1", "TERM=dumb", "CI=1", "GIT_TERMINAL_PROMPT=0",
       "PIP_DISABLE_PIP_VERSION_CHECK=1", "PIP_NO_INPUT=1", "npm_config_update_notifier=false",

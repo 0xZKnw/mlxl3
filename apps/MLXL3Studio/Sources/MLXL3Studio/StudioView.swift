@@ -460,13 +460,15 @@ private struct ChatWorkspaceView: View {
             } else if studio.selectedMode == .lab {
                 LabWorkspaceView()
             } else if let conversation = studio.currentConversation, !conversation.messages.isEmpty {
-                if studio.selectedMode == .agent { AgentWorkspaceBar() }
                 MessagesView(messages: conversation.messages)
                 ComposerView()
                     .matchedGeometryEffect(id: "composer", in: composerMotion, properties: .position)
                     .padding(.horizontal, 32)
                     .padding(.top, 10)
-                    .padding(.bottom, 22)
+                    .padding(.bottom, studio.selectedMode == .agent ? 8 : 22)
+                if studio.selectedMode == .agent {
+                    AgentTaskBar().padding(.horizontal, 36).padding(.bottom, 16)
+                }
             } else {
                 WelcomeView(composerMotion: composerMotion)
                     .transition(.opacity)
@@ -540,44 +542,63 @@ private struct WorkspaceHeader: View {
     }
 }
 
-private struct AgentWorkspaceBar: View {
+/// Agent controls under the composer: the task's studio and folder, its runnable HTML files,
+/// and its Internet switch. Everything else lives in Agent Studio.
+private struct AgentTaskBar: View {
     @EnvironmentObject private var studio: StudioModel
     @State private var htmlFiles: [URL] = []
     @State private var previewError: String?
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-        HStack(spacing: 18) {
-            Button { if let workspace = studio.agentWorkspaceURL { studio.studioDocument = StudioDocument(workspace: workspace) } } label: { Label("Agent Studio", systemImage: "sidebar.right") }.buttonStyle(.bordered)
-                .disabled(studio.isGenerating || studio.agentStudioBusy)
-            Button(action: studio.openAgentWorkspace) { Label(L("Dossier de travail", "Workspace folder"), systemImage: "folder") }
-                .buttonStyle(.plain).help(L("Ouvrir le dossier isolé de cette tâche dans le Finder", "Open this task’s isolated folder in Finder"))
-            Label(L("Ce Mac", "This Mac"), systemImage: "desktopcomputer")
-            Spacer()
-            Label(L("Outils sans réseau · aperçu avec imports distants possibles", "Tools offline · preview may load remote imports"), systemImage: "lock.shield")
-        }
-        if !studio.isGenerating && !htmlFiles.isEmpty {
-            ScrollView(.horizontal) {
-                HStack(spacing: 10) {
-                    ForEach(htmlFiles, id: \.self) { file in
-                        Button {
-                            guard let workspace = studio.agentWorkspaceURL else { return }
-                            do {
-                                _ = try HTMLPreview.source(at: file, in: workspace)
-                                studio.studioDocument = StudioDocument(workspace: workspace, file: file)
-                            }
-                            catch { previewError = error.localizedDescription }
-                        } label: { Label(file.lastPathComponent, systemImage: "play.rectangle") }
-                        .buttonStyle(.bordered)
-                        .help(L("Exécuter ce fichier HTML dans l’app", "Run this HTML file in the app"))
+        let internet = studio.agentPermissions.internet
+        HStack(spacing: 8) {
+            Button {
+                if let workspace = studio.agentWorkspaceURL { studio.studioDocument = StudioDocument(workspace: workspace) }
+            } label: {
+                Label("Agent Studio", systemImage: "sidebar.right").padding(.horizontal, 8).frame(height: 28)
+            }
+            .buttonStyle(StudioControlStyle())
+            .disabled(studio.isGenerating || studio.agentStudioBusy)
+            .help(L("Fichiers, changements à valider, versions et permissions de la tâche", "The task’s files, changes to review, versions and permissions"))
+            Button(action: studio.openAgentWorkspace) {
+                Image(systemName: "folder").frame(width: 28, height: 28)
+            }
+            .buttonStyle(StudioControlStyle())
+            .help(L("Ouvrir le dossier de la tâche dans le Finder", "Open the task’s folder in Finder"))
+            .accessibilityLabel(L("Dossier de la tâche", "Task folder"))
+            if !studio.isGenerating, let first = htmlFiles.first {
+                if htmlFiles.count == 1 {
+                    Button { preview(first) } label: {
+                        Label(first.lastPathComponent, systemImage: "play.rectangle").lineLimit(1)
+                            .padding(.horizontal, 8).frame(height: 28)
                     }
+                    .buttonStyle(StudioControlStyle())
+                    .help(L("Exécuter ce fichier HTML dans l’app", "Run this HTML file in the app"))
+                } else {
+                    Menu {
+                        ForEach(htmlFiles, id: \.self) { file in Button(file.lastPathComponent) { preview(file) } }
+                    } label: { Label(L("Aperçu", "Preview"), systemImage: "play.rectangle") }
+                    .menuStyle(.borderlessButton).fixedSize()
+                    .help(L("Exécuter un fichier HTML de la tâche dans l’app", "Run one of the task’s HTML files in the app"))
                 }
             }
-            .scrollIndicators(.hidden)
+            Spacer(minLength: 8)
+            Button { studio.setAgentInternet(!internet) } label: {
+                Label("Internet", systemImage: internet ? "globe" : "network.slash")
+                    .padding(.horizontal, 8).frame(height: 28)
+                    .foregroundStyle(internet ? StudioTheme.ink : StudioTheme.quiet)
+            }
+            .buttonStyle(StudioControlStyle(emphasized: internet))
+            .disabled(studio.isGenerating || studio.agentStudioBusy)
+            .help(internet
+                ? L("Internet activé pour cette tâche : commandes (pip, npm, git clone), fetch et recherche web. Cliquer pour le couper.",
+                    "Internet is on for this task: commands (pip, npm, git clone), fetch and web search. Click to turn it off.")
+                : L("Internet coupé pour cette tâche. Cliquer pour l’activer.", "Internet is off for this task. Click to turn it on."))
+            .accessibilityValue(internet ? L("activé", "on") : L("coupé", "off"))
+            .accessibilityIdentifier("agent.bar.internet")
         }
-        }
-        .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
-        .padding(.horizontal, 22).padding(.vertical, 13)
-        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 9))
+        .font(.system(size: 12))
+        .foregroundStyle(StudioTheme.secondary)
         .task(id: "\(studio.selectedConversationID?.uuidString ?? "")/\(studio.isGenerating)") {
             htmlFiles = []
             guard !studio.isGenerating, let workspace = studio.agentWorkspaceURL else { return }
@@ -588,6 +609,14 @@ private struct AgentWorkspaceBar: View {
         .alert(L("Aperçu HTML impossible", "HTML preview unavailable"), isPresented: Binding(
             get: { previewError != nil }, set: { if !$0 { previewError = nil } }
         )) { Button("OK") { previewError = nil } } message: { Text(previewError ?? "") }
+    }
+
+    private func preview(_ file: URL) {
+        guard let workspace = studio.agentWorkspaceURL else { return }
+        do {
+            _ = try HTMLPreview.source(at: file, in: workspace)
+            studio.studioDocument = StudioDocument(workspace: workspace, file: file)
+        } catch { previewError = error.localizedDescription }
     }
 }
 
@@ -624,10 +653,6 @@ private struct WelcomeView: View {
                 .padding(.bottom, 32)
                 .accessibilityAddTraits(.isHeader)
 
-            if agent {
-                AgentWorkspaceBar()
-                    .padding(.bottom, 8)
-            }
             ComposerView()
                 .matchedGeometryEffect(id: "composer", in: composerMotion, properties: .position)
             if agent {
@@ -635,9 +660,7 @@ private struct WelcomeView: View {
                     Text(studio.mcpErrors.values.sorted().joined(separator: "\n"))
                         .font(.caption).foregroundStyle(.red).textSelection(.enabled)
                 }
-                Text(L("Seuls les fichiers de cette tâche sont accessibles. Réseau bloqué ; commandes limitées à 5 s. Ouvrez le dossier pour y déposer les fichiers à modifier.", "Only this task’s files are accessible. Network blocked; commands limited to 5 s. Open the folder to add files to edit."))
-                    .font(.caption).foregroundStyle(StudioTheme.secondary)
-                    .multilineTextAlignment(.center).padding(.top, 12)
+                AgentTaskBar().padding(.horizontal, 4).padding(.top, 8)
             } else {
                 HStack(spacing: 12) {
                     Button(action: studio.openModelManager) {

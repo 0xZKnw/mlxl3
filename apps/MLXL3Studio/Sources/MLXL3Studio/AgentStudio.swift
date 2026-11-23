@@ -236,17 +236,14 @@ struct AgentStudioView: View {
           }
         }.padding(.horizontal, 10).padding(.bottom, 20)
       }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-      VStack(alignment: .leading, spacing: 6) {
-        Label(
-          L("Copie isolée · secrets protégés · Internet selon la tâche", "Isolated copy · secrets protected · Internet per task"), systemImage: "lock.shield")
-        if model.state.skippedFiles > 0 {
-          Text(
-            L(
-              "\(model.state.skippedFiles) éléments exclus à l’import",
-              "\(model.state.skippedFiles) items excluded on import"))
-        }
-      }.font(.system(size: 9)).foregroundStyle(StudioTheme.quiet).padding(16).fixedSize(
-        horizontal: false, vertical: true)
+      if model.state.skippedFiles > 0 {
+        Text(
+          L(
+            "\(model.state.skippedFiles) éléments exclus à l’import",
+            "\(model.state.skippedFiles) items excluded on import")
+        ).font(.system(size: 9)).foregroundStyle(StudioTheme.quiet).padding(16).fixedSize(
+          horizontal: false, vertical: true)
+      }
       StudioBackButton(action: { navigate { close() } })
         .padding(.horizontal, 18).padding(.bottom, 18)
     }.frame(maxHeight: .infinity, alignment: .top).modifier(StudioSidebarSurface())
@@ -516,9 +513,6 @@ struct AgentStudioView: View {
     VStack(alignment: .leading, spacing: 14) {
       Label(L("Sandbox locale", "Local sandbox"), systemImage: "lock.shield").font(
         .system(size: 14, weight: .medium))
-      Text(L("Hors ligne, dans la copie isolée.", "Offline, inside the isolated copy.")).font(
-        .system(size: 11)
-      ).foregroundStyle(StudioTheme.quiet)
       Picker(
         L("Outils du modèle", "Model tools"),
         selection: Binding(

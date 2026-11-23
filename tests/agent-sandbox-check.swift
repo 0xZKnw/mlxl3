@@ -919,6 +919,25 @@ struct AgentSandboxCheck {
         && FileManager.default.fileExists(atPath: home.appendingPathComponent("cache.txt").path)
         && !FileManager.default.fileExists(atPath: root.appendingPathComponent("cache.txt").path),
       "private home and temporary folder outside the copy: \(environment.output)")
+    // The real developer tools come before the xcrun shims (with Xcode selected, each shim
+    // started xcodebuild in the sandbox and mixed its warnings into the output, as on CI).
+    let xcode = "/Applications/Xcode.app/Contents/Developer", tools = "/Library/Developer/CommandLineTools"
+    if FileManager.default.fileExists(atPath: xcode + "/usr/bin/python3") {
+      let found = AgentSandbox.developerTools(xcode)
+      check(
+        found.paths == [xcode + "/usr/bin", xcode + "/Toolchains/XcodeDefault.xctoolchain/usr/bin"]
+          && found.sdk == xcode + "/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk", "Xcode tools: \(found)")
+    }
+    if FileManager.default.fileExists(atPath: tools + "/usr/bin") {
+      let found = AgentSandbox.developerTools(tools)
+      check(found.paths == [tools + "/usr/bin"] && found.sdk.map { $0.hasPrefix(tools + "/SDKs/") } != false, "Command Line Tools: \(found)")
+    }
+    check(AgentSandbox.developerTools(nil).paths.isEmpty && AgentSandbox.developerTools("usr").paths.isEmpty, "no developer folder")
+    let selected = AgentSandbox.developerTools(AgentSandbox.developerDirectory)
+    let path = try run("printf '%s|%s' \"$PATH\" \"$SDKROOT\"", 5)
+    check(
+      path.output.hasPrefix((selected.paths + ["/usr/bin:"]).joined(separator: ":")) && path.output.hasSuffix("|" + (selected.sdk ?? "")),
+      "developer tools first on PATH: \(path.output)")
     for target in ["/Library/Developer/mlxl3-probe", "/private/etc/mlxl3-probe", "/usr/local/mlxl3-probe"] {
       let write = try run("touch \(target)", 5)
       check(write.status != 0 && !FileManager.default.fileExists(atPath: target), "toolchain folder writable: \(target)")

@@ -2682,7 +2682,25 @@ extension StudioModel {
         return (try? AgentProjectStore(workspace: url).state().permissions) ?? AgentPermissions()
     }
 
+    /// The Internet switch of the Agent bar: saved in the task's permissions (Agent Studio's
+    /// Sandbox panel shows the same value), then the sandbox registry is refreshed.
+    func setAgentInternet(_ enabled: Bool) {
+        guard !isGenerating, !agentStudioBusy, let url = agentWorkspaceURL else { return }
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            let store = AgentProjectStore(workspace: url)
+            try store.ensureState()
+            var permissions = try store.state().permissions
+            guard permissions.internet != enabled else { return }
+            permissions.internet = enabled
+            objectWillChange.send()
+            try store.setPermissions(permissions)
+            refreshAgentPermissions()
+        } catch { featureError = error.localizedDescription }
+    }
+
     func refreshAgentPermissions() {
+        objectWillChange.send()  // the Agent bar reads the saved permissions
         guard !isGenerating, engineState.isReady, bridgeUsesAgentRegistry else { return }
         do { _ = try prepareAgentRegistry(); updateMCPConnection() }
         catch { featureError = error.localizedDescription }
