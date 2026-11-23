@@ -13,14 +13,20 @@ struct MLXL3StudioApp: App {
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
-        if (arguments.count == 4 || arguments.count == 6), arguments[1] == "--agent-command" {
-            AgentSandbox.commandMode(root: arguments[2], command: arguments[3], seconds: arguments.count == 6 ? Double(arguments[4]) ?? 0 : 5, writable: arguments.count == 4 || arguments[5] == "write")
+        if [4, 6, 7].contains(arguments.count), arguments[1] == "--agent-command" {
+            AgentSandbox.commandMode(root: arguments[2], command: arguments[3], seconds: arguments.count >= 6 ? Double(arguments[4]) ?? 0 : 5, writable: arguments.count == 4 || arguments[5] == "write",
+                                     mode: arguments.count == 7 && arguments[6].hasPrefix("tail") ? .headAndTail : .stop,
+                                     network: arguments.count == 7 && arguments[6] == "tail+net")
         }
-        if arguments.count == 7, arguments[1] == "--agent-js" {
+        if arguments.count == 10, arguments[1] == "--agent-js" {
             AgentJavaScript.supervisorMode(arguments: arguments)
         }
-        if (arguments.count == 3 || arguments.count == 4), arguments[1] == "--agent-tools" {
-            AgentSandbox.serve(root: arguments[2], permissionsPath: arguments.count == 4 ? arguments[3] : nil)
+        if arguments.count == 4, arguments[1] == "--agent-js-kernel" {
+            AgentJavaScript.kernelMode(arguments: arguments)
+        }
+        if (3...5).contains(arguments.count), arguments[1] == "--agent-tools" {
+            AgentSandbox.serve(root: arguments[2], permissionsPath: arguments.count >= 4 ? arguments[3] : nil,
+                               longCalls: arguments.count == 5 && arguments[4] == "long-calls")
         }
         if ProcessInfo.processInfo.arguments.contains("--check-chat-timeline") {
             do {

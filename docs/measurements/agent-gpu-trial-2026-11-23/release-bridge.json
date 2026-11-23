@@ -1,0 +1,70 @@
+{
+ "engine": "/private/tmp/claude-501/-Users-justin--claude-spares-spare-AhUlxp/6e6d9e44-f40b-4645-a674-0645a3953a6d/scratchpad/verify/engine/mlxl3",
+ "model": "Inkling-2-Mini-EXL3-3.33bpw-a3d2f7a6",
+ "checks": {
+  "tool": {
+   "answer": "The project has **3 files**: `a.txt`, `b.txt`, and `src/c.txt`.",
+   "calls": [
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "return list().length"
+     }
+    },
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "return list()"
+     }
+    }
+   ],
+   "results": [
+    {
+     "error": false,
+     "text": "Result:\n3"
+    },
+    {
+     "error": false,
+     "text": "Result:\n[\n  \"a.txt\",\n  \"b.txt\",\n  \"src/c.txt\"\n]"
+    }
+   ],
+   "stop_reason": "eos",
+   "dspark_blocks": null,
+   "tokens": 383
+  },
+  "dspark_on": {
+   "answer": "",
+   "calls": [],
+   "results": [],
+   "stop_reason": "max_tokens",
+   "dspark_blocks": 57,
+   "tokens": 96
+  },
+  "dspark_absent": {
+   "answer": "",
+   "calls": [],
+   "results": [],
+   "stop_reason": "max_tokens",
+   "dspark_blocks": null,
+   "tokens": 96
+  },
+  "dspark_off": {
+   "answer": "",
+   "calls": [],
+   "results": [],
+   "stop_reason": "max_tokens",
+   "dspark_blocks": null,
+   "tokens": 96
+  }
+ },
+ "passed": true,
+ "ready": {
+  "runtime_commit": "ed3898889399",
+  "runtime_version": "2.0.27",
+  "tool_rounds_supported": true,
+  "mcp_call_timeout_supported": true,
+  "dspark_supported": true
+ },
+ "tool_ok": true,
+ "dspark_ok": true
+}

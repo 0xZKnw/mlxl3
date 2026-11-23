@@ -2,6 +2,7 @@
 import { applyAppearance, DEFAULT_APPEARANCE, idleSeconds, IDLE_DELAYS, normalizeAppearance, normalizeHex } from "./appearance.js";
 import { paint as paintAurora } from "./aurora.js";
 import { pickLanguage, translator } from "./i18n.js";
+import { SoftAurora } from "./soft-aurora.js";
 import { icon, monogram } from "./icons.js";
 import { addSample, chartPoints, exportJson, history, labSample, latestByModel, METRICS, models as labModels, restoreSamples } from "./lab.js";
 import { engineMessages, escapeHtml, formatBytes, formatStats, renderMarkdown, splitThinking } from "./render.js";
@@ -53,6 +54,8 @@ let hub = { query: "", results: [], limit: HUB_PAGE, searching: false, error: nu
 let modelsTab = "library";
 let inspectorOpen = false;
 let appearance = normalizeAppearance(null);
+const softAurora = new SoftAurora($("aurora")); // Settings → Appearance → Background → Soft aurora
+let paintedBackground = null;
 let lastModel = null; // Mac "Last selected model": the id most recently loaded
 let startupModel = ""; // "" = last selected model
 let idleTimer = null;
@@ -216,6 +219,17 @@ function renderAppearance() {
   $("custom-selected").hidden = !custom;
   $("use-custom-accent").hidden = custom && normalizeHex($("custom-accent").value) === appearance.custom;
   document.querySelector(".custom-accent").classList.toggle("selected", custom);
+  if (paintedBackground !== appearance.background) paintBackground();
+}
+
+// The ASCII print is static and repainted on resize/theme; the soft aurora animates itself.
+function paintBackground() {
+  paintedBackground = appearance.background;
+  if (appearance.background === "soft") softAurora.start();
+  else {
+    softAurora.stop();
+    paintAurora($("aurora"));
+  }
 }
 
 function setAppearance(change) {
@@ -362,7 +376,7 @@ function applyTheme() {
   const theme = $("theme").value;
   if (theme) document.documentElement.dataset.theme = theme;
   else delete document.documentElement.dataset.theme;
-  requestAnimationFrame(() => paintAurora($("aurora")));
+  requestAnimationFrame(paintBackground);
 }
 
 function sampling() {
@@ -756,6 +770,7 @@ function render() {
   $("engine-note").title = $("engine-note").textContent;
   $("send").hidden = Boolean(session.active);
   $("stop").hidden = !session.active;
+  softAurora.setBusy(Boolean(session.active));
   const blocked = sendBlocked();
   $("send").disabled = Boolean(blocked);
   $("send").title = blocked ?? t("send");
@@ -818,6 +833,7 @@ function showPage(page) {
   $("settings-page").hidden = page !== "settings";
   $("workspace-page").hidden = page !== "workspace";
   $("mcp-page").hidden = page !== "mcp";
+  softAurora.setAnimated(page === "chat"); // Mac: the aurora moves only behind the conversation
   closeMenus();
   if (page === "workspace") { renderWorkspacePage(); if (wsTab === "documents") refreshDocs(); }
   if (page === "mcp") { if (mcpEditing === null && mcpServers().length) editServer(mcpServers()[0].name); renderMcpPage(); refreshMcp(); }
@@ -2391,9 +2407,9 @@ function wire() {
   let resizeTimer = null;
   window.addEventListener("resize", () => {
     clearTimeout(resizeTimer);
-    resizeTimer = setTimeout(() => { paintAurora($("aurora")); if (inspectorOpen) setInspector(true); }, 120);
+    resizeTimer = setTimeout(() => { paintBackground(); if (inspectorOpen) setInspector(true); }, 120);
   });
-  window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", () => paintAurora($("aurora")));
+  window.matchMedia("(prefers-color-scheme: light)").addEventListener("change", paintBackground);
 }
 
 async function subscribe() {

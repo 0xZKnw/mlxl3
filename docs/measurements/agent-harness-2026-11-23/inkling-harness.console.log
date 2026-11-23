@@ -1,0 +1,21 @@
+[1] bugfix/javascript rep0 rounds<=24: PASS rounds=10 calls=10 unreadable=0 errors=0 stop=eos tokens=3410 280.5 s 
+[2] rename/javascript rep0 rounds<=24: PASS rounds=5 calls=6 unreadable=0 errors=0 stop=eos tokens=1360 121.2 s 
+[3] question/javascript rep0 rounds<=24: FAIL rounds=4 calls=4 unreadable=0 errors=0 stop=eos tokens=685 72.4 s 
+{
+ "status": "complete",
+ "summary": {
+  "javascript/bugfix": {
+   "runs": 1,
+   "passed": 1
+  },
+  "javascript/rename": {
+   "runs": 1,
+   "passed": 1
+  },
+  "javascript/question": {
+   "runs": 1,
+   "passed": 0
+  }
+ }
+}
+exit=0

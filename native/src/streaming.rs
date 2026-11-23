@@ -19,6 +19,10 @@ pub struct ThinkingSplitter {
     buffer: String,
     drop_newline: bool,
     channel_header: Option<String>,
+    /// Inkling 2: answer text was written, then a new `<|message_model|>` began; the next
+    /// answer text starts a paragraph (a tool call header must not stick to that text).
+    answer_written: bool,
+    separator_pending: bool,
 }
 
 impl ThinkingSplitter {
@@ -33,6 +37,8 @@ impl ThinkingSplitter {
             buffer: String::new(),
             drop_newline: false,
             channel_header: None,
+            answer_written: false,
+            separator_pending: false,
         }
     }
 
@@ -50,6 +56,15 @@ impl ThinkingSplitter {
             text
         };
         if !text.is_empty() {
+            if self.mode == Channel::Answer {
+                if std::mem::take(&mut self.separator_pending) {
+                    out.push(Fragment {
+                        channel: Channel::Answer,
+                        text: "\n\n".into(),
+                    });
+                }
+                self.answer_written = true;
+            }
             out.push(Fragment {
                 channel: self.mode,
                 text,
@@ -88,7 +103,8 @@ impl ThinkingSplitter {
                 self.mode = Channel::Answer;
                 self.drop_newline = false;
             }
-            "<|message_model|>" | "<|content_text|>" => {}
+            "<|message_model|>" => self.separator_pending |= self.answer_written,
+            "<|content_text|>" => {}
             _ => self.fragment(control.to_owned(), &mut out),
         }
         out
@@ -277,6 +293,41 @@ mod tests {
                 expected
             );
         }
+    }
+
+    #[test]
+    fn inkling_messages_after_answer_text_start_a_paragraph() {
+        let stream: [(&str, Option<&str>); 8] = [
+            ("<|message_model|>", Some("<|message_model|>")),
+            ("<|content_thinking|>", Some("<|content_thinking|>")),
+            ("Plan.", None),
+            ("<|end_message|>", Some("<|end_message|>")),
+            ("<|message_model|>", Some("<|message_model|>")),
+            ("<|content_text|>", Some("<|content_text|>")),
+            ("Je liste.", None),
+            ("<|end_message|>", Some("<|end_message|>")),
+        ];
+        let tail: [(&str, Option<&str>); 3] = [
+            ("<|message_model|>", Some("<|message_model|>")),
+            ("sandbox.javascript", None),
+            ("<|content_invoke_tool_json|>{}", None),
+        ];
+        let mut parser = ThinkingSplitter::new("");
+        let mut answer = String::new();
+        let mut thinking = String::new();
+        for (text, control) in stream.into_iter().chain(tail) {
+            for fragment in parser.feed_token(text, control) {
+                match fragment.channel {
+                    Channel::Thinking => thinking.push_str(&fragment.text),
+                    Channel::Answer => answer.push_str(&fragment.text),
+                }
+            }
+        }
+        assert_eq!(thinking, "Plan.");
+        assert_eq!(
+            answer,
+            "Je liste.\n\nsandbox.javascript<|content_invoke_tool_json|>{}"
+        );
     }
 
     #[test]

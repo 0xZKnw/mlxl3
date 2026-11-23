@@ -65,3 +65,28 @@ test("idle unload delays mirror ModelIdleUnloadDelay", () => {
   assert.equal(idleSeconds("bogus"), 900, "default is 15 minutes");
   assert.equal(idleSeconds("__proto__"), 900);
 });
+
+test("background is ASCII by default, keeps soft, rejects anything else", async () => {
+  const { BACKGROUNDS } = await import("../src/appearance.js");
+  assert.deepEqual(BACKGROUNDS, ["ascii", "soft"]);
+  assert.equal(normalizeAppearance({}).background, "ascii");
+  assert.equal(normalizeAppearance({ background: "soft" }).background, "soft");
+  for (const bad of ["mesh", "__proto__", "toString", 1, null]) assert.equal(normalizeAppearance({ background: bad }).background, "ascii", String(bad));
+  const root = { style: { setProperty() {} }, dataset: {} };
+  applyAppearance(root, { background: "soft" });
+  assert.equal(root.dataset.background, "soft");
+  applyAppearance(root, { background: "nope" });
+  assert.equal(root.dataset.background, "ascii");
+});
+
+test("every appearance menu option survives normalisation", async () => {
+  const { readFileSync } = await import("node:fs");
+  const html = readFileSync(new URL("../src/index.html", import.meta.url), "utf8");
+  const menus = [...html.matchAll(/<select data-set="([a-zA-Z]+)">([\s\S]*?)<\/select>/g)];
+  assert.ok(menus.some((m) => m[1] === "background"), "Settings → Appearance offers the background");
+  for (const [, field, body] of menus) {
+    const values = [...body.matchAll(/value="([^"]*)"/g)].map((m) => m[1]);
+    assert.ok(values.length >= 2, field);
+    for (const value of values) assert.equal(normalizeAppearance({ [field]: value })[field], value, `${field}=${value}`);
+  }
+});

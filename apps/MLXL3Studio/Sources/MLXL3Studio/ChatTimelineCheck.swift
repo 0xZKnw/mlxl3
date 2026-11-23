@@ -35,6 +35,29 @@ enum ChatTimelineCheck {
         legacy.removeValue(forKey: "parts")
         let oldSnapshot = try JSONDecoder().decode(ChatMessageSnapshot.self, from: JSONSerialization.data(withJSONObject: legacy))
         try check(ChatMessage(snapshot: oldSnapshot)!.content == message.content, "Legacy chat migration failed")
+        // The code a tool ran is kept with it; conversations saved before decode without it.
+        let agent = ChatMessage(role: .assistant, content: "", isStreaming: true)
+        agent.startTool(id: "js-1", serverName: "sandbox", toolName: "javascript", arguments: "const x = 1;\nreturn x")
+        agent.finishTool(id: "js-1", result: "Result:\n1", isError: false)
+        let agentData = try JSONEncoder().encode(agent.snapshot)
+        let agentRestored = ChatMessage(snapshot: try JSONDecoder().decode(ChatMessageSnapshot.self, from: agentData))!
+        try check(agentRestored.toolActivities[0].arguments == "const x = 1;\nreturn x", "Tool code lost on relaunch")
+        try check(restored.toolActivities[0].arguments == nil, "A tool without arguments gained some")
+        let oldActivity = try JSONDecoder().decode(
+            ToolActivity.self,
+            from: Data(#"{"id":"a","serverName":"exa","toolName":"t","state":"complete","result":"r"}"#.utf8))
+        try check(oldActivity.arguments == nil && oldActivity.result == "r", "Saved tool activities must still decode")
+        func shown(_ json: String) throws -> String? {
+            try JSONDecoder().decode(
+                BridgeEvent.self,
+                from: Data((#"{"type":"tool_start","request_id":"r","tool_call_id":"c","tool_name":"t""# + json + "}").utf8)
+            ).arguments?.text
+        }
+        try check(try shown(#","arguments":{"code":"const x = 1;\nreturn x"}"#) == "const x = 1;\nreturn x", "JavaScript code shown as written")
+        try check(try shown(#","arguments":{"path":"a.txt","limit":2}"#) == #"{"limit":2,"path":"a.txt"}"#, "Other arguments shown as sorted JSON")
+        try check(try shown(#","arguments":{"code":"x","path":"a"}"#) == #"{"code":"x","path":"a"}"#, "Code beside other arguments stays JSON")
+        try check(try shown(#","arguments":"{\"code\":\"…""#) == #"{"code":"…"#, "Truncated arguments shown as text")
+        try check(try shown("") == nil && (try shown(#","arguments":null"#)) == nil, "Older engines send no arguments")
         let interrupted = ChatMessage(role: .assistant, content: "", isStreaming: true)
         interrupted.processing("Traitement")
         interrupted.fail("Arrêtée")

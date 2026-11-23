@@ -5,7 +5,7 @@
   --c: 255 255 255; /* "contrast": white in dark mode, black in light mode */
   --tint: var(--tint-dark, #bba4f3);
   --ready: rgb(107 255 176); --busy: rgb(255 201 97); --failed: rgb(255 92 99); --warn: #ffa64d;
-  --aurora: 0.58;
+  --aurora: 0.58; --aurora-soft: 0.72;
   --sans: "Segoe UI Variable Text", "Segoe UI Variable", "Segoe UI", system-ui, sans-serif;
   --serif: ui-serif, "Iowan Old Style", Georgia, Cambria, "Times New Roman", serif;
   --mono: "Cascadia Mono", Consolas, ui-monospace, Menlo, monospace;
@@ -15,14 +15,14 @@
   --canvas: rgb(247 247 247); --sidebar: rgb(237 237 237); --composer: #fff;
   --ink: rgb(26 26 26); --accent: rgb(46 46 46); --on-accent: #fff; --c: 0 0 0; --tint: var(--tint-light, #6642a4);
   --ready: rgb(22 163 92); --busy: rgb(196 128 0); --failed: rgb(214 52 60); --warn: #b85c00;
-  --aurora: 0.33; color-scheme: light;
+  --aurora: 0.33; --aurora-soft: 0.89; color-scheme: light;
 }
 @media (prefers-color-scheme: light) {
   :root:not([data-theme="dark"]) {
     --canvas: rgb(247 247 247); --sidebar: rgb(237 237 237); --composer: #fff;
     --ink: rgb(26 26 26); --accent: rgb(46 46 46); --on-accent: #fff; --c: 0 0 0; --tint: var(--tint-light, #6642a4);
     --ready: rgb(22 163 92); --busy: rgb(196 128 0); --failed: rgb(214 52 60); --warn: #b85c00;
-    --aurora: 0.33; color-scheme: light;
+    --aurora: 0.33; --aurora-soft: 0.89; color-scheme: light;
   }
 }
 :root {
@@ -50,6 +50,9 @@ button:disabled { opacity: 0.32; cursor: default; }
 .caps { font-size: 12px; font-weight: 500; letter-spacing: 1.4px; }
 
 #aurora { position: fixed; inset: 0; width: 100%; height: 100%; opacity: var(--aurora); pointer-events: none; }
+/* Soft aurora (2.0 betas): Mac opacity 0.72 dark / 0.89 light, 0.22 with increased contrast. */
+:root[data-background="soft"] #aurora { opacity: var(--aurora-soft); }
+@media (prefers-contrast: more) { :root[data-background="soft"] #aurora { opacity: 0.22; } }
 .app { position: fixed; inset: 0; display: flex; }
 .page { animation: fade-in 0.18s ease-out; }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }

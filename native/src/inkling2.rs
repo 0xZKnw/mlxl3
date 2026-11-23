@@ -675,6 +675,8 @@ thread_local! {
     static DEPTH_ONE_MUTATE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// Mutation for the gate component test: the tail's reduction tree runs in the opposite order.
     static GATE_TAIL_MUTATE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// Mutation for the router tail component test: the score sum runs in the opposite order.
+    static ROUTER_TAIL_MUTATE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// Paired A/B timing (`fusion_ab_profile`): P17 steps turned off on this thread (`Some("")` = none off).
     static P17_TEST_OFF: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
 }
@@ -1264,6 +1266,9 @@ thread_local! {
     static KV_INPLACE_OVERRIDE: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
     /// Mutation for the parity test: skip the sink rewrite of sliding visits.
     static KV_SKIP_SINK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// SPEED-2026-11-23-INK2M-MAYA PC mutations of `resume_prefix`: 1 keeps the live convolution windows,
+    /// 2 keeps the live sliding K/V instead of the saved ones.
+    static PREFIX_MUTATION: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
     /// SPEED-INK2M-P13: `run` submits by `async_eval` and returns without waiting for the GPU.
     static ASYNC_SUBMIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// SPEED-INK2M-P13: thread CPU time spent in `run` (construction, evaluation) since the last take.
@@ -2265,6 +2270,122 @@ const ROUTER_SOURCE: &str = r#"
     }
 "#;
 
+/// SPEED-2026-11-23-INK2M-MAYA RT: the router tail of one row in one kernel — MLX 0.32.2's `Sigmoid`
+/// (`1 / (1 + exp(|x|))`, `x < 0 ? y : 1 - y`, precise exp and division), the biased top-k of
+/// `router::grouped_topk_biased` (128 experts, one group: same threads, same comparisons), then the
+/// scores' sum in the order of MLX's row reduction of 8 values, the division and the scale.
+const ROUTER_TAIL_SOURCE: &str = r#"
+    uint tid = thread_position_in_threadgroup.x;
+    threadgroup float probabilities[EXPERTS];
+    threadgroup float routing[EXPERTS];
+    threadgroup bool used[EXPERTS];
+    threadgroup float candidate[EXPERTS];
+    threadgroup float chosen[TOP_K];
+    float x = logits[tid];
+    float y = metal::precise::divide(1.0f, 1.0f + metal::precise::exp(metal::abs(x)));
+    float p = (x < 0.0f) ? y : 1.0f - y;
+    probabilities[tid] = p;
+    routing[tid] = p + bias[tid];
+    used[tid] = false;
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    for (uint rank = 0u; rank < TOP_K; ++rank) {
+        candidate[tid] = !used[tid] ? routing[tid] : -INFINITY;
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (tid == 0u) {
+            float best = -INFINITY; uint winner = 0u;
+            for (uint e = 0u; e < EXPERTS; ++e) {
+                if (candidate[e] > best) { best = candidate[e]; winner = e; }
+            }
+            used[winner] = true;
+            indices[rank] = winner;
+            chosen[rank] = probabilities[winner];
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+    }
+    if (tid == 0u) {
+        float total = 0.0f;
+        SUM_ORDER
+        for (uint rank = 0u; rank < TOP_K; ++rank) {
+            scores[rank] = metal::precise::divide(chosen[rank], total) * SCALE;
+        }
+    }
+"#;
+
+impl Moe {
+    /// SPEED-2026-11-23-INK2M-MAYA RT: `(indices [1, k] u32, scores [1, k] f32)` of one row of router logits
+    /// in one kernel, or `None` outside its domain (several rows, not 128 experts, `MLXL3_INKLING_P17_OFF`
+    /// with `rt`).
+    fn router_tail_fused(&self, logits: &Array) -> Result<Option<(Array, Array)>> {
+        if !p17("rt") || logits.shape() != [1, 128] || logits.dtype() != Dtype::Float32 {
+            return Ok(None);
+        }
+        if self.bias.shape() != [128] || self.bias.dtype() != Dtype::Float32 || self.top_k != 8 {
+            return Ok(None);
+        }
+        router_tail_kernel(logits, &self.bias, self.scale).map(Some)
+    }
+}
+
+/// The RT kernel (see `ROUTER_TAIL_SOURCE`) for 128 experts and top-8.
+fn router_tail_kernel(logits: &Array, bias: &Array, scale: f32) -> Result<(Array, Array)> {
+    ensure!(
+        scale.is_finite() && scale > 0.0,
+        "router tail needs a positive scale"
+    );
+    #[cfg(test)]
+    let mutate = ROUTER_TAIL_MUTATE.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    let mutate = false;
+    // MLX's row reduction of 8 contiguous values: sequential from zero, `op(value, total)`
+    let order = if mutate {
+        "for (int r = int(TOP_K) - 1; r >= 0; --r) { total = chosen[r] + total; }"
+    } else {
+        "for (uint r = 0u; r < TOP_K; ++r) { total = chosen[r] + total; }"
+    };
+    let bits = scale.to_bits();
+    let key = [
+        i64::from(bits),
+        i64::from(mutate),
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+    ];
+    let kernel = crate::array::prepared_kernel("inkling_router_tail", key, || {
+        crate::array::PreparedKernel::new(
+            &format!("inkling_router_tail_{bits:08x}_{}", u8::from(mutate)),
+            &["logits", "bias"],
+            &["indices", "scores"],
+            "",
+            &ROUTER_TAIL_SOURCE
+                .replace("SUM_ORDER", order)
+                .replace("EXPERTS", "128u")
+                .replace("TOP_K", "8u")
+                .replace("SCALE", &format!("as_type<float>({bits}u)")),
+        )
+    })?;
+    let mut out = kernel.run(
+        &[logits, bias],
+        &[&[1, 8], &[1, 8]],
+        &[Dtype::UInt32, Dtype::Float32],
+        [128, 1, 1],
+        [128, 1, 1],
+    )?;
+    let scores = out.pop().context("router tail scores")?;
+    let indices = out.pop().context("router tail indices")?;
+    Ok((indices, scores))
+}
+
 impl Moe {
     /// SPEED-INK2M-P17 F3: logits `[1, experts]` FP32 of one FP16 row, or `None` outside the kernel's domain
     /// (several rows, other dtypes or shapes, MLX would pick another gemv, `MLXL3_INKLING_P17_OFF`).
@@ -2337,8 +2458,10 @@ impl Moe {
             Some(logits) => logits,
             None => x.astype(Dtype::Float32)?.matmul(&self.router_t)?,
         };
-        let (selected, scores) =
-            router::grouped_topk_biased(&logits, &self.bias, self.top_k, 1, 1, self.scale)?;
+        let (selected, scores) = match self.router_tail_fused(&logits)? {
+            Some(routes) => routes,
+            None => router::grouped_topk_biased(&logits, &self.bias, self.top_k, 1, 1, self.scale)?,
+        };
         capture_routes(&selected)?;
         if ablated("experts") {
             // keep the router in the graph, drop the expert kernels
@@ -2824,6 +2947,77 @@ pub struct Inkling2 {
     extent: i32,
     context_limit: i32,
     offset: i32,
+    /// SPEED-2026-11-23-INK2M-MAYA PC: lineage of the cache rows, renewed by every `reset` (process-wide
+    /// unique), so a saved prefix only resumes the state it was taken from.
+    epoch: u64,
+}
+
+/// Process-wide source of `Inkling2::epoch` values.
+fn next_epoch() -> u64 {
+    static EPOCH: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
+    EPOCH.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+}
+
+/// SPEED-2026-11-23-INK2M-MAYA PC: the committed state at a prefill chunk boundary, kept for the next turn
+/// of the conversation (bridge prompt cache). Full visits stored in place keep only their row count: their
+/// rows `[1, 1 + len)` are never rewritten afterwards (fixed zero sink at row 0, growth copies the rows),
+/// so the live buffers still hold them when the next turn resumes. Every other visit keeps references of
+/// its arrays at the capture point (MLX copies a buffer on the next write while it is referenced here).
+pub struct InklingPrefix {
+    epoch: u64,
+    offset: i32,
+    visits: Vec<PrefixVisit>,
+}
+
+struct PrefixVisit {
+    kv: PrefixKv,
+    conv: [Option<Array>; 4],
+}
+
+enum PrefixKv {
+    /// Full visit stored in place: the committed row count at the capture point.
+    Rows(i32),
+    /// Keys/values views and the in-place buffer (if any) at the capture point.
+    Saved {
+        keys: Option<Array>,
+        values: Option<Array>,
+        buffer: Option<(Array, Array, i32, i32, i32)>,
+    },
+}
+
+impl InklingPrefix {
+    pub fn offset(&self) -> i32 {
+        self.offset
+    }
+
+    /// Bytes this prefix keeps alive beyond the live state (saved buffers and convolution windows).
+    pub fn retained_bytes(&self) -> Result<usize> {
+        let mut bytes = 0usize;
+        for visit in &self.visits {
+            if let PrefixKv::Saved {
+                keys,
+                values,
+                buffer,
+            } = &visit.kv
+            {
+                let arrays: Vec<&Array> = match buffer {
+                    Some((k, v, ..)) => vec![k, v],
+                    None => [keys, values].into_iter().flatten().collect(),
+                };
+                for a in arrays {
+                    bytes = bytes
+                        .checked_add(a.retained_bytes()?)
+                        .context("Inkling prefix size overflow")?;
+                }
+            }
+            for a in visit.conv.iter().flatten() {
+                bytes = bytes
+                    .checked_add(a.retained_bytes()?)
+                    .context("Inkling prefix size overflow")?;
+            }
+        }
+        Ok(bytes)
+    }
 }
 
 impl Inkling2 {
@@ -2986,6 +3180,7 @@ impl Inkling2 {
             extent: c.rel_extent,
             context_limit: c.model_max_length,
             offset: 0,
+            epoch: next_epoch(),
         })
     }
 
@@ -3000,9 +3195,124 @@ impl Inkling2 {
     pub fn reset(&mut self) {
         self.offset = 0;
         self.pending = None;
+        self.epoch = next_epoch();
         for state in &mut self.states {
             *state = VisitState::default();
         }
+    }
+
+    /// SPEED-2026-11-23-INK2M-MAYA PC: the committed state now (no uncommitted verify call), to resume a
+    /// later prompt that starts with the same `offset()` tokens.
+    pub fn prefix_snapshot(&self) -> Result<InklingPrefix> {
+        ensure!(
+            self.pending.is_none() && self.states.iter().all(|s| s.pending_kv.is_none()),
+            "Inkling prefix taken during an uncommitted call"
+        );
+        let mut visits = Vec::with_capacity(self.states.len());
+        for (visit, state) in self.states.iter().enumerate() {
+            let full = self.layers[self.visits[visit]].attention.window.is_none();
+            let kv = match &state.kv_buffer {
+                Some(buffer) if full && buffer.base == 1 && buffer.zero == 0 => {
+                    PrefixKv::Rows(buffer.len)
+                }
+                buffer => PrefixKv::Saved {
+                    keys: state.keys.as_ref().map(Array::try_clone).transpose()?,
+                    values: state.values.as_ref().map(Array::try_clone).transpose()?,
+                    buffer: buffer
+                        .as_ref()
+                        .map(|b| -> Result<_> {
+                            Ok((
+                                b.keys.try_clone()?,
+                                b.values.try_clone()?,
+                                b.base,
+                                b.len,
+                                b.zero,
+                            ))
+                        })
+                        .transpose()?,
+                },
+            };
+            // the windows are views of the last chunk's input: keep only their rows (same values)
+            let mut conv: [Option<Array>; 4] = Default::default();
+            for (saved, live) in conv.iter_mut().zip(&state.conv) {
+                *saved = live.as_ref().map(Array::compact_for_cache).transpose()?;
+            }
+            visits.push(PrefixVisit { kv, conv });
+        }
+        Ok(InklingPrefix {
+            epoch: self.epoch,
+            offset: self.offset,
+            visits,
+        })
+    }
+
+    /// SPEED-2026-11-23-INK2M-MAYA PC: back to `prefix`, taken earlier from this same state lineage (no
+    /// `reset` since). Returns `false`, leaving the state untouched, when it cannot resume (another
+    /// lineage, fewer rows than the prefix, a layout change); the caller then prefills from scratch.
+    pub fn resume_prefix(&mut self, prefix: InklingPrefix) -> Result<bool> {
+        if prefix.epoch != self.epoch
+            || prefix.offset > self.offset
+            || prefix.visits.len() != self.states.len()
+        {
+            return Ok(false);
+        }
+        for (state, saved) in self.states.iter().zip(&prefix.visits) {
+            if let PrefixKv::Rows(len) = saved.kv {
+                let Some(buffer) = &state.kv_buffer else {
+                    return Ok(false);
+                };
+                if buffer.base != 1 || buffer.zero != 0 || buffer.len < len || len < 1 {
+                    return Ok(false);
+                }
+            }
+        }
+        self.pending = None;
+        for (state, saved) in self.states.iter_mut().zip(prefix.visits) {
+            state.pending_kv = None;
+            state.pending_conv = Default::default();
+            match saved.kv {
+                PrefixKv::Rows(len) => {
+                    let buffer = state.kv_buffer.as_mut().context("checked buffer")?;
+                    buffer.len = len;
+                    state.keys = Some(buffer.keys.slice(2, 1, 1 + len)?);
+                    state.values = Some(buffer.values.slice(2, 1, 1 + len)?);
+                }
+                PrefixKv::Saved {
+                    keys,
+                    values,
+                    buffer,
+                } => {
+                    // mutation 2: only the row count of the live buffer goes back (wrong once the window moved)
+                    #[cfg(test)]
+                    if PREFIX_MUTATION.with(std::cell::Cell::get) == 2
+                        && let (Some(live), Some((_, _, _, len, _))) =
+                            (state.kv_buffer.as_mut(), buffer.as_ref())
+                    {
+                        live.len = *len;
+                        state.keys = Some(live.keys.slice(2, live.base, live.base + len)?);
+                        state.values = Some(live.values.slice(2, live.base, live.base + len)?);
+                        state.conv = saved.conv;
+                        continue;
+                    }
+                    state.keys = keys;
+                    state.values = values;
+                    state.kv_buffer = buffer.map(|(keys, values, base, len, zero)| KvBuffer {
+                        keys,
+                        values,
+                        base,
+                        len,
+                        zero,
+                    });
+                }
+            }
+            #[cfg(test)]
+            if PREFIX_MUTATION.with(std::cell::Cell::get) == 1 {
+                continue;
+            }
+            state.conv = saved.conv;
+        }
+        self.offset = prefix.offset;
+        Ok(true)
     }
 
     pub fn forward(&mut self, token: u32) -> Result<Array> {
@@ -5211,6 +5521,345 @@ mod tests {
         );
         ensure!(same == 0, "in-place K/V changed {same} values");
         ensure!(mutation > 0, "the sink mutation was not detected");
+        Ok(())
+    }
+
+    /// SPEED-2026-11-23-INK2M-MAYA RT: the fused router tail gives the routes and scores of
+    /// `router::grouped_topk_biased` (which applies the sigmoid) to the bit (random logits of several amplitudes, ties, the
+    /// real biases and scales); a reversed score sum must differ somewhere.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn router_tail_kernel_matches_ops() -> Result<()> {
+        let mut state = 0x1234_5678u32;
+        let mut uniform = || {
+            state ^= state << 13;
+            state ^= state >> 17;
+            state ^= state << 5;
+            (state >> 8) as f32 / (1u32 << 24) as f32
+        };
+        let (mut cases, mut mutant_differs) = (0usize, 0usize);
+        for case in 0..240 {
+            let amplitude = [0.05f32, 1.0, 4.0, 12.0, 40.0][case % 5];
+            let mut logits: Vec<f32> = (0..128)
+                .map(|_| (uniform() - 0.5) * 2.0 * amplitude)
+                .collect();
+            if case % 7 == 0 {
+                // ties: repeated values across experts
+                for e in 0..128 {
+                    logits[e] = logits[e % 9];
+                }
+            }
+            let bias: Vec<f32> = (0..128)
+                .map(|_| {
+                    if case % 3 == 0 {
+                        0.0
+                    } else {
+                        (uniform() - 0.5) * 0.2
+                    }
+                })
+                .collect();
+            let scale = [8.0f32, 2.5, 1.0][case % 3];
+            let x = Array::from_f32(&logits, &[1, 128])?;
+            let b = Array::from_f32(&bias, &[128])?;
+            let (want_ids, want_scores) = router::grouped_topk_biased(&x, &b, 8, 1, 1, scale)?;
+            let (ids, scores) = router_tail_kernel(&x, &b, scale)?;
+            ensure!(
+                ids.to_u32()? == want_ids.to_u32()?,
+                "case {case}: routes differ"
+            );
+            let same = scores
+                .to_f32()?
+                .iter()
+                .zip(want_scores.to_f32()?)
+                .all(|(a, b)| a.to_bits() == b.to_bits());
+            ensure!(same, "case {case}: scores differ");
+            ROUTER_TAIL_MUTATE.with(|m| m.set(true));
+            let mutant = router_tail_kernel(&x, &b, scale);
+            ROUTER_TAIL_MUTATE.with(|m| m.set(false));
+            let (_, mutant) = mutant?;
+            if mutant
+                .to_f32()?
+                .iter()
+                .zip(want_scores.to_f32()?)
+                .any(|(a, b)| a.to_bits() != b.to_bits())
+            {
+                mutant_differs += 1;
+            }
+            cases += 1;
+        }
+        println!(
+            "router tail: {cases} cases identical to the bit, reversed sum differs in {mutant_differs}"
+        );
+        ensure!(
+            mutant_differs > 0,
+            "the reversed-sum mutation was not detected"
+        );
+        Ok(())
+    }
+
+    /// SPEED-2026-11-23-INK2M-MAYA ED: is the EXL3 expert kernel bound by memory or by the core? Chains of
+    /// 48 dependent expert calls (gate/up + down, T = 1) on the layer-6 bank with (a) 8 distinct pseudo-random
+    /// experts per call, (b) the 8 routes on one expert (3 MB, cache resident), and (c) a 576 MiB FP16 sum as
+    /// the read-bandwidth reference; median of 20 after 3 warm-ups, order a/b/c/c/b/a.
+    #[test]
+    #[ignore = "requires an Apple GPU and MLXL3_INKLING_MODEL"]
+    fn expert_kernel_bound_profile() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let model = Inkling2::load(Path::new(&model_dir))?;
+        let moe = &model.layers[6].moe;
+        let hidden = model.hidden;
+        let x0 = Array::random_uniform(&[1, hidden], 11)?
+            .scalar_add(-0.5)?
+            .scalar_mul(2.0)?
+            .astype(Dtype::Float16)?;
+        x0.eval()?;
+        let scores = Array::from_f32(&[1.0; 8], &[1, 8])?;
+        let mut state = 0x9e37_79b9u32;
+        let mut varied = Vec::new();
+        for _ in 0..48 {
+            let mut ids: Vec<u32> = Vec::new();
+            while ids.len() < 8 {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                let e = state % 128;
+                if !ids.contains(&e) {
+                    ids.push(e);
+                }
+            }
+            varied.push(Array::from_u32(&ids, &[1, 8])?);
+        }
+        let same = Array::from_u32(&[5; 8], &[1, 8])?;
+        let chain = |routes: &dyn Fn(usize) -> Array| -> Result<f64> {
+            let mut times = Vec::new();
+            for rep in 0..23 {
+                let started = Instant::now();
+                let mut x = x0.try_clone()?;
+                for call in 0..48 {
+                    let out = moe.experts.forward(&x, &routes(call), &scores)?;
+                    x = out.scalar_mul(0.0)?.astype(Dtype::Float16)?.add(&x0)?;
+                }
+                x.eval()?;
+                if rep >= 3 {
+                    times.push(started.elapsed().as_secs_f64() * 1e3);
+                }
+            }
+            times.sort_by(f64::total_cmp);
+            Ok(times[times.len() / 2])
+        };
+        let big = Array::random_uniform(&[302_000_000], 3)?.astype(Dtype::Float16)?;
+        big.eval()?;
+        let copy = || -> Result<f64> {
+            let mut times = Vec::new();
+            for rep in 0..23 {
+                let started = Instant::now();
+                big.sum(0, false)?.eval()?;
+                if rep >= 3 {
+                    times.push(started.elapsed().as_secs_f64() * 1e3);
+                }
+            }
+            times.sort_by(f64::total_cmp);
+            Ok(times[times.len() / 2])
+        };
+        let a1 = chain(&|call| varied[call].try_clone().unwrap())?;
+        let b1 = chain(&|_| same.try_clone().unwrap())?;
+        let c1 = copy()?;
+        let c2 = copy()?;
+        let b2 = chain(&|_| same.try_clone().unwrap())?;
+        let a2 = chain(&|call| varied[call].try_clone().unwrap())?;
+        let (a, b, c) = ((a1 + a2) / 2.0, (b1 + b2) / 2.0, (c1 + c2) / 2.0);
+        let bytes = 302_000_000f64 * 2.0;
+        println!(
+            "{}",
+            serde_json::json!({
+                "a_varied_ms": [a1, a2], "b_one_expert_ms": [b1, b2], "c_sum_ms": [c1, c2],
+                "a_per_call_us": a / 48.0 * 1e3, "b_per_call_us": b / 48.0 * 1e3,
+                "b_over_a": b / a, "read_gbps": bytes / (c / 1e3) / 1e9,
+                "a_gbps_at_24mb_per_call": 24e6 * 48.0 / (a / 1e3) / 1e9,
+            })
+        );
+        Ok(())
+    }
+
+    /// SPEED-2026-11-23-INK2M-MAYA PC: a prompt resumed from the prefix saved at its last 128-row boundary
+    /// (after the turn decoded on the pipelined GPU path and verified a partial block) gives the logits of a
+    /// prefill from scratch to the bit, for every chunk and 32 following steps, before and past the sliding
+    /// window; the two mutations (live convolution windows, live sliding K/V) must differ, and a prefix of
+    /// another lineage must be refused.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn prompt_cache_resume_matches_cold_prefill() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = model.unpadded_vocab() as u32;
+        let text: Vec<u32> = text_tokens()?.into_iter().map(|t| t % vocab).collect();
+        let taps = vec![model.visit_count()];
+        let prefill = |model: &mut Inkling2,
+                       tokens: &[u32],
+                       from: usize,
+                       out: &mut Vec<f32>,
+                       keep: bool,
+                       capture: Option<usize>|
+         -> Result<Option<InklingPrefix>> {
+            let mut fed = from;
+            let mut saved = None;
+            while fed < tokens.len() {
+                let n = (tokens.len() - fed).min(128);
+                let logits = model.forward_tokens(&tokens[fed..fed + n])?;
+                if keep {
+                    out.extend(logits.to_f32()?);
+                }
+                fed += n;
+                if capture == Some(fed) {
+                    saved = Some(model.prefix_snapshot()?);
+                }
+            }
+            Ok(saved)
+        };
+        let mut total = 0usize;
+        for first in [300usize, 1300] {
+            let boundary = first / 128 * 128;
+            ensure!(text.len() >= first + 200 + 32, "not enough tokens");
+            // turn 1: prefill with the capture, then a pipelined GPU decode and a partial verify block
+            model.reset();
+            let mut scratch = Vec::new();
+            let prefix = prefill(
+                &mut model,
+                &text[..first],
+                0,
+                &mut scratch,
+                false,
+                Some(boundary),
+            )?
+            .context("no prefix captured")?;
+            ensure!(prefix.offset() as usize == boundary, "prefix offset");
+            // the bridge keeps it only within the default prompt cache budget
+            let retained = prefix.retained_bytes()?;
+            println!("first {first}: prefix retains {retained} bytes");
+            ensure!(
+                retained <= crate::memory_policy::DEFAULT_PROMPT_CACHE_BYTES,
+                "the prefix exceeds the default prompt cache budget"
+            );
+            let logits = model.forward_tokens(&text[first..first + 1])?;
+            let mut decode =
+                DeviceDecode::start(&logits, DrawRule::Greedy, DrawSeeds::new(7), true)?;
+            let mut answer = vec![text[first]];
+            for _ in 0..40 {
+                answer.push(decode.next_token(&mut model, true)?);
+            }
+            drop(decode);
+            let block = [text[first + 3], text[first + 4], text[first + 5]];
+            model.verify(&block, &taps)?;
+            model.commit(1)?;
+            let live_epoch = model.epoch;
+            let mut prompt = text[..first].to_vec();
+            prompt.extend(&answer);
+            prompt.extend(&text[first + 1..first + 200]);
+            let steps = &text[first + 200..first + 232];
+            let script = |model: &mut Inkling2, resumed: bool| -> Result<Vec<f32>> {
+                let mut out = Vec::new();
+                prefill(model, &prompt, boundary, &mut out, true, None)?;
+                ensure!(
+                    model.offset() as usize == prompt.len() || !resumed,
+                    "offset"
+                );
+                for &t in steps {
+                    out.extend(model.forward(t)?.to_f32()?);
+                }
+                let (logits, _) = model.verify(&steps[..4], &taps)?;
+                out.extend(logits.to_f32()?);
+                model.commit(4)?;
+                let _ = resumed;
+                Ok(out)
+            };
+            // resumed (twice more for the mutations, each from a fresh turn-1 state)
+            let rerun = |model: &mut Inkling2, mutation: u8| -> Result<Vec<f32>> {
+                model.reset();
+                let mut scratch = Vec::new();
+                let prefix = prefill(
+                    model,
+                    &text[..first],
+                    0,
+                    &mut scratch,
+                    false,
+                    Some(boundary),
+                )?
+                .context("no prefix captured")?;
+                let logits = model.forward_tokens(&text[first..first + 1])?;
+                let mut decode =
+                    DeviceDecode::start(&logits, DrawRule::Greedy, DrawSeeds::new(7), true)?;
+                for _ in 0..40 {
+                    decode.next_token(model, true)?;
+                }
+                drop(decode);
+                model.verify(&block, &taps)?;
+                model.commit(1)?;
+                PREFIX_MUTATION.with(|m| m.set(mutation));
+                let resumed = model.resume_prefix(prefix);
+                PREFIX_MUTATION.with(|m| m.set(0));
+                ensure!(resumed?, "the prefix did not resume");
+                ensure!(model.offset() as usize == boundary, "resumed offset");
+                script(model, true)
+            };
+            ensure!(model.resume_prefix(prefix)?, "the prefix did not resume");
+            ensure!(model.epoch == live_epoch, "resume changed the lineage");
+            let resumed = script(&mut model, true)?;
+            model.reset();
+            let mut cold = Vec::new();
+            prefill(&mut model, &prompt[..boundary], 0, &mut cold, false, None)?;
+            let cold = {
+                let mut tail = script(&mut model, false)?;
+                cold.append(&mut tail);
+                cold
+            };
+            let conv_mutant = rerun(&mut model, 1)?;
+            let sliding_mutant = rerun(&mut model, 2)?;
+            // a prefix of another lineage is refused and leaves the state as it was
+            model.reset();
+            let mut scratch = Vec::new();
+            let stale = prefill(&mut model, &text[..256], 0, &mut scratch, false, Some(256))?
+                .context("no prefix captured")?;
+            model.reset();
+            model.forward_tokens(&text[..64])?;
+            ensure!(!model.resume_prefix(stale)?, "a stale prefix resumed");
+            ensure!(model.offset() == 64, "a refused prefix changed the state");
+            ensure!(
+                !cold.is_empty() && cold.iter().all(|x| x.is_finite()),
+                "empty or non-finite reference"
+            );
+            ensure!(
+                resumed.len() == cold.len()
+                    && conv_mutant.len() == cold.len()
+                    && sliding_mutant.len() == cold.len(),
+                "value counts differ"
+            );
+            let differ = |a: &[f32], b: &[f32]| {
+                a.iter()
+                    .zip(b)
+                    .filter(|(x, y)| x.to_bits() != y.to_bits())
+                    .count()
+            };
+            let (same, conv, sliding) = (
+                differ(&cold, &resumed),
+                differ(&cold, &conv_mutant),
+                differ(&cold, &sliding_mutant),
+            );
+            println!(
+                "first {first} boundary {boundary} prompt {} values {} resumed differing {same} \
+                 conv mutation differing {conv} sliding mutation differing {sliding}",
+                prompt.len(),
+                cold.len()
+            );
+            ensure!(same == 0, "the resumed prompt changed {same} values");
+            ensure!(conv > 0, "the convolution mutation was not detected");
+            // before the window moves, going back by row count is also exact (nothing to detect)
+            ensure!(
+                first + 42 < 1024 || sliding > 0,
+                "the sliding K/V mutation was not detected"
+            );
+            total += cold.len();
+        }
+        println!("prompt cache parity: {total} values identical to the bit");
         Ok(())
     }
 
