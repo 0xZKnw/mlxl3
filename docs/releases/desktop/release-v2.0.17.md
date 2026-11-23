@@ -82,11 +82,36 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Verification and limits
 
-TO FILL
+- **Agent sandbox checks: 313 passed**, run against the real Seatbelt sandbox. They use a throwaway home folder holding a dozen fake secrets, and cover:
+  - secrets refused, by any path and through links or copies;
+  - writes outside the copy refused;
+  - network access only with Internet on;
+  - outside Unix sockets refused;
+  - each new function and error message.
+
+  With the live network: **270 passed**, including HTTPS with `curl`, `git clone` and `pip download`.
+- **Agent protocol checks: 66 passed** through the real MCP server, including:
+  - command networking for both harnesses;
+  - the loop note on the third identical call.
+- **Full Desktop suite passed**, including Studio modes (2,324) and completion notifications (17).
+- **21 mutants detected.** These are deliberately broken versions of the sandbox profile and the new functions; the checks catch each one.
+- **GPU check: indicative only.** It was run on Inkling 2 Mini at temperature 1, with the defaults of a new task (Internet on), and three runs are not enough to measure a success rate or an effect on the number of tool rounds.
+  - Results: bug fix and rename both passed; the question was answered correctly. The pre-registered question check rejected the correct answer because of its exact wording, as in the previous release: 2/3 by that check, 3/3 with the corrected one.
+  - No engine error, unreadable call or tool error. The model used `view`, `edit` and `edits`.
+- **Release build.** The checks above ran on this code before the version change; only the version and the documentation changed since, so the suites were not run again on the release commit.
+- **This DMG:**
+  - `hdiutil verify` valid, `codesign --deep --strict` passed;
+  - version 2.0.17 / build 70;
+  - `build-info` has commit `bef59cdaa` with no tracked changes;
+  - the bundled engine reports 2.0.27, is arm64, has SHA-256 `e1a1d444â€¦47b2`, and ships MLX 0.32.2's `mlx.metallib`.
+- Limits are listed under **Security notes**.
 
 ## Source and download
 
-TO FILL
+- Source: [`bef59cdaa`](https://github.com/0xZKnw/mlxl3/commit/bef59cdaae344b431b103134233e19c791c0937f) (tag `v2.0.17`).
+- `MLXL3-Desktop-v2.0.17-b70-Apple-Silicon.dmg`: 251,506,425 bytes, SHA-256 `6a8b1d382aca7006d88ecdfb2b5131f013c5735ed2b60f6f809cb3f3e48b5f28`.
+- `MLXL3-Desktop-v2.0.17-b70-Apple-Silicon.dmg.sha256`: 110 bytes.
+- Bundled engine: MLXL3 engine 2.0.27, the same sources as [`engine-v2.0.27`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.27), rebuilt at this commit.
 
 ## Acknowledgements
 
