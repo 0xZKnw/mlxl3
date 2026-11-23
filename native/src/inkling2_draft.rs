@@ -2275,6 +2275,98 @@ mod tests {
         Ok(())
     }
 
+    /// DSPARK-2026-11-23-INK2M-MTPLX-C0 (diagnostic): ms per token of plain GPU-drawn decoding (`DeviceDecode`,
+    /// one step ahead) against the width-0 blocks of a DSpark session whose costs keep it at width 0 between
+    /// probes (the drafter's context is still fed every step), T = 1, 160 tokens after the prompt, alternated
+    /// A B B A over 3 rounds. Prints the medians.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ORACLE"]
+    fn width_zero_tax_profile() -> Result<()> {
+        use crate::inkling2::{DeviceDecode, DrawRule, DrawSeeds};
+        use crate::sampling::{Draw, History, Sampler};
+        const TOKENS: usize = 160;
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let prompt = prompt()?;
+        let mut target = Inkling2::load(&dir)?;
+        let mut draft = Inkling2Draft::load(&dir, &target)?;
+        let limit = usize::try_from(target.context_limit())?;
+        let sampler = Sampler::new(1.0, 0, 1.0, 1.0, 0.0)?;
+        let rule = DrawRule::for_sampler(&sampler).context("no GPU rule")?;
+        let mut plain = Vec::new();
+        let mut zero = Vec::new();
+        for round in 0..3u64 {
+            for dspark in [false, true, true, false] {
+                let seed = 100 + round;
+                if dspark {
+                    let mut session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?
+                        .with_adaptive_width(WidthPolicy::measured(
+                            &[1.0, 1000.0, 1001.0, 1002.0],
+                            DsparkSession::DEFAULT_WIDTH,
+                        )?)?
+                        .with_device_draw(rule, DrawSeeds::new(seed), true);
+                    let logits = session.prefill(&mut target, &mut draft, &prompt, &|| false)?;
+                    let history = History::default();
+                    let mut random = seed;
+                    let mut next = Draw {
+                        sampler,
+                        history: &history,
+                        random: &mut random,
+                    }
+                    .sample_last_row(&logits)?;
+                    for _ in 0..TOKENS {
+                        let mut choose = |proposals: &[u32],
+                                          _: Option<&[Vec<f32>]>,
+                                          verified: &Array|
+                         -> Result<(usize, u32)> {
+                            let a = Draw {
+                                sampler,
+                                history: &history,
+                                random: &mut random,
+                            }
+                            .speculative_accept_logits(proposals, verified)?;
+                            Ok((a.accepted_draft_tokens, a.target_token))
+                        };
+                        next = session.advance(
+                            &mut target,
+                            &mut draft,
+                            next,
+                            limit,
+                            1 << 20,
+                            &mut choose,
+                        )?;
+                    }
+                    let s = &session.stats;
+                    // skip the first 8 width-0 blocks (warm-up): use the mean over the remaining ones
+                    ensure!(s.width_blocks[0] > 16, "too few width-0 blocks");
+                    zero.push(s.width_ms[0] / s.width_blocks[0] as f64);
+                } else {
+                    target.reset();
+                    let logits = target.forward_tokens(&prompt)?;
+                    let mut decode =
+                        DeviceDecode::start(&logits, rule, DrawSeeds::new(seed), true)?;
+                    for _ in 0..8 {
+                        decode.next_token(&mut target, true)?;
+                    }
+                    let start = Instant::now();
+                    for _ in 0..TOKENS {
+                        decode.next_token(&mut target, true)?;
+                    }
+                    plain.push(start.elapsed().as_secs_f64() * 1e3 / TOKENS as f64);
+                }
+            }
+        }
+        let median = |mut v: Vec<f64>| {
+            v.sort_by(f64::total_cmp);
+            v[v.len() / 2]
+        };
+        println!(
+            "WIDTH_ZERO_TAX {}",
+            serde_json::json!({"plain_ms_per_token": plain.clone(), "width0_ms_per_block": zero.clone(),
+                "plain_median": median(plain), "width0_median": median(zero)})
+        );
+        Ok(())
+    }
+
     /// DSPARK-2026-11-23-INK2M-MTPLX-A3: wall time of a DSpark block at a fixed width (1, then 3), T = 1,
     /// with the CPU decision, the GPU decision (A) and the GPU decision with the drafter overlapped (A3),
     /// alternated in one process (order A B C C B A per round, `MLXL3_INKLING_PROFILE_ROUNDS` rounds, 3 by
