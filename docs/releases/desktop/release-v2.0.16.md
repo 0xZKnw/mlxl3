@@ -75,7 +75,7 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 - **Internet:**
   - Checked without network: 96 checks on addresses (local, private and reserved, IPv4 and IPv6), host lists, URLs, redirects through a fake transport (other host, `http`, a private address, a loop), and downloads, where a link out of the project is refused by the kernel.
   - Checked live: `fetch` of a GitHub file, and `download` of the `octocat/Hello-World` archive through the `github.com` â†’ `codeload.github.com` redirect, unzipped in the sandbox. The app binary from the DMG also fetched the file through the real MCP path.
-- **Desktop checks** (`scripts/check-desktop.sh`, the full suite, Command Line Tools toolchain with the macOS 26.5 SDK): DESKTOP_RESULT. They include:
+- **Desktop checks** (`scripts/check-desktop.sh`, the full suite, Command Line Tools toolchain with the macOS 26.5 SDK): **passed** on the release source. They include:
   - Agent sandbox: 228 checks, 230 with the live network.
   - Agent MCP protocol: 63 checks, 64 live.
   - Studio modes: 2,325. Studios: 59. Python: 39.
