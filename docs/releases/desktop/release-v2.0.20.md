@@ -57,11 +57,40 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Verification and limits
 
-TO FILL
+- **Agent sandbox checks: 350 passed.** The 31 new checks cover:
+  - `$` and a helper function kept between calls;
+  - permissions applied per call;
+  - restarts after a time limit or an `await` that never resolves;
+  - jobs: start, output so far, wait, end notices given once, `run()` continuing in the background, the 4-job limit, `kill` and the end of the kernel;
+  - `glob`;
+  - shell and Python syntax warnings.
+- **Agent protocol checks: 73 passed**, run against this DMG's app binary. They include:
+  - `$` and a background job kept across two MCP calls;
+  - one kernel per server;
+  - a killed kernel announced, with its orphaned job stopped by the next kernel and its JavaScript engine stopping by itself;
+  - the end of the server ending the kernel and its jobs.
+- **12 mutants detected.** These are deliberately broken versions of the kernel, the jobs and the server; the checks catch each one.
+- **A bug found and fixed before release.** When its supervisor died, a kernel's JavaScript engine read an empty line and looped on it. An empty line now ends the kernel, the kernel's CPU limit is 300 s, and new kernels stop orphaned ones. A protocol check reproduces the bug on the previous build.
+- **GPU check: indicative only.** It was run on Inkling 2 Mini at temperature 1, with the defaults of a new task, and three runs are not enough to measure a success rate.
+  - Results: bug fix and rename both passed in 5 tool rounds; the question was answered correctly. The pre-registered question check rejected the correct answer because of its exact wording, as in earlier releases: 2/3 by that check, 3/3 with the corrected one.
+  - No engine error, unreadable call or tool error, and no JavaScript engine left running afterwards.
+  - These short tasks did not need `$` or background jobs.
+- **This DMG:**
+  - `hdiutil verify` valid, `codesign --deep --strict` passed;
+  - version 2.0.20 / build 73;
+  - `build-info` has commit `b88dd6179` with no tracked changes;
+  - the bundled engine reports 2.0.28, is arm64, has SHA-256 `86e0b818â€¦2067`, and ships MLX 0.32.2's `mlx.metallib`.
+- **Not run:** the full Desktop suite. The app was compiled, and the checks above ran on this code.
+- **Limits:**
+  - The model learns that a job has ended in its next result; the engine does not wake it up by itself.
+  - `$` is emptied whenever the engine or the task's sandbox server restarts.
 
 ## Source and download
 
-TO FILL
+- Source: [`b88dd6179`](https://github.com/0xZKnw/mlxl3/commit/b88dd6179715360135bb7306982787bfd8d7e4ab) (tag `v2.0.20`).
+- `MLXL3-Desktop-v2.0.20-b73-Apple-Silicon.dmg`: 243,899,203 bytes, SHA-256 `8a091951960a2ebf648609937b9332f97e21771a90589b48bd5df33aa3f729d9`.
+- `MLXL3-Desktop-v2.0.20-b73-Apple-Silicon.dmg.sha256`: 110 bytes.
+- Bundled engine: MLXL3 engine 2.0.28, the same sources as [`engine-v2.0.28`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.28), rebuilt at this commit.
 
 ## Acknowledgements
 
