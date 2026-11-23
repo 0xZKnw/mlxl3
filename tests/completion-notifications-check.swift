@@ -26,9 +26,10 @@ extension StudioModel {
     fileprivate var fixtureRequestID: String? { activeRequestID }
     fileprivate var fixtureBridgeRunning: Bool { bridge.isRunning }
     fileprivate func fixtureDeadline() {
+        // The only watchdog left (no total limit since 2026-11-23): five silent minutes.
         let now = ContinuousClock.now
-        generationStartedAt = now - .seconds(601)
-        generationLastActivity = now
+        generationStartedAt = now - .seconds(3601)
+        generationLastActivity = now - .seconds(301)
         checkAgentGenerationDeadline(at: now)
     }
 }

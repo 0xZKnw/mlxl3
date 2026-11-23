@@ -55,6 +55,18 @@ extension StudioModel {
                 response.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
             }
         }
+        // Agent bar QA: a finished task, or an empty one with `--ui-preview-agent-new`. Its
+        // workspace lives beside the temporary conversation file.
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-agent") {
+            var task = Conversation(title: "Corriger les tests", messages: [
+                ChatMessage(role: .user, content: "Le script test.sh échoue. Corrige le projet."),
+                ChatMessage(role: .assistant, content: "J’ai corrigé `mean` et `median` dans `src/stats.pl`. `sh test.sh` affiche maintenant **PASS**."),
+            ])
+            if ProcessInfo.processInfo.arguments.contains("--ui-preview-agent-new") { task = Conversation() }
+            task.agent = true
+            studio.conversations = [task] + studio.conversations
+            studio.selectMode(.agent)
+        }
         if ProcessInfo.processInfo.arguments.contains("--ui-preview-stress") {
             let response = ChatMessage(role: .assistant, content: "", isStreaming: true)
             let conversation = Conversation(title: "QA · long streaming", messages: [ChatMessage(role: .user, content: "Generate a large HTML file"), response])

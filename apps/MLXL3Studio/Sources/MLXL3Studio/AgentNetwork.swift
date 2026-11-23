@@ -1,16 +1,13 @@
 import Darwin
 import Foundation
 
-/// Internet for Agent mode, through the host only: HTTPS GET to hosts the user allowed, each
-/// hop resolved, checked and pinned to a public address. The sandbox itself never gets a
-/// network: Seatbelt cannot filter by name, so this is the only path out.
+/// `fetch` and `download` of Agent mode, made by the host: HTTPS GET to hosts the user allowed,
+/// each hop resolved, checked and pinned to a public address. With Internet on, commands also
+/// reach the network directly (`AgentSandbox.profile`); the JavaScript runtime never does.
 enum AgentNetwork {
-  /// Hosts allowed when Internet is first turned on: GitHub and the package registries.
-  static let defaultHosts = [
-    "github.com", "codeload.github.com", "raw.githubusercontent.com",
-    "objects.githubusercontent.com", "api.github.com", "pypi.org", "files.pythonhosted.org",
-    "registry.npmjs.org",
-  ]
+  /// Hosts of a new task: all public hosts. Commands have the network directly when Internet
+  /// is on, so a narrower list would only restrict `fetch`; it can still be narrowed per task.
+  static let defaultHosts = ["*"]
   static let maximumFetchBytes = 2 << 20
   static let maximumDownloadBytes = 100 << 20
   static let maximumRedirects = 5

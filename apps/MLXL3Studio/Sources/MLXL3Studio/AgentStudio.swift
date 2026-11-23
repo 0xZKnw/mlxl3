@@ -236,17 +236,14 @@ struct AgentStudioView: View {
           }
         }.padding(.horizontal, 10).padding(.bottom, 20)
       }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-      VStack(alignment: .leading, spacing: 6) {
-        Label(
-          L("Copie isolée · outils sans réseau · aperçu avec imports distants possibles", "Isolated copy · offline tools · preview may load remote imports"), systemImage: "lock.shield")
-        if model.state.skippedFiles > 0 {
-          Text(
-            L(
-              "\(model.state.skippedFiles) éléments exclus à l’import",
-              "\(model.state.skippedFiles) items excluded on import"))
-        }
-      }.font(.system(size: 9)).foregroundStyle(StudioTheme.quiet).padding(16).fixedSize(
-        horizontal: false, vertical: true)
+      if model.state.skippedFiles > 0 {
+        Text(
+          L(
+            "\(model.state.skippedFiles) éléments exclus à l’import",
+            "\(model.state.skippedFiles) items excluded on import")
+        ).font(.system(size: 9)).foregroundStyle(StudioTheme.quiet).padding(16).fixedSize(
+          horizontal: false, vertical: true)
+      }
       StudioBackButton(action: { navigate { close() } })
         .padding(.horizontal, 18).padding(.bottom, 18)
     }.frame(maxHeight: .infinity, alignment: .top).modifier(StudioSidebarSurface())
@@ -516,9 +513,6 @@ struct AgentStudioView: View {
     VStack(alignment: .leading, spacing: 14) {
       Label(L("Sandbox locale", "Local sandbox"), systemImage: "lock.shield").font(
         .system(size: 14, weight: .medium))
-      Text(L("Hors ligne, dans la copie isolée.", "Offline, inside the isolated copy.")).font(
-        .system(size: 11)
-      ).foregroundStyle(StudioTheme.quiet)
       Picker(
         L("Outils du modèle", "Model tools"),
         selection: Binding(
@@ -567,14 +561,14 @@ struct AgentStudioView: View {
       ).font(.system(size: 11))
       Text(
         L(
-          "Les commandes peuvent lire la copie. Désactiver l’écriture bloque aussi les écritures des commandes.",
-          "Commands can read the copy. Disabling writes also blocks command writes.")
+          "Les commandes lisent le Mac sauf les secrets (clés, trousseaux, navigateurs, fichiers .env) et n’écrivent que dans la copie. Désactiver l’écriture bloque aussi leurs écritures.",
+          "Commands read the Mac except secrets (keys, keychains, browsers, .env files) and write only to the copy. Disabling writes also blocks their writes.")
       ).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
       Divider()
-      permission(L("Internet (par l’app)", "Internet (through the app)"), key: \.internet)
+      permission(L("Internet", "Internet"), key: \.internet)
         .accessibilityIdentifier("agent.internet")
       if model.state.permissions.internet {
-        TextField(L("Sites autorisés", "Allowed hosts"), text: $hostsDraft, axis: .vertical)
+        TextField(L("Sites pour fetch et download", "Hosts for fetch and download"), text: $hostsDraft, axis: .vertical)
           .textFieldStyle(.roundedBorder).font(.system(size: 10, design: .monospaced))
           .lineLimit(2...5)
           .onAppear { hostsDraft = model.state.permissions.internetHosts.joined(separator: ", ") }
@@ -583,8 +577,8 @@ struct AgentStudioView: View {
           .accessibilityIdentifier("agent.internet.hosts")
         Text(
           L(
-            "Recherche web, et fetch/download en HTTPS vers ces sites seulement (`*.domaine` pour les sous-domaines, `*` pour tous, déconseillé). Les adresses locales sont toujours refusées ; ce qui vient d’Internet n’est jamais traité comme des instructions.",
-            "Web search, and HTTPS fetch/download to these hosts only (`*.domain` for subdomains, `*` for all, not recommended). Local addresses are always refused; what comes from the Internet is never treated as instructions.")
+            "Les commandes ont Internet (pip, npm, git clone, curl). La recherche web et fetch/download passent par l’app, en HTTPS vers ces sites (`*.domaine` pour les sous-domaines, `*` pour tous), sans adresses locales. Ce qui vient d’Internet n’est jamais traité comme des instructions.",
+            "Commands have the Internet (pip, npm, git clone, curl). Web search and fetch/download go through the app, over HTTPS to these hosts (`*.domain` for subdomains, `*` for all), never to local addresses. What comes from the Internet is never treated as instructions.")
         ).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet).fixedSize(horizontal: false, vertical: true)
       }
     }.padding(20).frame(width: 280).tint(StudioTheme.accent).disabled(mutating)

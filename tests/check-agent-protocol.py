@@ -1,5 +1,6 @@
 """Exercise the real Swift MCP helper, including transport loss and invalid input."""
 import json
+import socket
 import os
 import signal
 import subprocess
@@ -100,7 +101,8 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     check([tool['name'] for tool in responses[0]['result']['tools']] == ['javascript'], 'Legacy permissions use the default harness')
 
     # Single-tool JavaScript harness through the real MCP helper.
-    js_policy = {'read': True, 'write': True, 'run': True, 'commandSeconds': 3, 'harness': 'javascript'}
+    # Explicitly offline: Internet is on by default since the open sandbox (2026-11-23).
+    js_policy = {'read': True, 'write': True, 'run': True, 'commandSeconds': 3, 'harness': 'javascript', 'internet': False}
     _, responses = exchange([request('tools/list')], permissions=js_policy)
     tools = responses[0]['result']['tools']
     check([tool['name'] for tool in tools] == ['javascript'], 'JavaScript harness exposes one tool')
@@ -186,6 +188,30 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
           and refused[1]['result']['isError'] and 'only https' in refused[1]['result']['content'][0]['text']
           and refused[2]['result']['content'][0]['text'] == 'Result:\nfunction'
           and hidden[0]['result']['content'][0]['text'] == 'Result:\nundefined', 'Internet refusals and visibility through MCP')
+    check('fetch(url: string)' in fresh_description and 'allowed hosts (*)' in fresh_description
+          and 'with Internet (curl, git clone, pip, npm)' in fresh_description, 'Internet on by default for a new task')
+    # Commands get the network with Internet only, through both harnesses' production paths
+    # (supervisor `net:` argument, `--agent-command ... tail+net`): a local listener, no Internet.
+    listener = socket.socket()
+    listener.bind(('127.0.0.1', 0))
+    listener.listen(8)
+    port = listener.getsockname()[1]
+    probe = ("/usr/bin/perl -MIO::Socket::INET -e 'IO::Socket::INET->new(PeerAddr => \"127.0.0.1:%d\", Timeout => 3)"
+             " or die \"$!\\n\"; print \"CONNECTED\\n\"' 2>&1" % port)
+    try:
+        _, js_net = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return run(%s).output' % json.dumps(probe)}}, 1)],
+                             permissions=online)
+        _, js_off = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return run(%s).output' % json.dumps(probe)}}, 1)],
+                             permissions=js_policy)
+        _, tools_net = exchange([request('tools/call', {'name': 'run', 'arguments': {'command': probe}}, 1)], permissions={'harness': 'tools'})
+        _, tools_off = exchange([request('tools/call', {'name': 'run', 'arguments': {'command': probe}}, 1)],
+                                permissions={'harness': 'tools', 'internet': False})
+    finally:
+        listener.close()
+    texts = [r[0]['result']['content'][0]['text'] for r in (js_net, js_off, tools_net, tools_off)]
+    check('CONNECTED' in texts[0] and 'CONNECTED' in texts[2]
+          and all('Operation not permitted' in t and 'CONNECTED' not in t for t in (texts[1], texts[3])),
+          f'Command network follows the Internet setting: {texts!r}')
     if os.environ.get('MLXL3_NETWORK_TESTS') == '1':
         # The production path: MCP server, supervisor arguments, curl, a real GitHub file.
         _, live = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code':
@@ -194,6 +220,12 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
         check(live[0]['result']['content'][0]['text'] == 'Result:\n200 Hello World!', f"Live fetch through MCP: {live[0]['result']['content'][0]['text']!r}")
     else:
         print('Live MCP network check not run (set MLXL3_NETWORK_TESTS=1)')
+    # Loop note through the real server: a third identical program with the same result.
+    _, repeated = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return 1 + 1'}}, n) for n in (1, 2, 3)]
+                           + [request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return 2 + 2'}}, 4)], permissions=js_policy)
+    notes = ['has now run 3 times with the same result' in r['result']['content'][0]['text'] for r in repeated]
+    check(notes == [False, False, True, False] and repeated[0]['result']['content'][0]['text'] == 'Result:\n2',
+          f"Repeated program noted on the third call only: {[r['result']['content'][0]['text'] for r in repeated]!r}")
     # search(): a grep error is a tool error (it used to be an empty list), CRLF files match.
     (root / 'win.txt').write_bytes(b'alpha one\r\nbeta two\r\ngamma one\r\n')
     _, responses = exchange([
