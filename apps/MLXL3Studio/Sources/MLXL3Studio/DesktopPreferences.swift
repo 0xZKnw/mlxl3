@@ -103,6 +103,46 @@ enum CustomAccent {
     }
 }
 
+/// The visual theme, chosen beside light/dark. Graphite is the default since 2.1;
+/// the two Aurora styles keep the earlier looks exactly.
+enum AppStyle: String, CaseIterable, Sendable {
+    /// Warm neutrals, sans-serif titles, a monochrome type texture on the home screen.
+    case graphite
+    /// Graphite with nothing behind the work.
+    case minimal
+    /// The violet light printed in characters behind every screen (Desktop 2.0).
+    case auroraASCII
+    /// The first aurora: soft coloured light, no characters (Desktop 2.0 betas).
+    case aurora
+
+    static let preferenceKey = "studio.style"
+    static func load(from preferences: UserDefaults) -> Self {
+        preferences.string(forKey: preferenceKey).flatMap(Self.init(rawValue:)) ?? .graphite
+    }
+    var isGraphite: Bool { self == .graphite || self == .minimal }
+    /// The accent a style is designed around; choosing the style applies it.
+    var accent: AppAccent { isGraphite ? .neutral : .violet }
+    var title: String {
+        switch self {
+        case .graphite: L("Graphite", "Graphite")
+        case .minimal: L("Épuré", "Minimal")
+        case .auroraASCII: L("Aurora ASCII", "Aurora ASCII")
+        case .aurora: L("Aurora", "Aurora")
+        }
+    }
+    var detail: String {
+        switch self {
+        case .graphite: L("Neutres chauds et trame de caractères monochrome sur l’accueil.",
+                          "Warm neutrals and a monochrome character texture on the home screen.")
+        case .minimal: L("Graphite sans aucun fond, pour la concentration.", "Graphite with nothing behind the work.")
+        case .auroraASCII: L("La lumière violette imprimée en caractères derrière chaque vue.",
+                             "The violet light printed in characters behind every view.")
+        case .aurora: L("La lumière colorée d’origine, douce et sans caractères.",
+                        "The original soft coloured light, without characters.")
+        }
+    }
+}
+
 enum ConversationDensity: String, CaseIterable, Sendable {
     case tight, compact, comfortable, spacious, extraSpacious
     static let preferenceKey = "studio.conversationDensity"
@@ -200,6 +240,11 @@ private struct MessageBubbleStyleKey: EnvironmentKey {
 private struct ConversationDensityKey: EnvironmentKey {
     static let defaultValue = ConversationDensity.comfortable
 }
+// Views rendered without `studioAppearance(studio)` (checks, snapshots) follow the same
+// style as the colour tokens, so a view never mixes two layouts.
+private struct StyleKey: EnvironmentKey {
+    static var defaultValue: AppStyle { StudioTheme.style }
+}
 extension EnvironmentValues {
     var conversationFont: ConversationFont {
         get { self[ConversationFontKey.self] }
@@ -212,5 +257,9 @@ extension EnvironmentValues {
     var conversationDensity: ConversationDensity {
         get { self[ConversationDensityKey.self] }
         set { self[ConversationDensityKey.self] = newValue }
+    }
+    var studioStyle: AppStyle {
+        get { self[StyleKey.self] }
+        set { self[StyleKey.self] = newValue }
     }
 }

@@ -60,7 +60,9 @@ struct MLXL3StudioApp: App {
                 } else { StudioView() }
             }
                 .environmentObject(studio)
-                .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
+                .studioAppearance(studio)
+                // Tokens resolve the style when drawn: rebuild the window on a style change.
+                .id(studio.style)
                 .onAppear {
                     if !isPreview {
                         studio.start()

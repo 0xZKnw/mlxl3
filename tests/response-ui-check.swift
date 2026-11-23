@@ -212,6 +212,9 @@ extension CodeBlockView {
       "mlxl3-html-ui-\(UUID())")
     let suite = "mlxl3.html-ui.\(UUID())"
     let prefs = UserDefaults(suiteName: suite)!
+    // The header pixel regions below are measured on the Aurora layout (48 pt code header
+    // under the MLXL3 reply header); the switch logic itself does not depend on the style.
+    prefs.set(AppStyle.auroraASCII.rawValue, forKey: AppStyle.preferenceKey)
     defer {
       prefs.removePersistentDomain(forName: suite)
       try? FileManager.default.removeItem(at: root)

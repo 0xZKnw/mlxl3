@@ -293,6 +293,10 @@ extension DesktopExperienceCheck {
     // AppKit bitmap caching omits compositor-backed siblings when native Liquid Glass is present.
     @MainActor static func checkAurora() async throws {
         _ = NSApplication.shared
+        // The ASCII aurora is the Aurora ASCII style's background; Graphite is checked after.
+        let previousStyle = StudioTheme.style
+        StudioTheme.style = .auroraASCII
+        defer { StudioTheme.style = previousStyle }
         for (theme, width, height) in [(AppTheme.light, 820, 600), (.dark, 1280, 820)] {
             let bounds = NSRect(x: 0, y: 0, width: width, height: height)
             let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
@@ -301,7 +305,8 @@ extension DesktopExperienceCheck {
             window.appearance = NSAppearance(named: theme == .light ? .aqua : .darkAqua)
             func field(_ busy: Bool) -> some View {
                 StudioAurora(busy: busy, fullHeight: true).background(StudioTheme.canvas)
-                    .studioAppearance(theme).transaction { $0.disablesAnimations = true }
+                    .studioAppearance(theme).environment(\.studioStyle, .auroraASCII)
+                    .transaction { $0.disablesAnimations = true }
             }
             let host = NSHostingView(rootView: field(false))
             window.contentView = host
@@ -352,6 +357,76 @@ extension DesktopExperienceCheck {
                          "Sending must preserve the still composition and brightness")
         }
         print("Aurora passed 14 background checks, compact light and wide dark, idle and generating")
+        try await checkStyleBackgrounds()
+    }
+
+    /// Graphite draws nothing coloured behind screens and a monochrome type texture on the
+    /// home screen only; Minimal draws nothing; the soft Aurora puts cool light at the top.
+    @MainActor static func checkStyleBackgrounds() async throws {
+        let previousStyle = StudioTheme.style
+        defer { StudioTheme.style = previousStyle }
+        var checks = 0
+        for theme in [AppTheme.light, .dark] {
+            let bounds = NSRect(x: 0, y: 0, width: 1000, height: 700)
+            let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
+            window.isReleasedWhenClosed = false
+            defer { window.close() }
+            window.appearance = NSAppearance(named: theme == .light ? .aqua : .darkAqua)
+            func render(_ style: AppStyle, _ placement: StudioAurora.Placement) async throws -> NSBitmapImageRep {
+                StudioTheme.style = style
+                let host = NSHostingView(rootView: StudioAurora(fullHeight: true, placement: placement)
+                    .background(StudioTheme.canvas).studioAppearance(theme)
+                    .environment(\.studioStyle, style).transaction { $0.disablesAnimations = true })
+                window.contentView = host
+                host.frame = bounds
+                try await Task.sleep(for: .milliseconds(150))
+                host.layoutSubtreeIfNeeded()
+                let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds)!
+                host.cacheDisplay(in: host.bounds, to: bitmap)
+                return bitmap
+            }
+            func color(_ image: NSBitmapImageRep, _ x: Double, _ y: Double) -> NSColor {
+                image.colorAt(x: Int(x * Double(image.pixelsWide)), y: Int(y * Double(image.pixelsHigh)))!
+                    .usingColorSpace(.sRGB)!
+            }
+            // Fine strokes: pixels that differ from the mean of their horizontal neighbours.
+            func strokes(_ image: NSBitmapImageRep, y: Double) -> Int {
+                var count = 0
+                for row in 0..<10 {
+                    for col in 0..<120 {
+                        let px = Int((0.40 + Double(col) / 1000) * Double(image.pixelsWide))
+                        let py = Int(y * Double(image.pixelsHigh)) + row
+                        func g(_ x: Int) -> CGFloat { image.colorAt(x: x, y: py)!.usingColorSpace(.sRGB)!.greenComponent }
+                        if abs(g(px) - (g(px - 1) + g(px + 1)) / 2) > 0.010 { count += 1 }
+                    }
+                }
+                return count
+            }
+            for style in [AppStyle.graphite, .minimal] {
+                let ambient = try await render(style, .ambient)
+                for (x, y) in [(0.342, 0.045), (0.77, 0.32), (0.80, 0.75)] {
+                    let c = color(ambient, x, y)
+                    precondition(abs(c.blueComponent - c.redComponent) < 0.03 && strokes(ambient, y: 0.9) == 0,
+                                 "\(style) must not draw a coloured light behind screens")
+                    checks += 1
+                }
+            }
+            let texture = try await render(.graphite, .home)
+            precondition(strokes(texture, y: 0.95) > 40, "Graphite home texture is missing at the bottom")
+            precondition(strokes(texture, y: 0.10) == 0, "Graphite home texture must stay off the top half")
+            for y in [0.93, 0.96] {
+                let c = color(texture, 0.5, y)
+                precondition(c.blueComponent <= c.redComponent + 0.01, "Graphite texture must stay monochrome")
+            }
+            let minimal = try await render(.minimal, .home)
+            precondition(strokes(minimal, y: 0.95) == 0, "Minimal must not draw the home texture")
+            let soft = try await render(.aurora, .ambient)
+            let top = color(soft, 0.05, 0.03)
+            precondition(top.blueComponent > top.redComponent + 0.05, "Soft aurora lost its cool light at the top")
+            precondition(strokes(soft, y: 0.30) == 0, "Soft aurora must have no character strokes")
+            checks += 7
+        }
+        print("Style backgrounds passed \(checks) checks: Graphite, Minimal, texture and soft Aurora, light and dark")
     }
 }
 

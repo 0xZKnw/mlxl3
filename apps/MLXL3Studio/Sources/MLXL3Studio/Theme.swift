@@ -1,34 +1,108 @@
 import SwiftUI
 
+/// Design tokens. Each one resolves for light/dark and for the visual style:
+/// the Aurora styles keep their neutral greys; Graphite uses warm neutrals taken
+/// from the logo's off-white, never pure black or white, with depth from
+/// luminance steps (sidebar < canvas < raised) instead of glows.
 enum StudioTheme {
+    /// Read when a colour resolves. Set by `StudioModel.setStyle`; the window root is
+    /// re-identified on change so every view resolves again.
+    nonisolated(unsafe) static var style = AppStyle.auroraASCII
+
     static func adaptiveColor(light: NSColor, dark: NSColor) -> NSColor {
         NSColor(name: nil) { appearance in
             appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua ? dark : light
         }
     }
-    private static func adaptive(light: Double, dark: Double) -> Color {
-        Color(nsColor: adaptiveColor(light: NSColor(white: light, alpha: 1),
-                                     dark: NSColor(white: dark, alpha: 1)))
+    static func rgb(_ value: UInt32) -> NSColor {
+        NSColor(srgbRed: CGFloat(value >> 16) / 255, green: CGFloat((value >> 8) & 255) / 255,
+                blue: CGFloat(value & 255) / 255, alpha: 1)
     }
-    static let canvas = adaptive(light: 0.97, dark: 0.071)
-    static let sidebar = adaptive(light: 0.93, dark: 0.047)
-    static let composer = adaptive(light: 1, dark: 0.107)
-    static let contrast = adaptive(light: 0, dark: 1)
-    static let onAccent = adaptive(light: 1, dark: 0)
-    static let panel = contrast.opacity(0.035)
-    static let edge = contrast.opacity(0.085)
-    static let ink = adaptive(light: 0.10, dark: 0.91)
-    static let quiet = contrast.opacity(0.58)
-    static let secondary = contrast.opacity(0.72)
-    static let accent = adaptive(light: 0.18, dark: 0.86)
+    /// Aurora greys (light, dark white levels) beside Graphite sRGB values.
+    private static func token(_ light: Double, _ dark: Double, graphite: (UInt32, UInt32), alpha: CGFloat = 1) -> Color {
+        let classic = (NSColor(white: light, alpha: alpha), NSColor(white: dark, alpha: alpha))
+        let warm = (rgb(graphite.0).withAlphaComponent(alpha), rgb(graphite.1).withAlphaComponent(alpha))
+        return Color(nsColor: NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            let pair = style.isGraphite ? warm : classic
+            return dark ? pair.1 : pair.0
+        })
+    }
+    /// Warm white/black at an alpha; Graphite may differ per scheme to hold 4.5:1.
+    private static func contrastToken(classic: CGFloat, graphite: (light: CGFloat, dark: CGFloat)) -> Color {
+        Color(nsColor: NSColor(name: nil) { appearance in
+            let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            if style.isGraphite { return rgb(dark ? 0xF4EFE7 : 0x1A1816).withAlphaComponent(dark ? graphite.dark : graphite.light) }
+            return NSColor(white: dark ? 1 : 0, alpha: classic)
+        })
+    }
+    static let canvas = token(0.97, 0.071, graphite: (0xF9F8F6, 0x1B1A19))
+    /// Graphite: a few notches dimmer than the canvas so the conversation reads as the focus.
+    static let sidebar = token(0.93, 0.047, graphite: (0xF1EFEC, 0x151413))
+    /// The single raised surface (composer, popovers).
+    static let composer = token(1, 0.107, graphite: (0xFFFFFF, 0x252321))
+    /// Every translucent fill and hairline derives from it (warm in Graphite).
+    static let contrast = token(0, 1, graphite: (0x1A1816, 0xF4EFE7))
+    static let onAccent = token(1, 0, graphite: (0xFFFFFF, 0x161514))
+    static let panel = contrastToken(classic: 0.035, graphite: (0.04, 0.04))
+    static let edge = contrastToken(classic: 0.085, graphite: (0.085, 0.085))
+    /// Graphite text tops out below pure white in dark mode (APCA Lc ≈ 90) to avoid halation.
+    static let ink = token(0.10, 0.91, graphite: (0x1C1B19, 0xEAE6DF))
+    /// Metadata text: at least 4.5:1 on the canvas in both schemes.
+    static let quiet = contrastToken(classic: 0.58, graphite: (0.62, 0.56))
+    static let secondary = contrastToken(classic: 0.72, graphite: (0.74, 0.72))
+    static let accent = token(0.18, 0.86, graphite: (0x2B2926, 0xDDD8D0))
     static let thinking = secondary
+    /// Something is running right now: the accent grey in Aurora, one warm signal in Graphite.
+    static let live = Color(nsColor: NSColor(name: nil) { appearance in
+        let dark = appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+        if style.isGraphite { return rgb(dark ? 0xE3A25F : 0xB4661C) }
+        return NSColor(white: dark ? 0.86 : 0.18, alpha: 1)
+    })
 
+    /// Display titles: serif in the Aurora styles, SF Pro semibold in Graphite
+    /// (about three quarters of the serif size, which reads larger).
+    static func display(_ size: CGFloat) -> Font {
+        style.isGraphite ? .system(size: (size * 0.68).rounded(), weight: .semibold)
+            : .system(size: size, weight: .regular, design: .serif)
+    }
+    static func displayTracking(_ tracking: CGFloat) -> CGFloat {
+        style.isGraphite ? tracking * 0.4 : tracking
+    }
 }
 
 extension View {
     func studioAppearance(_ theme: AppTheme, accent: AppAccent = .violet, customAccent: Color = AppAccent.custom.color) -> some View {
         preferredColorScheme(theme.colorScheme)
             .tint(accent == .custom ? customAccent : accent.color)
+    }
+
+    /// Theme, accent and style together; popovers and extra windows do not
+    /// inherit the root environment, so each one applies this again.
+    func studioAppearance(_ studio: StudioModel) -> some View {
+        studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
+            .environment(\.studioStyle, studio.style)
+    }
+}
+
+/// A section caption: spaced capitals in the Aurora styles, sentence case in Graphite
+/// (tracked capitals read as template chrome). `colored: false` keeps the caller's colour.
+struct StudioCaption: View {
+    let french: String
+    let english: String
+    var size: CGFloat = 12
+    var tracking: CGFloat = 1.4
+    var colored = true
+
+    var body: some View {
+        let text = L(french, english)
+        if StudioTheme.style.isGraphite {
+            Text(text).font(.system(size: max(11, size + 1), weight: .semibold))
+                .foregroundStyle(colored ? AnyShapeStyle(StudioTheme.secondary) : AnyShapeStyle(.foreground))
+        } else {
+            Text(text.uppercased()).font(.system(size: size, weight: .medium)).tracking(tracking)
+                .foregroundStyle(colored ? AnyShapeStyle(StudioTheme.quiet) : AnyShapeStyle(.foreground))
+        }
     }
 }
 
@@ -51,16 +125,23 @@ struct StudioEdgeFade: View {
 }
 
 struct StudioSidebarSurface: ViewModifier {
+    @Environment(\.studioStyle) private var style
 
     func body(content: Content) -> some View {
         content
             .background {
                 let base = StudioTheme.sidebar
-                LinearGradient(colors: [base.opacity(0.20), base.opacity(0.78)],
-                               startPoint: .top, endPoint: .center)
+                if style.isGraphite {
+                    base
+                } else {
+                    // The light shows through the history.
+                    LinearGradient(colors: [base.opacity(0.20), base.opacity(0.78)],
+                                   startPoint: .top, endPoint: .center)
+                }
             }
             .overlay(alignment: .trailing) {
-                Rectangle().fill(StudioTheme.edge).frame(width: 1).allowsHitTesting(false)
+                Rectangle().fill(StudioTheme.edge.opacity(style.isGraphite ? 0.7 : 1))
+                    .frame(width: style.isGraphite ? 0.5 : 1).allowsHitTesting(false)
             }
     }
 }
@@ -231,12 +312,22 @@ struct StatusDot: View {
     let state: EngineState
 
     private var color: Color {
+        if StudioTheme.style.isGraphite {
+            // Muted signals: the dot informs, it does not glow.
+            switch state {
+            case .ready: return Color(red: 0.42, green: 0.72, blue: 0.52)
+            case .generating: return StudioTheme.live
+            case .loading: return StudioTheme.live.opacity(0.7)
+            case .failed: return Color(red: 0.90, green: 0.42, blue: 0.40)
+            case .idle: return StudioTheme.quiet
+            }
+        }
         switch state {
-        case .ready: Color(red: 0.42, green: 1.0, blue: 0.69)
-        case .generating: StudioTheme.accent
-        case .loading: Color(red: 1.0, green: 0.79, blue: 0.38)
-        case .failed: Color(red: 1.0, green: 0.36, blue: 0.39)
-        case .idle: StudioTheme.quiet
+        case .ready: return Color(red: 0.42, green: 1.0, blue: 0.69)
+        case .generating: return StudioTheme.accent
+        case .loading: return Color(red: 1.0, green: 0.79, blue: 0.38)
+        case .failed: return Color(red: 1.0, green: 0.36, blue: 0.39)
+        case .idle: return StudioTheme.quiet
         }
     }
 
@@ -252,10 +343,18 @@ struct StatusDot: View {
 struct StudioToolbarStyle: ButtonStyle {
     var materialOpacity = 1.0
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.studioStyle) private var style
 
     func makeBody(configuration: Configuration) -> some View {
         StudioControlStyle(emphasized: true, cornerRadius: 9).makeBody(configuration: configuration)
-            .premiumGlass(radius: 9, materialOpacity: materialOpacity)
+            .background {
+                // Glass needs something behind it: Graphite has a plain canvas.
+                if style.isGraphite {
+                    RoundedRectangle(cornerRadius: 9, style: .continuous).fill(StudioTheme.contrast.opacity(0.05))
+                } else {
+                    Color.clear.premiumGlass(radius: 9, materialOpacity: materialOpacity)
+                }
+            }
             .opacity(configuration.isPressed ? 0.75 : 1)
             .scaleEffect(configuration.isPressed && !reduceMotion ? 0.97 : 1)
             .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: configuration.isPressed)
@@ -278,13 +377,15 @@ struct StudioBackButton: View {
 }
 
 struct StudioSidebarHeader: View {
+    @Environment(\.studioStyle) private var style
     let title: String
     var body: some View {
+        let graphite = style.isGraphite
         HStack(spacing: 8) {
-            MonogramMark(size: 35)
-            Text(title).font(.system(size: 17, weight: .semibold)).tracking(-0.5)
+            MonogramMark(size: graphite ? 26 : 35)
+            Text(title).font(.system(size: graphite ? 15 : 17, weight: .semibold)).tracking(graphite ? -0.2 : -0.5)
         }
-        .padding(.horizontal, 18).padding(.top, 37).padding(.bottom, 20)
+        .padding(.horizontal, graphite ? 20 : 18).padding(.top, graphite ? 40 : 37).padding(.bottom, 20)
     }
 }
 
@@ -294,7 +395,7 @@ struct StudioPanelHeader: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 7) {
-            Text(title).font(.system(size: 39, weight: .regular, design: .serif)).tracking(-1.2)
+            Text(title).font(StudioTheme.display(39)).tracking(StudioTheme.displayTracking(-1.2))
                 .accessibilityAddTraits(.isHeader)
             Text(detail).font(.system(size: 14)).foregroundStyle(StudioTheme.secondary)
                 .fixedSize(horizontal: false, vertical: true)

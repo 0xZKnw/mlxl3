@@ -83,6 +83,23 @@ extension StudioModel {
                 response.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
             }
         }
+        // Page QA: `--ui-preview-settings` opens Appearance, `--ui-preview-models` the
+        // model page (no refresh: the fixture model stays the only one).
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-settings") {
+            studio.appSettingsPage = .appearance
+            studio.showAppSettings = true
+        }
+        // `--ui-preview-mode=server` (or decision, lab): standalone screens.
+        if let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--ui-preview-mode=") }),
+           let mode = StudioMode(rawValue: String(argument.dropFirst("--ui-preview-mode=".count))) {
+            studio.selectMode(mode)
+        }
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-inspector") {
+            studio.showInspector = true
+        }
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-models") {
+            studio.showModelManager = true
+        }
         return studio
     }
 }

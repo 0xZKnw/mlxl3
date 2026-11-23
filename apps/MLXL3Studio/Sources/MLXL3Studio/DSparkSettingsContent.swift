@@ -41,7 +41,7 @@ struct DSparkToolbarControl: View {
             }
             .frame(width: 360).frame(maxHeight: 540)
             .background(StudioTheme.canvas)
-            .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
+            .studioAppearance(studio)
             .environmentObject(studio)
         }
     }

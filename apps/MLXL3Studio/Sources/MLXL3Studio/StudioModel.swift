@@ -205,6 +205,7 @@ final class StudioModel: ObservableObject {
     private var mtpLegacyPreferenceClaimed = false
     @Published private(set) var theme: AppTheme = .dark
     @Published private(set) var accent: AppAccent = .violet
+    @Published private(set) var style: AppStyle = .graphite
     @Published private(set) var customAccentHex = CustomAccent.defaultHex
     var customAccentColor: Color { CustomAccent.color(customAccentHex) }
     var accentColor: Color { accent == .custom ? customAccentColor : accent.color }
@@ -291,7 +292,12 @@ final class StudioModel: ObservableObject {
         self.readingWidth = ConversationReadingWidth.load(from: preferences)
         self.responseTextSize = ResponseTextSize.load(from: preferences)
         self.theme = AppTheme.load(from: preferences)
-        self.accent = AppAccent.load(from: preferences)
+        let savedStyle = AppStyle.load(from: preferences)
+        self.style = savedStyle
+        // Never chosen: the accent the style is designed around.
+        self.accent = preferences.string(forKey: AppAccent.preferenceKey) == nil
+            ? savedStyle.accent : AppAccent.load(from: preferences)
+        StudioTheme.style = savedStyle
         self.customAccentHex = CustomAccent.normalized(preferences.string(forKey: CustomAccent.preferenceKey))
         self.conversationDensity = ConversationDensity.load(from: preferences)
         self.sidebarWidth = SidebarWidth.load(from: preferences)
@@ -559,6 +565,14 @@ final class StudioModel: ObservableObject {
         preferences.set(value.rawValue, forKey: AppAccent.preferenceKey)
     }
 
+    /// A style brings its accent; a different accent can still be picked afterwards.
+    func setStyle(_ value: AppStyle) {
+        StudioTheme.style = value
+        style = value
+        preferences.set(value.rawValue, forKey: AppStyle.preferenceKey)
+        if accent != .custom { setAccent(value.accent) }
+    }
+
     func setCustomAccent(_ value: Color) {
         guard let hex = CustomAccent.hex(value) else { return }
         customAccentHex = hex
@@ -588,7 +602,8 @@ final class StudioModel: ObservableObject {
 
     func resetAppearance() {
         setTheme(.dark)
-        setAccent(.violet)
+        setStyle(.graphite)
+        setAccent(AppStyle.graphite.accent)
         customAccentHex = CustomAccent.defaultHex
         preferences.set(customAccentHex, forKey: CustomAccent.preferenceKey)
         setConversationDensity(.comfortable)

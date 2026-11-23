@@ -20,7 +20,7 @@ struct ConversationDisplayControl: View {
                         .background(StudioTheme.canvas.opacity(0.85))
                 }
                 .premiumGlass(radius: 18)
-                .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
+                .studioAppearance(studio)
                 .environmentObject(studio)
         }
     }
@@ -34,7 +34,7 @@ struct ConversationDisplaySettings: View {
         VStack(alignment: .leading, spacing: 18) {
             if showsTitle {
                 Text(L("Affichage", "Appearance"))
-                    .font(.system(size: 25, weight: .regular, design: .serif)).tracking(-0.5)
+                    .font(StudioTheme.display(25)).tracking(StudioTheme.displayTracking(-0.5))
             }
             VStack(alignment: .leading, spacing: 9) {
                 Text(L("Largeur des réponses", "Response width")).font(.system(size: 13, weight: .medium))
