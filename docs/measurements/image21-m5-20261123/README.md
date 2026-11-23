@@ -39,6 +39,8 @@ HF_HUB_OFFLINE=1 /usr/bin/time -l "$PYTHON" "$WORKER" \
   --output "$OUT_PNG"
 ```
 
+[Consolidated worker validation, including finite tensors, 1024 px fallback and the separate prompt-evaluation experiment](review.md).
+
 ## SIMD Hadamard kernel screen
 
 The EXL3 worker rotates 128 values before and after a matrix product. The prototype combines the scale, transform and cast in a single Metal dispatch for each direction. Each SIMD group processes 128 values with four contiguous elements per lane, using the same FP16 rounding boundaries as the pinned MLX operator. Its layout differs from the existing Qwen text-model kernel, which permutes the output. [MLX Hadamard transform](https://ml-explore.github.io/mlx/build/html/python/_autosummary/mlx.core.hadamard_transform.html)

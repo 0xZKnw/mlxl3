@@ -1,6 +1,23 @@
 import AppKit
+import Metal
 import SwiftUI
 import UniformTypeIdentifiers
+
+enum Image21Hardware {
+    static func supports(gpu: String?, os: OperatingSystemVersion, disabled: Bool) -> Bool {
+        guard !disabled, os.majorVersion > 26 || (os.majorVersion == 26 && os.minorVersion >= 3),
+              let gpu else { return false }
+        return gpu == "Apple M5" || gpu.hasPrefix("Apple M5 ")
+    }
+
+    static let available = supports(gpu: MTLCreateSystemDefaultDevice()?.name,
+                                    os: ProcessInfo.processInfo.operatingSystemVersion,
+                                    disabled: ProcessInfo.processInfo.environment["MLXL3_DISABLE_TENSOR_OPS"] != nil)
+    static var requirement: String {
+        L("Qwen Image nécessite un GPU Apple M5 et macOS 26.3 ou ultérieur avec TensorOps activé.",
+          "Qwen Image requires an Apple M5 GPU and macOS 26.3 or later with TensorOps enabled.")
+    }
+}
 
 @MainActor
 final class ImageGeneration: ObservableObject {
@@ -11,6 +28,12 @@ final class ImageGeneration: ObservableObject {
     private var task: Task<Void, Never>?
     private var process: Process?
 
+    private let supported: Bool
+
+    init(supported: Bool = Image21Hardware.available) {
+        self.supported = supported
+    }
+
     func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32) {
         guard !running else { return }
         running = true
@@ -20,6 +43,10 @@ final class ImageGeneration: ObservableObject {
         task = Task {
             defer { running = false; task = nil; process = nil }
             do {
+                guard supported else { throw failure(Image21Hardware.requirement) }
+                guard (2...50).contains(steps) else {
+                    throw failure(L("Choisis entre 2 et 50 étapes.", "Choose between 2 and 50 steps."))
+                }
                 let fm = FileManager.default
                 guard fm.fileExists(atPath: model.appendingPathComponent("manifest.json").path) else {
                     throw failure(L("Choisis le dossier EXL3 contenant manifest.json.", "Choose the EXL3 folder containing manifest.json."))
@@ -170,7 +197,7 @@ struct ImageGenerationView: View {
                 Picker(L("Taille", "Size"), selection: $size) {
                     ForEach([512,768,1024], id: \.self) { Text("\($0) × \($0)").tag($0) }
                 }
-                Stepper(L("\(steps) étapes", "\(steps) steps"), value: $steps, in: 1...50)
+                Stepper(L("\(steps) étapes", "\(steps) steps"), value: $steps, in: 2...50)
                 Spacer()
                 Text(L("Graine", "Seed"))
                 TextField("Seed", value: $seed, format: .number.grouping(.never)).frame(width: 104)

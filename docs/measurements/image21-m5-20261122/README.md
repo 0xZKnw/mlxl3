@@ -2,6 +2,8 @@
 
 The Studio image worker applies seven packed projections per transformer block across 32 blocks. At 512 × 512 there are 1,024 latent image tokens. The original Metal path decoded a tile of weights separately for each 32-row block. The selected kernel assigns four 64-row blocks to a threadgroup, reads four codewords from each trellis window and decodes four depth tiles per barrier. The threadgroup holds 8 KiB of decoded tiles in a double buffer. Short inputs below 128 rows use the original kernel. Both paths consume the original EXL3 shards and run the same diffusion schedule.
 
+The consolidated worker subsequently restricted the window kernel to the measured 1,024-row geometry used at 512 px. [Paired review timings and correctness checks](../image21-m5-20261123/review.md).
+
 ## Reproduce the comparison
 
 Use reference commit `326265f11baeaf1f1beb44cb8070f28f87e3a017` and the candidate working tree in separate directories. In each checkout, use the dependencies pinned in the worker. Stage the candidate with `sh scripts/copy-image21-resources.sh /tmp/image21-candidate`. For the reference, place its original `render.py` and `native/shaders/_qmm_tensor_kernel.metal` together. Run the following command independently for each worker and choose a different output path for every run.
@@ -44,7 +46,7 @@ Each long run generated the 512 × 512 reference teapot at 40 steps. The order w
 | Shared tile without windows | 156.98 s | 02:25 | 3.65 s | 8.41 GB | 18.58 GB |
 | Selected window kernel, repeated | 133.75 s | 02:03 | 3.08 s | 8.36 GB | 18.56 GB |
 
-The selected worker averaged 123.52 s against 249.71 s for one new baseline run, a 50.5% reduction. The two candidate times differed by 20.47 s. The tested PNG matched the previously published Studio image byte for byte (SHA-256 `7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd`). The candidate’s maximum RSS increased slightly relative to the single baseline. Peak footprint was comparable. This sample does not establish a sustained gain at other resolutions or temperatures. The battery percentage declined during the session despite pmset reporting AC power. Thermal readings were unavailable.
+The selected worker averaged 123.52 s against 249.71 s for a single baseline run in this session. The same worker later took 83.52 and 94.62 s. This cross-session drift and the unreplicated baseline preclude a percentage claim for sustained generation. [Subsequent measurements](../image21-m5-20261123/phase-memory-40.json). The two candidate times differed by 20.47 s. The tested PNG matched the previously published Studio image byte for byte (SHA-256 `7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd`). The candidate’s maximum RSS increased slightly relative to the single baseline. Peak footprint was comparable. This sample does not establish a sustained gain at other resolutions or temperatures. The battery percentage declined during the session despite pmset reporting AC power. Thermal readings were unavailable.
 
 For the four-step ABBA, the original took 22.36 and 24.21 s, and the shared tile took 16.93 and 19.30 s. In the second four-step CBBC, the window kernel took 16.23 and 18.78 s, and the shared tile took 17.54 and 18.82 s. Each four-step image matched. The exact size of the incremental window-kernel gain is uncertain. See [per-run data, hashes and projection timings](results.json).
 

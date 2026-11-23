@@ -3,10 +3,12 @@
 In MLXL3 Studio, open **Generate an image** in the sidebar. Select the local EXL3
 denoiser folder containing `manifest.json`, describe the image, then click
 **Generate**. The seed can be reused. **Show PNG** reveals the saved image in Finder.
-Start with 512 × 512 and 40 steps. The physical validation used an M5 with 24 GiB of memory.
+Studio accepts 2–50 steps. Start with 512 × 512 and 40 steps.
+The feature requires an Apple M5-family GPU, macOS 26.3 or later and TensorOps enabled.
+Studio checks eligibility before it starts uv or downloads components. The physical validation used an M5 with 24 GiB of memory.
 
 The first launch requires internet access and uv installed in ~/.local/bin,
-/opt/homebrew/bin or /usr/local/bin. Studio sets up an isolated Python 3.12 environment.
+/opt/homebrew/bin or /usr/local/bin. Studio sets up an isolated Python 3.12 environment. Package resolution is capped at 2026-11-22 20:00 UTC.
 The tokenizer, Q4 text encoder and VAE come from a pinned snapshot of the
 [MLX Community auxiliary weights](https://huggingface.co/mlx-community/Qwen-Image-2.1-mflux-q4/tree/746a58556820933a2df5c75887a2570f1ad200c0).
 Studio reads the 33 local denoiser shards, checks their SHA-256 digests against the manifest

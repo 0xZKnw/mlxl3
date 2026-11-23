@@ -1,14 +1,18 @@
 # /// script
 # requires-python = ">=3.12,<3.13"
 # dependencies = ["mflux @ git+https://github.com/mflux-community/mflux.git@d39c9639e6ac22407a725432cc221a83fab19f1b", "mlx==0.32.4", "transformers==5.24.0"]
+# [tool.uv]
+# exclude-newer = "2026-11-22T20:00:00Z"
 # ///
 """Studio's local Qwen-Image-2.1 text-to-image worker on Apple M5 Metal."""
 
 import argparse
 import hashlib
 import json
+import os
+import platform
 import sys
-from functools import lru_cache
+from functools import lru_cache, partial
 from pathlib import Path
 
 import mlx.core as mx
@@ -109,8 +113,8 @@ class EXL3Linear(nn.Module):
         if x.shape[-1] != k:
             raise ValueError("EXL3 input width mismatch")
         rows = x.size // k
-        # Image tokens reuse each decoded weight tile across four SIMD groups.
-        block_rows, group = (64, 4) if rows >= 128 else (32, 1)
+        # The window kernel was qualified for the 512 px image-token geometry.
+        block_rows, group = (64, 4) if rows == 1024 else (32, 1)
         blocks = (rows + block_rows - 1) // block_rows
         padded = blocks * block_rows
         rotated = mx.hadamard_transform((x.astype(mx.float16) * self.suh).reshape(-1, 128)).reshape(
@@ -231,25 +235,50 @@ def build(folder):
     return model
 
 
+def require_supported_gpu():
+    version = platform.mac_ver()[0].split(".")
+    if (
+        version[0].isdigit()
+        and tuple(map(int, (version + ["0"])[:2])) >= (26, 3)
+        and "MLXL3_DISABLE_TENSOR_OPS" not in os.environ
+        and mx.metal.is_available()
+    ):
+        name = mx.device_info()["device_name"]
+        if name == "Apple M5" or name.startswith("Apple M5 "):
+            return name
+    raise RuntimeError(
+        "Qwen Image requires an Apple M5 GPU and macOS 26.3 or later with TensorOps enabled."
+    )
+
+
+def checked_decode(decode, latent):
+    # Check on both sides of the VAE, before MFLUX clips and casts pixels to uint8.
+    if not latent.size or not mx.all(mx.isfinite(latent)).item():
+        raise ValueError("Image generation produced empty or non-finite latents")
+    pixels = decode(latent)
+    if not pixels.size or not mx.all(mx.isfinite(pixels)).item():
+        raise ValueError("Image generation produced empty or non-finite pixels")
+    return pixels
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True, type=Path)
     parser.add_argument("--prompt", required=True)
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--seed", required=True, type=int)
-    parser.add_argument("--steps", type=int, default=40)
+    parser.add_argument("--steps", type=int, choices=range(2, 51), metavar="2..50", default=40)
     parser.add_argument("--size", type=int, default=512, choices=(512, 768, 1024))
     args = parser.parse_args()
-    if not args.prompt.strip() or not 1 <= args.steps <= 50 or not 0 <= args.seed < 2**32:
-        parser.error("Invalid prompt, seed or step count")
-    if not mx.metal.is_available():
-        raise RuntimeError("Metal GPU unavailable")
-    print(mx.device_info()["device_name"], flush=True)
+    if not args.prompt.strip() or not 0 <= args.seed < 2**32:
+        parser.error("Invalid prompt or seed")
+    print(require_supported_gpu(), flush=True)
     from mflux.callbacks.instances.memory_saver import MemorySaver
 
     model = build(args.model)
     # Studio launches this worker for one image. Each component can be released after its phase.
     model.callbacks.register(MemorySaver(model, keep_transformer=False, cache_limit_bytes=None))
+    model.vae.decode = partial(checked_decode, model.vae.decode)
     im = model.generate_image(
         seed=args.seed,
         prompt=args.prompt,
@@ -264,6 +293,7 @@ def main():
 
 
 if __name__ == "__main__" and sys.argv[1:] == ["--interpreter"]:
+    require_supported_gpu()
     print(sys.executable)
     raise SystemExit(0)
 

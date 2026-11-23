@@ -5,12 +5,14 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 import mlx.core as mx
 import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "apps/MLXL3Studio/Resources/Image21"))
-from render import PROJECTIONS, REVISION, SOURCE, EXL3Linear, load_denoiser
+import render
+from render import PROJECTIONS, REVISION, SOURCE, EXL3Linear, checked_decode, load_denoiser
 
 rng = np.random.default_rng(371)
 for bits in (3, 4, 5):
@@ -48,15 +50,18 @@ for bits in (3, 4, 5):
         (cols, rows),
         bits,
     )
-    for batch in (1, 32, 35, 127, 128, 129, 255, 256, 257):
+    for batch in (1, 32, 35, 127, 128, 129, 255, 256, 257, 1023, 1024, 1025):
         x = rng.normal(size=(batch, rows)).astype("f2")
-        y = np.asarray(proj(mx.array(x)), dtype="f")
+        with patch.object(render, "qmm", wraps=render.qmm) as dispatch:
+            y = np.asarray(proj(mx.array(x)), dtype="f")
+        expected_tile = (64, 4) if batch == 1024 else (32, 1)
+        dispatch.assert_called_once_with(rows, cols, bits, *expected_tile)
         want = (((x * su) @ h) @ w).reshape(-1, 128) @ h
         want = want.reshape(batch, cols) * sv
         assert np.isfinite(y).all() and y.shape == want.shape
         err = np.linalg.norm(y - want) / np.linalg.norm(want)
         assert err < 0.004, (bits, batch, err)
-        if batch >= 128:
+        if batch == 1024:
             # Splitting forces the original single-SIMD path for an independent dispatch comparison.
             original = mx.concatenate([proj(mx.array(x[i : i + 32])) for i in range(0, batch, 32)])
             np.testing.assert_array_equal(y.view("u4"), np.asarray(original, dtype="f").view("u4"))
@@ -92,3 +97,14 @@ with tempfile.TemporaryDirectory() as temporary:
 with checks.assertRaisesRegex(ValueError, "input width"):
     proj(mx.zeros((1, 129)))
 print("6 invalid inputs rejected")
+
+# Exercise the real MLX finite reduction before floating-point values become PNG bytes.
+valid = mx.array([0.25, 0.75], dtype=mx.bfloat16)
+assert checked_decode(lambda _: valid, valid) is valid
+for value in (float("nan"), float("inf"), -float("inf")):
+    invalid = mx.array([0.5, value], dtype=mx.bfloat16)
+    with checks.assertRaisesRegex(ValueError, "latents"):
+        checked_decode(lambda _: valid, invalid)
+    with checks.assertRaisesRegex(ValueError, "pixels"):
+        checked_decode(lambda _, pixels=invalid: pixels, valid)
+print("6 non-finite tensors rejected")
