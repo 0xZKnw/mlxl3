@@ -123,9 +123,9 @@ final class ModelLibrary: ObservableObject {
         .init(id: "turboderp/Qwen3.8-27B-exl3", title: "Qwen3.8", parameters: "27B", quantization: "2.00 bpw", symbol: "square.stack.3d.up", revision: "e5e1f4b37c77641e465e24adf5f44d01bdd48de2", preferredVariant: nil),
         .init(id: "turboderp/Qwen3.8-Flash-Next-exl3", title: "Qwen3.8", parameters: "Flash Next", quantization: "2.05 bpw · SSD", symbol: "bolt", revision: "65c895314393431c09050b2e04e250836b3a6eb4", preferredVariant: nil),
       ]),
-      // Thinking Machines Inkling 2 Mini: looped MoE, experts EXL3 3/4 bits, DSpark drafter in the same repo.
+      // Thinking Machines Inkling 2 Mini: looped MoE, experts EXL3 3/4 bits, DSpark drafter and vision encoder in the same repo.
       .init(id: "Inkling", models: [
-        .init(id: "0xzknw/Inkling-2-Mini-EXL3-3.33bpw", title: "Inkling 2 Mini", parameters: "26B · A3.4B · Loop", quantization: "3.33 bpw · DSpark", symbol: "repeat", revision: "dde31cd0aea4ca0f61eaa5649559ef01e5baf25a", preferredVariant: ""),
+        .init(id: "0xzknw/Inkling-2-Mini-EXL3-3.33bpw", title: "Inkling 2 Mini", parameters: "26B · A3.4B · Loop", quantization: "3.33 bpw · DSpark · Vision", symbol: "repeat", revision: "deac6c50ece340a4096a0e26f86664ed50cf0274", preferredVariant: ""),
       ]),
     ]
     /// Liquid d1 decision models: they load in the Decision mode, not in Chat.

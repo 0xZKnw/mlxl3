@@ -125,12 +125,8 @@ pub fn capped_dimensions(width: u32, height: u32, cap: u64) -> (u32, u32) {
     (side(width), side(height))
 }
 
-fn decode_image_with_budget(
-    url: &str,
-    remaining_pixels: u64,
-    remaining_tokens: u64,
-    cap: Option<u64>,
-) -> Result<PreparedImage> {
+/// The bytes of a PNG, JPEG or WebP base64 data URL, at most 20 MiB.
+fn data_url_bytes(url: &str) -> Result<Vec<u8>> {
     let (header, encoded) = url.split_once(",").context("image requires a data URL")?;
     ensure!(
         matches!(
@@ -148,12 +144,27 @@ fn decode_image_with_budget(
         !bytes.is_empty() && bytes.len() <= MAX_IMAGE_BYTES,
         "invalid image byte count"
     );
+    Ok(bytes)
+}
+
+/// A reader of `bytes` bounded at 32,768 pixels a side and 256 MiB of decoder allocations.
+fn image_reader(bytes: Vec<u8>) -> Result<ImageReader<Cursor<Vec<u8>>>> {
     let mut reader = ImageReader::new(Cursor::new(bytes)).with_guessed_format()?;
     let mut limits = image::Limits::default();
     limits.max_image_width = Some(32768);
     limits.max_image_height = Some(32768);
     limits.max_alloc = Some(256 * 1024 * 1024);
     reader.limits(limits);
+    Ok(reader)
+}
+
+fn decode_image_with_budget(
+    url: &str,
+    remaining_pixels: u64,
+    remaining_tokens: u64,
+    cap: Option<u64>,
+) -> Result<PreparedImage> {
+    let reader = image_reader(data_url_bytes(url)?)?;
     let mut decoder = reader.into_decoder().context("opening image decoder")?;
     let orientation = decoder.orientation().context("reading image orientation")?;
     let (mut width, mut height) = decoder.dimensions();
@@ -221,11 +232,213 @@ fn decode_image_with_budget(
     })
 }
 
+/// Image input layout of the loaded model.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ImageFormat {
+    /// LFM3-VL: resized to multiples of 32 pixels, 16-pixel patches, text placeholders expanded before
+    /// the chat template.
+    Lfm3,
+    /// Inkling 2 Mini: native resolution in 40-pixel tokens, one placeholder per image part written by
+    /// the chat template and expanded afterwards (`expand_image_placeholders`).
+    Inkling2,
+}
+
+/// Largest picture Inkling 2 reads at full size (`MLXL3_INKLING_IMAGE_MAX_PIXELS` overrides it): a larger
+/// one is scaled down, aspect kept (1920 x 1080 is 1,296 image tokens).
+pub const INKLING_MAX_PIXELS: u64 = 1920 * 1080;
+/// Longest side Inkling 2 reads (the source model card's range is 40 to 4,096 pixels a side).
+pub const INKLING_MAX_SIDE: u32 = 4096;
+
+/// The Inkling picture cap: `MLXL3_INKLING_IMAGE_MAX_PIXELS` (one token's 1,600 pixels up to the
+/// aggregate limit) or `INKLING_MAX_PIXELS`.
+pub fn inkling_max_pixels() -> Result<u64> {
+    match std::env::var("MLXL3_INKLING_IMAGE_MAX_PIXELS") {
+        Ok(value) => {
+            let pixels: u64 = value
+                .trim()
+                .parse()
+                .context("MLXL3_INKLING_IMAGE_MAX_PIXELS must be a pixel count")?;
+            ensure!(
+                (1600..=MAX_PIXELS).contains(&pixels),
+                "MLXL3_INKLING_IMAGE_MAX_PIXELS must be between 1600 and {MAX_PIXELS}"
+            );
+            Ok(pixels)
+        }
+        Err(_) => Ok(INKLING_MAX_PIXELS),
+    }
+}
+
+/// Size an Inkling picture of `width` x `height` is read at: unchanged within `cap` pixels and
+/// `INKLING_MAX_SIDE` a side, else both sides scaled down (at least one pixel each).
+pub fn inkling_dimensions(width: u32, height: u32, cap: u64) -> Result<(u32, u32)> {
+    ensure!(width > 0 && height > 0, "invalid image dimensions");
+    let (mut w, mut h) = capped_dimensions(width, height, cap);
+    let side = w.max(h);
+    if side > INKLING_MAX_SIDE {
+        let scale = f64::from(INKLING_MAX_SIDE) / f64::from(side);
+        w = ((f64::from(w) * scale) as u32).clamp(1, INKLING_MAX_SIDE);
+        h = ((f64::from(h) * scale) as u32).clamp(1, INKLING_MAX_SIDE);
+    }
+    Ok((w, h))
+}
+
+/// Token grid `(rows, columns)` of an Inkling picture: whole 40-pixel tiles, the last ones padded.
+pub fn inkling_grid(width: u32, height: u32) -> (u32, u32) {
+    let tile = crate::inkling2_vision::TOKEN_PIXELS;
+    (height.div_ceil(tile), width.div_ceil(tile))
+}
+
+/// RGB pixels as the reference processor sees them: an image with an alpha channel is composited onto
+/// its 8-pixel grey checkerboard (204 / 153), `(rgb * a + background * (255 - a) + 127) / 255`.
+fn inkling_rgb(image: &image::DynamicImage) -> image::RgbImage {
+    if !image.color().has_alpha() {
+        return image.to_rgb8();
+    }
+    let rgba = image.to_rgba8();
+    image::RgbImage::from_fn(rgba.width(), rgba.height(), |x, y| {
+        let pixel = rgba.get_pixel(x, y);
+        let background: u32 = if (y / 8 + x / 8) % 2 == 0 { 204 } else { 153 };
+        let alpha = u32::from(pixel[3]);
+        image::Rgb([0, 1, 2].map(|c| {
+            ((u32::from(pixel[c]) * alpha + background * (255 - alpha) + 127) / 255) as u8
+        }))
+    })
+}
+
+/// Encoder input of an RGB picture: `rows` x `columns` tokens of 2 x 2 patches of 20 x 20 pixels,
+/// patches in the encoder's merged-block order, each patch's values by row, column, then channel,
+/// `(value - 127.5) / 127.5`; pixels beyond the picture are the reference's padding (-1 on the 0-255
+/// scale).
+fn inkling_patches(rgb: &image::RgbImage, rows: u32, columns: u32) -> Result<Vec<f32>> {
+    use crate::inkling2_vision::{MERGE, PATCH, PATCH_VALUES};
+    let (height, width) = (rows * MERGE, columns * MERGE);
+    let count = usize::try_from(u64::from(height) * u64::from(width))?
+        .checked_mul(PATCH_VALUES)
+        .context("image patch count overflow")?;
+    #[cfg(test)]
+    PATCH_ALLOCATIONS.with(|n| n.set(n.get() + 1));
+    let mut patches = Vec::new();
+    patches
+        .try_reserve_exact(count)
+        .context("allocating image patches")?;
+    patches.resize(count, 0.);
+    let pad = (-1f32 - 127.5) / 127.5;
+    let (w, h) = rgb.dimensions();
+    for row in 0..height {
+        for column in 0..width {
+            let index = crate::lfm3::patch_index(row, column, height, width, MERGE)
+                .context("invalid image patch order")? as usize;
+            let mut offset = index * PATCH_VALUES;
+            for py in 0..PATCH {
+                for px in 0..PATCH {
+                    let (x, y) = (column * PATCH + px, row * PATCH + py);
+                    let pixel = (x < w && y < h).then(|| rgb.get_pixel(x, y));
+                    for channel in 0..3 {
+                        patches[offset] = match pixel {
+                            Some(p) => (f32::from(p[channel]) - 127.5) / 127.5,
+                            None => pad,
+                        };
+                        offset += 1;
+                    }
+                }
+            }
+        }
+    }
+    Ok(patches)
+}
+
+/// Decodes an Inkling 2 picture within the remaining aggregate budget (padded pixels and tokens),
+/// admitted from its header before any pixel is decoded.
+fn decode_inkling_image(
+    url: &str,
+    remaining_pixels: u64,
+    remaining_tokens: u64,
+) -> Result<PreparedImage> {
+    let reader = image_reader(data_url_bytes(url)?)?;
+    let mut decoder = reader.into_decoder().context("opening image decoder")?;
+    let orientation = decoder.orientation().context("reading image orientation")?;
+    let (mut width, mut height) = decoder.dimensions();
+    if orientation.to_exif() >= 5 {
+        std::mem::swap(&mut width, &mut height);
+    }
+    let (w, h) = inkling_dimensions(width, height, inkling_max_pixels()?)?;
+    let (rows, columns) = inkling_grid(w, h);
+    let tokens = u64::from(rows) * u64::from(columns);
+    let tile = u64::from(crate::inkling2_vision::TOKEN_PIXELS);
+    ensure!(
+        tokens * tile * tile <= remaining_pixels && tokens <= remaining_tokens,
+        "conversation images exceed the aggregate pixel or token limit"
+    );
+    let mut image = image::DynamicImage::from_decoder(decoder).context("decoding image")?;
+    image.apply_orientation(orientation);
+    let rgb = inkling_rgb(&image);
+    let rgb = if rgb.dimensions() == (w, h) {
+        rgb
+    } else {
+        image::imageops::resize(&rgb, w, h, FilterType::CatmullRom)
+    };
+    Ok(PreparedImage {
+        height: rows * crate::inkling2_vision::MERGE,
+        width: columns * crate::inkling2_vision::MERGE,
+        patches: inkling_patches(&rgb, rows, columns)?,
+    })
+}
+
+/// Pixels an admitted image takes from the aggregate budget.
+fn budget_pixels(format: ImageFormat, image: &PreparedImage) -> u64 {
+    let patch = match format {
+        ImageFormat::Lfm3 => 16u64,
+        ImageFormat::Inkling2 => u64::from(crate::inkling2_vision::PATCH),
+    };
+    u64::from(image.height) * u64::from(image.width) * patch * patch
+}
+
+/// Inkling 2: the chat template writes one `<|unused_200054|>` per image part; the reference processor
+/// then repeats it once per image token. Every placeholder of `rendered` must belong to an image, in
+/// order. Other formats (and text-only prompts) are returned unchanged.
+pub fn expand_image_placeholders(
+    format: Option<ImageFormat>,
+    rendered: String,
+    images: &[PreparedImage],
+) -> Result<String> {
+    use crate::inkling2_vision::IMAGE_PLACEHOLDER;
+    if format != Some(ImageFormat::Inkling2) || images.is_empty() {
+        return Ok(rendered);
+    }
+    let pieces: Vec<&str> = rendered.split(IMAGE_PLACEHOLDER).collect();
+    ensure!(
+        pieces.len() == images.len() + 1,
+        "the chat template wrote {} image placeholders for {} images",
+        pieces.len() - 1,
+        images.len()
+    );
+    let extra: usize = images.iter().map(PreparedImage::token_count).sum();
+    let mut out = String::with_capacity(rendered.len() + extra * IMAGE_PLACEHOLDER.len());
+    for (index, piece) in pieces.iter().enumerate() {
+        out.push_str(piece);
+        if let Some(image) = images.get(index) {
+            out.push_str(&IMAGE_PLACEHOLDER.repeat(image.token_count()));
+        }
+    }
+    Ok(out)
+}
+
 /// Expand each image at its original position before applying the chat template.
 /// Remote URLs and local paths are deliberately not fetched by the HTTP server.
 pub fn prepare_messages(
     messages: &[Value],
     supports_images: bool,
+) -> Result<(Vec<Value>, Vec<PreparedImage>)> {
+    prepare_messages_as(messages, supports_images.then_some(ImageFormat::Lfm3))
+}
+
+/// `prepare_messages` for the image layout of the loaded model (`None`: text only). LFM3 messages become
+/// text with their expanded placeholders; an Inkling 2 message with images keeps its parts (text parts,
+/// then `{"type": "image"}` for each picture) for the chat template. Messages without images are
+/// flattened to text in both cases.
+pub fn prepare_messages_as(
+    messages: &[Value],
+    format: Option<ImageFormat>,
 ) -> Result<(Vec<Value>, Vec<PreparedImage>)> {
     let mut output = Vec::new();
     let mut images = Vec::new();
@@ -249,43 +462,59 @@ pub fn prepare_messages(
             .as_object_mut()
             .context("message must be an object")?
             .remove("images");
-        let text = match &message["content"] {
-            Value::String(text) => text.clone(),
+        let content = match &message["content"] {
+            Value::String(text) => json!(text),
             Value::Array(parts) => {
                 let mut text = String::new();
+                // Inkling 2: the parts of a message with pictures, kept for the chat template
+                let mut kept = Vec::new();
+                let mut pictures = false;
                 for part in parts {
                     if part["type"] == "text" {
-                        text.push_str(part["text"].as_str().context("missing text")?);
+                        let piece = part["text"].as_str().context("missing text")?;
+                        text.push_str(piece);
+                        kept.push(json!({"type":"text","text":piece}));
                     } else {
-                        ensure!(
-                            supports_images,
-                            "this model does not support images; select LFM3-VL"
-                        );
+                        let kind = format.context(
+                            "this model does not support images; select a vision model \
+                             (LFM3-VL, or Inkling 2 Mini with its vision encoder)",
+                        )?;
                         ensure!(
                             images.len() < MAX_IMAGES,
                             "at most eight images per conversation are supported"
                         );
-                        let image = decode_image_with_budget(
-                            part["image_url"]["url"]
-                                .as_str()
-                                .context("missing image URL")?,
-                            MAX_PIXELS - total_pixels,
-                            MAX_IMAGE_TOKENS - total_tokens,
-                            None,
-                        )?;
-                        total_pixels += u64::from(image.height) * u64::from(image.width) * 256;
+                        let url = part["image_url"]["url"]
+                            .as_str()
+                            .context("missing image URL")?;
+                        let (pixels, tokens) =
+                            (MAX_PIXELS - total_pixels, MAX_IMAGE_TOKENS - total_tokens);
+                        let image = match kind {
+                            ImageFormat::Lfm3 => {
+                                decode_image_with_budget(url, pixels, tokens, None)?
+                            }
+                            ImageFormat::Inkling2 => decode_inkling_image(url, pixels, tokens)?,
+                        };
+                        total_pixels += budget_pixels(kind, &image);
                         total_tokens += image.token_count() as u64;
-                        text.push_str("<|vision_start|>");
-                        text.push_str(&"<|image|>".repeat(image.token_count()));
-                        text.push_str("<|vision_end|>");
+                        if kind == ImageFormat::Lfm3 {
+                            text.push_str("<|vision_start|>");
+                            text.push_str(&"<|image|>".repeat(image.token_count()));
+                            text.push_str("<|vision_end|>");
+                        }
+                        kept.push(json!({"type":"image"}));
+                        pictures = true;
                         images.push(image);
                     }
                 }
-                text
+                if pictures && format == Some(ImageFormat::Inkling2) {
+                    json!(kept)
+                } else {
+                    json!(text)
+                }
             }
             _ => unreachable!("validated above"),
         };
-        normalized["content"] = json!(text);
+        normalized["content"] = content;
         output.push(normalized);
     }
     Ok((output, images))
@@ -450,6 +679,218 @@ mod tests {
             assert!(decode_image(bad).is_err());
         }
     }
+    fn png_url(image: DynamicImage) -> String {
+        let mut bytes = Cursor::new(Vec::new());
+        image.write_to(&mut bytes, ImageFormat::Png).unwrap();
+        format!(
+            "data:image/png;base64,{}",
+            STANDARD.encode(bytes.into_inner())
+        )
+    }
+
+    fn inkling_image(url: &str) -> PreparedImage {
+        let message =
+            json!({"role":"user","content":[{"type":"image_url","image_url":{"url":url}}]});
+        let (_, mut images) =
+            prepare_messages_as(&[message], Some(super::ImageFormat::Inkling2)).unwrap();
+        assert_eq!(images.len(), 1);
+        images.remove(0)
+    }
+
+    /// Oracle: the reference processor and encoder reshapes written out directly. The picture padded to
+    /// whole 40-pixel tiles with -1 (0-255 scale), normalized `(x - 127.5) / 127.5`, reshaped
+    /// `(C, rows, 40, cols, 40) -> permute(1, 3, 2, 4, 0)` into one `[40, 40, C]` tile per token, then the
+    /// encoder's `reshape(-1, 2, 20, 2, 20, C).transpose(2, 3)` into `[token, my, mx, py, px, C]`.
+    fn reference_values(
+        pixel: impl Fn(u32, u32) -> Option<[u8; 3]>,
+        rows: u32,
+        cols: u32,
+    ) -> Vec<f32> {
+        let mut out = Vec::new();
+        for r in 0..rows {
+            for c in 0..cols {
+                for my in 0..2 {
+                    for mx in 0..2 {
+                        for py in 0..20 {
+                            for px in 0..20 {
+                                let (y, x) = (r * 40 + my * 20 + py, c * 40 + mx * 20 + px);
+                                for ch in 0..3 {
+                                    let raw = pixel(x, y).map_or(-1., |p| f32::from(p[ch]));
+                                    out.push((raw - 127.5) / 127.5);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        out
+    }
+
+    #[test]
+    fn inkling_patches_follow_the_reference_tiles_padding_and_order() {
+        let (w, h) = (90, 50);
+        let rgb = RgbImage::from_fn(w, h, |x, y| image::Rgb([x as u8, (y * 3) as u8, 7]));
+        let image = inkling_image(&png_url(DynamicImage::ImageRgb8(rgb)));
+        // ceil(50 / 40) = 2 rows, ceil(90 / 40) = 3 columns of tokens, 2 x 2 patches each
+        assert_eq!((image.height, image.width, image.token_count()), (4, 6, 6));
+        let expected = reference_values(
+            |x, y| (x < w && y < h).then(|| [x as u8, (y * 3) as u8, 7]),
+            2,
+            3,
+        );
+        assert_eq!(image.patches.len(), expected.len());
+        assert_eq!(image.patches, expected);
+        // the padding is the reference's -1 on the 0-255 scale, not 0 or -1 after normalization
+        assert_eq!(*image.patches.last().unwrap(), (-1. - 127.5) / 127.5);
+    }
+
+    #[test]
+    fn inkling_alpha_is_composited_on_the_reference_checkerboard() {
+        let rgba = image::RgbaImage::from_fn(40, 40, |x, y| {
+            image::Rgba([250, 10, 120, [0, 128, 255][((x + y) % 3) as usize]])
+        });
+        let image = inkling_image(&png_url(DynamicImage::ImageRgba8(rgba)));
+        let expected = reference_values(
+            |x, y| {
+                let alpha = [0u32, 128, 255][((x + y) % 3) as usize];
+                let background = if (y / 8 + x / 8) % 2 == 0 { 204 } else { 153 };
+                Some(
+                    [250u32, 10, 120]
+                        .map(|v| ((v * alpha + background * (255 - alpha) + 127) / 255) as u8),
+                )
+            },
+            1,
+            1,
+        );
+        assert_eq!(image.patches, expected);
+    }
+
+    #[test]
+    fn inkling_pictures_keep_native_size_within_the_caps() {
+        let cap = super::INKLING_MAX_PIXELS;
+        assert_eq!(
+            super::inkling_dimensions(1920, 1080, cap).unwrap(),
+            (1920, 1080)
+        );
+        assert_eq!(super::inkling_dimensions(1, 1, cap).unwrap(), (1, 1));
+        let (w, h) = super::inkling_dimensions(4032, 3024, cap).unwrap();
+        assert!(
+            u64::from(w) * u64::from(h) <= cap && w > 1600 && h > 1200,
+            "{w} x {h}"
+        );
+        // one side beyond the model card's 4,096 pixels is brought back to it, aspect kept
+        assert_eq!(
+            super::inkling_dimensions(8000, 100, MAX_PIXELS).unwrap(),
+            (4096, 51)
+        );
+        assert!(super::inkling_dimensions(0, 10, cap).is_err());
+        assert_eq!(super::inkling_grid(40, 40), (1, 1));
+        assert_eq!(super::inkling_grid(41, 1), (1, 2));
+        assert_eq!(super::inkling_grid(1920, 1080), (27, 48));
+        // a picture over the cap is scaled before its patches are built
+        let (w, h) = super::inkling_dimensions(2200, 1000, cap).unwrap();
+        assert!(u64::from(w) * u64::from(h) <= cap && w < 2200 && h < 1000);
+        let big = inkling_image(&png_url(DynamicImage::ImageRgb8(RgbImage::new(2200, 1000))));
+        assert_eq!((big.height / 2, big.width / 2), super::inkling_grid(w, h));
+    }
+
+    #[test]
+    fn inkling_messages_keep_parts_for_the_template() {
+        use super::ImageFormat::Inkling2;
+        let url = png_url(DynamicImage::ImageRgb8(RgbImage::new(80, 40)));
+        let input = json!({"role":"user","content":[{"type":"text","text":"before"},{"type":"image_url","image_url":{"url":url}},{"type":"text","text":"after"}]});
+        let (messages, images) =
+            prepare_messages_as(std::slice::from_ref(&input), Some(Inkling2)).unwrap();
+        assert_eq!(images.len(), 1);
+        assert_eq!(images[0].token_count(), 2);
+        assert_eq!(
+            messages[0]["content"],
+            json!([{"type":"text","text":"before"},{"type":"image"},{"type":"text","text":"after"}])
+        );
+        // the legacy `images` field becomes the text then the pictures
+        let legacy = json!({"role":"user","content":"look","images":[url.clone(), url.clone()]});
+        let (messages, images) = prepare_messages_as(&[legacy], Some(Inkling2)).unwrap();
+        assert_eq!(images.len(), 2);
+        assert_eq!(
+            messages[0]["content"],
+            json!([{"type":"text","text":"look"},{"type":"image"},{"type":"image"}])
+        );
+        assert!(messages[0].get("images").is_none());
+        // text-only messages are flattened exactly as before
+        let text = json!({"role":"user","content":[{"type":"text","text":"a"},{"type":"text","text":"b"}]});
+        let (messages, images) =
+            prepare_messages_as(std::slice::from_ref(&text), Some(Inkling2)).unwrap();
+        assert!(images.is_empty());
+        assert_eq!(messages, prepare_messages(&[text], false).unwrap().0);
+        assert_eq!(messages[0]["content"], json!("ab"));
+        assert!(prepare_messages_as(std::slice::from_ref(&input), None).is_err());
+        let nine = json!({"role":"user","content":"x","images":vec![url; 9]});
+        assert!(prepare_messages_as(&[nine], Some(Inkling2)).is_err());
+    }
+
+    #[test]
+    fn inkling_admission_happens_before_patch_allocation() {
+        let url = png_url(DynamicImage::ImageRgb8(RgbImage::new(400, 400)));
+        PATCH_ALLOCATIONS.with(|n| n.set(0));
+        // 100 tokens of 1,600 pixels: one pixel or one token short of the budget is refused
+        for (pixels, tokens) in [(159_999, 100), (160_000, 99), (0, 0)] {
+            let error = decode_inkling_image(&url, pixels, tokens)
+                .err()
+                .unwrap()
+                .to_string();
+            assert!(error.contains("aggregate"), "{error}");
+            PATCH_ALLOCATIONS.with(|n| assert_eq!(n.get(), 0));
+        }
+        let image = decode_inkling_image(&url, 160_000, 100).unwrap();
+        assert_eq!(image.token_count(), 100);
+        assert_eq!(
+            super::budget_pixels(super::ImageFormat::Inkling2, &image),
+            160_000
+        );
+        PATCH_ALLOCATIONS.with(|n| assert_eq!(n.get(), 1));
+    }
+
+    #[test]
+    fn inkling_placeholders_expand_once_per_image_token() {
+        use super::ImageFormat::{Inkling2, Lfm3};
+        let p = crate::inkling2_vision::IMAGE_PLACEHOLDER;
+        let image = |rows: u32, cols: u32| PreparedImage {
+            height: rows * 2,
+            width: cols * 2,
+            patches: Vec::new(),
+        };
+        let images = [image(1, 2), image(3, 1)];
+        let rendered =
+            format!("a<|content_image|>{p}<|end_message|>b<|content_image|>{p}<|end_message|>");
+        let expanded =
+            expand_image_placeholders(Some(Inkling2), rendered.clone(), &images).unwrap();
+        assert_eq!(
+            expanded,
+            format!(
+                "a<|content_image|>{}<|end_message|>b<|content_image|>{}<|end_message|>",
+                p.repeat(2),
+                p.repeat(3)
+            )
+        );
+        // a placeholder typed in the text, or a template that dropped one, is refused
+        assert!(
+            expand_image_placeholders(Some(Inkling2), format!("{rendered}{p}"), &images).is_err()
+        );
+        assert!(expand_image_placeholders(Some(Inkling2), rendered.clone(), &images[..1]).is_err());
+        // other formats and text-only prompts are unchanged
+        for (format, images) in [
+            (Some(Lfm3), &images[..]),
+            (None, &images[..]),
+            (Some(Inkling2), &[][..]),
+        ] {
+            assert_eq!(
+                expand_image_placeholders(format, rendered.clone(), images).unwrap(),
+                rendered
+            );
+        }
+    }
+
     #[test]
     fn messages_preserve_image_position_and_reject_unsupported_models() {
         let input = json!({"role":"user","content":[{"type":"text","text":"before"},{"type":"image_url","image_url":{"url":data_url()}},{"type":"text","text":"after"}]});

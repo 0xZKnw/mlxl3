@@ -883,9 +883,23 @@ impl DsparkSession {
         tokens: &[u32],
         cancelled: &dyn Fn() -> bool,
     ) -> Result<Array> {
+        self.prefill_with_images(target, draft, tokens, &[], cancelled)
+    }
+
+    /// `prefill` of a prompt whose image placeholders read the features of `images`
+    /// (`Inkling2::prepare_images`).
+    pub fn prefill_with_images(
+        &mut self,
+        target: &mut Inkling2,
+        draft: &mut Inkling2Draft,
+        tokens: &[u32],
+        images: &[crate::lfm3::PreparedImage],
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<Array> {
         ensure!(!tokens.is_empty(), "DSpark prefill needs tokens");
         let t = Instant::now();
         target.reset();
+        target.prepare_images(tokens, images)?;
         draft.reset();
         self.pending.clear();
         self.expected = None;

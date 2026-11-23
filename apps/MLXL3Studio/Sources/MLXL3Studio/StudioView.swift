@@ -105,6 +105,7 @@ struct StudioView: View {
 }
 
 private struct SidebarView: View {
+    @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var studio: StudioModel
     @State private var search = ""
 
@@ -213,6 +214,15 @@ private struct SidebarView: View {
             }
             .scrollIndicators(.hidden)
             .mask(StudioEdgeFade(top: 10, bottom: 18))
+
+            if Image21Hardware.available {
+                Button { openWindow(id: "image-generation") } label: {
+                    Label(L("Générer une image", "Generate an image"), systemImage: "photo")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(StudioControlStyle(cornerRadius: 8))
+                .padding(.horizontal, 10).padding(.vertical, 6)
+            }
 
             // Projects, MCP, Models and Settings as one icon row (named in the
             // tooltip and accessibility label) instead of four full-width rows.

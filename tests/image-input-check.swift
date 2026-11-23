@@ -128,7 +128,8 @@ private struct ImageCheckFailure: Error { let message: String }
     defer { preferences.removePersistentDomain(forName: suite) }
     let studio = StudioModel(conversationFileURL: history, preferences: preferences)
     defer { studio.ejectModel() }
-    studio.models = [ ("image-import", "lfm3_vl"), ("file-import", "lfm3"), ("image-old", "lfm3_vl") ].map {
+    studio.models = [ ("image-import", "lfm3_vl"), ("file-import", "lfm3"), ("image-old", "lfm3_vl"),
+                      ("inkling-vision", "inkling2_loop"), ("inkling-text", "inkling2_loop") ].map {
       LocalModel(name: $0.0, path: root.path, modelType: $0.1, format: "EXL3", bits: 8,
         sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")
     }
@@ -190,6 +191,13 @@ private struct ImageCheckFailure: Error { let message: String }
     studio.selectModel("image-old")
     try await wait { studio.engineState.isReady }
     try check(!studio.canImportImages, "Old engine without capability enabled images")
+    // Inkling 2 Mini reads images only when the engine finds its vision encoder in the checkpoint
+    studio.selectModel("inkling-text")
+    try await wait { studio.engineState.isReady }
+    try check(!studio.canImportImages, "Inkling without its vision encoder enabled images")
+    studio.selectModel("inkling-vision")
+    try await wait { studio.engineState.isReady }
+    try check(studio.canImportImages, "Inkling vision capability ignored")
     studio.selectModel("image-import")
     try await wait { studio.engineState.isReady }
     await studio.importChatFiles([root.appendingPathComponent("red.jpeg")])

@@ -1,0 +1,223 @@
+{
+  "base": "441fce82dc19057b068227bb0294f8b1018f597f",
+  "os": "macOS",
+  "mlx": "0.32.4",
+  "mflux": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+  "chip": "Apple M5",
+  "ram_gib": 24,
+  "schema": "decimal GB, seconds",
+  "order": "ABBA at 1024 x 3 steps, ABBA at 512 x 4 steps; fresh process per image, two-step warmup per arm and resolution",
+  "files": {
+    "build/image21-phase-memory/baseline/render.py": "f2c00df2a36c14545e3bd76f2486c365fb79e1673c3953397d11a9f614c03368",
+    "build/image21-phase-memory/candidate/render.py": "8ce4c930c33bb6ebe26a5a0b4f5a986422754cfc0cd6992357a394af0ed65ece",
+    "build/image21-phase-memory/fused/hadamard.metal": "ae832f2b7b90ca5c8966a319a5f29d4890d77a2279f9995f7fe16eaadbd90ed3",
+    "build/image21-phase-memory/fused/render.py": "729aaf70bd4babd07a683317c6e9e52e27e0702e8c2894763ca706f067a91cad",
+    "models/Qwen-Image-2.1-EXL3-4bpw/manifest.json": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0"
+  },
+  "runs": [
+    {
+      "tag": "qual-1024",
+      "arm": "candidate",
+      "size": 1024,
+      "steps": 2,
+      "wall": 45.36,
+      "rss": 4.234067968,
+      "foot": 18.598791856,
+      "step": 14.17,
+      "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967"
+    },
+    {
+      "tag": "qual-512",
+      "arm": "candidate",
+      "size": 512,
+      "steps": 2,
+      "wall": 10.98,
+      "rss": 4.611981312,
+      "foot": 15.348501864,
+      "step": 2.38,
+      "rgb": "b92a2e1d113f1e4572bff63562e94ebffcd146bfb6af0a407e95e4851d08b7f5"
+    },
+    {
+      "tag": "warm-1024-baseline",
+      "arm": "baseline",
+      "size": 1024,
+      "steps": 2,
+      "wall": 45.0,
+      "rss": 9.338077184,
+      "foot": 19.11895668,
+      "step": 15.33,
+      "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967"
+    },
+    {
+      "tag": "warm-1024-candidate",
+      "arm": "candidate",
+      "size": 1024,
+      "steps": 2,
+      "wall": 45.13,
+      "rss": 4.613095424,
+      "foot": 18.823777448,
+      "step": 15.06,
+      "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967"
+    },
+    {
+      "tag": "measure-1024-0-baseline",
+      "arm": "baseline",
+      "size": 1024,
+      "steps": 3,
+      "wall": 59.36,
+      "rss": 9.343647744,
+      "foot": 19.168878632,
+      "step": 15.12,
+      "rgb": "7c5984cabb02934375565c86502da519c3d5afa2d6afb37ffc70407788de14d4"
+    },
+    {
+      "tag": "measure-1024-1-candidate",
+      "arm": "candidate",
+      "size": 1024,
+      "steps": 3,
+      "wall": 59.25,
+      "rss": 4.612128768,
+      "foot": 18.811276432,
+      "step": 15.47,
+      "rgb": "7c5984cabb02934375565c86502da519c3d5afa2d6afb37ffc70407788de14d4"
+    },
+    {
+      "tag": "measure-1024-2-candidate",
+      "arm": "candidate",
+      "size": 1024,
+      "steps": 3,
+      "wall": 63.22,
+      "rss": 4.611145728,
+      "foot": 18.843143648,
+      "step": 16.41,
+      "rgb": "7c5984cabb02934375565c86502da519c3d5afa2d6afb37ffc70407788de14d4"
+    },
+    {
+      "tag": "measure-1024-3-baseline",
+      "arm": "baseline",
+      "size": 1024,
+      "steps": 3,
+      "wall": 69.6,
+      "rss": 9.346924544,
+      "foot": 19.014312072,
+      "step": 17.93,
+      "rgb": "7c5984cabb02934375565c86502da519c3d5afa2d6afb37ffc70407788de14d4"
+    },
+    {
+      "tag": "warm-512-baseline",
+      "arm": "baseline",
+      "size": 512,
+      "steps": 2,
+      "wall": 13.7,
+      "rss": 8.460058624,
+      "foot": 18.66887172,
+      "step": 2.93,
+      "rgb": "b92a2e1d113f1e4572bff63562e94ebffcd146bfb6af0a407e95e4851d08b7f5"
+    },
+    {
+      "tag": "warm-512-candidate",
+      "arm": "candidate",
+      "size": 512,
+      "steps": 2,
+      "wall": 11.06,
+      "rss": 4.612849664,
+      "foot": 15.34645396,
+      "step": 2.5,
+      "rgb": "b92a2e1d113f1e4572bff63562e94ebffcd146bfb6af0a407e95e4851d08b7f5"
+    },
+    {
+      "tag": "measure-512-0-baseline",
+      "arm": "baseline",
+      "size": 512,
+      "steps": 4,
+      "wall": 17.39,
+      "rss": 8.459321344,
+      "foot": 18.761965632,
+      "step": 2.37,
+      "rgb": "3c0d45ba821013dc5146baf0ca388712b4840982d2bd7e05665a1b8a4c40498f"
+    },
+    {
+      "tag": "measure-512-1-candidate",
+      "arm": "candidate",
+      "size": 512,
+      "steps": 4,
+      "wall": 14.82,
+      "rss": 4.612931584,
+      "foot": 15.346273808,
+      "step": 2.25,
+      "rgb": "3c0d45ba821013dc5146baf0ca388712b4840982d2bd7e05665a1b8a4c40498f"
+    },
+    {
+      "tag": "measure-512-2-candidate",
+      "arm": "candidate",
+      "size": 512,
+      "steps": 4,
+      "wall": 14.68,
+      "rss": 4.612161536,
+      "foot": 15.345683912,
+      "step": 2.25,
+      "rgb": "3c0d45ba821013dc5146baf0ca388712b4840982d2bd7e05665a1b8a4c40498f"
+    },
+    {
+      "tag": "measure-512-3-baseline",
+      "arm": "baseline",
+      "size": 512,
+      "steps": 4,
+      "wall": 16.41,
+      "rss": 8.669544448,
+      "foot": 18.573795392,
+      "step": 2.24,
+      "rgb": "3c0d45ba821013dc5146baf0ca388712b4840982d2bd7e05665a1b8a4c40498f"
+    }
+  ],
+  "means": [
+    {
+      "size": 1024,
+      "arm": "baseline",
+      "wall_each": [
+        59.36,
+        69.6
+      ],
+      "wall": 64.47999999999999,
+      "step": 16.525,
+      "rss": 9.345286144,
+      "foot": 19.091595352
+    },
+    {
+      "size": 1024,
+      "arm": "candidate",
+      "wall_each": [
+        59.25,
+        63.22
+      ],
+      "wall": 61.235,
+      "step": 15.940000000000001,
+      "rss": 4.611637248,
+      "foot": 18.82721004
+    },
+    {
+      "size": 512,
+      "arm": "baseline",
+      "wall_each": [
+        17.39,
+        16.41
+      ],
+      "wall": 16.9,
+      "step": 2.305,
+      "rss": 8.564432896,
+      "foot": 18.667880512
+    },
+    {
+      "size": 512,
+      "arm": "candidate",
+      "wall_each": [
+        14.82,
+        14.68
+      ],
+      "wall": 14.75,
+      "step": 2.25,
+      "rss": 4.61254656,
+      "foot": 15.345978859999999
+    }
+  ]
+}

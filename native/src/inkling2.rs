@@ -2950,6 +2950,19 @@ pub struct Inkling2 {
     /// SPEED-2026-11-23-INK2M-MAYA PC: lineage of the cache rows, renewed by every `reset` (process-wide
     /// unique), so a saved prefix only resumes the state it was taken from.
     epoch: u64,
+    /// Vision encoder: absent from the checkpoint, loadable on the first image, or loaded.
+    vision: VisionSlot,
+    /// Image features of the current prompt: `(first position, rows [n, D] FP32)` in position order. They
+    /// replace the embeddings of those positions; `reset` and `prepare_images` clear them.
+    images: Vec<(i32, Array)>,
+}
+
+/// Where the vision encoder of an Inkling checkpoint is.
+enum VisionSlot {
+    Absent,
+    /// The checkpoint directory; loaded by the first `prepare_images` with pictures.
+    Available(std::path::PathBuf),
+    Loaded(Box<crate::inkling2_vision::Vision>),
 }
 
 /// Process-wide source of `Inkling2::epoch` values.
@@ -3181,7 +3194,93 @@ impl Inkling2 {
             context_limit: c.model_max_length,
             offset: 0,
             epoch: next_epoch(),
+            // `MLXL3_INKLING_VISION=0` keeps the model text only
+            vision: if crate::inkling2_vision::Vision::present(checkpoint)
+                && std::env::var("MLXL3_INKLING_VISION").as_deref() != Ok("0")
+            {
+                VisionSlot::Available(checkpoint.path.clone())
+            } else {
+                VisionSlot::Absent
+            },
+            images: Vec::new(),
         })
+    }
+
+    /// The checkpoint ships the vision encoder: `prepare_images` accepts pictures.
+    pub fn supports_images(&self) -> bool {
+        !matches!(self.vision, VisionSlot::Absent)
+    }
+
+    /// Encodes `images` and places their features at the image placeholders of `tokens`, the whole
+    /// prompt from position 0: the `i`-th run of placeholders must hold exactly the `i`-th image's tokens.
+    /// The next forward calls read those rows instead of the placeholder embeddings. An empty list only
+    /// clears the previous prompt's features.
+    pub fn prepare_images(
+        &mut self,
+        tokens: &[u32],
+        images: &[crate::lfm3::PreparedImage],
+    ) -> Result<()> {
+        self.images.clear();
+        if images.is_empty() {
+            return Ok(());
+        }
+        ensure!(
+            self.offset == 0,
+            "Inkling images need a prompt prefilled from its start"
+        );
+        let runs = crate::inkling2_vision::placeholder_runs(tokens);
+        ensure!(
+            runs.len() == images.len()
+                && runs
+                    .iter()
+                    .zip(images)
+                    .all(|(&(_, length), image)| length == image.token_count()),
+            "image placeholders of the prompt do not match its {} images",
+            images.len()
+        );
+        if let VisionSlot::Available(path) = &self.vision {
+            let path = path.clone();
+            let checkpoint = checkpoint::inspect(&path)?;
+            let root: serde_json::Value =
+                serde_json::from_reader(File::open(path.join("config.json"))?)?;
+            let vision = crate::inkling2_vision::Vision::load(&checkpoint, &root)
+                .context("loading the Inkling vision encoder")?;
+            ensure!(
+                vision.text_hidden() == self.hidden,
+                "Inkling vision output does not match the language model"
+            );
+            self.vision = VisionSlot::Loaded(Box::new(vision));
+        }
+        let VisionSlot::Loaded(vision) = &self.vision else {
+            anyhow::bail!("this Inkling checkpoint has no vision encoder");
+        };
+        let mut placed = Vec::with_capacity(images.len());
+        for (&(first, length), image) in runs.iter().zip(images) {
+            let features = vision.forward(image)?.astype(Dtype::Float32)?;
+            features.eval()?;
+            ensure!(
+                features.shape() == [i32::try_from(length)?, self.hidden],
+                "unexpected Inkling image feature shape"
+            );
+            placed.push((i32::try_from(first)?, features));
+        }
+        self.images = placed;
+        Ok(())
+    }
+
+    /// `hidden` `[T, D]` of positions `[start, start + T)` with the rows of prepared images in place.
+    fn place_images(&self, mut hidden: Array, start: i32) -> Result<Array> {
+        let end = start + hidden.shape()[0];
+        for (first, rows) in &self.images {
+            let (from, to) = ((*first).max(start), (first + rows.shape()[0]).min(end));
+            if from < to {
+                hidden = hidden.slice_update(
+                    &rows.slice(0, from - first, to - first)?,
+                    &[from - start, 0],
+                )?;
+            }
+        }
+        Ok(hidden)
     }
 
     pub fn context_limit(&self) -> i32 {
@@ -3196,6 +3295,7 @@ impl Inkling2 {
         self.offset = 0;
         self.pending = None;
         self.epoch = next_epoch();
+        self.images.clear();
         for state in &mut self.states {
             *state = VisitState::default();
         }
@@ -3562,6 +3662,12 @@ impl Inkling2 {
             Ids::Device(id) => id.astype(Dtype::Int32)?,
         };
         let hidden = self.embed_tokens(&ids)?;
+        // image placeholders read their encoder rows (text-only prompts keep the embeddings as they are)
+        let hidden = if self.images.is_empty() {
+            hidden
+        } else {
+            self.place_images(hidden, start)?
+        };
         // Sliding visits keep at most window - 1 past keys; full visits keep everything
         let sliding_first = (start - (self.window - 1)).max(0);
         let sliding = MaskPlan::new(
