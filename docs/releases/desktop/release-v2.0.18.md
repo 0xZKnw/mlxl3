@@ -41,11 +41,27 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Verification and limits
 
-TO FILL
+- **Agent sandbox checks: 317 passed.** New in this release:
+  - the developer folder's tool paths and SDK, for Xcode and for the Command Line Tools;
+  - the real `PATH` and `SDKROOT` inside the sandbox.
+- **Xcode tools run cleanly in the sandbox.** With Xcode's tools on the `PATH`, `python3`, `cc`, `git`, `pip3` and `swiftc` run and print nothing extra.
+- **The app was compiled and both Agent screens were checked visually** in the app's preview mode (light theme): a task in progress and the New task screen.
+- **This DMG:**
+  - `hdiutil verify` valid, `codesign --deep --strict` passed;
+  - version 2.0.18 / build 71;
+  - `build-info` has commit `b0ffb2e45` with no tracked changes;
+  - the bundled engine reports 2.0.27, is arm64, and ships MLX 0.32.2's `mlx.metallib`.
+- **Not run for this release:**
+  - The full Desktop suite was skipped at the maintainer's request. The 2.0.17 code under the new bar passed it.
+  - The Internet switch's click was not exercised automatically.
+  - The dark theme was not captured.
 
 ## Source and download
 
-TO FILL
+- Source: [`b0ffb2e45`](https://github.com/0xZKnw/mlxl3/commit/b0ffb2e45b0b5f3ddeb02fe188cec79f73c804af) (tag `v2.0.18`).
+- `MLXL3-Desktop-v2.0.18-b71-Apple-Silicon.dmg`: 253,459,534 bytes, SHA-256 `664e85a778c45304e3083940ad7568796affc5f97c1c739379be4e179674f456`.
+- `MLXL3-Desktop-v2.0.18-b71-Apple-Silicon.dmg.sha256`: 110 bytes.
+- Bundled engine: MLXL3 engine 2.0.27, the same sources as [`engine-v2.0.27`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.27), rebuilt at this commit.
 
 ## Acknowledgements
 
