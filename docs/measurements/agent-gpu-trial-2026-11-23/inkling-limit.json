@@ -1,0 +1,61 @@
+{
+ "id": "AGENT-2026-11-23-GPU-TRIAL",
+ "plan": "limit",
+ "engine": "/private/tmp/claude-501/-Users-justin--claude-spares-spare-AhUlxp/6e6d9e44-f40b-4645-a674-0645a3953a6d/scratchpad/trial/mlxl3-rs",
+ "model": "Inkling-2-Mini-EXL3-3.33bpw-a3d2f7a6",
+ "model_path": "/Users/justin/Library/Application Support/io.mlxl3.desktop/Models/Inkling-2-Mini-EXL3-3.33bpw-a3d2f7a6",
+ "helper": "/private/tmp/claude-501/-Users-justin--claude-spares-spare-AhUlxp/6e6d9e44-f40b-4645-a674-0645a3953a6d/scratchpad/trial/helper",
+ "sampling": {
+  "temperature": 1.0,
+  "top_k": 0,
+  "top_p": 1.0,
+  "repetition_penalty": 1.0,
+  "presence_penalty": 0.0
+ },
+ "max_tokens": 32768,
+ "status": "running",
+ "runs": [
+  {
+   "rep": 0,
+   "task": "bugfix",
+   "harness": "javascript",
+   "internet": false,
+   "rounds_limit": 1,
+   "tools": [
+    "sandbox.javascript"
+   ],
+   "mcp_errors": {},
+   "status": "finished",
+   "error": null,
+   "passed": false,
+   "seconds": 29.4,
+   "tool_rounds": 1,
+   "tool_calls": 1,
+   "unreadable_calls": 0,
+   "arguments_shown": 1,
+   "tool_errors": 0,
+   "calls": [
+    "sandbox.javascript"
+   ],
+   "generated_tokens": 478,
+   "decode_tps": 23.06747456478583,
+   "stop_reason": "tool_round_limit",
+   "markup_in_answer": false,
+   "answer": "",
+   "results": [
+    {
+     "tool": "sandbox.javascript",
+     "is_error": false,
+     "text": "Result:\n[\n  \"README.md\",\n  \"src/stats.pl\",\n  \"test.sh\"\n]"
+    }
+   ]
+  }
+ ],
+ "ready": {
+  "model": "Inkling-2-Mini-EXL3-3.33bpw-a3d2f7a6",
+  "runtime_commit": "94a1c61225cc",
+  "tool_rounds_supported": true,
+  "mcp_call_timeout_supported": true,
+  "dspark_supported": true
+ }
+}
