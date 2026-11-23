@@ -934,10 +934,18 @@ struct AgentSandboxCheck {
     }
     check(AgentSandbox.developerTools(nil).paths.isEmpty && AgentSandbox.developerTools("usr").paths.isEmpty, "no developer folder")
     let selected = AgentSandbox.developerTools(AgentSandbox.developerDirectory)
-    let path = try run("printf '%s|%s' \"$PATH\" \"$SDKROOT\"", 5)
+    let path = try run("printf '%s|%s|%s|%s' \"$PATH\" \"$SDKROOT\" \"$DEVELOPER_DIR\" \"$xcrun_db\"", 5)
     check(
-      path.output.hasPrefix((selected.paths + ["/usr/bin:"]).joined(separator: ":")) && path.output.hasSuffix("|" + (selected.sdk ?? "")),
+      path.output.hasPrefix(([home.path + "/bin"] + selected.paths + ["/usr/bin:"]).joined(separator: ":"))
+        && path.output.hasSuffix("|" + (selected.sdk ?? "") + "|" + (AgentSandbox.developerDirectory ?? "") + "|" + home.path + "/tmp/xcrun_db"),
       "developer tools first on PATH: \(path.output)")
+    // pip goes through python3, never the xcrun shebang of the developer folder's pip3.
+    if let developer = AgentSandbox.developerDirectory, FileManager.default.fileExists(atPath: developer + "/usr/bin/python3") {
+      let pip = try run("command -v pip3 pip; head -2 \"$(command -v pip3)\"", 5)
+      check(
+        pip.output == "\(home.path)/bin/pip3\n\(home.path)/bin/pip\n#!/bin/sh\nexec python3 -m pip \"$@\"\n",
+        "pip wrappers: \(pip.output)")
+    }
     for target in ["/Library/Developer/mlxl3-probe", "/private/etc/mlxl3-probe", "/usr/local/mlxl3-probe"] {
       let write = try run("touch \(target)", 5)
       check(write.status != 0 && !FileManager.default.fileExists(atPath: target), "toolchain folder writable: \(target)")

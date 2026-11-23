@@ -62,6 +62,17 @@ enum AgentSandbox {
           .utf8
       ).write(to: gitConfig)
     }
+    // pip without its `#!/usr/bin/xcrun python3` shebang: with Xcode selected, xcrun started
+    // xcodebuild in the sandbox (seconds, and warnings in the output), as seen on CI.
+    if let developer = developerDirectory, FileManager.default.fileExists(atPath: developer + "/usr/bin/python3") {
+      let bin = home.appendingPathComponent("bin", isDirectory: true)
+      try FileManager.default.createDirectory(at: bin, withIntermediateDirectories: true)
+      for name in ["pip3", "pip"] {
+        let file = bin.appendingPathComponent(name)
+        try Data("#!/bin/sh\nexec python3 -m pip \"$@\"\n".utf8).write(to: file)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: file.path)
+      }
+    }
     return try canonicalRoot(home)
   }
 
@@ -414,8 +425,11 @@ enum AgentSandbox {
       "mlxl3-agent", command,
     ]
     let environment = [
-      "PATH=\(commandPath)", "HOME=\(home.path)", "TMPDIR=\(home.path)/tmp/", "LC_ALL=C",
-    ] + (developerTools(developerDirectory).sdk.map { ["SDKROOT=\($0)"] } ?? []) + [
+      "PATH=\(home.path)/bin:\(commandPath)", "HOME=\(home.path)", "TMPDIR=\(home.path)/tmp/", "LC_ALL=C",
+      // xcrun resolves tools in the developer folder itself, with its cache in the private home.
+      "xcrun_db=\(home.path)/tmp/xcrun_db",
+    ] + (developerDirectory.map { ["DEVELOPER_DIR=\($0)"] } ?? [])
+      + (developerTools(developerDirectory).sdk.map { ["SDKROOT=\($0)"] } ?? []) + [
       // Non-interactive tools (mini-swe-agent): no pager, colors, prompts or update checks.
       "PAGER=cat", "GIT_PAGER=cat", "NO_COLOR=1", "TERM=dumb", "CI=1", "GIT_TERMINAL_PROMPT=0",
       "PIP_DISABLE_PIP_VERSION_CHECK=1", "PIP_NO_INPUT=1", "npm_config_update_notifier=false",
