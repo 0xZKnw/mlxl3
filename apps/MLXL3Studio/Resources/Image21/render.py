@@ -245,7 +245,11 @@ def main():
     if not mx.metal.is_available():
         raise RuntimeError("Metal GPU unavailable")
     print(mx.device_info()["device_name"], flush=True)
+    from mflux.callbacks.instances.memory_saver import MemorySaver
+
     model = build(args.model)
+    # Studio launches this worker for one image. Each component can be released after its phase.
+    model.callbacks.register(MemorySaver(model, keep_transformer=False, cache_limit_bytes=None))
     im = model.generate_image(
         seed=args.seed,
         prompt=args.prompt,
