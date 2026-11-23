@@ -707,7 +707,7 @@ fn marker_suffix_start(text: &[u8], marker: &[u8]) -> usize {
 /// Tool rounds a chat request may run before its final answer (older clients: 5).
 pub const DEFAULT_TOOL_ROUNDS: usize = 5;
 /// Upper bound a request may ask for (the Agent mode asks for more than the chat).
-pub const MAX_TOOL_ROUNDS: usize = 64;
+pub const MAX_TOOL_ROUNDS: usize = 512;
 /// Largest `tool_start` arguments shown as JSON; longer ones become a text prefix.
 pub const SHOWN_ARGUMENTS_BYTES: usize = 16 * 1024;
 
@@ -923,8 +923,10 @@ mod tests {
         assert_eq!(super::tool_rounds(None).unwrap(), 5);
         assert_eq!(super::tool_rounds(Some(1)).unwrap(), 1);
         assert_eq!(super::tool_rounds(Some(64)).unwrap(), 64);
+        assert_eq!(super::tool_rounds(Some(256)).unwrap(), 256);
+        assert_eq!(super::tool_rounds(Some(512)).unwrap(), 512);
         assert!(super::tool_rounds(Some(0)).is_err());
-        assert!(super::tool_rounds(Some(65)).is_err());
+        assert!(super::tool_rounds(Some(513)).is_err());
         assert!(super::round_limit_note(24).contains("limit of 24 reached"));
         let message = super::unreadable_call_message(&anyhow::anyhow!("unfinished tool call"));
         assert!(

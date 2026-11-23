@@ -29,6 +29,7 @@ pub use contracts::{
 };
 #[cfg(feature = "mlx")]
 pub use contracts::{switch_glu_layout, switch_glu_route_rows};
+pub mod agent_loop;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod ar20_kernel_policy;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]

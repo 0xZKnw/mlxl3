@@ -2543,6 +2543,10 @@ struct BridgeRequest {
     /// chat default. The Agent mode asks for more.
     #[serde(default)]
     tool_rounds: Option<usize>,
+    /// Reasoning tokens per step before the engine ends the thinking block and lets the
+    /// model act (`agent_loop::reasoning_budget`); omitted = no budget.
+    #[serde(default)]
+    reasoning_budget: Option<usize>,
 }
 
 #[cfg(all(
@@ -2773,6 +2777,72 @@ thread_local! {
         const { std::cell::RefCell::new(None) };
 }
 
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+thread_local! {
+    /// AGENT-2026-11-23-BOUCLE B7: request whose prefill reports its progress, and when it last did.
+    static PREFILL_PROGRESS: std::cell::RefCell<Option<(String, Instant)>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Lets a long prefill tell the app it is alive (the app stops an Agent turn after five
+/// silent minutes); dropping it ends the reports.
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+struct PrefillProgress;
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+impl PrefillProgress {
+    fn set(request_id: &str) -> Self {
+        PREFILL_PROGRESS
+            .with(|cell| *cell.borrow_mut() = Some((request_id.to_owned(), Instant::now())));
+        Self
+    }
+}
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+impl Drop for PrefillProgress {
+    fn drop(&mut self) {
+        PREFILL_PROGRESS.with(|cell| *cell.borrow_mut() = None);
+    }
+}
+
+/// At most one status every five seconds while a prompt is read.
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+#[cfg_attr(not(feature = "mlx"), allow(dead_code))]
+fn report_prefill_progress(done: usize, total: usize) -> Result<()> {
+    let due = PREFILL_PROGRESS.with(|cell| {
+        let mut slot = cell.borrow_mut();
+        match slot.as_mut() {
+            Some((request, last)) if last.elapsed() >= std::time::Duration::from_secs(5) => {
+                *last = Instant::now();
+                Some(request.clone())
+            }
+            _ => None,
+        }
+    });
+    if let Some(request_id) = due {
+        emit_event(json!({
+            "type":"generation_status", "request_id":request_id, "phase":"prefill",
+            "text":format!("Reading context · {done} / {total} tokens")
+        }))?;
+    }
+    Ok(())
+}
+
 /// Sets the reasoning level for one request; dropping it restores the template default.
 #[cfg(all(feature = "mlx", feature = "chat"))]
 struct ReasoningRequest;
@@ -2846,10 +2916,28 @@ fn bridge_tool_rounds_are_optional_and_bounded() -> Result<()> {
         5,
         "older apps keep five rounds"
     );
-    let agent: BridgeRequest =
-        serde_json::from_value(json!({"type":"generate", "tool_rounds":24}))?;
-    assert_eq!(mlxl3_native::tool_call::tool_rounds(agent.tool_rounds)?, 24);
-    for rounds in [0, 65] {
+    assert_eq!(
+        legacy.reasoning_budget, None,
+        "older apps keep free reasoning"
+    );
+    let agent: BridgeRequest = serde_json::from_value(
+        json!({"type":"generate", "tool_rounds":256, "reasoning_budget":8192, "max_tokens":-1}),
+    )?;
+    assert_eq!(
+        mlxl3_native::tool_call::tool_rounds(agent.tool_rounds)?,
+        256
+    );
+    assert_eq!(
+        mlxl3_native::agent_loop::reasoning_budget(agent.reasoning_budget)?,
+        Some(8192)
+    );
+    assert_eq!(agent.max_tokens, -1);
+    for budget in [0, 255, 131_073] {
+        let request: BridgeRequest =
+            serde_json::from_value(json!({"type":"generate", "reasoning_budget":budget}))?;
+        assert!(mlxl3_native::agent_loop::reasoning_budget(request.reasoning_budget).is_err());
+    }
+    for rounds in [0, 513] {
         let request: BridgeRequest =
             serde_json::from_value(json!({"type":"generate", "tool_rounds":rounds}))?;
         assert!(mlxl3_native::tool_call::tool_rounds(request.tool_rounds).is_err());
@@ -3228,6 +3316,7 @@ fn prefill_round(
     while let Some(end) = model.prefill_span_end(start, tokens.len(), chunk_size, group) {
         let chunk = &tokens[start..end];
         let inner_checkpoint = reuse && start < checkpoint_offset && checkpoint_offset < end;
+        report_prefill_progress(start, tokens.len())?;
         start = end;
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
@@ -4075,6 +4164,10 @@ struct RoundOutput {
     stats: NativeStats,
     first_text_seconds: Option<f64>,
     token_hash: String,
+    /// The generated token ids (a forced end of thinking continues from them).
+    generated: Vec<u32>,
+    /// The round stopped at its reasoning budget; holds the marker closing that block.
+    reasoning_cut: Option<&'static str>,
 }
 
 #[cfg(all(
@@ -4456,6 +4549,8 @@ fn bridge_generate_round(
     conversation: &str,
     reuse: bool,
     buffer_output: bool,
+    continuation: &[u32],
+    reasoning_budget: Option<usize>,
 ) -> Result<RoundOutput> {
     use mlxl3_native::{streaming::Channel, tool_call::StreamFilter};
     let started = Instant::now();
@@ -4485,8 +4580,10 @@ fn bridge_generate_round(
             effort.borrow().as_deref(),
         )
     })?;
-    let tokens = tokenizer.encode(&rendered)?;
+    let mut tokens = tokenizer.encode(&rendered)?;
     anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
+    // AGENT-2026-11-23-BOUCLE: the same assistant message resumed after a forced end of thinking
+    tokens.extend_from_slice(continuation);
     anyhow::ensure!(
         tokens.len() < context_limit,
         "conversation exceeds model context"
@@ -4501,6 +4598,9 @@ fn bridge_generate_round(
     } else {
         usize::try_from(max_tokens)?.min(available)
     };
+    let reasoning_limit = reasoning_budget
+        .map(|limit| mlxl3_native::agent_loop::step_reasoning_budget(limit, available));
+    let _prefill_progress = PrefillProgress::set(request_id);
     #[cfg(feature = "mlx")]
     if let NativeChatModel::Flash(target) = &mut *model
         && let Some(plan) = target.admit_request(tokens.len() + budget)?
@@ -4573,9 +4673,10 @@ fn bridge_generate_round(
             std::env::var("MLXL3_INKLING_PIPELINE").ok().as_deref(),
         ),
     ) {
+        // AGENT-2026-11-23-VITESSE V1: tool rounds too (the Agent mode writes code and edits,
+        // where the lookup pays most); every token still goes through the same stream filter.
         (NativeChatModel::Inkling(target, ..), Some((rule, pipelined)))
             if dspark.is_none()
-                && tools.is_empty()
                 && mtp.is_none()
                 && draft.is_none()
                 && inkling_lookup_requested(
@@ -4746,12 +4847,9 @@ fn bridge_generate_round(
             std::env::var("MLXL3_INKLING_PIPELINE").ok().as_deref(),
         ),
     ) {
+        // AGENT-2026-11-23-VITESSE V1: tool rounds draw on the GPU as well
         (NativeChatModel::Inkling(..), Some((rule, pipelined)))
-            if dspark.is_none()
-                && inkling_lookup.is_none()
-                && tools.is_empty()
-                && mtp.is_none()
-                && draft.is_none() =>
+            if dspark.is_none() && inkling_lookup.is_none() && mtp.is_none() && draft.is_none() =>
         {
             Some(mlxl3_native::inkling2::DeviceDecode::start(
                 &logits,
@@ -4767,6 +4865,11 @@ fn bridge_generate_round(
     let gpu_capture = mlxl3_native::array::capture_for_request(request_id)?;
     let mut decoder = tokenizer.tokenizer().decode_stream(false);
     let mut splitter = ThinkingSplitter::new(&rendered);
+    if !continuation.is_empty() {
+        splitter.resume_answer();
+    }
+    let mut thinking_tokens = 0usize;
+    let mut reasoning_cut = None;
     // The prompt says which call format the model will use: Inkling 2 declares its tools
     // in a `tool_declare` system message, and may write text before a call.
     let inkling_tools = rendered.contains("<|message_system|>tool_declare<|content_xml|>");
@@ -4861,6 +4964,13 @@ fn bridge_generate_round(
                         &mut answer,
                     )?;
                 }
+            }
+        }
+        if let Some(close) = splitter.thinking_close() {
+            thinking_tokens += 1;
+            if reasoning_limit.is_some_and(|limit| thinking_tokens >= limit) {
+                reasoning_cut = Some(close);
+                break;
             }
         }
         if filter.as_ref().is_some_and(StreamFilter::is_preparing_tool)
@@ -5302,6 +5412,8 @@ fn bridge_generate_round(
         stats,
         first_text_seconds: first_visible_text,
         token_hash: token_hash(&generated),
+        generated,
+        reasoning_cut,
     })
 }
 
@@ -5379,6 +5491,7 @@ fn bridge_generate(
     allowed_tools: Option<&[String]>,
     response_schema: Option<&str>,
     tool_rounds: usize,
+    reasoning_budget: Option<usize>,
 ) -> Result<()> {
     let schema = response_schema
         .map(mlxl3_native::structured::Schema::parse)
@@ -5424,10 +5537,59 @@ fn bridge_generate(
     } else {
         tool_rounds
     };
-    for round in 0..=tool_rounds {
+    use mlxl3_native::agent_loop;
+    // AGENT-2026-11-23-BOUCLE: the round that answers without tools; identical calls that keep
+    // returning the same result bring it forward (B5).
+    let mut last_round = tool_rounds;
+    let mut repeated = false;
+    let mut repeats = agent_loop::RepeatGuard::default();
+    // One step is one assistant message. A forced end of thinking (B2) continues the same
+    // message from its exact tokens; the parts written so far are kept here.
+    let mut continuation: Vec<u32> = Vec::new();
+    let mut step_raw = String::new();
+    let mut step_answer = String::new();
+    let mut step_tool_text = String::new();
+    let mut forced_closes = 0usize;
+    let reasoning_budget = reasoning_budget.filter(|_| schema.is_none());
+    let mut nudged = false;
+    let mut context_retry = false;
+    let supports_images = model.supports_images();
+    // Prompt tokens of the next round, from the last one (pruning measures only near the trigger).
+    let mut prompt_estimate: Option<usize> = None;
+    let mut round = 0usize;
+    loop {
+        // B4: old tool exchanges make room before the context runs out.
+        let prunable = dialogue
+            .iter()
+            .any(|message| message["role"] == "tool" || message.get("tool_calls").is_some());
+        if continuation.is_empty()
+            && prunable
+            && prompt_estimate.is_none_or(|tokens| tokens * 100 > context_limit * 60)
+        {
+            let used = bridge_prompt_tokens(tokenizer, &dialogue, &tools, supports_images)?;
+            let pruned =
+                agent_loop::prune_context(&mut dialogue, used, context_limit, &mut |text| {
+                    Ok(tokenizer.encode(text)?.len())
+                })?;
+            if !pruned.is_empty() {
+                emit_event(json!({
+                    "type":"generation_status", "request_id":request_id, "phase":"prefill",
+                    "text":format!(
+                        "Freeing context: {} old tool outputs and {} long call arguments shortened",
+                        pruned.outputs, pruned.arguments
+                    )
+                }))?;
+            }
+        }
         emit_event(json!({
             "type":"generation_status", "request_id":request_id,
-            "phase":"prefill", "text":if round == 0 { "Preparing context" } else { "Reading MCP results" }
+            "phase":"prefill", "text":if !continuation.is_empty() {
+                "Acting on its reasoning"
+            } else if round == 0 {
+                "Preparing context"
+            } else {
+                "Reading MCP results"
+            }
         }))?;
         let round_start = started.elapsed().as_secs_f64();
         let round_max_tokens = mlxl3_native::structured::remaining_tokens(
@@ -5459,6 +5621,8 @@ fn bridge_generate(
             conversation,
             reuse,
             schema.is_some(),
+            &continuation,
+            reasoning_budget.filter(|_| forced_closes < agent_loop::FORCED_CLOSES_PER_STEP),
         )?;
         if first_text.is_none() {
             first_text = output
@@ -5473,13 +5637,37 @@ fn bridge_generate(
             summary = Some(first);
         }
         round_stats.push(output.stats.clone());
+        prompt_estimate = Some(output.stats.context_used);
+        if let Some(close) = output.reasoning_cut {
+            // B2: the thinking reached its budget: close it in the model's own format and let
+            // the same message go on to an action.
+            forced_closes += 1;
+            let text = agent_loop::forced_close(close);
+            emit_event(json!({
+                "type":"delta", "request_id":request_id, "phase":"thinking",
+                "text":agent_loop::FORCED_CLOSE_NOTE
+            }))?;
+            step_raw.push_str(&output.raw);
+            step_raw.push_str(&text);
+            step_answer.push_str(&output.answer);
+            step_tool_text.push_str(&output.tool_text);
+            continuation.extend_from_slice(&output.generated);
+            continuation.extend(tokenizer.encode(&text)?);
+            continue;
+        }
+        let raw = std::mem::take(&mut step_raw) + &output.raw;
+        let answer = std::mem::take(&mut step_answer) + &output.answer;
+        let tool_text = std::mem::take(&mut step_tool_text) + &output.tool_text;
+        continuation.clear();
+        forced_closes = 0;
         let validated_json = if let Some(schema) = &schema {
-            match schema.validate_cancellable(&output.answer, cancelled) {
+            match schema.validate_cancellable(&answer, cancelled) {
                 Ok(answer) => Some(answer),
                 Err(error) if round < 2 => {
-                    dialogue.push(json!({"role":"assistant", "content":output.raw}));
+                    dialogue.push(json!({"role":"assistant", "content":raw}));
                     dialogue.push(json!({"role":"user", "content":format!("The previous response failed JSON validation: {error}. Return only valid JSON conforming to the schema.")}));
                     *cache = None;
+                    round += 1;
                     continue;
                 }
                 Err(error) => return Err(error.context("JSON validation failed after 3 attempts")),
@@ -5491,19 +5679,57 @@ fn bridge_generate(
         let (calls, unreadable) = if tools.is_empty() {
             (Vec::new(), None)
         } else {
-            match mlxl3_native::tool_call::parse_answer(&output.tool_text) {
+            match mlxl3_native::tool_call::parse_answer(&tool_text) {
                 Ok(calls) => (calls, None),
                 Err(error) => (Vec::new(), Some(error)),
             }
         };
         let context_full = output.stats.context_used >= context_limit;
-        let final_round = round == tool_rounds;
+        if context_full && !tools.is_empty() && !context_retry {
+            // B4: a step cut by the end of the context runs once more after old tool exchanges
+            // made room (its partial output is dropped).
+            let pruned = agent_loop::prune_context(
+                &mut dialogue,
+                context_limit,
+                context_limit,
+                &mut |text| Ok(tokenizer.encode(text)?.len()),
+            )?;
+            if !pruned.is_empty() {
+                context_retry = true;
+                prompt_estimate = None;
+                emit_event(json!({
+                    "type":"generation_status", "request_id":request_id, "phase":"prefill",
+                    "text":format!(
+                        "Context full: {} old tool outputs and {} long call arguments shortened, retrying the step",
+                        pruned.outputs, pruned.arguments
+                    )
+                }))?;
+                continue;
+            }
+        }
+        let final_round = round == last_round;
+        // B6: a step that ends with nothing after tool results gets one reminder, added to the
+        // last result (no new message: every chat template accepts it).
+        if calls.is_empty()
+            && unreadable.is_none()
+            && !context_full
+            && !final_round
+            && !nudged
+            && output.stop_reason == mlxl3_native::GenerationStopReason::Eos
+            && answer.trim().is_empty()
+            && let Some(last) = dialogue
+                .last_mut()
+                .filter(|message| message["role"] == "tool")
+            && let Some(text) = last["content"].as_str().map(str::to_owned)
+        {
+            nudged = true;
+            last["content"] = json!(format!("{text}\n\n{}", agent_loop::EMPTY_STEP_NUDGE));
+            continue;
+        }
         if (calls.is_empty() && unreadable.is_none()) || context_full || final_round {
             // At the limit nothing more runs: the turn ends on what the model wrote.
             let limited = final_round && (!calls.is_empty() || unreadable.is_some());
-            let assistant = validated_json
-                .clone()
-                .unwrap_or_else(|| output.answer.clone());
+            let assistant = validated_json.clone().unwrap_or_else(|| answer.clone());
             if let Some(answer) = &validated_json {
                 first_text = Some(started.elapsed().as_secs_f64());
                 emit_event(
@@ -5514,7 +5740,7 @@ fn bridge_generate(
                 None
             } else {
                 let mut transcript = dialogue[original_length..].to_vec();
-                transcript.push(json!({"role":"assistant", "content":output.raw}));
+                transcript.push(json!({"role":"assistant", "content":raw}));
                 Some(serde_json::to_string(&transcript)?)
             };
             let mut stats = summary.context("missing generation statistics")?;
@@ -5523,18 +5749,24 @@ fn bridge_generate(
             stats.tool_seconds = tool_seconds;
             stats.draft_load_seconds = draft_load_seconds;
             stats.tool_rounds = if schema.is_some() { 0 } else { round };
+            let stop_reason = match (limited, repeated) {
+                (true, true) => "repeated_calls",
+                (true, false) => "tool_round_limit",
+                (false, _) => output.stop_reason.as_str(),
+            };
             return emit_event(json!({
                 "type":"complete", "request_id":request_id,
-                "assistant_context":assistant, "cache_context":output.raw,
+                "assistant_context":assistant, "cache_context":raw,
                 "token_hash":output.token_hash,
                 "stats":stats, "round_stats":round_stats, "context_full":context_full,
-                "stop_reason":if limited { "tool_round_limit" } else { output.stop_reason.as_str() },
+                "stop_reason":stop_reason,
                 "turn_context":turn_context,
                 "elapsed_seconds":started.elapsed().as_secs_f64(),
                 "first_text_seconds":first_text,
                 "tool_rounds":round
             }));
         }
+        context_retry = false;
         if let Some(error) = unreadable {
             let call_id = format!("mcp-{round}-{}-invalid", dialogue.len());
             let text = mlxl3_native::tool_call::unreadable_call_message(&error);
@@ -5547,7 +5779,7 @@ fn bridge_generate(
                 "tool_call_id":call_id, "tool_name":"invalid_tool_call",
                 "server_name":null, "text":text, "is_error":true
             }))?;
-            let note = if round + 1 == tool_rounds {
+            let note = if round + 1 == last_round {
                 format!(
                     "{text}\n\n{}",
                     mlxl3_native::tool_call::round_limit_note(tool_rounds)
@@ -5555,8 +5787,9 @@ fn bridge_generate(
             } else {
                 text
             };
-            dialogue.push(json!({"role":"assistant", "content":output.tool_text}));
+            dialogue.push(json!({"role":"assistant", "content":tool_text}));
             dialogue.push(json!({"role":"user", "content":note}));
+            round += 1;
             continue;
         }
         let tool_calls: Vec<_> = calls
@@ -5565,7 +5798,7 @@ fn bridge_generate(
             .collect();
         dialogue.push(json!({
             "role":"assistant",
-            "content":output.answer,
+            "content":answer,
             "tool_calls":tool_calls
         }));
         for call in calls {
@@ -5588,6 +5821,7 @@ fn bridge_generate(
                 "MCP tool is not allowed in this project: {}",
                 call.name
             );
+            let arguments = call.arguments.clone();
             let mut result = mcp.call_cancellable(&call.name, call.arguments, cancelled);
             tool_seconds += tool_started.elapsed().as_secs_f64();
             let budget = 8192usize.min((context_limit / 8).max(256));
@@ -5603,6 +5837,22 @@ fn bridge_generate(
                     tokenizer.decode(&result_tokens[tail])?
                 );
             }
+            if let Some(tokens) = &mut prompt_estimate {
+                *tokens += result_tokens.len().min(budget) + 32;
+            }
+            // B5: the same call returning the same thing again and again ends the tool use.
+            if !repeated
+                && repeats.observe(&call.name, &arguments, &result.text, result.is_error)
+                    >= agent_loop::REPEATED_CALL_LIMIT
+            {
+                repeated = true;
+                last_round = round + 1;
+                result.text = format!(
+                    "{}\n\n{}",
+                    result.text,
+                    agent_loop::repeated_call_note(agent_loop::REPEATED_CALL_LIMIT)
+                );
+            }
             emit_event(json!({
                 "type":"tool_result", "request_id":request_id,
                 "tool_call_id":call_id, "tool_name":call.name,
@@ -5613,7 +5863,8 @@ fn bridge_generate(
                 "role":"tool", "name":call.name, "content":result.text
             }));
         }
-        if round + 1 == tool_rounds
+        if round + 1 == last_round
+            && !repeated
             && let Some(content) = dialogue
                 .last_mut()
                 .and_then(|message| message.get_mut("content"))
@@ -5624,9 +5875,30 @@ fn bridge_generate(
                 mlxl3_native::tool_call::round_limit_note(tool_rounds)
             ));
         }
+        round += 1;
     }
-    // The final round always returns; JSON validation exhausts its own attempts first.
-    bail!("the tool loop ended without an answer")
+}
+
+/// Tokens of the prompt the next round would render (same template, tools and reasoning level).
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+fn bridge_prompt_tokens(
+    tokenizer: &mlxl3_native::tokenizer::ChatTokenizer,
+    dialogue: &[Value],
+    tools: &[Value],
+    supports_images: bool,
+) -> Result<usize> {
+    let (prepared, _) = mlxl3_native::vision_input::prepare_messages(dialogue, supports_images)?;
+    let rendered = REASONING_REQUESTED.with(|effort| {
+        tokenizer.render_values_with_effort(
+            &Value::Array(prepared),
+            Some(tools),
+            effort.borrow().as_deref(),
+        )
+    })?;
+    Ok(tokenizer.encode(&rendered)?.len())
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -5798,8 +6070,10 @@ fn native_bridge(
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "images_supported":model.supports_images(),
         "reasoning_effort_supported":true,
-        // Agent mode: `tool_rounds` per request, and `callTimeoutSeconds` per MCP server.
+        // Agent mode: `tool_rounds` per request, and `callTimeoutSeconds` per MCP server;
+        // AGENT-2026-11-23-BOUCLE: `reasoning_budget`, 512 rounds, pruning, repeated-call stop.
         "tool_rounds_supported":true, "mcp_call_timeout_supported":true,
+        "agent_loop_supported":true,
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
         "memory":memory,
         "runtime_commit":env!("MLXL3_BUILD_REVISION"),
@@ -6236,6 +6510,7 @@ fn native_bridge(
                         request.allowed_tools.as_deref(),
                         request.response_schema.as_deref(),
                         mlxl3_native::tool_call::tool_rounds(request.tool_rounds)?,
+                        mlxl3_native::agent_loop::reasoning_budget(request.reasoning_budget)?,
                     )
                 })();
                 // Runs after the whole turn (including tools), not between decode
@@ -6983,6 +7258,8 @@ mod tests {
                 "lookup",
                 false,
                 false,
+                &[],
+                None,
             )?;
             assert!(!baseline.raw.is_empty());
             assert!(
@@ -7011,6 +7288,8 @@ mod tests {
                         "lookup",
                         true,
                         false,
+                        &[],
+                        None,
                     )?;
                     assert_eq!(actual.raw, baseline.raw);
                     assert_eq!(actual.token_hash, baseline.token_hash);
@@ -7053,6 +7332,8 @@ mod tests {
                 "lookup",
                 false,
                 false,
+                &[],
+                None,
             )
         };
         let baseline = run(None)?;
@@ -7118,6 +7399,8 @@ mod tests {
                 "mtp-sampling",
                 false,
                 false,
+                &[],
+                None,
             )
         };
         // Deterministic but penalized: the sampled verifier runs (not the
@@ -7302,6 +7585,8 @@ mod tests {
                 "dflash-copy",
                 false,
                 false,
+                &[],
+                None,
             )?;
             assert!(
                 !reference.raw.is_empty()
@@ -7330,6 +7615,8 @@ mod tests {
                         "dflash-copy",
                         true,
                         false,
+                        &[],
+                        None,
                     )?;
                     assert_eq!(actual.raw, reference.raw);
                     assert_eq!(actual.token_hash, reference.token_hash);
@@ -7403,6 +7690,8 @@ mod tests {
                 "dflash-sampling",
                 false,
                 false,
+                &[],
+                None,
             )
         };
         // Greedy: every mode (including the capped adaptive one) equals autoregressive IDs.

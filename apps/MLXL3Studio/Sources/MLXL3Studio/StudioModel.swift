@@ -141,14 +141,21 @@ final class StudioModel: ObservableObject {
     @Published private(set) var reasoningChoice: ReasoningEffort?
     /// The running engine passes `reasoning_effort` to the template (reported at ready).
     @Published private(set) var engineReasoningSupported = false
-    /// Output tokens of one Agent turn, all tool rounds and reasoning included: finite, and
-    /// far above the 4,096 that a reasoning model used up before it could act.
+    /// Older engines only: output tokens of one Agent turn, all tool rounds and reasoning
+    /// included. A long task ran out of it mid-work (AGENT-2026-11-23-BOUCLE).
     static let agentTokenBudget = 32_768
-    /// Tool rounds of one Agent turn before its final answer (chat keeps the engine's 5).
+    /// Older engines only: tool rounds of one Agent turn (chat keeps the engine's 5).
     static let agentToolRounds = 24
+    /// Engines with `agent_loop_supported`: no total budget (each step may use the rest of the
+    /// context) and tool rounds as in Unharnessed and opencode (no practical cap, the engine
+    /// stops repeated identical calls). Reasoning is never cut, as in deepseek-harness and
+    /// opencode: no `reasoning_budget` is sent (the engine's option stays unused).
+    static let agentLoopToolRounds = 256
     /// The engine accepts `tool_rounds` and a per-server MCP deadline (reported at ready):
     /// Agent calls may then last as long as their commands. Kept across model loads.
     private(set) var engineLongToolCalls = false
+    /// The running engine announces `agent_loop_supported` (reported at ready).
+    private(set) var engineAgentLoop = false
     /// Engines announcing this verify MTP drafts by exact speculative sampling.
     @Published private(set) var mtpSamplingSupported: Bool?
     /// The engine verifies DFlash2 with exact speculative sampling (engine 2.0.19+).
@@ -1393,7 +1400,7 @@ final class StudioModel: ObservableObject {
                     requestID: requestID,
                     conversationID: conversations[conversationIndex].id.uuidString,
                     messages: messages,
-                    maxTokens: selectedMode == .agent ? Self.agentTokenBudget : -1,
+                    maxTokens: selectedMode == .agent && !engineAgentLoop ? Self.agentTokenBudget : -1,
                     temperature: samplingTemperature,
                     topK: samplingTopK,
                     repetitionPenalty: samplingRepetitionPenalty,
@@ -1411,7 +1418,8 @@ final class StudioModel: ObservableObject {
                     allowedTools: selectedMode == .agent ? nil : currentProject?.allowedTools,
                     responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema,
                     reasoningEffort: requestReasoningEffort,
-                    toolRounds: selectedMode == .agent ? Self.agentToolRounds : nil
+                    toolRounds: selectedMode == .agent
+                        ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil
                 )
             )
         } catch {
@@ -2303,6 +2311,7 @@ final class StudioModel: ObservableObject {
             let longCalls = event.mcpCallTimeoutSupported == true && event.toolRoundsSupported == true
             let rewriteAgentRegistry = longCalls != engineLongToolCalls
             engineLongToolCalls = longCalls
+            engineAgentLoop = event.agentLoopSupported == true
             workspaceFeaturesAvailable = event.workspaceFeatures == true
             imagesSupported = event.imagesSupported == true
             if let tools = event.mcpToolCatalog { mcpTools = tools }
@@ -2435,7 +2444,11 @@ final class StudioModel: ObservableObject {
             if event.contextFull == true {
                 message?.fail(L("Limite de contexte atteinte. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", "Context limit reached. Increase the limit in model settings or start a new conversation."))
             } else if generationStartedAt != nil && event.stopReason == "max_tokens" {
-                message?.fail(L("Limite de 32 768 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "32,768-token Agent limit reached. Partial output was kept; continue in another turn."))
+                if engineAgentLoop {
+                    message?.fail(L("Limite de sortie atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "Output limit reached. Partial output was kept; continue in another turn."))
+                } else {
+                    message?.fail(L("Limite de 32 768 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "32,768-token Agent limit reached. Partial output was kept; continue in another turn."))
+                }
             }
             if message?.error == nil, event.contextFull != true, message?.content.isEmpty == false {
                 notifyGenerationFinished(requestID: requestID)
