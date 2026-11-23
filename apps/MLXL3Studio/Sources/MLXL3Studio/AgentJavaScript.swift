@@ -52,9 +52,9 @@ enum AgentJavaScript {
   /// Host functions offered under `permissions`, in documentation order.
   static func functions(_ permissions: AgentPermissions) -> [String] {
     var names: [String] = []
-    if permissions.read { names += ["list", "read", "search"] }
+    if permissions.read { names += ["list", "view", "read", "search"] }
+    if permissions.read && permissions.write { names += ["edit", "edits"] }
     if permissions.write { names.append("write") }
-    if permissions.read && permissions.write { names.append("edit") }
     if permissions.run { names.append("run") }
     if permissions.internet {
       names.append("fetch")
@@ -67,28 +67,31 @@ enum AgentJavaScript {
     _ permissions: AgentPermissions, wall: Double = seconds, persistent: Bool = false
   ) -> String {
     var signatures: [String: String] = [
-      "list": "list(): string[]  // every file path in the project, relative, sorted (a warning says when capped)",
-      "read": "read(path: string): string  // whole UTF-8 file, at most 256 KiB",
+      "list": "list(): string[]  // every project file path, relative, sorted",
+      "view":
+        "view(path: string, offset?: number, limit?: number): string  // lines numbered `N| text`, 200 from offset 1 by default: use it to look at code",
+      "read": "read(path: string): string  // raw UTF-8 text, at most 256 KiB, e.g. for JSON.parse",
       "search":
-        "search(regex: string, path?: string): {path: string, line: number, text: string}[]  // grep -E, throws on an invalid regex or path; at most 200 matches, 50 per file (a warning says when capped)",
+        "search(regex: string, path?: string): {path: string, line: number, text: string}[]  // grep -E; at most 200 matches, 50 per file",
+      "edit":
+        "edit(path: string, find: string, replace: string, all?: boolean): {line: number, count: number, snippet: string}  // `find` must occur once (all: every occurrence); indentation, `N| ` prefixes and typographic quotes are tolerated; a failure shows the closest lines",
+      "edits": "edits(path: string, changes: [find: string, replace: string][]): {count: number, lines: number[]}  // several edits of one file, all or nothing",
       "write":
         "write(path: string, text: string): void  // create or replace, parent folders created, at most 256 KiB",
-      "edit":
-        "edit(path: string, find: string, replace: string): void  // `find` must occur exactly once",
       "run":
-        "run(command: string): {status: number, stopped: boolean, omitted: number, output: string}  // /bin/sh in the project, at most \(min(permissions.commandSeconds, Int(wall))) s; past 32 KiB, output keeps its first 8 KiB and last 24 KiB (omitted: bytes cut)",
+        "run(command: string): {status: number, stopped: boolean, omitted: number, output: string}  // /bin/sh in the project, at most \(min(permissions.commandSeconds, Int(wall))) s, \(permissions.internet ? "with Internet (curl, git clone, pip, npm)" : "no network"), non-interactive; past 32 KiB, output keeps its first 8 KiB and last 24 KiB (omitted: bytes cut)",
     ]
     let hosts = permissions.internetHosts.prefix(16).joined(separator: ", ")
       + (permissions.internetHosts.count > 16 ? ", ..." : "")
     signatures["fetch"] =
       "fetch(url: string): {status: number, url: string, type: string, text: string}  // HTTPS GET to the allowed hosts (\(hosts)), text only, at most 2 MiB; redirects are checked"
     signatures["download"] =
-      "download(url: string, path: string): {status: number, url: string, bytes: number}  // saves into the project, at most 100 MiB; put test material under .mlxl3-scratch/ (never part of the reviewed changes), e.g. https://codeload.github.com/OWNER/REPO/zip/refs/heads/main then run(\"unzip ...\")"
+      "download(url: string, path: string): {status: number, url: string, bytes: number}  // saves into the project, at most 100 MiB; put test material under .mlxl3-scratch/ (never part of the reviewed changes)"
     let api = functions(permissions).compactMap { signatures[$0] }.joined(separator: "\n")
     return """
       Run JavaScript in your private macOS sandbox to work on the project. The code is the body of an async function: `return` a value to see it, and use console.log for notes. Batch steps: one call can read, edit and verify. These functions are synchronous (await is optional) and throw an Error on failure:
       \(api)
-      \(permissions.internet ? "No direct network (fetch and download go through the host), files outside the project, require/import or timers." : "No network, files outside the project, require/import or timers.") Limits per call: \(Int(wall)) s, \(maximumCalls) function calls, 32 KiB of output. \(persistent
+      The JavaScript itself has no direct network, files outside the project, require/import or timers. Limits per call: \(Int(wall)) s, \(maximumCalls) function calls, 32 KiB of output. \(persistent
         ? "`state` is an object kept between calls (JSON values, \(maximumState / 1024) Ki characters); everything else starts fresh."
         : "Each call starts fresh.") Writing is \(permissions.write ? "enabled" : "disabled").
       """
@@ -322,6 +325,34 @@ enum AgentJavaScript {
   }
 
   /// Text the model reads: console output, then the result or the error.
+  /// Advisory notes on loops (OpenHands' stuck detector, deepseek-harness' repeat reminder):
+  /// the same program with the same result a third time, or the same error three calls in a
+  /// row. Results that differ (a test rerun after an edit) are never flagged.
+  struct RepeatGuard {
+    private var history: [(code: String, text: String)] = []
+    private var errors: [String] = []
+
+    mutating func note(code: String, outcome: Outcome) -> String? {
+      let key = code.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+      let same = history.filter { $0.code == key && $0.text == outcome.text }.count
+      history.append((key, outcome.text))
+      if history.count > 32 { history.removeFirst(history.count - 32) }
+      // The error itself, without the logs before it or the calls that completed.
+      let error =
+        outcome.isError
+        ? (outcome.text.range(of: "Error: ", options: .backwards).map { String(outcome.text[$0.lowerBound...]) }
+          ?? outcome.text).components(separatedBy: "\nCompleted before the error:")[0] : ""
+      errors = outcome.isError ? (errors.last == error ? errors : []) + [error] : []
+      if same >= 2 {
+        return "Note: this exact program has now run \(same + 1) times with the same result. Do not run it again: use the result above, or change the approach."
+      }
+      if errors.count >= 3 {
+        return "Note: the same error \(errors.count) times in a row. Change the approach instead of retrying the same fix."
+      }
+      return nil
+    }
+  }
+
   static func outcome(_ message: [String: Any], warnings: [String] = []) -> Outcome {
     var parts: [String] = []
     let logs = ((message["logs"] as? [String]) ?? []) + warnings.map { "warning: " + $0 }
@@ -425,12 +456,12 @@ enum AgentJavaScript {
     guard getppid() == parent else { return failure("the agent stopped") }
     func sandboxed(
       _ command: String, seconds: Double? = nil, writable: Bool = false, limit: Int,
-      mode: AgentSandbox.OutputMode = .stop
+      mode: AgentSandbox.OutputMode = .stop, network: Bool = false
     ) -> AgentSandbox.Result? {
       let budget = min(seconds ?? 5, remaining - 0.2)
       return try? AgentSandbox.execute(
         root: root, command: command, seconds: max(0.1, budget), writable: writable, limit: limit,
-        mode: mode)
+        mode: mode, network: network)
     }
     func quote(_ value: String) -> String {
       "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
@@ -553,7 +584,7 @@ enum AgentJavaScript {
       guard
         let result = sandboxed(
           command, seconds: Double(permissions.commandSeconds), writable: permissions.write,
-          limit: AgentSandbox.maximumOutput, mode: .headAndTail)
+          limit: AgentSandbox.maximumOutput, mode: .headAndTail, network: permissions.internet)
       else { return failure("the sandbox refused the command") }
       return [
         "ok": true,
@@ -862,8 +893,153 @@ enum AgentJavaScript {
         if (typeof value !== "string") throw hostError(TypeError, fn + ": " + what + " must be a string");
         return value;
       };
+      // Lines of a file: "\r\n" files keep their "\r" in the text, not in what is shown.
+      const splitLines = (source) => {
+        const lines = source.split("\n");
+        if (lines.length > 1 && lines[lines.length - 1] === "") lines.pop();
+        return lines;
+      };
+      const numbered = (lines, first) =>
+        lines.map((line, index) => (first + index) + "| " + line.replace(/\r$/, "")).join("\n");
+      const lineOf = (source, offset) => source.slice(0, offset).split("\n").length;
+      const around = (source, line, count = 1) => {
+        const lines = splitLines(source), first = Math.max(1, line - 3);
+        return numbered(lines.slice(first - 1, Math.min(lines.length, line + count + 2)), first);
+      };
+      // Copied from view(): every non-empty line starts with "N| ".
+      const unnumber = (text) => {
+        const lines = text.split("\n");
+        const prefix = /^\s*\d+\| ?/;
+        if (!lines.some((line) => prefix.test(line)) || !lines.every((line) => line === "" || prefix.test(line))) return null;
+        return lines.map((line) => line.replace(prefix, "")).join("\n");
+      };
+      // Codex's apply_patch cascade: exact, then lines compared without trailing spaces, then
+      // without spaces at both ends, then with typographic punctuation folded to ASCII.
+      const fold = (line) => line.trim()
+        .replace(/[‘’‚‛′]/g, "'").replace(/[“”„‟″]/g, '"')
+        .replace(/[‐-―−]/g, "-").replace(/…/g, "...")
+        .replace(/[  -   　]/g, " ");
+      const levels = [(line) => line.replace(/\s+$/, ""), (line) => line.trim(), fold];
+      const locate = (source, find) => {
+        const exact = [];
+        for (let at = source.indexOf(find); at !== -1; at = source.indexOf(find, at + find.length)) {
+          exact.push({ start: at, end: at + find.length, exact: true });
+        }
+        if (exact.length) return exact;
+        const wanted = find.replace(/\r?\n$/, "").split("\n");
+        if (!wanted.some((line) => line.trim())) return [];
+        const lines = source.split("\n"), starts = [];
+        for (let index = 0, at = 0; index < lines.length; at += lines[index].length + 1, index++) starts.push(at);
+        for (const level of levels) {
+          const target = wanted.map(level), found = [];
+          for (let index = 0; index + target.length <= lines.length; index++) {
+            let same = true;
+            for (let k = 0; k < target.length && same; k++) same = level(lines[index + k]) === target[k];
+            if (same) {
+              const last = index + target.length - 1;
+              // The match ends before its last line's "\r", which the replacement keeps.
+              found.push({ start: starts[index], end: starts[last] + lines[last].replace(/\r$/, "").length });
+              index = last;
+            }
+          }
+          if (found.length) return found;
+        }
+        return [];
+      };
+      const bigrams = (text) => {
+        const counts = new Map();
+        for (let index = 0; index + 1 < text.length; index++) {
+          const pair = text.slice(index, index + 2);
+          counts.set(pair, (counts.get(pair) || 0) + 1);
+        }
+        return counts;
+      };
+      const similarity = (a, b) => {
+        if (a === b) return 1;
+        if (a.length < 2 || b.length < 2) return 0;
+        const left = bigrams(a), right = bigrams(b);
+        let shared = 0;
+        for (const [pair, count] of left) shared += Math.min(count, right.get(pair) || 0);
+        return (2 * shared) / (a.length + b.length - 2);
+      };
+      // The error says how to fix the call: where the text is, or what is closest to it.
+      const missing = (path, source, find, replace) => {
+        if (replace && source.includes(replace)) {
+          return "the text to find is not in " + path + ", but the replacement already is (line "
+            + lineOf(source, source.indexOf(replace)) + "): this edit may already be done";
+        }
+        const wanted = find.split("\n").map((line) => line.trim()).filter((line) => line);
+        const lines = splitLines(source);
+        let best = -1, score = 0;
+        for (let index = 0; index < lines.length && wanted.length; index++) {
+          const value = similarity(fold(lines[index]), fold(wanted[0]));
+          if (value > score) { score = value; best = index; }
+        }
+        if (best < 0 || score < 0.5) {
+          return "the text to find is not in " + path + " and nothing is close; view() or search() the current text";
+        }
+        const first = Math.max(1, best - 1);
+        return "the text to find is not in " + path + ". Closest lines:\n"
+          + numbered(lines.slice(first - 1, Math.min(lines.length, best + wanted.length + 2)), first)
+          + "\nCopy the exact current text (without the `N| ` prefixes).";
+      };
+      // One edit of `source` in memory: the new text, and the first changed line.
+      const change = (path, source, find, replace, all, name) => {
+        text(find, "find", name); text(replace, "replace", name);
+        if (!find) throw hostError(Error, name + ": find must not be empty");
+        let matches = locate(source, find);
+        const plain = matches.length ? null : unnumber(find);
+        if (plain !== null) {
+          matches = locate(source, plain);
+          if (matches.length) replace = unnumber(replace) ?? replace;
+        }
+        if (!matches.length) throw hostError(Error, name + ": " + missing(path, source, plain ?? find, replace));
+        if (matches.length > 1 && !all) {
+          const lines = matches.slice(0, 10).map((match) => lineOf(source, match.start));
+          throw hostError(Error, name + ": the text to find occurs " + matches.length + " times in " + path
+            + " (lines " + lines.join(", ") + (matches.length > 10 ? ", ..." : "")
+            + "); include more surrounding text, or pass true to replace every occurrence");
+        }
+        // A line match replaces whole lines: its final newline stays in the file, and a
+        // "\r\n" file keeps its line endings.
+        let result = source;
+        const crlf = source.includes("\r\n");
+        for (const match of matches.slice().reverse()) {
+          let value = match.exact ? replace : replace.replace(/\r?\n$/, "");
+          if (!match.exact && crlf) value = value.replace(/\r?\n/g, "\r\n");
+          result = result.slice(0, match.start) + value + result.slice(match.end);
+        }
+        return { text: result, line: lineOf(source, matches[0].start), count: matches.length };
+      };
+      const checkJSON = (path, content, name) => {
+        if (!/\.json$/i.test(path)) return;
+        try { JSON.parse(content); } catch (error) {
+          warn(name + ": " + path + " is no longer valid JSON (" + ((error && error.message) || error) + ")");
+        }
+      };
+      // Terminal noise: colors and cursor codes, and progress lines a "\r" overwrote.
+      const plainOutput = (output) => output
+        .replace(/\x1b\[[0-?]*[ -\/]*[@-~]|\x1b\][^\x07\x1b]*(?:\x07|\x1b\\)|\x1b[@-Z\\-_]/g, "")
+        .replace(/[^\n]*\r(?!\n)/g, "");
       const api = {
         list: () => host("list", [], "list()"),
+        view: (path, offset = 1, limit = 200) => {
+          text(path, "path", "view");
+          if (!Number.isInteger(offset) || offset < 1 || !Number.isInteger(limit) || limit < 1) {
+            throw hostError(TypeError, "view: offset and limit must be positive integers");
+          }
+          const source = host("read", [path], label("view", path));
+          if (source === "") return "(" + path + " is empty)";
+          const lines = splitLines(source), total = lines.length;
+          if (offset > total) throw hostError(RangeError, "view: " + path + " has " + total + " lines");
+          const end = Math.min(total, offset - 1 + Math.min(limit, 2000));
+          let shown = numbered(lines.slice(offset - 1, end), offset);
+          if (offset > 1 || end < total) {
+            shown += "\n(lines " + offset + "-" + end + " of " + total
+              + (end < total ? "; view(" + JSON.stringify(path) + ", " + (end + 1) + ") shows more" : "") + ")";
+          }
+          return shown;
+        },
         read: (path) => host("read", [text(path, "path", "read")], label("read", path)),
         search: (pattern, path = ".") => host("search",
           [text(pattern, "regex", "search"), text(path, "path", "search")], label("search", pattern)),
@@ -872,16 +1048,36 @@ enum AgentJavaScript {
           if (content === undefined || content === null) throw hostError(TypeError, "write: text must be a string");
           const body = typeof content === "string" ? content : show(content);
           host("write", [path, body], label("write", path));
+          checkJSON(path, body, "write");
         },
-        edit: (path, find, replace) => {
-          text(path, "path", "edit"); text(find, "find", "edit"); text(replace, "replace", "edit");
-          if (!find) throw hostError(Error, "edit: find must not be empty");
+        edit: (path, find, replace, all = false) => {
+          text(path, "path", "edit");
+          const every = all === true || (all !== null && typeof all === "object" && all.all === true);
           const source = host("read", [path], label("read", path));
-          const count = source.split(find).length - 1;
-          if (count !== 1) throw hostError(Error, count === 0
-            ? "edit: the text to find is not in " + path
-            : "edit: the text to find occurs " + count + " times in " + path + "; include more context");
-          host("write", [path, source.replace(find, () => replace)], label("write", path));
+          const edited = change(path, source, find, replace, every, "edit");
+          host("write", [path, edited.text], label("write", path));
+          checkJSON(path, edited.text, "edit");
+          return { line: edited.line, count: edited.count, snippet: around(edited.text, edited.line, splitLines(replace).length) };
+        },
+        edits: (path, changes) => {
+          text(path, "path", "edits");
+          if (!Array.isArray(changes) || !changes.length) throw hostError(TypeError, "edits: changes must be a non-empty array of [find, replace]");
+          let source = host("read", [path], label("read", path));
+          const lines = [];
+          changes.forEach((item, index) => {
+            const pair = Array.isArray(item) ? item : item && typeof item === "object" ? [item.find, item.replace] : [];
+            try {
+              const edited = change(path, source, pair[0], pair[1], false, "edits");
+              source = edited.text;
+              lines.push(edited.line);
+            } catch (error) {
+              throw hostError(Error, "edits: change " + (index + 1) + " of " + changes.length + ": "
+                + String(error.message).replace(/^edits: /, "") + "; nothing was written");
+            }
+          });
+          host("write", [path, source], label("write", path));
+          checkJSON(path, source, "edits");
+          return { count: changes.length, lines };
         },
         fetch: (url) => host("fetch", [text(url, "url", "fetch")], label("fetch", url)),
         download: (url, path) => host("download",
@@ -889,7 +1085,7 @@ enum AgentJavaScript {
         // Fixed key order: the status stays readable even when a long output is cut.
         run: (command) => {
           const r = host("run", [text(command, "command", "run")], label("run", command));
-          return { status: r.status, stopped: r.stopped, omitted: r.omitted, output: r.output };
+          return { status: r.status, stopped: r.stopped, omitted: r.omitted, output: plainOutput(r.output) };
         },
       };
 
@@ -901,16 +1097,23 @@ enum AgentJavaScript {
       for (const name of request.api) {
         Object.defineProperty(globalThis, name, { value: api[name], writable: false, configurable: false });
       }
+      // The failing line and its text (smolagents): the model sees what to fix.
+      let programLines = [];
       const describe = (error) => {
         if (!(error instanceof Error)) return "uncaught " + show(error);
         let line = error.name === "Error" ? error.message : error.name + ": " + error.message;
         if (!error.host && typeof error.line === "number" && error.line > 2 && !error.sourceURL) {
-          line += " (line " + (error.line - 2) + ")";
+          const source = (programLines[error.line - 3] || "").trim();
+          line += " (line " + (error.line - 2) + (source ? ": " + (source.length > 120 ? source.slice(0, 117) + "..." : source) : "") + ")";
         }
         return line;
       };
-      // Small models often fence their code or send it with literal "\n" escapes.
-      const code = String(request.code);
+      // Small models often fence their code, send it with literal "\n" escapes or as
+      // {"code": ...}, or define a function they never call: each is run as meant.
+      let code = String(request.code);
+      if (/^\s*\{\s*"code"\s*:/.test(code)) {
+        try { const parsed = JSON.parse(code); if (typeof parsed.code === "string") code = parsed.code; } catch (_) {}
+      }
       const fenced = /^\s*```[\w+-]*[ \t]*\n([\s\S]*?)\n?```\s*$/.exec(code);
       const candidates = fenced ? [fenced[1], code] : [code];
       for (const source of candidates.slice()) {
@@ -918,9 +1121,27 @@ enum AgentJavaScript {
           candidates.push(source.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, "\""));
         }
       }
+      const called = (source) => {
+        const declared = /^\s*(?:async\s+function\s*\*?|function\s*\*?)\s*([A-Za-z_$][\w$]*)\s*\(\s*\)/.exec(source)
+          || /^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:\(\s*\)|function\s*\(\s*\))\s*(?:=>)?/.exec(source);
+        if (declared) {
+          const uses = source.match(new RegExp("(^|[^\\w$.])" + declared[1].replace(/\$/g, "\\$") + "(?![\\w$])", "g")) || [];
+          if (uses.length === 1) return source + "\n;return await " + declared[1] + "();";
+        }
+        if (/^\s*\(\s*(?:async\s*)?(?:\(\s*\)\s*=>|function\s*\w*\s*\(\s*\))[\s\S]*\)\s*\(\s*\)\s*;?\s*$/.test(source)) {
+          return "return await " + source.trim().replace(/;$/, "") + ";";
+        }
+        return null;
+      };
+      for (const source of candidates.slice()) {
+        const call = called(source);
+        if (call !== null) candidates.splice(candidates.indexOf(source), 0, call);
+      }
       let program, firstError;
       for (const source of candidates) {
-        try { program = new AsyncFunction(source); break; } catch (error) { firstError ??= error; }
+        try { program = new AsyncFunction(source); programLines = source.split("\n"); break; } catch (error) {
+          if (!firstError) { firstError = error; programLines = source.split("\n"); }
+        }
       }
       if (!program) { finish({ error: describe(firstError) }); return; }
       program().then(

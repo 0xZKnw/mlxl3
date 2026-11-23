@@ -1461,10 +1461,12 @@ final class StudioModel: ObservableObject {
     private func checkAgentGenerationDeadline(at now: ContinuousClock.Instant) {
         guard activeRequestID != nil, cancellationFallback == nil,
               let start = generationStartedAt, let last = generationLastActivity else { return }
-        if now - start >= .seconds(600) {
-            requestGenerationStop(L("Limite de 10 minutes atteinte. La réponse partielle est conservée.", "10-minute Agent limit reached. Partial output was kept."))
-        } else if now - last >= .seconds(120) {
-            requestGenerationStop(L("L’agent ne répond plus depuis 2 minutes. La réponse partielle est conservée.", "Agent has not responded for 2 minutes. Partial output was kept."))
+        // No total limit (it stopped long tasks at 10 minutes): the user can stop at any time,
+        // and only five silent minutes stop an answer. The engine reports a prefill once, at its
+        // start, so a long context can stay silent for a few minutes without being stalled.
+        _ = start
+        if now - last >= .seconds(300) {
+            requestGenerationStop(L("L’agent ne répond plus depuis 5 minutes. La réponse partielle est conservée.", "Agent has not responded for 5 minutes. Partial output was kept."))
         }
     }
 
