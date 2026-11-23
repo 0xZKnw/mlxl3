@@ -13,7 +13,31 @@ The earlier study tested changes inside the EXL3 matrix multiplication. This tri
 
 Each pair had identical decoded RGB pixels. Before timing, we compared both finite denoiser outputs at 512 and 1024 px and every pixel to the validated prior worker, and observed both callback releases on the actual execution path. Workloads used the published teapot prompt and seed 987406473 at 512 px and the oak prompt and seed 371 at 1024 px, as in the previous study. MLX 0.32.4, one model at a time, offline auxiliary files. The Mac reported AC power and a discharging battery during testing. No temperature measurement. Each worker ran under macOS /usr/bin/time -l. Maximum RSS and peak footprint are separate counters. The latter is the more relevant measurement of total memory pressure; the RSS change must not be read as an equivalent saving of system memory.
 
-Only the earlier kernel experiment used a 40-step sustained workload. The two repeats in this trial give a screening result for latency. [Raw runs and hashes](phase-memory.json).
+The shorter memory trial used four steps at 512 px and three at 1024 px. Its two repeats per worker give a screening result for latency. [Raw runs and hashes](phase-memory.json).
+
+## 512 px at 40 steps
+
+On the M5 with 24 GiB of unified memory, releasing components between phases reduced the mean peak process footprint from **18.66 to 15.34 GB** (3.32 GB, 17.8%). The two pairs saved 3.27 and 3.38 GB. All four PNGs matched the [published M5 sample](../../images/studio-image21-m5.png) byte for byte. We also decoded each image and compared all 512 × 512 RGB pixels.
+
+| Run order | Total time | Denoising | Peak footprint | Maximum RSS |
+|---|---:|---:|---:|---:|
+| 1. PR #188 | 83.52 s | 1.88 s/step | 18.60 GB | 9.32 GB |
+| 2. Phase release | 91.12 s | 2.11 s/step | 15.34 GB | 4.61 GB |
+| 3. Phase release | 89.29 s | 2.08 s/step | 15.34 GB | 4.61 GB |
+| 4. PR #188 | 94.62 s | 2.18 s/step | 18.72 GB | 8.87 GB |
+
+Mean wall time was 89.07 s for PR #188 and 90.21 s with phase release (+1.3%). Phase release took 7.60 s longer in the first pair and 5.33 s less in the second. These two pairs do not establish a latency change. Peak footprint and maximum RSS are separate macOS process counters from `/usr/bin/time -l`, expressed in decimal GB. GPU-only allocations were not measured.
+
+Each worker ran once for a two-step warmup, then twice for the recorded 40-step runs, in fresh processes with offline assets on battery power. Each warmup matched the prior two-step image. Both 40-step workers used the same EXL3 4 bpw checkpoint, seed 987406473, teapot prompt and Metal shaders. We verified each staged worker and both shaders against their Git revisions before generation. The JSON includes hashes, macOS and library versions, power readings and per-run results. Temperature was unavailable. [Measurement data](phase-memory-40.json).
+
+To repeat a timed run, stage the worker as described below, choose a fresh output file and run this command.
+
+```sh
+HF_HUB_OFFLINE=1 /usr/bin/time -l "$PYTHON" "$WORKER" \
+  --model "$MODEL_DIR" --size 512 --steps 40 --seed 987406473 \
+  --prompt 'A studio photograph of a cobalt blue ceramic teapot on a pale peach tabletop, soft morning light, simple composition.' \
+  --output "$OUT_PNG"
+```
 
 ## SIMD Hadamard kernel screen
 
