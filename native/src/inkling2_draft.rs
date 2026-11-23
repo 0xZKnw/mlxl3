@@ -785,7 +785,18 @@ pub struct DsparkSession {
     ahead: Option<Array>,
     /// SPEED-INK2M-P14: the width drawn from the policy for the next block before its anchor was read.
     decided: Option<usize>,
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A: blocks with proposals decided on the GPU (with `device`, deterministic
+    /// proposals only); `MLXL3_INKLING_DSPARK_DEVICE=0` keeps the caller's `choose`.
+    device_rounds: bool,
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A3: a GPU-decided block submits the drafter's proposals before building
+    /// the verification (`MLXL3_INKLING_DSPARK_OVERLAP=0` submits both together).
+    overlap: bool,
     pub stats: SpecStats,
+}
+
+/// DSPARK-2026-11-23-INK2M-MTPLX-A: GPU decision of blocks with proposals unless `value` is "0".
+pub fn device_rounds_setting(value: Option<&str>) -> bool {
+    value != Some("0")
 }
 
 /// SPEED-INK2M-P14: how width-0 blocks choose their token on the GPU.
@@ -822,6 +833,8 @@ impl DsparkSession {
             device: None,
             ahead: None,
             decided: None,
+            device_rounds: false,
+            overlap: false,
             stats: SpecStats {
                 accepted_at: vec![0; width],
                 ..SpecStats::default()
@@ -859,7 +872,32 @@ impl DsparkSession {
             seeds,
             pipelined,
         });
+        self.device_rounds =
+            device_rounds_setting(std::env::var("MLXL3_INKLING_DSPARK_DEVICE").ok().as_deref());
+        self.overlap = device_rounds_setting(
+            std::env::var("MLXL3_INKLING_DSPARK_OVERLAP")
+                .ok()
+                .as_deref(),
+        );
         self
+    }
+
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A3: whether a GPU-decided block submits its proposals before building
+    /// the verification.
+    pub fn with_overlap(mut self, enabled: bool) -> Self {
+        self.overlap = enabled;
+        self
+    }
+
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A: whether blocks with proposals are decided on the GPU (only with a GPU
+    /// draw rule and deterministic proposals; otherwise the caller's `choose` decides).
+    pub fn with_device_rounds(mut self, enabled: bool) -> Self {
+        self.device_rounds = enabled;
+        self
+    }
+
+    pub fn device_rounds(&self) -> bool {
+        self.device_rounds && self.device.is_some() && self.sampled.is_none()
     }
 
     /// Choose each block's width (0 to the session width) from the acceptance observed so far.
@@ -973,6 +1011,24 @@ impl DsparkSession {
             .take()
             .context("DSpark session without context")?;
         let block_started = Instant::now();
+        // DSPARK-2026-11-23-INK2M-MTPLX-A: proposals left on the GPU, verified and decided there, one read
+        if count > 0 && self.sampled.is_none() && self.device_rounds && self.device.is_some() {
+            let (proposals, accepted, token, features) =
+                self.device_round(target, draft, next, &last_feature, count)?;
+            let finish = Instant::now();
+            let first = self.finish_block(
+                target,
+                draft,
+                block_started,
+                proposals,
+                accepted,
+                token,
+                features,
+                false,
+            )?;
+            self.stats.device.finish_ms += finish.elapsed().as_secs_f64() * 1e3;
+            return Ok(first);
+        }
         let t = Instant::now();
         let mut draft_rows: Option<Vec<Vec<f32>>> = None;
         let proposals = if count == 0 {
@@ -1025,6 +1081,93 @@ impl DsparkSession {
             "DSpark accepted more than proposed"
         );
         self.stats.verify_ms += t.elapsed().as_secs_f64() * 1e3;
+        self.finish_block(
+            target,
+            draft,
+            block_started,
+            proposals,
+            accepted,
+            token,
+            features,
+            committed,
+        )
+    }
+
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A: one block of `count` >= 1 proposals with nothing read on the way:
+    /// the drafter's proposals stay on the GPU, the verification of the anchor and the proposals is built
+    /// from them, the decision (`inkling2::decide_block`, the session's GPU rule) runs after it, and the
+    /// packet is the only read. Returns the proposals, the accepted count, the token after them and the
+    /// verified features; nothing is committed yet.
+    fn device_round(
+        &mut self,
+        target: &mut Inkling2,
+        draft: &Inkling2Draft,
+        next: u32,
+        last_feature: &Array,
+        count: usize,
+    ) -> Result<(Vec<u32>, usize, u32, Array)> {
+        let device = self
+            .device
+            .as_mut()
+            .context("DSpark device round without GPU draw")?;
+        let rule = device.rule;
+        let noise_seed = device.seeds.next_seed();
+        let uniform_seed = device.seeds.next_seed();
+        let t0 = Instant::now();
+        let anchor = Array::from_u32(&[next], &[1])?;
+        let proposals = draft.propose(target, &anchor, last_feature, count)?;
+        if self.overlap {
+            // A3: the drafter runs on the GPU while the verification graph is built
+            proposals.async_eval()?;
+        }
+        let block = Array::concatenate(&[&anchor, &proposals], 0)?;
+        let t1 = Instant::now();
+        let (logits, features) = target.verify_device(&block, &self.taps)?;
+        let t2 = Instant::now();
+        let packet =
+            crate::inkling2::decide_block(&logits, &proposals, rule, noise_seed, uniform_seed)?;
+        let t3 = Instant::now();
+        let packet = packet.to_u32()?;
+        let t4 = Instant::now();
+        let ms = |a: Instant, b: Instant| (b - a).as_secs_f64() * 1e3;
+        self.stats.draft_ms += ms(t0, t1);
+        self.stats.verify_ms += ms(t1, t4);
+        let split = &mut self.stats.device;
+        split.blocks += 1;
+        split.draft_build_ms += ms(t0, t1);
+        split.verify_build_ms += ms(t1, t2);
+        split.decide_build_ms += ms(t2, t3);
+        split.wait_ms += ms(t3, t4);
+        ensure!(
+            packet.len() == 2 + count,
+            "DSpark decision packet has {} values, expected {}",
+            packet.len(),
+            2 + count
+        );
+        let accepted = usize::try_from(packet[0])?;
+        let token = packet[1];
+        let vocab = u32::try_from(target.unpadded_vocab())?;
+        ensure!(
+            accepted <= count && token < vocab && packet[2..].iter().all(|&p| p < vocab),
+            "invalid DSpark decision packet {packet:?}"
+        );
+        Ok((packet[2..].to_vec(), accepted, token, features))
+    }
+
+    /// The end of a block: commit of the kept rows (unless the forward already committed them), the drafter's
+    /// context, statistics and the delivery queue. Returns the first token to deliver.
+    #[allow(clippy::too_many_arguments)]
+    fn finish_block(
+        &mut self,
+        target: &mut Inkling2,
+        draft: &mut Inkling2Draft,
+        block_started: Instant,
+        proposals: Vec<u32>,
+        accepted: usize,
+        token: u32,
+        features: Array,
+        committed: bool,
+    ) -> Result<u32> {
         let t = Instant::now();
         if !committed {
             target.commit(accepted + 1)?;
@@ -1321,6 +1464,28 @@ pub struct SpecStats {
     /// DSPARK-INK2M-P10a: wall time (ms) of the blocks of each width (draft + verification + commit).
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub width_ms: Vec<f64>,
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A3: host-side split of the blocks decided on the GPU.
+    #[serde(skip_serializing_if = "DeviceRoundTimes::is_empty")]
+    pub device: DeviceRoundTimes,
+}
+
+/// DSPARK-2026-11-23-INK2M-MTPLX-A3: where the host spends a GPU-decided block (sums, ms): building the
+/// drafter's graph (and submitting it when overlapped), building and submitting the verification, building
+/// the decision, waiting for the packet, then the commit and the drafter's context.
+#[derive(Clone, Debug, Default, serde::Serialize)]
+pub struct DeviceRoundTimes {
+    pub blocks: usize,
+    pub draft_build_ms: f64,
+    pub verify_build_ms: f64,
+    pub decide_build_ms: f64,
+    pub wait_ms: f64,
+    pub finish_ms: f64,
+}
+
+impl DeviceRoundTimes {
+    pub fn is_empty(&self) -> bool {
+        self.blocks == 0
+    }
 }
 
 fn argmax_rows(logits: &Array) -> Result<Vec<u32>> {
@@ -1813,6 +1978,16 @@ mod tests {
         Ok(())
     }
 
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A: GPU decisions are on unless the setting is exactly "0".
+    #[test]
+    fn device_rounds_setting_is_on_unless_zero() {
+        assert!(device_rounds_setting(None));
+        assert!(!device_rounds_setting(Some("0")));
+        for value in ["1", "", "true", "false", "00", " 0"] {
+            assert!(device_rounds_setting(Some(value)), "{value:?}");
+        }
+    }
+
     /// DSPARK-INK2M-P4: the width follows the acceptance (high acceptance: wide blocks; the measured
     /// sampled free-text acceptance 0.37 / 0.40 / 0.45: width 1; rejections: plain steps), probes at
     /// full width every `PROBE_EVERY` blocks, observes only the positions a block reached, and is a pure
@@ -1981,9 +2156,10 @@ mod tests {
         let mut draft = Inkling2Draft::load(&dir, &target)?;
         let limit = usize::try_from(target.context_limit())?;
         type Run = (Vec<u32>, usize, usize, Vec<usize>);
+        // DSPARK-2026-11-23-INK2M-MTPLX-A: `device` = (pipelined, seed, blocks with proposals decided on the GPU)
         let mut run = |sampler: Sampler,
                        adaptive: bool,
-                       device: Option<(bool, u64)>|
+                       device: Option<(bool, u64, bool)>|
          -> Result<Run> {
             let policy = if adaptive {
                 WidthPolicy::new(DsparkSession::DEFAULT_WIDTH)
@@ -1992,9 +2168,15 @@ mod tests {
             };
             let mut session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?
                 .with_adaptive_width(policy)?;
-            if let Some((pipelined, seed)) = device {
+            if let Some((pipelined, seed, rounds)) = device {
                 let rule = DrawRule::for_sampler(&sampler).context("no GPU rule")?;
-                session = session.with_device_draw(rule, DrawSeeds::new(seed), pipelined);
+                session = session
+                    .with_device_draw(rule, DrawSeeds::new(seed), pipelined)
+                    .with_device_rounds(rounds);
+                ensure!(
+                    session.device_rounds() == rounds,
+                    "device rounds not applied"
+                );
             }
             let logits = session.prefill(&mut target, &mut draft, &prompt, &|| false)?;
             let history = History::default();
@@ -2045,45 +2227,178 @@ mod tests {
         let sampled = Sampler::new(1.0, 0, 1.0, 1.0, 0.0)?;
         for adaptive in [true, false] {
             let host = run(greedy, adaptive, None)?;
-            let sync = run(greedy, adaptive, Some((false, 9)))?;
-            let ahead = run(greedy, adaptive, Some((true, 9)))?;
             println!(
                 "greedy adaptive={adaptive}: blocks {} accepted {} widths {:?}",
                 host.1, host.2, host.3
             );
             ensure!(
-                sync == host,
-                "greedy device session (synchronous) differs from the host session"
-            );
-            ensure!(
-                ahead == host,
-                "greedy device session (one step ahead) differs from the host session"
-            );
-            ensure!(
                 host.3[0] > 0 && host.3[1..].iter().sum::<usize>() > 0,
                 "both block kinds must run"
             );
-            let sync = run(sampled, adaptive, Some((false, 9)))?;
-            let ahead = run(sampled, adaptive, Some((true, 9)))?;
-            println!(
-                "T=1 adaptive={adaptive}: blocks {} accepted {} widths {:?}",
-                sync.1, sync.2, sync.3
-            );
-            ensure!(
-                ahead == sync,
-                "T = 1 device sessions differ between synchronous and one step ahead"
-            );
-            ensure!(sync.3[0] > 0, "no width-0 block at T = 1");
-            // where width 0 dominates (between probes), the GPU draw picks most tokens: another seed must
-            // change them (from the prior, a few width-0 blocks may all draw the same confident token)
-            if !adaptive {
-                ensure!(sync.3[0] * 2 > sync.1, "width 0 does not dominate");
+            for rounds in [false, true] {
+                let sync = run(greedy, adaptive, Some((false, 9, rounds)))?;
+                let ahead = run(greedy, adaptive, Some((true, 9, rounds)))?;
                 ensure!(
-                    run(sampled, adaptive, Some((true, 10)))?.0 != sync.0,
-                    "the seed does not change the tokens"
+                    sync == host,
+                    "greedy device session (synchronous, GPU rounds {rounds}) differs from the host session"
                 );
+                ensure!(
+                    ahead == host,
+                    "greedy device session (one step ahead, GPU rounds {rounds}) differs from the host session"
+                );
+                let sync = run(sampled, adaptive, Some((false, 9, rounds)))?;
+                let ahead = run(sampled, adaptive, Some((true, 9, rounds)))?;
+                println!(
+                    "T=1 adaptive={adaptive} rounds={rounds}: blocks {} accepted {} widths {:?}",
+                    sync.1, sync.2, sync.3
+                );
+                ensure!(
+                    ahead == sync,
+                    "T = 1 device sessions (GPU rounds {rounds}) differ between synchronous and one step ahead"
+                );
+                ensure!(sync.3[0] > 0, "no width-0 block at T = 1");
+                ensure!(
+                    sync.3[1..].iter().sum::<usize>() > 0,
+                    "no block with proposals ran at T = 1"
+                );
+                // where width 0 dominates (between probes), the GPU draw picks most tokens: another seed must
+                // change them (from the prior, a few width-0 blocks may all draw the same confident token)
+                if !adaptive {
+                    ensure!(sync.3[0] * 2 > sync.1, "width 0 does not dominate");
+                    ensure!(
+                        run(sampled, adaptive, Some((true, 10, rounds)))?.0 != sync.0,
+                        "the seed does not change the tokens"
+                    );
+                }
             }
         }
+        Ok(())
+    }
+
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A3: wall time of a DSpark block at a fixed width (1, then 3), T = 1,
+    /// with the CPU decision, the GPU decision (A) and the GPU decision with the drafter overlapped (A3),
+    /// alternated in one process (order A B C C B A per round, `MLXL3_INKLING_PROFILE_ROUNDS` rounds, 3 by
+    /// default). Each measurement prefills the prompt again, runs 8 warm-up blocks, then times 64 blocks.
+    /// Prints one JSON line: median ms per block per variant and width, and the host split of the GPU
+    /// blocks.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ORACLE"]
+    fn device_round_profile() -> Result<()> {
+        use crate::inkling2::{DrawRule, DrawSeeds};
+        use crate::sampling::{Draw, History, Sampler};
+        const WARM: usize = 8;
+        const BLOCKS: usize = 64;
+        let rounds: usize = std::env::var("MLXL3_INKLING_PROFILE_ROUNDS")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(3);
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let prompt = prompt()?;
+        let mut target = Inkling2::load(&dir)?;
+        let mut draft = Inkling2Draft::load(&dir, &target)?;
+        let limit = usize::try_from(target.context_limit())?;
+        let sampler = Sampler::new(1.0, 0, 1.0, 1.0, 0.0)?;
+        let rule = DrawRule::for_sampler(&sampler).context("no GPU rule")?;
+        // (ms per block, tokens per block, GPU split per block)
+        type Sample = (f64, f64, [f64; 5]);
+        let mut measure = |width: usize,
+                           variant: &str,
+                           seed: u64|
+         -> Result<(f64, f64, [f64; 5])> {
+            let mut session = DsparkSession::new(&draft, width)?
+                .with_device_draw(rule, DrawSeeds::new(seed), true)
+                .with_device_rounds(variant != "cpu")
+                .with_overlap(variant == "overlap");
+            let logits = session.prefill(&mut target, &mut draft, &prompt, &|| false)?;
+            let history = History::default();
+            let mut random = seed ^ 0x9e37_79b9_7f4a_7c15;
+            let mut next = Draw {
+                sampler,
+                history: &history,
+                random: &mut random,
+            }
+            .sample_last_row(&logits)?;
+            let mut started = None;
+            let (mut blocks0, mut tokens, mut split0) = (0, 0usize, DeviceRoundTimes::default());
+            loop {
+                let blocks = session.stats.blocks;
+                if blocks == WARM && started.is_none() {
+                    started = Some(Instant::now());
+                    blocks0 = blocks;
+                    split0 = session.stats.device.clone();
+                    tokens = 0;
+                }
+                if blocks >= WARM + BLOCKS && session.pending.is_empty() {
+                    break;
+                }
+                let mut choose = |proposals: &[u32],
+                                  _: Option<&[Vec<f32>]>,
+                                  verified: &Array|
+                 -> Result<(usize, u32)> {
+                    let acceptance = Draw {
+                        sampler,
+                        history: &history,
+                        random: &mut random,
+                    }
+                    .speculative_accept_logits(proposals, verified)?;
+                    Ok((acceptance.accepted_draft_tokens, acceptance.target_token))
+                };
+                next =
+                    session.advance(&mut target, &mut draft, next, limit, 1 << 20, &mut choose)?;
+                tokens += 1;
+            }
+            let elapsed = started.context("no block ran")?.elapsed().as_secs_f64() * 1e3;
+            let n = (session.stats.blocks - blocks0) as f64;
+            let d = &session.stats.device;
+            let per = |a: f64, b: f64| if variant == "cpu" { 0.0 } else { (a - b) / n };
+            Ok((
+                elapsed / n,
+                tokens as f64 / n,
+                [
+                    per(d.draft_build_ms, split0.draft_build_ms),
+                    per(d.verify_build_ms, split0.verify_build_ms),
+                    per(d.decide_build_ms, split0.decide_build_ms),
+                    per(d.wait_ms, split0.wait_ms),
+                    per(d.finish_ms, split0.finish_ms),
+                ],
+            ))
+        };
+        let variants = ["cpu", "gpu", "overlap"];
+        let mut report = serde_json::Map::new();
+        for width in [1usize, 3] {
+            let mut samples: std::collections::BTreeMap<&str, Vec<Sample>> = Default::default();
+            for round in 0..rounds {
+                for (i, variant) in variants.iter().chain(variants.iter().rev()).enumerate() {
+                    let seed = 1_000 * round as u64 + i as u64 + 17;
+                    let result = measure(width, variant, seed)?;
+                    println!(
+                        "width {width} round {round} {variant}: {:.2} ms/block, {:.2} tokens/block, split {:?}",
+                        result.0, result.1, result.2
+                    );
+                    samples.entry(variant).or_default().push(result);
+                }
+            }
+            let median = |mut v: Vec<f64>| {
+                v.sort_by(f64::total_cmp);
+                v[v.len() / 2]
+            };
+            let mut entry = serde_json::Map::new();
+            for (variant, values) in samples {
+                let ms: Vec<f64> = values.iter().map(|v| v.0).collect();
+                entry.insert(
+                    variant.to_owned(),
+                    serde_json::json!({
+                        "ms_per_block_median": median(ms.clone()),
+                        "ms_per_block": ms,
+                        "tokens_per_block_median": median(values.iter().map(|v| v.1).collect()),
+                        "split_ms_median": (0..5).map(|k| median(values.iter().map(|v| v.2[k]).collect())).collect::<Vec<_>>(),
+                    }),
+                );
+            }
+            report.insert(format!("width_{width}"), serde_json::Value::Object(entry));
+        }
+        println!("DEVICE_ROUND_PROFILE {}", serde_json::Value::Object(report));
         Ok(())
     }
 
@@ -2140,6 +2455,208 @@ mod tests {
             .map(|s| Ok(gumbel_draw(&single, 1.0, s)?.to_u32()?[0]))
             .collect::<Result<_>>()?;
         ensure!(distinct.len() > 1, "the seed does not change the draw");
+        Ok(())
+    }
+
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A: the GPU decision of a block follows the exact speculative law of the
+    /// point-mass rule. Two proposals over a 6-token vocabulary, 40 000 decisions per case (one seed pair
+    /// each) against the joint law of (accepted, token) computed in f64: P(0, t) = p0(t) for t != x0,
+    /// P(1, t) = p0(x0) p1(t) for t != x1, P(2, t) = p0(x0) p1(x1) p2(t), with p_i = softmax(log_softmax(row
+    /// i) / T). Pearson chi-square below the 0.999 quantile (Wilson-Hilferty), no draw in a cell of zero
+    /// mass; a proposal of zero mass is never accepted.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn decide_block_follows_the_speculative_law() -> Result<()> {
+        use crate::inkling2::{DrawRule, decide_block};
+        const DRAWS: usize = 40_000;
+        const BATCH: usize = 1_000;
+        let rows: [[f32; 6]; 3] = [
+            [2.0, 1.0, 0.5, 0.0, -1.0, -3.0],
+            [-0.5, 1.5, 0.2, 1.0, -2.0, 0.0],
+            [0.3, -1.0, 2.5, 0.0, 1.0, -0.5],
+        ];
+        let cases: [(f32, [u32; 2], Option<f32>, u64); 4] = [
+            (1.0, [1, 3], None, 1_000),
+            (0.7, [0, 1], None, 2_000_000),
+            (1.3, [2, 5], None, 3_000_000),
+            // proposal 0 of zero mass: always rejected, the token follows p0 without it
+            (1.0, [4, 1], Some(-1.0e4), 4_000_000),
+        ];
+        for (temperature, proposals, zero, seed) in cases {
+            let mut table = rows;
+            if let Some(value) = zero {
+                table[0][proposals[0] as usize] = value;
+            }
+            let flat: Vec<f32> = table.iter().flatten().copied().collect();
+            let logits = Array::from_f32(&flat, &[1, 3, 6])?;
+            let ids = Array::from_u32(&proposals, &[2])?;
+            let law: Vec<Vec<f64>> = table
+                .iter()
+                .map(|row| {
+                    let max = row
+                        .iter()
+                        .fold(f64::NEG_INFINITY, |m, &v| m.max(f64::from(v)));
+                    let lse = max
+                        + row
+                            .iter()
+                            .map(|&v| (f64::from(v) - max).exp())
+                            .sum::<f64>()
+                            .ln();
+                    let scaled: Vec<f64> = row
+                        .iter()
+                        .map(|&v| (f64::from(v) - lse) / f64::from(temperature))
+                        .collect();
+                    let top = scaled.iter().fold(f64::NEG_INFINITY, |m, &v| m.max(v));
+                    let weights: Vec<f64> = scaled.iter().map(|&v| (v - top).exp()).collect();
+                    let total: f64 = weights.iter().sum();
+                    weights.iter().map(|w| w / total).collect()
+                })
+                .collect();
+            let (x0, x1) = (proposals[0] as usize, proposals[1] as usize);
+            let mut expected = [[0f64; 6]; 3];
+            for t in 0..6 {
+                if t != x0 {
+                    expected[0][t] = law[0][t];
+                }
+                if t != x1 {
+                    expected[1][t] = law[0][x0] * law[1][t];
+                }
+                expected[2][t] = law[0][x0] * law[1][x1] * law[2][t];
+            }
+            let mut counts = [[0f64; 6]; 3];
+            for batch in 0..DRAWS / BATCH {
+                let packets = (0..BATCH)
+                    .map(|i| {
+                        let s = seed + 2 * (batch * BATCH + i) as u64;
+                        decide_block(&logits, &ids, DrawRule::Softmax(temperature), s, s + 1)
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                Array::eval_many(&packets.iter().collect::<Vec<_>>())?;
+                for packet in &packets {
+                    let p = packet.to_u32()?;
+                    ensure!(
+                        p.len() == 4 && p[2..] == proposals && p[0] <= 2 && p[1] < 6,
+                        "invalid packet {p:?}"
+                    );
+                    ensure!(
+                        p[0] == 2 || p[1] != proposals[p[0] as usize],
+                        "a rejected proposal was emitted: {p:?}"
+                    );
+                    counts[p[0] as usize][p[1] as usize] += 1.0;
+                }
+            }
+            let mut chi2 = 0.0;
+            let mut cells = 0usize;
+            for (row, (e, c)) in expected.iter().zip(&counts).enumerate() {
+                for t in 0..6 {
+                    let mean = e[t] * DRAWS as f64;
+                    if mean < 1e-9 {
+                        ensure!(
+                            c[t] == 0.0,
+                            "draw in a zero-mass cell ({row}, {t}): {}",
+                            c[t]
+                        );
+                        continue;
+                    }
+                    cells += 1;
+                    chi2 += (c[t] - mean).powi(2) / mean;
+                }
+            }
+            let df = (cells - 1) as f64;
+            let z = 3.090_232_306;
+            let bound = df * (1.0 - 2.0 / (9.0 * df) + z * (2.0 / (9.0 * df)).sqrt()).powi(3);
+            println!(
+                "T={temperature} proposals={proposals:?} zero={zero:?}: accepted {:?}, chi2 {chi2:.2} df {df} bound {bound:.2}",
+                counts
+                    .iter()
+                    .map(|r| r.iter().sum::<f64>())
+                    .collect::<Vec<_>>()
+            );
+            ensure!(
+                chi2 < bound,
+                "GPU decisions do not follow the speculative law: chi2 {chi2} >= {bound}"
+            );
+        }
+        Ok(())
+    }
+
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A: the greedy GPU decision is the bridge's rule (`greedy_accept` over
+    /// `chat_greedy_ids` of the same rows) on random rows of the real vocabulary width, every acceptance
+    /// count included, and the softmax decision rejects a proposal of zero mass and keeps one of full mass.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn decide_block_greedy_is_the_bridge_rule() -> Result<()> {
+        use crate::inkling2::{DrawRule, decide_block};
+        const VOCAB: i32 = 200_058;
+        let mut state = 0x2545_f491_4f6c_dd1du64;
+        let mut uniform = move || {
+            state ^= state << 13;
+            state ^= state >> 7;
+            state ^= state << 17;
+            (state >> 40) as f32 / (1u64 << 24) as f32
+        };
+        let mut seen = [0usize; 4];
+        for case in 0..64u64 {
+            let rows = 4;
+            let values: Vec<f32> = (0..rows * VOCAB).map(|_| 30.0 * uniform() - 15.0).collect();
+            let logits = Array::from_f32(&values, &[1, rows, VOCAB])?;
+            let argmax = logits.chat_greedy_ids()?;
+            // proposals that match the argmax for a prefix of `case % 4` rows, then differ
+            let keep = (case % 4) as usize;
+            let proposals: Vec<u32> = (0..3)
+                .map(|i| {
+                    if i < keep {
+                        argmax[i]
+                    } else {
+                        (argmax[i] + 1 + case as u32) % VOCAB as u32
+                    }
+                })
+                .collect();
+            let expected = crate::speculative::greedy_accept(&proposals, &argmax)
+                .context("greedy acceptance")?;
+            let packet = decide_block(
+                &logits,
+                &Array::from_u32(&proposals, &[3])?,
+                DrawRule::Greedy,
+                case,
+                case + 1,
+            )?
+            .to_u32()?;
+            ensure!(
+                packet[0] as usize == expected.accepted_draft_tokens
+                    && packet[1] == expected.target_token
+                    && packet[2..] == proposals[..],
+                "case {case}: GPU {packet:?}, bridge {expected:?}"
+            );
+            seen[expected.accepted_draft_tokens] += 1;
+        }
+        ensure!(seen.iter().all(|&n| n > 0), "acceptance counts {seen:?}");
+        // full-vocabulary softmax: a proposal holding all the mass is kept, one with none is rejected
+        let mut values = vec![-30.0f32; 3 * VOCAB as usize];
+        values[7] = 30.0;
+        values[VOCAB as usize + 9] = 30.0;
+        values[2 * VOCAB as usize + 11] = 30.0;
+        let logits = Array::from_f32(&values, &[1, 3, VOCAB])?;
+        for seed in 0..32u64 {
+            let full = decide_block(
+                &logits,
+                &Array::from_u32(&[7, 9], &[2])?,
+                DrawRule::Softmax(1.0),
+                seed,
+                seed + 100,
+            )?
+            .to_u32()?;
+            ensure!(full[..2] == [2, 11], "full-mass proposals: {full:?}");
+            let none = decide_block(
+                &logits,
+                &Array::from_u32(&[8, 9], &[2])?,
+                DrawRule::Softmax(1.0),
+                seed,
+                seed + 100,
+            )?
+            .to_u32()?;
+            ensure!(none[0] == 0 && none[1] == 7, "zero-mass proposal: {none:?}");
+        }
         Ok(())
     }
 

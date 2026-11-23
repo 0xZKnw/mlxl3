@@ -2818,6 +2818,207 @@ pub fn draw_token(logits: &Array, rule: DrawRule, seed: u64) -> Result<Array> {
     draw_rows(&last, rule, seed)
 }
 
+/// DSPARK-2026-11-23-INK2M-MTPLX-A: threads of one row reduction in `decide_block` (one threadgroup a row).
+const DECIDE_THREADS: i32 = 1024;
+
+/// Per verified row: argmax over the vocabulary of `scores * inv_t + noise` excluding the row's proposal
+/// (the bonus row excludes nothing), the log-sum-exp of `scores * inv_t` and `scores * inv_t` at the
+/// proposal. One threadgroup of `DECIDE_THREADS` a row; ties go to the lowest index.
+const DECIDE_ROWS_SOURCE: &str = r#"
+    const uint row = threadgroup_position_in_grid.y;
+    const uint tid = thread_position_in_threadgroup.x;
+    const uint lane = thread_index_in_simdgroup;
+    const uint sg = simdgroup_index_in_threadgroup;
+    const uint excluded = row + 1u < uint(ROWS) ? proposals[row] : 0xffffffffu;
+    const float it = inv_t[0];
+    const device float* s = scores + size_t(row) * uint(VOCAB);
+    const device float* g = noise + size_t(row) * uint(VOCAB);
+    float m = -INFINITY;
+    float acc = 0.0f;
+    float bv = -INFINITY;
+    uint bi = 0xffffffffu;
+    for (uint j = tid; j < uint(VOCAB); j += uint(THREADS)) {
+        const float x = s[j] * it;
+        if (x > m) {
+            acc = acc * metal::exp(m - x) + 1.0f;
+            m = x;
+        } else if (x > -INFINITY) {
+            acc += metal::exp(x - m);
+        }
+        if (j != excluded) {
+            const float k = x + g[j];
+            if (k > bv || bi == 0xffffffffu) {
+                bv = k;
+                bi = j;
+            }
+        }
+    }
+    for (ushort offset = 16; offset > 0; offset >>= 1) {
+        const float om = simd_shuffle_down(m, offset);
+        const float oa = simd_shuffle_down(acc, offset);
+        const float ov = simd_shuffle_down(bv, offset);
+        const uint oi = simd_shuffle_down(bi, offset);
+        if (lane + offset < 32u) {
+            const float mm = metal::max(m, om);
+            acc = (mm == -INFINITY) ? 0.0f : acc * metal::exp(m - mm) + oa * metal::exp(om - mm);
+            m = mm;
+            if (oi != 0xffffffffu && (bi == 0xffffffffu || ov > bv || (ov == bv && oi < bi))) {
+                bv = ov;
+                bi = oi;
+            }
+        }
+    }
+    threadgroup float sm[32];
+    threadgroup float sa[32];
+    threadgroup float sv[32];
+    threadgroup uint si[32];
+    if (lane == 0u) {
+        sm[sg] = m;
+        sa[sg] = acc;
+        sv[sg] = bv;
+        si[sg] = bi;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (tid == 0u) {
+        float tm = sm[0];
+        float ta = sa[0];
+        float tv = sv[0];
+        uint ti = si[0];
+        for (uint i = 1u; i < uint(THREADS) / 32u; ++i) {
+            const float mm = metal::max(tm, sm[i]);
+            ta = (mm == -INFINITY) ? 0.0f : ta * metal::exp(tm - mm) + sa[i] * metal::exp(sm[i] - mm);
+            tm = mm;
+            if (si[i] != 0xffffffffu && (ti == 0xffffffffu || sv[i] > tv || (sv[i] == tv && si[i] < ti))) {
+                tv = sv[i];
+                ti = si[i];
+            }
+        }
+        best[row] = ti;
+        lse[row] = tm + metal::log(ta);
+        at[row] = excluded < uint(VOCAB) ? s[excluded] * it : -INFINITY;
+    }
+"#;
+
+/// The block's decision in one thread: proposal i is kept when log U_i < log p_i(x_i); at the first
+/// rejection the token is that row's draw without the proposal, after every proposal the bonus row's draw.
+/// `packet` = [accepted, token, proposals...].
+const DECIDE_SOFTMAX_SOURCE: &str = r#"
+    uint accepted = uint(PROPOSALS);
+    for (uint i = 0u; i < uint(PROPOSALS); ++i) {
+        if (!(metal::log(coins[i]) < at[i] - lse[i])) {
+            accepted = i;
+            break;
+        }
+    }
+    packet[0] = accepted;
+    packet[1] = best[accepted];
+    for (uint i = 0u; i < uint(PROPOSALS); ++i) {
+        packet[2u + i] = proposals[i];
+    }
+"#;
+
+/// Greedy decision: proposals kept while they equal the argmax of their row, then the next row's argmax.
+const DECIDE_GREEDY_SOURCE: &str = r#"
+    uint accepted = uint(PROPOSALS);
+    for (uint i = 0u; i < uint(PROPOSALS); ++i) {
+        if (top[i] != proposals[i]) {
+            accepted = i;
+            break;
+        }
+    }
+    packet[0] = accepted;
+    packet[1] = top[accepted];
+    for (uint i = 0u; i < uint(PROPOSALS); ++i) {
+        packet[2u + i] = proposals[i];
+    }
+"#;
+
+/// DSPARK-2026-11-23-INK2M-MTPLX-A: decision of a DSpark block on the GPU. `logits` `[1, 1 + k, vocab]` from
+/// `verify_device` of the anchor and the `k` deterministic `proposals` (`[k]` u32 on the GPU); returns the
+/// lazy packet `[2 + k]` u32 = accepted count, the target token after them, then the proposals.
+///
+/// Greedy: the bridge's rule (`speculative::greedy_accept` over `Array::chat_greedy_ids`, same operations).
+/// Softmax(T): the point-mass rule of `Sampler::accept_with` for the law softmax(log_probs / T): proposal i
+/// is accepted with probability p_i(x_i) (uniform from `uniform_seed`), the token after a rejection is drawn
+/// from p_i without x_i, the token after every proposal from the bonus row (Gumbel-max, noise from
+/// `noise_seed`). Every token has the law of an ordinary draw from the same rows, up to FP32 rounding; the
+/// draws of a given seed differ from the CPU path's.
+pub fn decide_block(
+    logits: &Array,
+    proposals: &Array,
+    rule: DrawRule,
+    noise_seed: u64,
+    uniform_seed: u64,
+) -> Result<Array> {
+    let shape = logits.shape();
+    ensure!(
+        shape.len() == 3 && shape[0] == 1 && shape[1] >= 2 && shape[2] >= 2,
+        "decide_block expects [1, 1 + k, vocab] logits with k >= 1"
+    );
+    let (rows, vocab) = (shape[1], shape[2]);
+    let k = rows - 1;
+    ensure!(
+        proposals.shape() == [k] && proposals.dtype() == Dtype::UInt32,
+        "decide_block expects [k] u32 proposals"
+    );
+    let log_probs = logits.reshape(&[rows, vocab])?.log_probs()?;
+    let defines = format!("#define ROWS {rows}\n#define PROPOSALS {k}\n#define VOCAB {vocab}\n");
+    let packet = match rule {
+        DrawRule::Greedy => crate::array::metal_kernel(
+            &format!("mlxl3_inkling_dspark_decide_greedy_v1_k{k}"),
+            &["top", "proposals"],
+            &["packet"],
+            &defines,
+            DECIDE_GREEDY_SOURCE,
+            &[&log_probs.argmax()?.astype(Dtype::UInt32)?, proposals],
+            &[vec![2 + k]],
+            &[Dtype::UInt32],
+            [1, 1, 1],
+            [1, 1, 1],
+        )?,
+        DrawRule::Softmax(temperature) => {
+            ensure!(
+                temperature.is_finite() && temperature > 0.0,
+                "a softmax decision needs a positive finite temperature"
+            );
+            let noise = Array::gumbel_noise(&[rows, vocab], noise_seed)?;
+            let inv_t = Array::from_f32(&[1.0 / temperature], &[1])?;
+            let mut reduced = crate::array::metal_kernel(
+                &format!("mlxl3_inkling_dspark_decide_rows_v1_r{rows}_v{vocab}"),
+                &["scores", "noise", "proposals", "inv_t"],
+                &["best", "lse", "at"],
+                &format!("{defines}#define THREADS {DECIDE_THREADS}\n"),
+                DECIDE_ROWS_SOURCE,
+                &[&log_probs, &noise, proposals, &inv_t],
+                &[vec![rows], vec![rows], vec![rows]],
+                &[Dtype::UInt32, Dtype::Float32, Dtype::Float32],
+                [DECIDE_THREADS, rows, 1],
+                [DECIDE_THREADS, 1, 1],
+            )?;
+            ensure!(reduced.len() == 3, "missing decision rows");
+            let at = reduced.pop().context("at")?;
+            let lse = reduced.pop().context("lse")?;
+            let best = reduced.pop().context("best")?;
+            let coins = Array::random_uniform(&[k], uniform_seed)?;
+            crate::array::metal_kernel(
+                &format!("mlxl3_inkling_dspark_decide_softmax_v1_k{k}"),
+                &["best", "lse", "at", "coins", "proposals"],
+                &["packet"],
+                &defines,
+                DECIDE_SOFTMAX_SOURCE,
+                &[&best, &lse, &at, &coins, proposals],
+                &[vec![2 + k]],
+                &[Dtype::UInt32],
+                [1, 1, 1],
+                [1, 1, 1],
+            )?
+        }
+    }
+    .pop()
+    .context("missing DSpark decision packet")?;
+    Ok(packet)
+}
+
 /// Seeds of successive GPU draws: splitmix64 of a Weyl sequence started at `seed`.
 #[derive(Clone, Debug)]
 pub struct DrawSeeds(u64);
@@ -3520,6 +3721,25 @@ impl Inkling2 {
         }
     }
 
+    /// DSPARK-2026-11-23-INK2M-MTPLX-A: `verify` of ids still on the GPU (`[n]` integers below the unpadded
+    /// vocabulary, e.g. the anchor followed by the drafter's proposals), submitted without waiting: the same
+    /// graph as `verify` of the same ids, so the same logits and features.
+    pub fn verify_device(&mut self, ids: &Array, taps: &[usize]) -> Result<(Array, Array)> {
+        ensure!(
+            !taps.is_empty()
+                && taps.windows(2).all(|w| w[0] < w[1])
+                && *taps.last().unwrap_or(&0) == self.visits.len(),
+            "Inkling draft taps must be increasing and end at the visit count"
+        );
+        match self.run(Ids::Device(ids), true, Some(taps), false, true) {
+            Ok((logits, features)) => Ok((logits, features.context("features")?)),
+            Err(error) => {
+                self.reset();
+                Err(error.context("Inkling verify failed; its cache was reset"))
+            }
+        }
+    }
+
     /// Committed forward of `tokens` that also captures the drafter features of every row: the logits of
     /// the last row only (`[1, 1, vocab]`) and the features `[T, taps * D]`. Prefill of a DSpark session.
     pub fn forward_with_features(
@@ -3640,12 +3860,13 @@ impl Inkling2 {
                 );
                 i32::try_from(tokens.len()).context("Inkling batch is too large")?
             }
+            // DSPARK-2026-11-23-INK2M-MTPLX-A: a verify block may also be a device array of ids
             Ids::Device(id) => {
                 ensure!(
-                    id.shape() == [1],
-                    "Inkling device token must have shape [1]"
+                    id.shape().len() == 1 && id.shape()[0] >= 1,
+                    "Inkling device tokens must have shape [n], n >= 1"
                 );
-                1
+                id.shape()[0]
             }
         };
         let start = self.offset;
@@ -3653,7 +3874,8 @@ impl Inkling2 {
             .checked_add(time)
             .context("Inkling position overflow")?;
         ensure!(end <= self.context_limit, "Inkling context is full");
-        // a device token comes from `draw_token` (below the unpadded vocabulary by construction)
+        // a device token comes from `draw_token` or the drafter's argmax (below the unpadded vocabulary by
+        // construction)
         let ids = match ids {
             Ids::Host(tokens) => Array::from_i32(
                 &tokens.iter().map(|&t| t as i32).collect::<Vec<_>>(),
@@ -6097,6 +6319,76 @@ mod tests {
             }));
         }
         println!("{}", serde_json::to_string(&report)?);
+        Ok(())
+    }
+
+    /// DSPARK-2026-11-23-INK2M-MTPLX-B0 (diagnostic): wall time of a T = 4 verification after the same real
+    /// 64-token prefix for blocks whose rows share few or many experts (`synthetic` ids, `real` consecutive
+    /// tokens, one `repeat`ed token), with the share of duplicated routes of each block measured in a separate
+    /// untimed pass, and the T = 1 verification of the first real token as the reference.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn verify_cost_by_overlap() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let tokens: Vec<u32> = serde_json::from_value(rows["rows"][0]["tokens"].clone())?;
+        ensure!(tokens.len() >= 68, "row too short");
+        let prefix = &tokens[..64];
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let taps: Vec<usize> = vec![5, 23, 41, model.visit_count()];
+        let blocks: Vec<(&str, Vec<u32>)> = vec![
+            ("synthetic", vec![2000, 2017, 2034, 2051]),
+            ("real", tokens[64..68].to_vec()),
+            ("repeat", vec![tokens[64]; 4]),
+            ("single", vec![tokens[64]]),
+        ];
+        let mut duplicated = std::collections::BTreeMap::new();
+        for (name, block) in &blocks {
+            model.reset();
+            model.forward_tokens(prefix)?.eval()?;
+            MOE_ROUTES.with(|c| *c.borrow_mut() = Some(Vec::new()));
+            let (logits, _) = model.verify(block, &taps)?;
+            logits.eval()?;
+            let routes = MOE_ROUTES
+                .with(|c| c.borrow_mut().take())
+                .context("routes")?;
+            let (mut slots, mut distinct) = (0usize, 0usize);
+            for (_, ids) in routes {
+                slots += ids.len();
+                distinct += ids.iter().collect::<std::collections::BTreeSet<_>>().len();
+            }
+            ensure!(slots > 0, "no MoE call captured");
+            duplicated.insert(*name, 1.0 - distinct as f64 / slots as f64);
+        }
+        let mut times: std::collections::BTreeMap<&str, Vec<f64>> = Default::default();
+        let order = [0usize, 1, 2, 3, 3, 2, 1, 0];
+        for _round in 0..2 {
+            for &i in &order {
+                let (name, block) = &blocks[i];
+                for rep in 0..10 {
+                    model.reset();
+                    model.forward_tokens(prefix)?.eval()?;
+                    let start = Instant::now();
+                    model.verify(block, &taps)?;
+                    let ms = start.elapsed().as_secs_f64() * 1e3;
+                    if rep > 0 {
+                        times.entry(name).or_default().push(ms);
+                    }
+                }
+            }
+        }
+        let report: Vec<serde_json::Value> = blocks
+            .iter()
+            .map(|(name, block)| {
+                let (q1, median, q3) = quantiles(times[name].clone());
+                serde_json::json!({
+                    "block": name, "rows": block.len(), "duplicated_share": duplicated[name],
+                    "verify_ms_median": median, "verify_ms_q1": q1, "verify_ms_q3": q3,
+                })
+            })
+            .collect();
+        println!("VERIFY_COST_BY_OVERLAP {}", serde_json::to_string(&report)?);
         Ok(())
     }
 
