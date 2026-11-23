@@ -1,0 +1,102 @@
+{
+  "runs": [
+    {
+      "arm": "baseline",
+      "steps": 2,
+      "wall_s": 11.5,
+      "step_s": 2.18,
+      "loop_min_sec": "00:04",
+      "rss_bytes": 8089157632,
+      "footprint_bytes": 18733998072,
+      "rgb_sha256": "b92a2e1d113f1e4572bff63562e94ebffcd146bfb6af0a407e95e4851d08b7f5",
+      "png_sha256": "f318d94e0ddda0ae11b4888610fd4c2babe36e33b909bde671a0ba0583b73b17",
+      "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0\t72%; discharging; (no estimate) present: true",
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0\t72%; discharging; (no estimate) present: true"
+    },
+    {
+      "arm": "candidate",
+      "steps": 2,
+      "wall_s": 9.96,
+      "step_s": 2.02,
+      "loop_min_sec": "00:04",
+      "rss_bytes": 4613324800,
+      "footprint_bytes": 15346109920,
+      "rgb_sha256": "b92a2e1d113f1e4572bff63562e94ebffcd146bfb6af0a407e95e4851d08b7f5",
+      "png_sha256": "f318d94e0ddda0ae11b4888610fd4c2babe36e33b909bde671a0ba0583b73b17",
+      "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0\t72%; discharging; (no estimate) present: true",
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0\t72%; discharging; (no estimate) present: true"
+    },
+    {
+      "arm": "baseline",
+      "steps": 40,
+      "wall_s": 83.52,
+      "step_s": 1.88,
+      "loop_min_sec": "01:15",
+      "rss_bytes": 9321627648,
+      "footprint_bytes": 18604105696,
+      "rgb_sha256": "40594cd216b2ec3425a43a1002db07f7c79b478a481ae3b99ba284d80cd6be55",
+      "png_sha256": "7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd",
+      "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0\t72%; discharging; (no estimate) present: true",
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0\t72%; discharging; 1:31 remaining present: true"
+    },
+    {
+      "arm": "candidate",
+      "steps": 40,
+      "wall_s": 91.12,
+      "step_s": 2.11,
+      "loop_min_sec": "01:24",
+      "rss_bytes": 4612653056,
+      "footprint_bytes": 15338376696,
+      "rgb_sha256": "40594cd216b2ec3425a43a1002db07f7c79b478a481ae3b99ba284d80cd6be55",
+      "png_sha256": "7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd",
+      "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0\t72%; discharging; 1:31 remaining present: true",
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0\t71%; discharging; 1:40 remaining present: true"
+    },
+    {
+      "arm": "candidate",
+      "steps": 40,
+      "wall_s": 89.29,
+      "step_s": 2.08,
+      "loop_min_sec": "01:23",
+      "rss_bytes": 4611538944,
+      "footprint_bytes": 15338556824,
+      "rgb_sha256": "40594cd216b2ec3425a43a1002db07f7c79b478a481ae3b99ba284d80cd6be55",
+      "png_sha256": "7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd",
+      "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0\t71%; discharging; 1:40 remaining present: true",
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0\t70%; discharging; 1:41 remaining present: true"
+    },
+    {
+      "arm": "baseline",
+      "steps": 40,
+      "wall_s": 94.62,
+      "step_s": 2.18,
+      "loop_min_sec": "01:27",
+      "rss_bytes": 8868593664,
+      "footprint_bytes": 18722791512,
+      "rgb_sha256": "40594cd216b2ec3425a43a1002db07f7c79b478a481ae3b99ba284d80cd6be55",
+      "png_sha256": "7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd",
+      "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0\t70%; discharging; 1:41 remaining present: true",
+      "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0\t69%; discharging; 1:31 remaining present: true"
+    }
+  ],
+  "base": "441fce82",
+  "candidate": "55ae361d",
+  "asset_hashes": {
+    "baseline/render.py": "f2c00df2a36c14545e3bd76f2486c365fb79e1673c3953397d11a9f614c03368",
+    "baseline/_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+    "baseline/_qmm_tensor_window_kernel.metal": "4f06024b6027817c20f07510c873585ee6670ad7063919f7271a0365c6d37b37",
+    "candidate/render.py": "8ce4c930c33bb6ebe26a5a0b4f5a986422754cfc0cd6992357a394af0ed65ece",
+    "candidate/_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+    "candidate/_qmm_tensor_window_kernel.metal": "4f06024b6027817c20f07510c873585ee6670ad7063919f7271a0365c6d37b37"
+  },
+  "prompt": "A studio photograph of a cobalt blue ceramic teapot on a pale peach tabletop, soft morning light, simple composition.",
+  "seed": 987406473,
+  "size": 512,
+  "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+  "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+  "status": "complete",
+  "baseline_commit": "441fce82dc19057b068227bb0294f8b1018f597f",
+  "candidate_commit": "55ae361dfbcafef0d084ddb699f83a388e8d83ae",
+  "platform": "Apple M5, 24 GiB, macOS 27.3, MLX 0.32.4, MFLUX d39c9639",
+  "protocol": "Offline, one new process per image, a two-step warmup for each arm, then ABBA at 40 steps. /usr/bin/time -l; mass-storage model files shared. Thermal sensor unavailable."
+}

@@ -25,6 +25,37 @@ pub struct ChatTokenizer {
     control_tokens: std::collections::BTreeMap<u32, String>,
 }
 
+/// A content part as `vision_input` prepares it for the chat template: `{"type": "text", "text": ...}`
+/// or an image slot `{"type": "image"}` (the pixels stay outside the template).
+fn prepared_part(part: &Value) -> bool {
+    let Some(fields) = part.as_object() else {
+        return false;
+    };
+    match part["type"].as_str() {
+        Some("text") => fields.len() == 2 && part["text"].is_string(),
+        Some("image") => fields.len() == 1,
+        _ => false,
+    }
+}
+
+#[test]
+fn prepared_parts_are_text_or_image_slots_only() {
+    use serde_json::json;
+    assert!(prepared_part(&json!({"type":"text","text":"a"})));
+    assert!(prepared_part(&json!({"type":"image"})));
+    for bad in [
+        json!({"type":"text"}),
+        json!({"type":"text","text":1}),
+        json!({"type":"text","text":"a","extra":0}),
+        json!({"type":"image","image_url":{"url":"data:image/png;base64,AAAA"}}),
+        json!({"type":"image_url","image_url":{"url":"x"}}),
+        json!("text"),
+        json!(null),
+    ] {
+        assert!(!prepared_part(&bad), "{bad}");
+    }
+}
+
 fn json_object(path: &Path) -> Result<Value> {
     let value: Value = serde_json::from_slice(&fs::read(path)?)
         .with_context(|| format!("invalid JSON in {}", path.display()))?;
@@ -316,10 +347,14 @@ impl ChatTokenizer {
                 matches!(role, "system" | "user" | "assistant" | "tool"),
                 "unsupported role {role:?}"
             );
+            // strings, or the parts `vision_input` keeps for Inkling 2 (text parts and image slots)
             ensure!(
                 message
                     .get("content")
-                    .is_some_and(|content| content.is_string()),
+                    .is_some_and(|content| content.is_string()
+                        || content.as_array().is_some_and(
+                            |parts| !parts.is_empty() && parts.iter().all(prepared_part)
+                        )),
                 "chat message requires string content"
             );
         }

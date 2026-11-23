@@ -86,5 +86,22 @@ struct MLXL3StudioApp: App {
             }
         }
 
+        Window(L("Générer une image", "Generate an image"), id: "image-generation") {
+            if Image21Hardware.available {
+                ImageGenerationView()
+            } else {
+                Text(Image21Hardware.requirement).padding()
+            }
+        }
+        .defaultSize(width: 680, height: 670)
+        .defaultLaunchBehavior(.suppressed)
+        .commandsReplaced {
+            CommandGroup(after: .windowList) {
+                if Image21Hardware.available {
+                    WindowVisibilityToggle(windowID: "image-generation")
+                }
+            }
+        }
+
     }
 }

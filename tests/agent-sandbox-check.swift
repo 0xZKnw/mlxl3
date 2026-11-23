@@ -261,6 +261,9 @@ struct AgentSandboxCheck {
     check(
       !jsPrompt.contains("30 seconds") && jsPrompt.contains("limits the tool description gives")
         && jsPrompt.contains("give the final answer"), "JavaScript prompt limits: \(jsPrompt)")
+    // AGENT-2026-11-23-VITESSE: the concise rule (V2) was withdrawn on the user's decision; the
+    // prompt stays the one measured as arm A.
+    check(!jsPrompt.contains("Write no text before or between calls."), "JavaScript prompt keeps its full answers: \(jsPrompt)")
     check(
       AgentJavaScript.toolDescription(all).contains("Limits per call: 10 s")
         && AgentJavaScript.toolDescription(all).contains("Each call starts fresh.")

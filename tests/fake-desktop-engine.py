@@ -215,7 +215,7 @@ if flash_dflash:
     capabilities.pop('dflash_family', None)
 if model in ('mtp-memory-saver', 'dflash-memory-saver'):
     capabilities['context_memory'] = {'layers': [{'bytes_per_token': 32768, 'step': 1}], 'fixed_bytes': 4096}
-if model == 'image-import':
+if model in ('image-import', 'inkling-vision'):
     capabilities['images_supported'] = True
 # Engines with exact speculative sampling announce it; older ones stay silent.
 if os.environ.get('MLXL3_FIXTURE_MTP_SAMPLING') == '1':

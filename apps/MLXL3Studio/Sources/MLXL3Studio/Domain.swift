@@ -202,6 +202,9 @@ struct BridgeEvent: Decodable {
     /// Engines that accept `tool_rounds` and a per-server MCP `callTimeoutSeconds`.
     var toolRoundsSupported: Bool? = nil
     var mcpCallTimeoutSupported: Bool? = nil
+    /// Engines whose Agent loop has no total budget: `reasoning_budget`, up to 512 rounds,
+    /// context pruning and a stop for repeated identical calls.
+    var agentLoopSupported: Bool? = nil
     /// `tool_start`: the call's arguments, shown with the tool (the code of a JS call).
     var arguments: ToolArguments? = nil
     var bridgeProtocol: Int? = nil
@@ -268,6 +271,7 @@ struct BridgeEvent: Decodable {
         case reasoningEffortSupported = "reasoning_effort_supported"
         case toolRoundsSupported = "tool_rounds_supported"
         case mcpCallTimeoutSupported = "mcp_call_timeout_supported"
+        case agentLoopSupported = "agent_loop_supported"
         case arguments
         case bridgeProtocol = "bridge_protocol"
         case mcpToolCatalog = "mcp_tool_catalog"
@@ -395,6 +399,9 @@ struct GenerationRequest: Encodable {
     var reasoningEffort: String? = nil
     /// Tool rounds before the final answer (Agent mode); nil keeps the engine default.
     var toolRounds: Int? = nil
+    /// Reasoning tokens per step before the engine closes the thinking block and lets the model
+    /// act; nil = no budget. The Agent mode sends none: reasoning is never cut.
+    var reasoningBudget: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -418,6 +425,7 @@ struct GenerationRequest: Encodable {
         case responseSchema = "response_schema"
         case reasoningEffort = "reasoning_effort"
         case toolRounds = "tool_rounds"
+        case reasoningBudget = "reasoning_budget"
     }
 }
 

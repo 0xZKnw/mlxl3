@@ -564,14 +564,21 @@ extension CodeBlockView {
       contentRect: NSRect(x: 50, y: 50, width: 900, height: 700),
       styleMask: [.titled, .resizable], backing: .buffered, defer: false)
     window.preservesBitmapViewport = !requireOnscreen
-    window.level = .statusBar
+    window.level = requireOnscreen ? .statusBar : .normal
+    window.ignoresMouseEvents = !requireOnscreen
     window.collectionBehavior = [.canJoinAllSpaces, .fullScreenAuxiliary]
     window.hidesOnDeactivate = false
     window.title = "MLXL3 Long Visibility Check"
     window.contentView = host
     window.setContentSize(NSSize(width: 900, height: 700))
-    NSApp.activate()
-    window.makeKeyAndOrderFront(nil)
+    if requireOnscreen {
+      NSApp.activate()
+      window.makeKeyAndOrderFront(nil)
+    } else {
+      // A bitmap capture needs a logically visible window, not keyboard focus.
+      // Keep user gestures and window management out of this fixed-size fixture.
+      window.orderBack(nil)
+    }
     defer {
       window.contentView = nil
       window.orderOut(nil)
@@ -744,7 +751,10 @@ extension CodeBlockView {
     }
     message.append("\n\n```javascript\n// ", phase: "answer")
     for checkpoint in checkpoints {
-      let marker = "VISIBLE CODE \(checkpoint)"
+      // A checkpoint must stay on one visual line. Vision can interleave unrelated
+      // columns between words of a wrapped marker on the hosted Mac.
+      let marker = "CODE\(checkpoint)"
+      try require(!message.content.contains(marker), "Reused code checkpoint \(marker)")
       message.append(
         repeated("Long generated source remains painted with exact content and stable scrolling. ")
           + marker + " ", phase: "answer")
@@ -936,7 +946,9 @@ extension CodeBlockView {
   @MainActor static func main() {
     _ = NSApplication.shared
     NSApp.setActivationPolicy(.regular)
-    NSApp.activate()
+    if !CommandLine.arguments.contains("--check-long-visibility") || CommandLine.arguments.contains("--require-onscreen") {
+      NSApp.activate()
+    }
     Task { @MainActor in
       do {
         try await runChecks()
