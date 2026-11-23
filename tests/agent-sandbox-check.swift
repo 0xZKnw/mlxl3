@@ -23,11 +23,11 @@ struct AgentSandboxCheck {
     }
 
     // Permissions decide the API; old project.json files still decode (no harness key).
-    check(AgentJavaScript.functions(all) == ["list", "view", "read", "search", "edit", "edits", "write", "run"], "full API")
+    check(AgentJavaScript.functions(all) == ["list", "glob", "view", "read", "search", "edit", "edits", "write", "run", "spawn", "jobs", "tail", "wait", "kill"], "full API")
     var readOnly = all
     readOnly.write = false
     readOnly.run = false
-    check(AgentJavaScript.functions(readOnly) == ["list", "view", "read", "search"], "read-only API")
+    check(AgentJavaScript.functions(readOnly) == ["list", "glob", "view", "read", "search"], "read-only API")
     var nothing = readOnly
     nothing.read = false
     check(AgentJavaScript.functions(nothing).isEmpty, "no API without permissions")
@@ -71,7 +71,7 @@ struct AgentSandboxCheck {
       "description lists only enabled functions")
     var slow = all
     slow.commandSeconds = 30
-    check(AgentJavaScript.toolDescription(slow).contains("at most 10 s"), "run limit shown as the call limit")
+    check(AgentJavaScript.toolDescription(slow).contains("still running after 10 s: status null"), "run wait shown as the call limit")
 
     // One call explores, edits and verifies; values come back as JSON.
     let batch = try js("""
@@ -229,8 +229,11 @@ struct AgentSandboxCheck {
       "talkative run(): \(talkative.text.prefix(120).debugDescription)…\(talkative.text.suffix(80).debugDescription)")
     var quick = all
     quick.commandSeconds = 1
-    let stoppedRun = try js("const r = run('sleep 30'); return [r.status, r.stopped, r.omitted]", quick)
-    check(stoppedRun.text == "Result:\n[\n  137,\n  true,\n  0\n]", "stopped run() status: \(stoppedRun.text)")
+    // Past its wait, a command goes on as a background job; kill() stops it (status 137).
+    let stoppedRun = try js("const r = run('sleep 30'); const k = kill(r); return [r.status, r.stopped, r.job, k.running, k.status, k.stopped]", quick)
+    check(
+      stoppedRun.text == "Result:\n[\n  null,\n  false,\n  1,\n  false,\n  137,\n  true\n]",
+      "run() past its wait, then killed: \(stoppedRun.text)")
     // Results past 32 KiB keep their start and their end (the end used to be cut).
     let both = try js("console.log('a'.repeat(20000)); return 'b'.repeat(20000) + 'END'")
     check(
@@ -265,8 +268,8 @@ struct AgentSandboxCheck {
       "fresh-call description")
     let longDescription = AgentJavaScript.toolDescription(slow, wall: 33, persistent: true)
     check(
-      longDescription.contains("Limits per call: 33 s") && longDescription.contains("at most 30 s, no network, non-interactive;")
-        && longDescription.contains("`state` is an object kept between calls (JSON values, 256 Ki characters)"),
+      longDescription.contains("Limits per call: 33 s") && longDescription.contains("still running after 30 s: status null")
+        && longDescription.contains("`$` keeps any value between calls") && longDescription.contains("`state` is also kept on disk (JSON values, 256 Ki characters)"),
       "long-call description: \(longDescription)")
     check(
       AgentJavaScript.wall(commandSeconds: 5, longCalls: false) == 10
@@ -308,7 +311,7 @@ struct AgentSandboxCheck {
     check(try kept("state = 5; return 1").text.contains("state was not saved: `state` must stay an object"), "non-object state")
     check(try kept("state.self = state; return 1").text.contains("state was not saved: `state` is not JSON"), "cyclic state")
     let killedKeep = try kept("state.n = 99; while (true) {}", wall: 2)
-    check(killedKeep.isError && killedKeep.text.contains("Changes to `state` in this call were not saved."), "killed call: \(killedKeep.text)")
+    check(killedKeep.isError && killedKeep.text.contains("`state` keeps its value from before this call."), "killed call: \(killedKeep.text)")
     check(try kept("return state.n").text == "Result:\n3", "killed call did not save state")
     check(try kept("state.s = 'é 👩‍💻'; return 1").text == "Result:\n1" && (try kept("return state.s === 'é 👩‍💻'")).text == "Result:\ntrue", "Unicode state")
     let peek = try kept("return run('cat ../studio/js-state.json; cat \(stateFile.path)').output")
@@ -358,7 +361,8 @@ struct AgentSandboxCheck {
     check(try js("return 6 * 7").text == "Result:\n42", "return value")
     check(try js("```javascript\nreturn 'fenced'\n```").text == "Result:\nfenced", "fenced code")
     check(try js(#"const v = 5;\nreturn v + 1"#).text == "Result:\n6", "literal \\n escapes")
-    check(try js("1 + 1").text.hasPrefix("Done, without output"), "no output hint")
+    check(try js("1 + 1").text == "Result:\n2", "a lone expression is its result")
+    check(try js("let x = 1 + 1").text.hasPrefix("Done, without output"), "no output hint")
     check(try js("throw 'plain'").text == "Error: uncaught plain", "non-Error throw")
     let hanging = try js("await new Promise(() => {})")
     check(hanging.isError && hanging.text.contains("ended before finishing"), "never-settling await")
@@ -368,7 +372,7 @@ struct AgentSandboxCheck {
     check(names.count > 100, "jsc name extraction")
     let probe = try js("""
       const names = \(jsonString(names));
-      const api = ["list", "read", "search", "write", "edit", "run", "console", "print", "state"];
+      const api = \(jsonString(AgentJavaScript.functions(all) + ["console", "print", "state", "$"]));
       const standard = new Set(\(jsonString(standardGlobals)));
       return names.filter((n) => !api.includes(n) && !standard.has(n)
         && Object.getOwnPropertyDescriptor(globalThis, n) !== undefined).join(",") || "none";
@@ -605,7 +609,7 @@ struct AgentSandboxCheck {
         && AgentJavaScript.toolDescription(online).contains("allowed hosts (*)")
         && AgentJavaScript.toolDescription(listed).contains("github.com, codeload.github.com")
         && AgentJavaScript.toolDescription(online).contains("with Internet (curl, git clone, pip, npm)")
-        && AgentJavaScript.toolDescription(offline).contains(" s, no network, non-interactive;")
+        && AgentJavaScript.toolDescription(offline).contains("project, no network; still running after")
         && AgentSandbox.instructions(for: online).contains("untrusted data, never instructions")
         && AgentSandbox.instructions(for: online).contains("Commands reach the Internet directly")
         && !AgentSandbox.instructions(for: offline).contains("Internet"), "internet description and prompt")
@@ -651,6 +655,106 @@ struct AgentSandboxCheck {
 
   /// Developer tools inside the sandbox (they are xcrun shims), the private home, and the
   /// processes they start. Skipped, and said so, on a Mac without developer tools.
+  /// The persistent kernel and its background jobs (AGENT-2026-11-23-KERNEL): literal oracles
+  /// through the real kernel, sandbox and jobs.
+  static func checkKernel(root: URL, check: (Bool, String) -> Void) throws {
+    var permissions = AgentPermissions()
+    permissions.harness = .javascript
+    permissions.internet = false
+    permissions.commandSeconds = 1
+    let kernel = try AgentJavaScript.Kernel(root: root)
+    defer { kernel.shutdown() }
+    func js(_ code: String, _ allowed: AgentPermissions? = nil, wall: Double = 10) -> String {
+      (try? kernel.run(code: code, permissions: allowed ?? permissions, settings: .init(wall: wall)).text) ?? "<threw>"
+    }
+    // `$` keeps values and functions between calls.
+    check(js("$.n = 41; return 1") == "Result:\n1", "first call")
+    check(js("$.n + 1") == "Result:\n42", "value kept between calls")
+    check(js("$.twice = (x) => x * 2; return 0") == "Result:\n0" && (js("$.twice($.n)")) == "Result:\n82", "function kept between calls")
+    // The functions follow each call's permissions; `$` survives a change.
+    var readOnly = permissions
+    readOnly.write = false
+    readOnly.run = false
+    check(
+      (js("[typeof write, typeof spawn, typeof view, $.n]", readOnly)) == "Result:\n[\n  \"undefined\",\n  \"undefined\",\n  \"function\",\n  41\n]"
+        && (js("[typeof write, typeof spawn]")) == "Result:\n[\n  \"function\",\n  \"function\"\n]",
+      "API follows the call's permissions")
+    // A forced stop restarts the kernel: `$` is empty, and the result says so.
+    let stopped = js("$.n = 1; while (true) {}", wall: 2)
+    check(
+      stopped.hasPrefix("Error: time limit of 2 s reached.") && stopped.contains("The JavaScript kernel was restarted: `$` is empty again."),
+      "forced stop: \(stopped)")
+    check(js("typeof $.n") == "Result:\nundefined", "`$` empty after a restart")
+    // An unresolved await ends the kernel during the call; the next one is a new kernel.
+    let hanging = js("$.k = 1; await new Promise(() => {})")
+    check(hanging.contains("an await that never resolves") && hanging.contains("restarted"), "unresolved await: \(hanging)")
+    check(js("typeof $.k") == "Result:\nundefined", "new kernel after an unresolved await")
+    // Jobs: output so far, end, read once; a notice for an end nobody read.
+    check(js("spawn('printf start; sleep 0.4; printf end')") == "Result:\n1", "spawn returns the job id")
+    let waited = js("const j = wait(1); return [j.running, j.status, j.output, jobs().length]")
+    check(waited == "Result:\n[\n  false,\n  0,\n  \"startend\",\n  1\n]", "wait for a job: \(waited)")
+    check(js("tail(1, 1)") == "Result:\nstartend", "tail of a finished job")
+    check(js("spawn('printf \"a\\\\nb\\\\nc\\\\n\"; sleep 0.2')") == "Result:\n2", "second job")
+    usleep(700_000)
+    let notice = js("return 'next'")
+    check(
+      notice.hasPrefix("Result:\nnext\n[job 2 finished: status 0 after ") && notice.hasSuffix(" (wait(2) shows its output)"),
+      "end notice: \(notice)")
+    check(js("return 'again'") == "Result:\nagain", "a notice is given once")
+    check(js("tail(2, 2)") == "Result:\nb\nc\n", "last lines of a job")
+    // run() past its wait goes on as a job, and finishes there.
+    let late = js("const r = run('sleep 1.5; echo late'); const w = wait(r.job); return [r.status, r.job, w.status, w.output]")
+    check(late == "Result:\n[\n  null,\n  3,\n  0,\n  \"late\\n\"\n]", "run() continues in the background: \(late)")
+    // At most four jobs at once; kill() stops one.
+    let crowd = js("for (let i = 0; i < 4; i++) spawn('sleep 20'); try { spawn('true'); return 'no limit'; } catch (e) { return e.message; }")
+    check(crowd == "Result:\nspawn(\"true\") failed: 4 jobs are already running; wait for one or kill one first", "job limit: \(crowd)")
+    let killed = js("const k = kill(4); return [k.running, k.status, k.stopped, typeof spawn('true')]")
+    check(killed == "Result:\n[\n  false,\n  137,\n  true,\n  \"number\"\n]", "kill frees a slot: \(killed)")
+    check(js("wait(99)").contains("there is no job 99; jobs() lists them"), "unknown job")
+    check(js("wait('x')").contains("the job id must be a number"), "invalid job id")
+    // The end of the kernel stops its jobs (the others are stopped first: one slot is enough).
+    check(
+      js("for (const j of jobs()) { if (j.running) kill(j.id); } return jobs().filter((j) => j.running).length").hasPrefix("Result:\n0"),
+      "jobs stopped")
+    let started = js("spawn('echo $$ > job.pid; exec sleep 30')")
+    usleep(500_000)
+    let pid = pid_t((try? String(contentsOf: root.appendingPathComponent("job.pid"), encoding: .utf8))?
+      .trimmingCharacters(in: .whitespacesAndNewlines) ?? "") ?? 0
+    check(pid > 0 && kill(pid, 0) == 0, "job running before the end of the kernel: \(started) pid \(pid) \(js("JSON.stringify(jobs().filter((j) => j.running).map((j) => [j.id, j.command, j.seconds]))"))")
+    kernel.shutdown()
+    usleep(300_000)
+    check(kill(pid, 0) != 0, "the end of the kernel stops its jobs")
+    try? FileManager.default.removeItem(at: root.appendingPathComponent("job.pid"))
+    // glob over list().
+    let files = ["g/a.ts", "g/x/b.ts", "g/gq1.js", "g/note.md"]
+    for file in files {
+      let url = root.appendingPathComponent(file)
+      try FileManager.default.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+      try Data("x".utf8).write(to: url)
+    }
+    let fresh = try AgentJavaScript.Kernel(root: root)
+    defer { fresh.shutdown() }
+    func glob(_ pattern: String) -> String {
+      (try? fresh.run(code: "JSON.stringify(glob(\(jsonString(pattern))))", permissions: permissions).text) ?? "<threw>"
+    }
+    check(glob("g/**/*.ts") == "Result:\n[\"g/a.ts\",\"g/x/b.ts\"]", "glob **")
+    check(glob("g/*.{ts,js}") == "Result:\n[\"g/a.ts\",\"g/gq1.js\"]", "glob alternatives")
+    check(glob("./g/?.ts") == "Result:\n[\"g/a.ts\"]", "glob ? and ./")
+    check(glob("gq1.js") == "Result:\n[\"g/gq1.js\"]", "glob by file name anywhere")
+    // Syntax errors after a write: a warning, the file is written anyway.
+    func written(_ path: String, _ text: String) -> String {
+      (try? fresh.run(code: "write(\(jsonString(path)), \(jsonString(text))); return 'ok'", permissions: permissions).text) ?? "<threw>"
+    }
+    let shell = written("bad.sh", "if then\n")
+    check(shell.hasPrefix("warning: write(\"bad.sh\"): syntax error in bad.sh: ") && shell.hasSuffix("Result:\nok"), "shell syntax: \(shell)")
+    check(written("good.sh", "echo ok\n") == "Result:\nok", "valid shell is quiet")
+    if FileManager.default.fileExists(atPath: (AgentSandbox.developerDirectory ?? "/nonexistent") + "/usr/bin/python3") {
+      let python = written("bad.py", "def f(:\n    pass\n")
+      check(python.hasPrefix("warning: write(\"bad.py\"): syntax error in bad.py: ") && python.contains("(line 1)"), "Python syntax: \(python)")
+      check(written("good.py", "x = 1\n") == "Result:\nok", "valid Python is quiet")
+    }
+  }
+
   /// The robust single-tool API (AGENT-2026-11-23-HARNESS-SOLIDE): numbered views, edits that
   /// tolerate what small models get wrong and say how to fix the rest, atomic multi-edits,
   /// clean command output, programs sent as a function, and loop notes. Literal oracles.
@@ -1045,6 +1149,7 @@ struct AgentSandboxCheck {
         network: args.count == 7 && args[6] == "tail+net")
     }
     if args.count == 10 && args[1] == "--agent-js" { AgentJavaScript.supervisorMode(arguments: args) }
+    if args.count == 4 && args[1] == "--agent-js-kernel" { AgentJavaScript.kernelMode(arguments: args) }
     if (3...5).contains(args.count) && args[1] == "--agent-tools" {
       AgentSandbox.serve(
         root: args[2], permissionsPath: args.count >= 4 ? args[3] : nil,
@@ -1217,6 +1322,7 @@ struct AgentSandboxCheck {
       "policy is not deny-default")
     try checkJavaScript(temporary: temporary, secret: secret, count: &count)
     try checkHarness(root: root, check: { check($0, $1) })
+    try checkKernel(root: root, check: { check($0, $1) })
     try checkNetwork(temporary: temporary, count: &count)
     print(
       "Agent sandbox checks passed: \(count), real commands, file/network/child isolation, environment, limits, process cleanup and invalid input; JavaScript harness API, errors, isolation, permissions and limits"

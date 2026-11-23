@@ -114,7 +114,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     check((root / 'js/é.txt').read_text() == 'naïve 👩\u200d💻', 'JavaScript write reached the workspace')
     # The engine decodes XML parameters that look like JSON: a number is still the model's code.
     _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': 42}})], permissions=js_policy)
-    check(responses[0]['result']['isError'] is False and 'without output' in responses[0]['result']['content'][0]['text'], 'Decoded JSON code runs as text')
+    check(responses[0]['result']['isError'] is False and responses[0]['result']['content'][0]['text'] == 'Result:\n42', 'Decoded JSON code runs as text (a lone expression)')
     for params in [
         {'name': 'run', 'arguments': {'command': 'printf BAD > crossed.txt'}},
         {'name': 'write_file', 'arguments': {'path': 'crossed.txt', 'content': 'BAD'}},
@@ -168,7 +168,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     _, listed = exchange([request('tools/list')], permissions=dict(js_policy, commandSeconds=17), long_calls=True)
     _, fresh = exchange([request('tools/list')], permissions=False)
     long_description, fresh_description = listed[0]['result']['tools'][0]['description'], fresh[0]['result']['tools'][0]['description']
-    check('Limits per call: 20 s' in long_description and '`state` is an object kept between calls' in long_description
+    check('Limits per call: 20 s' in long_description and '`$` keeps any value between calls' in long_description and '`state` is also kept on disk' in long_description
           and 'Each call starts fresh.' in fresh_description and 'Limits per call: 10 s' in fresh_description, 'Call wall and state stated in the description')
     _, unchanged = exchange([request('tools/list')], permissions=dict(js_policy, commandSeconds=17))
     check('Limits per call: 10 s' in unchanged[0]['result']['tools'][0]['description'], 'Without long calls the wall stays 10 s')
@@ -220,6 +220,76 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
         check(live[0]['result']['content'][0]['text'] == 'Result:\n200 Hello World!', f"Live fetch through MCP: {live[0]['result']['content'][0]['text']!r}")
     else:
         print('Live MCP network check not run (set MLXL3_NETWORK_TESTS=1)')
+    # The persistent kernel through the real server: `$` and a background job survive between
+    # calls; a kernel killed between calls is replaced and the next result says so; the end of
+    # the server ends the kernel and its jobs.
+    _, kept = exchange([
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': "$.x = 21; return spawn('sleep 0.3; echo from-job')"}}, 1),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': "const j = wait(1); return [$.x * 2, j.status, j.output]"}}, 2),
+    ], permissions=js_policy)
+    kept_texts = [r['result']['content'][0]['text'] for r in kept]
+    check(kept_texts == ['Result:\n1', 'Result:\n[\n  42,\n  0,\n  "from-job\\n"\n]'], f'Kernel state and jobs across MCP calls: {kept_texts!r}')
+    metadata.write_text(json.dumps({'permissions': js_policy}))
+    server = subprocess.Popen([helper, '--agent-tools', str(root), str(metadata)], stdin=subprocess.PIPE,
+                              stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+    job_pid = None
+    try:
+        def call(code, identifier):
+            server.stdin.write(json.dumps(request('tools/call', {'name': 'javascript', 'arguments': {'code': code}}, identifier)) + '\n')
+            server.stdin.flush()
+            return json.loads(server.stdout.readline())['result']['content'][0]['text']
+        first = call("$.y = 1; return spawn('echo $$ > kernel-job.pid; exec sleep 30')", 1)
+        listing = subprocess.run(['/bin/ps', '-A', '-o', 'pid=,ppid=,command='], capture_output=True, text=True).stdout
+        kernels = [line.split()[0] for line in listing.splitlines()
+                   if len(line.split()) > 2 and line.split()[1] == str(server.pid) and '--agent-js-kernel' in line]
+        check(first == 'Result:\n1' and len(kernels) == 1, f'One kernel per server: {first!r} {kernels!r}')
+        deadline = time.monotonic() + 5
+        while not (root / 'kernel-job.pid').exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        job_pid = int((root / 'kernel-job.pid').read_text())
+        listing = subprocess.run(['/bin/ps', '-A', '-o', 'pid=,ppid=,command='], capture_output=True, text=True).stdout
+        engines = [int(line.split()[0]) for line in listing.splitlines()
+                   if len(line.split()) > 2 and line.split()[1] == kernels[0] and line.split()[2].endswith('/jsc')]
+        os.kill(int(kernels[0]), signal.SIGKILL)
+        # Its JavaScript engine reads the end of its input and stops by itself (it used to spin
+        # on an empty line), before any new kernel sweeps orphans.
+        deadline = time.monotonic() + 3
+        while time.monotonic() < deadline and any(subprocess.run(['/bin/kill', '-0', str(pid)], capture_output=True).returncode == 0 for pid in engines):
+            time.sleep(0.05)
+        check(len(engines) == 1 and all(subprocess.run(['/bin/kill', '-0', str(pid)], capture_output=True).returncode != 0 for pid in engines),
+              f'The JavaScript engine of a killed kernel stops by itself: {engines!r}')
+        second = call('typeof $.y', 2)
+        check(second.startswith('warning: the JavaScript kernel had stopped and was restarted') and second.endswith('Result:\nundefined'),
+              f'Kernel restart is announced: {second!r}')
+        orphan_gone = False
+        try:
+            os.kill(job_pid, 0)
+        except ProcessLookupError:
+            orphan_gone = True
+        check(orphan_gone, 'A job orphaned by a killed kernel is stopped by the next kernel')
+        third = call("$.z = 3; return spawn('echo $$ > kernel-job2.pid; exec sleep 30')", 3)
+        deadline = time.monotonic() + 5
+        while not (root / 'kernel-job2.pid').exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        job_pid = int((root / 'kernel-job2.pid').read_text())
+        check(third == 'Result:\n1', f'New kernel starts jobs: {third!r}')
+        server.stdin.close()
+        server.wait(timeout=10)
+        deadline = time.monotonic() + 5
+        alive = True
+        while time.monotonic() < deadline:
+            try:
+                os.kill(job_pid, 0)
+            except ProcessLookupError:
+                alive = False
+                break
+            time.sleep(0.05)
+        check(not alive, 'The end of the server ends the kernel and its jobs')
+    finally:
+        if server.poll() is None:
+            server.kill()
+        for name in ('kernel-job.pid', 'kernel-job2.pid'):
+            (root / name).unlink(missing_ok=True)
     # Loop note through the real server: a third identical program with the same result.
     _, repeated = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return 1 + 1'}}, n) for n in (1, 2, 3)]
                            + [request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return 2 + 2'}}, 4)], permissions=js_policy)

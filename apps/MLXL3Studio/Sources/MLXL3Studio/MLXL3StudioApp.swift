@@ -21,6 +21,9 @@ struct MLXL3StudioApp: App {
         if arguments.count == 10, arguments[1] == "--agent-js" {
             AgentJavaScript.supervisorMode(arguments: arguments)
         }
+        if arguments.count == 4, arguments[1] == "--agent-js-kernel" {
+            AgentJavaScript.kernelMode(arguments: arguments)
+        }
         if (3...5).contains(arguments.count), arguments[1] == "--agent-tools" {
             AgentSandbox.serve(root: arguments[2], permissionsPath: arguments.count >= 4 ? arguments[3] : nil,
                                longCalls: arguments.count == 5 && arguments[4] == "long-calls")
