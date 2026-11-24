@@ -202,6 +202,9 @@ struct BridgeEvent: Decodable {
     /// Engines that accept `tool_rounds` and a per-server MCP `callTimeoutSeconds`.
     var toolRoundsSupported: Bool? = nil
     var mcpCallTimeoutSupported: Bool? = nil
+    /// Engines whose Agent loop has no total budget: `reasoning_budget`, up to 512 rounds,
+    /// context pruning and a stop for repeated identical calls.
+    var agentLoopSupported: Bool? = nil
     /// `tool_start`: the call's arguments, shown with the tool (the code of a JS call).
     var arguments: ToolArguments? = nil
     var bridgeProtocol: Int? = nil
@@ -268,6 +271,7 @@ struct BridgeEvent: Decodable {
         case reasoningEffortSupported = "reasoning_effort_supported"
         case toolRoundsSupported = "tool_rounds_supported"
         case mcpCallTimeoutSupported = "mcp_call_timeout_supported"
+        case agentLoopSupported = "agent_loop_supported"
         case arguments
         case bridgeProtocol = "bridge_protocol"
         case mcpToolCatalog = "mcp_tool_catalog"
@@ -364,7 +368,8 @@ struct AssistantPart: Codable, Identifiable, Sendable {
         self.kind = kind
         self.text = text
         self.toolID = toolID
-        startedAt = kind == .processing ? Date() : nil
+        // Answers need no clock; reasoning and tool calls show how long they took.
+        startedAt = kind == .answer ? nil : Date()
     }
 }
 
@@ -395,6 +400,9 @@ struct GenerationRequest: Encodable {
     var reasoningEffort: String? = nil
     /// Tool rounds before the final answer (Agent mode); nil keeps the engine default.
     var toolRounds: Int? = nil
+    /// Reasoning tokens per step before the engine closes the thinking block and lets the model
+    /// act; nil = no budget. The Agent mode sends none: reasoning is never cut.
+    var reasoningBudget: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -418,6 +426,7 @@ struct GenerationRequest: Encodable {
         case responseSchema = "response_schema"
         case reasoningEffort = "reasoning_effort"
         case toolRounds = "tool_rounds"
+        case reasoningBudget = "reasoning_budget"
     }
 }
 
@@ -479,7 +488,10 @@ final class ChatMessage: ObservableObject, Identifiable {
         objectWillChange.send()
         endProcessing()
         let kind: AssistantPart.Kind = phase == "thinking" ? .thinking : .answer
-        if parts.last?.kind != kind { parts.append(AssistantPart(kind: kind)) }
+        if parts.last?.kind != kind {
+            endThinking()
+            parts.append(AssistantPart(kind: kind))
+        }
         parts[parts.count - 1].text += text
         if phase == "thinking" {
             thinking += text
@@ -492,6 +504,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     func finish(stats: GenerationStats?, fallbackAnswer: String?, cacheContext: String?) {
         objectWillChange.send()
         endProcessing()
+        endThinking()
         isStreaming = false
         self.stats = stats
         self.cacheContext = cacheContext
@@ -506,10 +519,12 @@ final class ChatMessage: ObservableObject, Identifiable {
     func fail(_ message: String) {
         objectWillChange.send()
         endProcessing(interrupted: true)
+        endThinking()
         isStreaming = false
         error = message
         for index in toolActivities.indices where toolActivities[index].state == .running {
             toolActivities[index].state = .failed
+            endToolClock(toolActivities[index].id)
         }
         streamRevision &+= 1
     }
@@ -517,6 +532,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     func startTool(id: String, serverName: String?, toolName: String, arguments: String? = nil) {
         objectWillChange.send()
         endProcessing()
+        endThinking()
         parts.append(AssistantPart(kind: .tool, toolID: id))
         toolActivities.append(
             ToolActivity(
@@ -536,11 +552,13 @@ final class ChatMessage: ObservableObject, Identifiable {
         objectWillChange.send()
         toolActivities[index].state = isError ? .failed : .complete
         toolActivities[index].result = result
+        endToolClock(id)
         streamRevision &+= 1
     }
 
     func processing(_ label: String) {
         objectWillChange.send()
+        endThinking()
         if parts.last?.kind != .processing || parts.last?.elapsed != nil {
             parts.append(AssistantPart(kind: .processing))
         }
@@ -553,6 +571,19 @@ final class ChatMessage: ObservableObject, Identifiable {
               last.elapsed == nil, let start = last.startedAt else { return }
         parts[parts.count - 1].elapsed = Date().timeIntervalSince(start)
         parts[parts.count - 1].interrupted = interrupted
+    }
+
+    /// The reasoning block that just ended keeps its duration ("Thought for 4 s").
+    private func endThinking() {
+        guard let last = parts.last, last.kind == .thinking,
+              last.elapsed == nil, let start = last.startedAt else { return }
+        parts[parts.count - 1].elapsed = Date().timeIntervalSince(start)
+    }
+
+    private func endToolClock(_ id: String) {
+        guard let index = parts.lastIndex(where: { $0.kind == .tool && $0.toolID == id }),
+              parts[index].elapsed == nil, let start = parts[index].startedAt else { return }
+        parts[index].elapsed = Date().timeIntervalSince(start)
     }
 
     var promptContent: String {

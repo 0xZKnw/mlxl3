@@ -83,7 +83,7 @@ struct AppSettingsView: View {
                 VStack(alignment: .leading, spacing: 25) {
                     VStack(alignment: .leading, spacing: 7) {
                         Text(selection.title)
-                            .font(.system(size: 39, weight: .regular, design: .serif)).tracking(-1.2)
+                            .font(StudioTheme.display(39)).tracking(StudioTheme.displayTracking(-1.2))
                             .accessibilityAddTraits(.isHeader)
                         Text(selection.detail)
                             .font(.system(size: 14)).foregroundStyle(StudioTheme.secondary)
@@ -103,7 +103,7 @@ struct AppSettingsView: View {
         .controlSize(.large)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background { StudioAurora(animated: true).background(StudioTheme.canvas) }
-        .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
+        .studioAppearance(studio)
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
         .onExitCommand { studio.showAppSettings = false }
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selection)
@@ -539,10 +539,16 @@ private struct UpdateSettingsCard: View {
             {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack {
+                        if StudioTheme.style.isGraphite {
+                            Text(L("Nouveautés de \(release.tag)", "What’s new in \(release.tag)"))
+                                .font(.system(size: 13, weight: .semibold))
+                                .foregroundStyle(StudioTheme.secondary)
+                        } else {
                         Text(L("NOUVEAUTÉS · \(release.tag.uppercased())", "WHAT’S NEW · \(release.tag.uppercased())"))
                             .font(.system(size: 13, weight: .bold))
                             .tracking(1.1)
                             .foregroundStyle(StudioTheme.quiet)
+                        }
                         Spacer()
                         Button(L("Voir la release", "View release")) { updater.openReleasePage() }
                             .buttonStyle(.plain)

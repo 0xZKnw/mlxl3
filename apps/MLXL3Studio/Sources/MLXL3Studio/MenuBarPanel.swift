@@ -26,8 +26,8 @@ struct MenuBarPanel: View {
                         .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
                     Text(studio.loadedModel?.name ?? (studio.canEject ? studio.selectedModelName : nil)
                          ?? L("Aucun modèle chargé", "No model loaded"))
-                        .font(.system(size: 23, weight: .regular, design: .serif))
-                        .tracking(-0.5).lineLimit(2).fixedSize(horizontal: false, vertical: true)
+                        .font(StudioTheme.display(23))
+                        .tracking(StudioTheme.displayTracking(-0.5)).lineLimit(2).fixedSize(horizontal: false, vertical: true)
                     if let model = studio.loadedModel {
                         HStack {
                             Text(model.architectureLabel)
@@ -103,7 +103,7 @@ struct MenuBarPanel: View {
                 .background(StudioTheme.canvas)
         }
         .premiumGlass(radius: 18)
-        .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
+        .studioAppearance(studio)
     }
 
     private func metric(_ title: String, _ value: String?, _ unit: String) -> some View {

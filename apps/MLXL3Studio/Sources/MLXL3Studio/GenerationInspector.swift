@@ -9,8 +9,8 @@ struct GenerationInspector: View {
             HStack {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(L("Génération", "Generation"))
-                        .font(.system(size: 31, weight: .regular, design: .serif))
-                        .tracking(-0.7)
+                        .font(StudioTheme.display(31))
+                        .tracking(StudioTheme.displayTracking(-0.7))
                     Text(studio.selectedModel?.name ?? L("Aucun modèle sélectionné", "No model selected"))
                         .lineLimit(2)
                         .font(.system(size: 13))

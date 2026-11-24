@@ -1,0 +1,340 @@
+{
+  "model": "Qwen3.8 Flash Next EXL3 2.05 bpw",
+  "base": "8a67ba993c59bee266fc1e78f891e64c955aa281",
+  "cli_sha256": "c1354715973fa638aa1db157b1bf9d647d9d9aea859820c5f6d6efb8dae104ed",
+  "mlx": "0.32.2",
+  "device": "M5 24 GiB",
+  "cache_experts_gib": 3,
+  "measurements": {
+    "grouped": {
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 6.587252954854186,
+            "B": 8.799372290814155,
+            "change_percent": 33.58181856869251
+          },
+          "prefill_tps": {
+            "A": 7.341357964178453,
+            "B": 12.038233454405688,
+            "change_percent": 63.97829275108569
+          },
+          "ttft_seconds": {
+            "A": 9.6707402085,
+            "B": 5.732418042500001,
+            "change_percent": -40.72410261355641
+          },
+          "elapsed_seconds": {
+            "A": 10.742116396,
+            "B": 6.5320997085000005,
+            "change_percent": -39.19168748783682
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 4.985852257764762,
+            "B": 8.988302614835805,
+            "change_percent": 80.27615240378995
+          },
+          "prefill_tps": {
+            "A": 6.789902385682785,
+            "B": 12.398970070364213,
+            "change_percent": 82.60895909945229
+          },
+          "ttft_seconds": {
+            "A": 21.5937515835,
+            "B": 11.7775198125,
+            "change_percent": -45.45866767542459
+          },
+          "elapsed_seconds": {
+            "A": 22.9998899995,
+            "B": 12.556360729,
+            "change_percent": -45.40686616643399
+          }
+        }
+      },
+      "passes": [
+        {
+          "arm": "A",
+          "power": "Now drawing from 'Battery Power'",
+          "samples": {
+            "short": {
+              "prompt_tokens": 69,
+              "generated_tokens": 8,
+              "prefill_seconds": 11.289491791,
+              "prefill_tps": 6.111878309261619,
+              "ttft_seconds": 11.290113583,
+              "decode_tps": 5.9941193407753195,
+              "token_hash": "f8f2c3ffb2537c50",
+              "peak_process_bytes": 7118215024
+            },
+            "document": {
+              "prompt_tokens": 146,
+              "generated_tokens": 8,
+              "prefill_seconds": 22.990677917,
+              "prefill_tps": 6.35039995458521,
+              "ttft_seconds": 22.991481709,
+              "decode_tps": 5.180409614988258,
+              "token_hash": "c71980c0185b74b6",
+              "peak_process_bytes": 7129913200
+            }
+          }
+        },
+        {
+          "arm": "B",
+          "power": "Now drawing from 'Battery Power'",
+          "samples": {
+            "short": {
+              "prompt_tokens": 69,
+              "generated_tokens": 8,
+              "prefill_seconds": 5.720338584,
+              "prefill_tps": 12.062223063682902,
+              "ttft_seconds": 5.720985042000001,
+              "decode_tps": 9.43328158041901,
+              "token_hash": "f8f2c3ffb2537c50",
+              "peak_process_bytes": 7162402720
+            },
+            "document": {
+              "prompt_tokens": 146,
+              "generated_tokens": 8,
+              "prefill_seconds": 11.638837875,
+              "prefill_tps": 12.54420772658112,
+              "ttft_seconds": 11.639575334,
+              "decode_tps": 9.048879794184428,
+              "token_hash": "c71980c0185b74b6",
+              "peak_process_bytes": 7177312160
+            }
+          }
+        },
+        {
+          "arm": "B",
+          "power": "Now drawing from 'Battery Power'",
+          "samples": {
+            "short": {
+              "prompt_tokens": 69,
+              "generated_tokens": 8,
+              "prefill_seconds": 5.743182916,
+              "prefill_tps": 12.014243845128473,
+              "ttft_seconds": 5.743851043,
+              "decode_tps": 8.1654630012093,
+              "token_hash": "f8f2c3ffb2537c50",
+              "peak_process_bytes": 7166007224
+            },
+            "document": {
+              "prompt_tokens": 146,
+              "generated_tokens": 8,
+              "prefill_seconds": 11.914737083,
+              "prefill_tps": 12.253732414147304,
+              "ttft_seconds": 11.915464291000001,
+              "decode_tps": 8.927725435487181,
+              "token_hash": "c71980c0185b74b6",
+              "peak_process_bytes": 7178442680
+            }
+          }
+        },
+        {
+          "arm": "A",
+          "power": "Now drawing from 'Battery Power'",
+          "samples": {
+            "short": {
+              "prompt_tokens": 69,
+              "generated_tokens": 8,
+              "prefill_seconds": 8.050555041,
+              "prefill_tps": 8.570837619095286,
+              "ttft_seconds": 8.051366834,
+              "decode_tps": 7.180386568933052,
+              "token_hash": "f8f2c3ffb2537c50",
+              "peak_process_bytes": 7111038856
+            },
+            "document": {
+              "prompt_tokens": 146,
+              "generated_tokens": 8,
+              "prefill_seconds": 20.195300125,
+              "prefill_tps": 7.2294048167803595,
+              "ttft_seconds": 20.196021458,
+              "decode_tps": 4.791294900541266,
+              "token_hash": "c71980c0185b74b6",
+              "peak_process_bytes": 7122818952
+            }
+          }
+        }
+      ]
+    },
+    "final": {
+      "summary": {
+        "short": {
+          "decode_tps": {
+            "A": 7.4370529075657235,
+            "B": 7.776894092149824,
+            "change_percent": 4.569567929769325
+          },
+          "prefill_tps": {
+            "A": 6.970655228034776,
+            "B": 6.947924188385986,
+            "change_percent": -0.3260961689421804
+          },
+          "ttft_seconds": {
+            "A": 9.923624624999999,
+            "B": 10.0601083535,
+            "change_percent": 1.375341507337624
+          },
+          "elapsed_seconds": {
+            "A": 10.9338390625,
+            "B": 11.0058066875,
+            "change_percent": 0.6582100265846158
+          }
+        },
+        "document": {
+          "decode_tps": {
+            "A": 6.663490190986269,
+            "B": 8.129588468205641,
+            "change_percent": 22.001957460709853
+          },
+          "prefill_tps": {
+            "A": 7.154886285849166,
+            "B": 5.661850599076625,
+            "change_percent": -20.86735731531396
+          },
+          "ttft_seconds": {
+            "A": 20.536859562500002,
+            "B": 27.0818895425,
+            "change_percent": 31.86967296573
+          },
+          "elapsed_seconds": {
+            "A": 21.613806521500003,
+            "B": 27.973567646,
+            "change_percent": 29.42453064976649
+          }
+        }
+      },
+      "passes": [
+        {
+          "arm": "A",
+          "power": "Now drawing from 'Battery Power'",
+          "samples": {
+            "short": {
+              "prompt_tokens": 69,
+              "generated_tokens": 8,
+              "prefill_seconds": 10.412393708,
+              "prefill_tps": 6.626718306568283,
+              "ttft_seconds": 10.413246041999999,
+              "decode_tps": 9.380200454320894,
+              "token_hash": "f8f2c3ffb2537c50",
+              "peak_process_bytes": 7115872136
+            },
+            "document": {
+              "prompt_tokens": 146,
+              "generated_tokens": 8,
+              "prefill_seconds": 18.901840875,
+              "prefill_tps": 7.724115389898498,
+              "ttft_seconds": 18.903583208,
+              "decode_tps": 7.707266989362588,
+              "token_hash": "c71980c0185b74b6",
+              "peak_process_bytes": 7127570312
+            }
+          }
+        },
+        {
+          "arm": "B",
+          "power": "Now drawing from 'Battery Power'",
+          "samples": {
+            "short": {
+              "prompt_tokens": 69,
+              "generated_tokens": 8,
+              "prefill_seconds": 8.923763749999999,
+              "prefill_tps": 7.732163460737069,
+              "ttft_seconds": 8.924415333,
+              "decode_tps": 9.484151897499363,
+              "token_hash": "f8f2c3ffb2537c50",
+              "peak_process_bytes": 7114020720
+            },
+            "document": {
+              "prompt_tokens": 146,
+              "generated_tokens": 8,
+              "prefill_seconds": 21.160332667,
+              "prefill_tps": 6.899702490390909,
+              "ttft_seconds": 21.160900334,
+              "decode_tps": 9.635791726596066,
+              "token_hash": "c71980c0185b74b6",
+              "peak_process_bytes": 7125800816
+            }
+          }
+        },
+        {
+          "arm": "B",
+          "power": "Now drawing from 'Battery Power'",
+          "samples": {
+            "short": {
+              "prompt_tokens": 69,
+              "generated_tokens": 8,
+              "prefill_seconds": 11.194602083,
+              "prefill_tps": 6.163684916034903,
+              "ttft_seconds": 11.195801374,
+              "decode_tps": 6.069636286800287,
+              "token_hash": "f8f2c3ffb2537c50",
+              "peak_process_bytes": 7112660824
+            },
+            "document": {
+              "prompt_tokens": 146,
+              "generated_tokens": 8,
+              "prefill_seconds": 33.001817958,
+              "prefill_tps": 4.423998707762341,
+              "ttft_seconds": 33.002878751,
+              "decode_tps": 6.623385209815217,
+              "token_hash": "c71980c0185b74b6",
+              "peak_process_bytes": 7132993368
+            }
+          }
+        },
+        {
+          "arm": "A",
+          "power": "Now drawing from 'AC Power'",
+          "samples": {
+            "short": {
+              "prompt_tokens": 69,
+              "generated_tokens": 8,
+              "prefill_seconds": 9.433198542,
+              "prefill_tps": 7.314592149501268,
+              "ttft_seconds": 9.434003207999998,
+              "decode_tps": 5.493905360810554,
+              "token_hash": "f8f2c3ffb2537c50",
+              "peak_process_bytes": 7122851720
+            },
+            "document": {
+              "prompt_tokens": 146,
+              "generated_tokens": 8,
+              "prefill_seconds": 22.169389625,
+              "prefill_tps": 6.585657181799835,
+              "ttft_seconds": 22.170135917000003,
+              "decode_tps": 5.61971339260995,
+              "token_hash": "c71980c0185b74b6",
+              "peak_process_bytes": 7134369672
+            }
+          }
+        }
+      ]
+    }
+  },
+  "cli_pair": {
+    "status": "complete",
+    "parity": true,
+    "samples": [
+      {
+        "arm": "B",
+        "prefill_tps": 9.4,
+        "decode_tps": 5.6,
+        "ttft_ms": 69344,
+        "tokens": 32,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14"
+      },
+      {
+        "arm": "A",
+        "prefill_tps": 6.0,
+        "decode_tps": 9.5,
+        "ttft_ms": 108882,
+        "tokens": 32,
+        "text_sha256": "a11bc71765ef945ef9c681ba4fb969a95f2de2724237ef2f1240df8ce9a64f14"
+      }
+    ]
+  }
+}

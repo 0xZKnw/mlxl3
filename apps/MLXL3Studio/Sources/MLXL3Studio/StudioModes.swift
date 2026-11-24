@@ -241,7 +241,7 @@ struct ServerWorkspaceView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 22) {
-        Label("Server", systemImage: "server.rack").font(.system(size: 32, design: .serif))
+        Label("Server", systemImage: "server.rack").font(StudioTheme.display(32))
         Text(
           L(
             "API locale compatible OpenAI.",
@@ -380,7 +380,7 @@ struct LabWorkspaceView: View {
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 22) {
-        Label("Lab", systemImage: "chart.xyaxis.line").font(.system(size: 32, design: .serif))
+        Label("Lab", systemImage: "chart.xyaxis.line").font(StudioTheme.display(32))
         DisclosureGroup {
         TimelineView(.periodic(from: .now, by: 2)) { _ in
           GroupBox {

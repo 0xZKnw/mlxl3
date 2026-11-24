@@ -1,0 +1,26 @@
+[1/40] rep0 bugfix effort=none: PASS 52.4 s rounds=4 calls=4 tokens=932 thinking=896 stop=eos 
+[2/40] rep0 bugfix effort=low: PASS 52.3 s rounds=5 calls=5 tokens=889 thinking=988 stop=eos 
+[3/40] rep0 bugfix effort=medium: PASS 43.0 s rounds=3 calls=3 tokens=743 thinking=690 stop=eos 
+[4/40] rep0 bugfix effort=default: PASS 85.7 s rounds=5 calls=5 tokens=1583 thinking=1994 stop=eos 
+[5/40] rep0 rename effort=none: PASS 56.4 s rounds=5 calls=5 tokens=852 thinking=1195 stop=eos 
+[6/40] rep0 rename effort=low: PASS 64.1 s rounds=6 calls=6 tokens=998 thinking=1674 stop=eos 
+[7/40] rep0 rename effort=medium: PASS 45.2 s rounds=4 calls=4 tokens=630 thinking=473 stop=eos 
+[8/40] rep0 rename effort=default: PASS 70.4 s rounds=5 calls=10 tokens=1102 thinking=1345 stop=eos 
+[9/40] rep0 question effort=none: PASS 23.7 s rounds=3 calls=3 tokens=289 thinking=265 stop=eos 
+[10/40] rep0 question effort=low: PASS 23.2 s rounds=2 calls=2 tokens=293 thinking=349 stop=eos 
+[11/40] rep0 question effort=medium: FAIL 37.3 s rounds=3 calls=3 tokens=579 thinking=842 stop=eos 
+[12/40] rep0 question effort=default: PASS 28.7 s rounds=3 calls=3 tokens=379 thinking=398 stop=eos 
+[13/40] rep0 feature effort=none: PASS 53.1 s rounds=2 calls=2 tokens=882 thinking=356 stop=eos 
+[14/40] rep0 feature effort=low: PASS 72.0 s rounds=4 calls=4 tokens=1350 thinking=1563 stop=eos 
+[15/40] rep0 feature effort=medium: PASS 72.5 s rounds=4 calls=4 tokens=1213 thinking=1198 stop=eos 
+[16/40] rep0 feature effort=default: PASS 152.8 s rounds=5 calls=5 tokens=2835 thinking=3231 stop=eos 
+Traceback (most recent call last):
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-js-harness/docs/measurements/agent-effort-2026-11-23/effort_trial.py", line 397, in <module>
+    main()
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-js-harness/docs/measurements/agent-effort-2026-11-23/effort_trial.py", line 325, in main
+    event = read_event(EVENT_SECONDS)
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-js-harness/docs/measurements/agent-effort-2026-11-23/effort_trial.py", line 260, in read_event
+    if left <= 0 or not selector.select(timeout=left):
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/selectors.py", line 562, in select
+    kev_list = self._selector.control(None, max_ev, timeout)
+KeyboardInterrupt

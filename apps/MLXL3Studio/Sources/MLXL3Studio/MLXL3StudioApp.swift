@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct MLXL3StudioApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @Environment(\.openWindow) private var openWindow
     @StateObject private var studio: StudioModel
     // A QA bundle must stay isolated even when macOS relaunches it without args.
     private static var previewProcess: Bool {
@@ -60,7 +61,9 @@ struct MLXL3StudioApp: App {
                 } else { StudioView() }
             }
                 .environmentObject(studio)
-                .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
+                .studioAppearance(studio)
+                // Tokens resolve the style when drawn: rebuild the window on a style change.
+                .id(studio.style)
                 .onAppear {
                     if !isPreview {
                         studio.start()
@@ -82,7 +85,17 @@ struct MLXL3StudioApp: App {
                 Button(L("Réglages…", "Settings…")) { studio.openAppSettings() }
                     .keyboardShortcut(",", modifiers: .command)
             }
+            CommandGroup(after: .windowList) {
+                if Image21Hardware.available {
+                    Button(L("Générer une image", "Generate an image")) {
+                        studio.showImages = true
+                        if let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
+                            window.makeKeyAndOrderFront(nil)
+                        } else { openWindow(id: "studio") }
+                    }
+                    .disabled(studio.showAppSettings || studio.showModelManager || studio.showMCPManager || studio.showWorkspace || studio.studioDocument != nil)
+                }
+            }
         }
-
     }
 }

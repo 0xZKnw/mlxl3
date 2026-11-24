@@ -707,7 +707,7 @@ fn marker_suffix_start(text: &[u8], marker: &[u8]) -> usize {
 /// Tool rounds a chat request may run before its final answer (older clients: 5).
 pub const DEFAULT_TOOL_ROUNDS: usize = 5;
 /// Upper bound a request may ask for (the Agent mode asks for more than the chat).
-pub const MAX_TOOL_ROUNDS: usize = 64;
+pub const MAX_TOOL_ROUNDS: usize = 512;
 /// Largest `tool_start` arguments shown as JSON; longer ones become a text prefix.
 pub const SHOWN_ARGUMENTS_BYTES: usize = 16 * 1024;
 
@@ -733,6 +733,25 @@ pub fn round_limit_note(rounds: usize) -> String {
 pub fn unreadable_call_message(error: &anyhow::Error) -> String {
     format!(
         "Your tool call could not be read ({error}); nothing was executed. Send one complete tool call and nothing else, or answer without tools."
+    )
+}
+
+/// What the model reads when it calls a tool it was not offered (AGENT-2026-11-24-DSH-PISTES,
+/// P2, after DeepSeek Harness's code-mode hint): the tools it can call, and that functions a
+/// tool's description lists (the `javascript` tool's `read`, `run`...) go in that tool's input.
+pub fn unknown_tool_message(name: &str, offered: &[&str]) -> String {
+    if offered.is_empty() {
+        return format!(
+            "There is no tool named `{name}`; nothing was executed. No tool can be called now: answer without tools."
+        );
+    }
+    let list = offered
+        .iter()
+        .map(|tool| format!("`{tool}`"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "There is no tool named `{name}`; nothing was executed. The tools you can call are: {list}. Functions listed in a tool's description are called inside that tool's input, not as tools."
     )
 }
 
@@ -923,8 +942,10 @@ mod tests {
         assert_eq!(super::tool_rounds(None).unwrap(), 5);
         assert_eq!(super::tool_rounds(Some(1)).unwrap(), 1);
         assert_eq!(super::tool_rounds(Some(64)).unwrap(), 64);
+        assert_eq!(super::tool_rounds(Some(256)).unwrap(), 256);
+        assert_eq!(super::tool_rounds(Some(512)).unwrap(), 512);
         assert!(super::tool_rounds(Some(0)).is_err());
-        assert!(super::tool_rounds(Some(65)).is_err());
+        assert!(super::tool_rounds(Some(513)).is_err());
         assert!(super::round_limit_note(24).contains("limit of 24 reached"));
         let message = super::unreadable_call_message(&anyhow::anyhow!("unfinished tool call"));
         assert!(

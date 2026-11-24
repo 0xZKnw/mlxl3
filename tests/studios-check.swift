@@ -193,8 +193,16 @@ import SwiftUI
       _ = try store.checkpoint("Unsafe alias")
       preconditionFailure("Checkpoint accepted a symlink")
     } catch { checks += 1 }
-    let denied = try AgentSandbox.execute(root: workspace, command: "cat ../studio/project.json")
-    check(denied.status != 0, "Model read private checkpoint/permission metadata")
+    // Commands read the whole Mac since 2.0.23 (DeepSeek Harness's sandbox level), the task's
+    // metadata included, but cannot change its permissions or history.
+    let metadata = workspace.deletingLastPathComponent().appendingPathComponent("studio/project.json")
+    let before = try Data(contentsOf: metadata)
+    let read = try AgentSandbox.execute(root: workspace, command: "cat ../studio/project.json")
+    check(read.status == 0 && read.output == String(decoding: before, as: UTF8.self), "Commands no longer read the task metadata")
+    let tamper = try AgentSandbox.execute(
+      root: workspace, command: "printf '{}' > ../studio/project.json; rm -f ../studio/project.json")
+    let after = try Data(contentsOf: metadata)
+    check(tamper.status != 0 && after == before, "Model changed private checkpoint/permission metadata")
     let readonly = try AgentSandbox.execute(
       root: workspace, command: "printf BAD > index.html", writable: false)
     check(readonly.status != 0, "Run bypassed disabled writes")

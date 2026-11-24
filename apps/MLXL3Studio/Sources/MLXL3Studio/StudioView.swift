@@ -8,7 +8,7 @@ struct StudioView: View {
     @AppStorage("studio.sidebarVisible") private var sidebarVisible = true
 
     private var coveredByPage: Bool {
-        studio.showAppSettings || studio.showModelManager || studio.showWorkspace || studio.showMCPManager
+        studio.showImages || studio.showAppSettings || studio.showModelManager || studio.showWorkspace || studio.showMCPManager
     }
 
     var body: some View {
@@ -26,7 +26,7 @@ struct StudioView: View {
                 }
             }
             .background {
-                StudioAurora(busy: studio.isGenerating, animated: !studio.showAppSettings && !studio.showWorkspace && !studio.showModelManager && !studio.showMCPManager && studio.studioDocument == nil,
+                StudioAurora(busy: studio.isGenerating, animated: !coveredByPage && studio.studioDocument == nil,
                              fullHeight: true)
                     .background(StudioTheme.canvas)
             }
@@ -65,6 +65,15 @@ struct StudioView: View {
                     .background(StudioTheme.canvas)
             }
         }
+        .disabled(studio.showImages)
+        .accessibilityHidden(studio.showImages)
+        .allowsHitTesting(!studio.showImages)
+        .overlay {
+            if studio.showImages && Image21Hardware.available {
+                ImageGenerationView(engine: studio.imageGeneration, close: { studio.showImages = false })
+                    .transition(.opacity)
+            }
+        }
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
         .disabled(studio.showAppSettings)
         .allowsHitTesting(!studio.showAppSettings)
@@ -90,7 +99,7 @@ struct StudioView: View {
         .ignoresSafeArea()
         .frame(minWidth: 820, minHeight: 600)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2),
-                   value: [studio.showAppSettings, studio.showModelManager, studio.showWorkspace, studio.showMCPManager])
+                   value: [studio.showImages, studio.showAppSettings, studio.showModelManager, studio.showWorkspace, studio.showMCPManager])
         .alert(L("MLXL3", "MLXL3"), isPresented: Binding(get: { studio.featureError != nil }, set: { if !$0 { studio.featureError = nil } })) {
             Button("OK") { studio.featureError = nil }
         } message: { Text(studio.featureError ?? "") }
@@ -106,6 +115,7 @@ struct StudioView: View {
 
 private struct SidebarView: View {
     @EnvironmentObject private var studio: StudioModel
+    @Environment(\.studioStyle) private var style
     @State private var search = ""
 
     private var filteredConversations: [Conversation] {
@@ -114,18 +124,19 @@ private struct SidebarView: View {
 
     var body: some View {
         let visibleConversations = filteredConversations
+        let graphite = style.isGraphite
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 8) {
                 // The monogram alone names the app; the wordmark repeated it.
-                MonogramMark(size: 35)
+                MonogramMark(size: graphite ? 26 : 35)
                     .accessibilityElement()
                     .accessibilityLabel("MLXL3")
                 Spacer(minLength: 0)
                 DownloadNotificationButton(library: studio.modelLibrary)
             }
             .foregroundStyle(StudioTheme.ink)
-            .padding(.horizontal, 18)
-            .padding(.top, 37).padding(.bottom, 16)
+            .padding(.horizontal, graphite ? 20 : 18)
+            .padding(.top, graphite ? 40 : 37).padding(.bottom, graphite ? 14 : 16)
 
             SidebarModePicker()
                 .padding(.horizontal, 10)
@@ -149,16 +160,29 @@ private struct SidebarView: View {
                             .help(L("Effacer la recherche", "Clear search"))
                     }
                 }
-                .font(.system(size: 12))
-                .foregroundStyle(StudioTheme.secondary)
+                .font(.system(size: graphite ? 12.5 : 12))
+                .foregroundStyle(graphite ? StudioTheme.quiet : StudioTheme.secondary)
                 .padding(.horizontal, 10)
                 .frame(height: 30)
-                .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+                .background(graphite ? StudioTheme.contrast.opacity(0.05) : StudioTheme.panel,
+                            in: RoundedRectangle(cornerRadius: 8, style: .continuous))
                 .overlay {
                     RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(StudioTheme.edge, lineWidth: 0.5).allowsHitTesting(false)
+                        .strokeBorder(StudioTheme.edge, lineWidth: graphite ? 0 : 0.5).allowsHitTesting(false)
                 }
 
+                if graphite {
+                    Button(action: studio.newConversation) {
+                        Image(systemName: "square.and.pencil")
+                            .font(.system(size: 13, weight: .regular))
+                            .frame(width: 30, height: 30)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(StudioControlStyle(cornerRadius: 8))
+                    .accessibilityIdentifier("sidebar.newConversation")
+                    .accessibilityLabel(newConversationTitle)
+                    .help(newConversationTitle + " · ⌘N")
+                } else {
                 Button(action: studio.newConversation) {
                     Image(systemName: "square.and.pencil")
                         .font(.system(size: 13, weight: .medium))
@@ -169,10 +193,23 @@ private struct SidebarView: View {
                 .accessibilityIdentifier("sidebar.newConversation")
                 .accessibilityLabel(newConversationTitle)
                 .help(newConversationTitle + " · ⌘N")
+                }
             }
             .padding(.horizontal, 10)
             .padding(.top, 6)
 
+            if graphite {
+                HStack(spacing: 6) {
+                    Text("Conversations")
+                    Spacer()
+                    Text("\(visibleConversations.count)").monospacedDigit()
+                }
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(StudioTheme.quiet)
+                .padding(.horizontal, 22)
+                .padding(.top, 16)
+                .padding(.bottom, 4)
+            } else {
             HStack(spacing: 7) {
                 Text("Conversations")
                 Text("\(visibleConversations.count)").monospacedDigit()
@@ -186,6 +223,7 @@ private struct SidebarView: View {
             .padding(.horizontal, 22)
             .padding(.top, 12)
             .padding(.bottom, 4)
+            }
 
             ScrollView {
                 let conversations = visibleConversations
@@ -194,10 +232,10 @@ private struct SidebarView: View {
                 LazyVStack(spacing: 2) {
                     ForEach(conversations) { conversation in
                         if conversation.id == pinnedID {
-                            sectionLabel(L("ÉPINGLÉES", "PINNED"))
+                            sectionLabel(graphite ? L("Épinglées", "Pinned") : L("ÉPINGLÉES", "PINNED"))
                         }
                         if conversation.id == recentID {
-                            sectionLabel(L("RÉCENTES", "RECENT"))
+                            sectionLabel(graphite ? L("Récentes", "Recent") : L("RÉCENTES", "RECENT"))
                         }
                         SidebarConversationItem(conversation: conversation)
                     }
@@ -213,6 +251,15 @@ private struct SidebarView: View {
             }
             .scrollIndicators(.hidden)
             .mask(StudioEdgeFade(top: 10, bottom: 18))
+
+            if Image21Hardware.available {
+                Button { studio.showImages = true } label: {
+                    Label(L("Générer une image", "Generate an image"), systemImage: "photo")
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .buttonStyle(StudioControlStyle(cornerRadius: 8))
+                .padding(.horizontal, 10).padding(.vertical, 6)
+            }
 
             // Projects, MCP, Models and Settings as one icon row (named in the
             // tooltip and accessibility label) instead of four full-width rows.
@@ -238,7 +285,8 @@ private struct SidebarView: View {
 
     private func sectionLabel(_ title: String) -> some View {
         Text(title)
-            .font(.system(size: 9, weight: .semibold)).tracking(0.8)
+            .font(.system(size: style.isGraphite ? 11 : 9, weight: style.isGraphite ? .medium : .semibold))
+            .tracking(style.isGraphite ? 0 : 0.8)
             .foregroundStyle(StudioTheme.quiet)
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.leading, 12).padding(.top, 10).padding(.bottom, 5)
@@ -262,6 +310,7 @@ private struct SidebarView: View {
 private struct SidebarModePicker: View {
     @EnvironmentObject private var studio: StudioModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.studioStyle) private var style
     @Namespace private var selection
 
     var body: some View {
@@ -270,21 +319,23 @@ private struct SidebarModePicker: View {
                 let selected = studio.selectedMode == mode
                 Button { studio.selectMode(mode) } label: {
                     VStack(spacing: 3) {
-                        Image(systemName: mode.icon).font(.system(size: 12.5, weight: selected ? .semibold : .regular))
+                        Image(systemName: mode.icon)
+                            .font(.system(size: style.isGraphite ? 13 : 12.5, weight: selected && !style.isGraphite ? .semibold : .regular))
                             .frame(height: 15)
                         Text(mode.title)
-                            .font(.system(size: 10.5, weight: selected ? .semibold : .medium))
+                            .font(.system(size: 10.5, weight: selected && !style.isGraphite ? .semibold : .medium))
                             .lineLimit(1).minimumScaleFactor(0.8)
                     }
                     .foregroundStyle(selected ? StudioTheme.ink : StudioTheme.quiet)
                     .frame(maxWidth: .infinity).frame(height: 40)
                     .background {
                         if selected {
-                            RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                .fill(StudioTheme.contrast.opacity(0.09))
+                            // Graphite: a selection, not a box in a box.
+                            RoundedRectangle(cornerRadius: style.isGraphite ? 8 : 7, style: .continuous)
+                                .fill(StudioTheme.contrast.opacity(style.isGraphite ? 0.075 : 0.09))
                                 .overlay {
-                                    RoundedRectangle(cornerRadius: 7, style: .continuous)
-                                        .strokeBorder(StudioTheme.edge, lineWidth: 0.5)
+                                    RoundedRectangle(cornerRadius: style.isGraphite ? 8 : 7, style: .continuous)
+                                        .strokeBorder(StudioTheme.edge, lineWidth: style.isGraphite ? 0 : 0.5)
                                 }
                                 .matchedGeometryEffect(id: "mode", in: selection)
                         }
@@ -297,13 +348,14 @@ private struct SidebarModePicker: View {
                 .accessibilityAddTraits(selected ? .isSelected : [])
             }
         }
-        .padding(3)
-        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .padding(style.isGraphite ? 0 : 3)
+        .background(style.isGraphite ? .clear : StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
         .overlay {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(StudioTheme.edge, lineWidth: 0.5).allowsHitTesting(false)
+                .strokeBorder(StudioTheme.edge, lineWidth: style.isGraphite ? 0 : 0.5).allowsHitTesting(false)
         }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.16), value: studio.selectedMode)
+        .animation(reduceMotion ? nil : style.isGraphite ? .spring(duration: 0.22, bounce: 0) : .easeOut(duration: 0.16),
+                   value: studio.selectedMode)
     }
 }
 
@@ -311,6 +363,7 @@ private struct SidebarModePicker: View {
 /// the system pop-up chrome.
 private struct SidebarProjectMenu: View {
     @EnvironmentObject private var studio: StudioModel
+    @Environment(\.studioStyle) private var style
 
     private var projectName: String {
         studio.projects.first { $0.id == studio.selectedProjectID }?.name ?? L("Sans projet", "No project")
@@ -340,14 +393,15 @@ private struct SidebarProjectMenu: View {
                     .font(.system(size: 9, weight: .semibold))
                     .foregroundStyle(StudioTheme.quiet)
             }
-            .font(.system(size: 12, weight: .medium))
-            .padding(.horizontal, 12)
+            .font(.system(size: style.isGraphite ? 12.5 : 12, weight: style.isGraphite ? .regular : .medium))
+            .foregroundStyle(style.isGraphite ? AnyShapeStyle(StudioTheme.secondary) : AnyShapeStyle(.foreground))
+            .padding(.horizontal, style.isGraphite ? 10 : 12)
             .frame(height: 30)
             .frame(maxWidth: .infinity)
-            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+            .background(style.isGraphite ? .clear : StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
             .overlay {
                 RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(StudioTheme.edge, lineWidth: 0.5)
+                    .strokeBorder(StudioTheme.edge, lineWidth: style.isGraphite ? 0 : 0.5)
             }
         }
         .menuStyle(.button).buttonStyle(StudioControlStyle(cornerRadius: 8)).menuIndicator(.hidden)
@@ -362,6 +416,7 @@ private struct SidebarProjectMenu: View {
 private struct SidebarConversationItem: View {
     @EnvironmentObject private var studio: StudioModel
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.studioStyle) private var style
     let conversation: Conversation
     @State private var hovered = false
 
@@ -387,10 +442,11 @@ private struct SidebarConversationItem: View {
             .help(conversation.isPinned ? L("Désépingler", "Unpin") : L("Épingler", "Pin"))
             .accessibilityLabel((conversation.isPinned ? L("Désépingler ", "Unpin ") : L("Épingler ", "Pin ")) + conversation.title)
         }
-        .background(StudioTheme.contrast.opacity(selected ? 0.075 : (hovered ? 0.035 : 0)),
+        .background(StudioTheme.contrast.opacity(selected ? (style.isGraphite ? 0.08 : 0.075) : (hovered ? (style.isGraphite ? 0.04 : 0.035) : 0)),
                     in: RoundedRectangle(cornerRadius: 8, style: .continuous))
         .overlay(alignment: .leading) {
-            if selected {
+            // Graphite selects by luminance alone.
+            if selected && !style.isGraphite {
                 Capsule().fill(studio.accentColor)
                     .frame(width: 3, height: 14)
                     .offset(x: 1)
@@ -411,6 +467,7 @@ private struct SidebarConversationItem: View {
 }
 
 private struct ConversationRow: View {
+    @Environment(\.studioStyle) private var style
     let conversation: Conversation
     let selected: Bool
 
@@ -418,7 +475,7 @@ private struct ConversationRow: View {
         HStack(spacing: 0) {
             Text(conversation.messages.isEmpty && ["Nouvelle conversation", "New conversation"].contains(conversation.title)
                  ? L("Nouvelle conversation", "New conversation") : conversation.title)
-                .font(.system(size: 13, weight: selected ? .medium : .regular))
+                .font(.system(size: 13, weight: selected && !style.isGraphite ? .medium : .regular))
                 .foregroundStyle(selected ? StudioTheme.ink : StudioTheme.secondary)
                 .lineLimit(1)
             Spacer(minLength: 0)
@@ -480,6 +537,7 @@ private struct ChatWorkspaceView: View {
 
 private struct WorkspaceHeader: View {
     @EnvironmentObject private var studio: StudioModel
+    @Environment(\.studioStyle) private var style
     @Binding var sidebarVisible: Bool
 
     var body: some View {
@@ -498,8 +556,8 @@ private struct WorkspaceHeader: View {
 
             Text(studio.selectedMode.standalone ? studio.selectedMode == .decision ? L("Décision", "Decision") : studio.selectedMode.title
                  : studio.currentConversation?.messages.isEmpty == false ? (studio.currentConversation?.title ?? "Conversation") : studio.selectedMode.title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(StudioTheme.secondary)
+                .font(.system(size: style.isGraphite ? 13 : 12, weight: .medium))
+                .foregroundStyle(style.isGraphite ? StudioTheme.ink : StudioTheme.secondary)
                 .lineLimit(1)
                 .layoutPriority(-1)
 
@@ -532,8 +590,9 @@ private struct WorkspaceHeader: View {
                     .accessibilityLabel(L("Réglages de génération", "Generation settings"))
                 }
             }
-            .padding(4)
-            .premiumGlass(radius: 100, materialOpacity: 0.76)
+            .padding(style.isGraphite ? 0 : 4)
+            // Graphite: the controls sit on the canvas; glass with nothing under it reads as a pill.
+            .background { if !style.isGraphite { Color.clear.premiumGlass(radius: 100, materialOpacity: 0.76) } }
         }
         .font(.system(size: 13))
         .padding(.leading, sidebarVisible ? 22 : 82)
@@ -623,6 +682,7 @@ private struct AgentTaskBar: View {
 private struct WelcomeView: View {
     let composerMotion: Namespace.ID
     @EnvironmentObject private var studio: StudioModel
+    @Environment(\.studioStyle) private var style
 
     /// Stable while a conversation stays open; a new conversation draws again.
     private var greeting: String {
@@ -638,19 +698,28 @@ private struct WelcomeView: View {
             ScrollView { content(agent: agent) }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .background {
+            // Graphite's home texture (it keeps the top half clear itself); the other
+            // styles draw nothing here.
+            StudioAurora(animated: true, fullHeight: true, placement: .home)
+                .ignoresSafeArea()
+        }
     }
 
     private func content(agent: Bool) -> some View {
         VStack(spacing: 0) {
-            MonogramMark(size: 76)
-                .frame(height: 49)
+            // Graphite: the greeting alone; the mark already sits in the sidebar.
+            if !style.isGraphite {
+                MonogramMark(size: 76)
+                    .frame(height: 49)
+            }
             Text(agent ? L("Nouvelle tâche", "New task") : greeting)
-                .font(.system(size: 44, weight: .regular, design: .serif))
-                .tracking(-1.5)
+                .font(style.isGraphite ? .system(size: 30, weight: .semibold) : .system(size: 44, weight: .regular, design: .serif))
+                .tracking(style.isGraphite ? -0.7 : -1.5)
                 .multilineTextAlignment(.center)
                 .foregroundStyle(StudioTheme.ink)
-                .padding(.top, 15)
-                .padding(.bottom, 32)
+                .padding(.top, style.isGraphite ? 0 : 15)
+                .padding(.bottom, style.isGraphite ? 26 : 32)
                 .accessibilityAddTraits(.isHeader)
 
             ComposerView()
@@ -672,7 +741,8 @@ private struct WelcomeView: View {
                     Spacer()
                     if let model = studio.selectedModel {
                         Text([model.format, model.size].filter { !$0.isEmpty }.joined(separator: " · "))
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(style.isGraphite ? .system(size: 11.5).monospacedDigit() : .system(size: 11, design: .monospaced))
+                            .foregroundStyle(style.isGraphite ? StudioTheme.quiet : StudioTheme.secondary)
                     }
                 }
                 .font(.system(size: 12))

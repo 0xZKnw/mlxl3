@@ -62,5 +62,141 @@ enum ChatTimelineCheck {
         interrupted.processing("Traitement")
         interrupted.fail("Arrêtée")
         try check(interrupted.parts[0].elapsed != nil && !interrupted.isStreaming, "Cancellation left a live spinner")
+        try checkActivityClocks(check)
+        try checkSegments(check)
+        try checkToolPresentation(check)
+    }
+
+    /// Reasoning and tool parts keep how long they took; answers carry no clock.
+    private static func checkActivityClocks(_ check: (Bool, String) throws -> Void) throws {
+        let message = ChatMessage(role: .assistant, content: "", isStreaming: true)
+        message.append("Je ", phase: "thinking")
+        message.append("cherche.", phase: "thinking")
+        try check(message.parts.count == 1 && message.parts[0].elapsed == nil, "Continuing reasoning closed its clock")
+        message.startTool(id: "t1", serverName: "sandbox", toolName: "run", arguments: #"{"command":"true"}"#)
+        try check(message.parts[0].elapsed != nil, "A tool call did not close the reasoning clock")
+        try check(message.parts[1].startedAt != nil && message.parts[1].elapsed == nil, "A running tool has no live clock")
+        message.finishTool(id: "t1", result: "Exit status: 0", isError: false)
+        try check(message.parts[1].elapsed != nil, "A finished tool kept a running clock")
+        message.append("Pense encore.", phase: "thinking")
+        message.processing("Lecture des résultats MCP")
+        try check(message.parts[2].elapsed != nil, "Context reading did not close the reasoning clock")
+        message.append("Réponse.", phase: "answer")
+        try check(message.parts.last?.startedAt == nil, "An answer part carries a clock")
+        message.startTool(id: "t2", serverName: "sandbox", toolName: "run", arguments: #"{"command":"sleep 9"}"#)
+        message.fail("Arrêtée")
+        try check(message.toolActivities.last?.state == .failed && message.parts.last?.elapsed != nil,
+                  "An interrupted tool kept a running clock")
+        let finished = ChatMessage(role: .assistant, content: "", isStreaming: true)
+        finished.append("Bref.", phase: "thinking")
+        finished.finish(stats: nil, fallbackAnswer: nil, cacheContext: nil)
+        try check(finished.parts[0].elapsed != nil, "Finishing did not close the reasoning clock")
+        let data = try JSONEncoder().encode(message.snapshot)
+        let restored = ChatMessage(snapshot: try JSONDecoder().decode(ChatMessageSnapshot.self, from: data))!
+        try check(restored.parts.map(\.elapsed) == message.parts.map(\.elapsed), "Durations not persisted")
+    }
+
+    /// Activity parts group into one segment per run; answers stand alone; ids are stable.
+    private static func checkSegments(_ check: (Bool, String) throws -> Void) throws {
+        let kinds: [AssistantPart.Kind] = [.processing, .thinking, .tool, .processing, .thinking, .answer]
+        let parts = kinds.map { AssistantPart(kind: $0) }
+        let segments = AssistantSegment.split(parts)
+        try check(segments.map(\.parts.count) == [5, 1] && segments.map(\.isActivity) == [true, false],
+                  "Activity parts not grouped before the answer")
+        try check(segments[0].id == parts[0].id && segments[1].id == parts[5].id, "Segment ids not taken from their first part")
+        let mixed = AssistantSegment.split([.thinking, .answer, .tool, .answer, .answer].map { AssistantPart(kind: $0) })
+        try check(mixed.map(\.parts.count) == [1, 1, 1, 1, 1] && mixed.map(\.isActivity) == [true, false, true, false, false],
+                  "Answers must split activity runs and stand alone")
+        try check(AssistantSegment.split([]).isEmpty, "No parts must give no segment")
+        let growing = parts.prefix(2).map { $0 }
+        try check(AssistantSegment.split(growing)[0].id == AssistantSegment.split(growing + [AssistantPart(kind: .tool)])[0].id,
+                  "A growing segment changed identity (rows would lose their state)")
+        // Deterministic sweep over every sequence of up to five parts: the split is a
+        // partition in order, and no two activity segments are adjacent.
+        let all: [AssistantPart.Kind] = [.thinking, .answer, .tool, .processing]
+        var sequences: [[AssistantPart.Kind]] = [[]]
+        for _ in 0..<5 { sequences += sequences.filter { $0.count == sequences.last!.count }.flatMap { s in all.map { s + [$0] } } }
+        for sequence in sequences {
+            let input = sequence.map { AssistantPart(kind: $0) }
+            let output = AssistantSegment.split(input)
+            try check(output.flatMap(\.parts).map(\.id) == input.map(\.id), "Split lost or reordered parts: \(sequence)")
+            try check(output.allSatisfy { $0.isActivity ? $0.parts.allSatisfy { $0.kind != .answer } : $0.parts.count == 1 },
+                      "Mixed segment: \(sequence)")
+            try check(!zip(output, output.dropFirst()).contains { $0.isActivity && $1.isActivity }, "Adjacent activity segments: \(sequence)")
+        }
+    }
+
+    private static func checkToolPresentation(_ check: (Bool, String) throws -> Void) throws {
+        defer { AppLocalization.set(.fr) }
+        func tool(_ name: String, server: String? = "sandbox", _ arguments: String?, _ state: ToolActivity.State = .complete,
+                  result: String? = nil) -> ToolCallPresentation {
+            ToolCallPresentation(ToolActivity(id: "x", serverName: server, toolName: name, state: state, result: result, arguments: arguments))
+        }
+        AppLocalization.set(.en)
+        let script = tool("javascript", "// Inventory\n\n  const files = list();\nreturn files")
+        try check(script.kind == .javascript && script.detail == "const files = list();" && script.monospaced,
+                  "JavaScript must show its first statement")
+        try check(script.title == "Ran JavaScript" && !script.detailCoversArguments && script.source == nil,
+                  "JavaScript title or source wrong")
+        try check(tool("javascript", #"{"code":"return 1"}"#).detail == "return 1", "JavaScript code inside JSON not read")
+        try check(tool("javascript", "// only a comment").detail == nil, "A comment is not a statement")
+
+        let read = tool("sandbox.read_file", #"{"path":"src/stats.pl"}"#)
+        try check(read.kind == .readFile && read.title == "Read" && read.detail == "src/stats.pl", "File read wrong: \(read)")
+        try check(read.isPath && read.monospaced && read.detailCoversArguments && read.outcome == nil, "File read layout wrong")
+        try check(tool("read_file", #"{"path":"a"}"#, .running).title == "Reading", "Running tense wrong")
+        try check(tool("read_file", #"{"path":"a"}"#, .failed).title == "Read file", "Failed title wrong")
+        try check(tool("read_file", #"{"path":"a"}"#, .failed).outcome == "Failed", "Failed outcome missing")
+        try check(tool("write_file", #"{"content":"x\ny","path":"b.txt"}"#).detail == "b.txt", "Write must name its file")
+        try check(!tool("write_file", #"{"content":"x\ny","path":"b.txt"}"#).detailCoversArguments, "Written content must stay visible")
+        try check(tool("list_files", "{}").detail == nil && tool("list_files", "{}").detailCoversArguments, "Listing has no object")
+
+        let failedRun = tool("run", #"{"command":"sh test.sh"}"#, .failed, result: "FAIL\nExit status: 1\n")
+        try check(failedRun.kind == .command && failedRun.detail == "sh test.sh" && failedRun.outcome == "Exit 1",
+                  "Failed command must show its exit status: \(failedRun)")
+        try check(tool("run", #"{"command":"true"}"#, result: "ok\nExit status: 0").outcome == nil, "A passing command shows no outcome")
+        try check(tool("run", #"{"command":"yes"}"#, .failed, result: "y\nCommand stopped: time/output limit or parent exited.").outcome == "Stopped",
+                  "A stopped command must say so")
+        try check(tool("run", #"{"command":"x"}"#, .failed, result: "Exit status: banana").outcome == "Failed", "Unparsed status must fall back")
+
+        let search = tool("web_search_exa", server: "exa", #"{"numResults":5,"query":"mlx\n  prompt cache"}"#)
+        try check(search.kind == .mcp && search.title == "Web search" && search.detail == "“mlx prompt cache”",
+                  "MCP search wrong: \(search)")
+        try check(search.source == "exa" && search.symbol == "magnifyingglass" && !search.detailCoversArguments, "MCP source wrong")
+        try check(tool("exa.web_search_exa", server: "exa", nil) == tool("web_search_exa", server: "exa", nil), "Server prefix not stripped")
+        let filesystem = tool("fs.read_file", server: "fs", #"{"path":"notes.md"}"#)
+        try check(filesystem.kind == .readFile && filesystem.detail == "notes.md", "A prefixed MCP file tool must read as a file read")
+        try check(tool("getPullRequest", server: "github", #"{"number":4}"#).title == "Get pull request", "camelCase not split")
+        try check(tool("github", server: "github", nil).title == "Github", "A name made only of the server must stay readable")
+        try check(tool("fetch_url", server: "web", #"{"url":"https://a.b/c"}"#).symbol == "globe", "Fetch tools use the globe")
+        try check(tool("run_job", server: "my-sandbox", nil).source == nil, "Sandbox servers are not named")
+        try check(tool("search", server: nil, nil).source == nil, "No server, no source")
+        let long = tool("search", server: "s", "{\"query\":\"" + String(repeating: "é", count: 400) + "\"}")
+        try check(long.detail?.count == ToolCallPresentation.maximumDetail + 2 && long.detail?.hasSuffix("…”") == true,
+                  "Long queries must be clipped: \(long.detail?.count ?? -1)")
+        let truncated = tool("search", server: "s", #"{"query":"abc…"#)
+        try check(truncated.detail == #"{"query":"abc…"# && !truncated.detailCoversArguments, "Truncated arguments must still show")
+        try check(tool("invalid_tool_call", server: nil, nil).kind == .unreadable
+                  && tool("invalid_tool_call", server: nil, nil).title == "Unreadable tool call", "Unreadable call wrong")
+
+        func input(_ name: String, server: String? = "sandbox", _ arguments: String?) -> (title: String, text: String)? {
+            let activity = ToolActivity(id: "x", serverName: server, toolName: name, state: .complete, result: nil, arguments: arguments)
+            return ToolCallPresentation(activity).input(of: activity)
+        }
+        try check(input("read_file", #"{"path":"a"}"#) == nil, "A single argument shown on the line must not repeat")
+        try check(input("list_files", "{}") == nil && input("run", nil) == nil, "No arguments, no input section")
+        try check(input("write_file", #"{"content":"line 1\nline 2","path":"b"}"#).map { [$0.title, $0.text] } == ["Content", "line 1\nline 2"],
+                  "Written content must read as text, not escaped JSON")
+        try check(input("javascript", "const a = 1;\nreturn a").map { [$0.title, $0.text] } == ["Code", "const a = 1;\nreturn a"],
+                  "JavaScript must show as written")
+        try check(input("javascript", #"{"code":"return 2"}"#)?.text == "return 2", "JavaScript inside JSON must show its code")
+        try check(input("search", server: "exa", #"{"numResults":5,"query":"a/b"}"#)?.text == "{\n  \"numResults\" : 5,\n  \"query\" : \"a/b\"\n}",
+                  "Other arguments must be indented JSON with sorted keys and plain slashes")
+        try check(input("search", server: "exa", #"{"query":"abc…"#)?.text == #"{"query":"abc…"#, "Truncated arguments must show as received")
+
+        AppLocalization.set(.fr)
+        try check(tool("read_file", #"{"path":"a"}"#).title == "Fichier lu", "French done title wrong")
+        try check(tool("run", #"{"command":"x"}"#, .failed, result: "Exit status: 2").outcome == "Code 2", "French exit wrong")
+        try check(tool("javascript", "x", .running).title == "Exécution du JavaScript", "French running title wrong")
     }
 }

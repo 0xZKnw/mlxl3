@@ -16,6 +16,8 @@ pub struct Fragment {
 
 pub struct ThinkingSplitter {
     mode: Channel,
+    /// Marker that closes the thinking block in progress (meaningful in `Channel::Thinking`).
+    close: &'static str,
     buffer: String,
     drop_newline: bool,
     channel_header: Option<String>,
@@ -33,6 +35,11 @@ impl ThinkingSplitter {
                 Channel::Thinking
             } else {
                 Channel::Answer
+            },
+            close: if prompt.ends_with("<|channel>thought") {
+                "<channel|>"
+            } else {
+                "</think>"
             },
             buffer: String::new(),
             drop_newline: false,
@@ -72,6 +79,18 @@ impl ThinkingSplitter {
         }
     }
 
+    /// The marker that would close the thinking block in progress; `None` in the answer.
+    pub fn thinking_close(&self) -> Option<&'static str> {
+        (self.mode == Channel::Thinking).then_some(self.close)
+    }
+
+    /// The prompt was extended past a forced end of thinking: what follows is the answer.
+    pub fn resume_answer(&mut self) {
+        self.mode = Channel::Answer;
+        self.drop_newline = false;
+        self.channel_header = None;
+    }
+
     /// Production token-aware path. `control` must come from the tokenizer's
     /// declared delimiter-ID table, never from searching decoded text.
     pub fn feed_token(&mut self, text: &str, control: Option<&str>) -> Vec<Fragment> {
@@ -85,6 +104,11 @@ impl ThinkingSplitter {
         match control {
             "<think>" | "<|channel>thought" => {
                 self.mode = Channel::Thinking;
+                self.close = if control == "<think>" {
+                    "</think>"
+                } else {
+                    "<channel|>"
+                };
                 self.drop_newline = true;
             }
             "</think>" | "<channel|>" if self.mode == Channel::Thinking => {
@@ -97,6 +121,7 @@ impl ThinkingSplitter {
             // not text; <|end_message|> closes a thinking block.
             "<|content_thinking|>" => {
                 self.mode = Channel::Thinking;
+                self.close = "<|end_message|>";
                 self.drop_newline = false;
             }
             "<|end_message|>" => {
@@ -131,6 +156,7 @@ impl ThinkingSplitter {
             }
             if let Some(tail) = header.strip_prefix("thought") {
                 self.mode = Channel::Thinking;
+                self.close = "<channel|>";
                 self.drop_newline = true;
                 self.fragment(tail.to_owned(), &mut out);
             } else {
@@ -165,6 +191,11 @@ impl ThinkingSplitter {
                 self.fragment(prefix, &mut out);
                 self.buffer.drain(..position + marker.len());
                 self.mode = if self.mode == Channel::Answer {
+                    self.close = if marker == "<think>" {
+                        "</think>"
+                    } else {
+                        "<channel|>"
+                    };
                     Channel::Thinking
                 } else {
                     Channel::Answer
@@ -408,6 +439,66 @@ mod tests {
             [Fragment {
                 channel: Channel::Thinking,
                 text: "\rx".into()
+            }]
+        );
+    }
+
+    #[test]
+    fn thinking_close_names_the_marker_of_the_open_block() {
+        assert_eq!(ThinkingSplitter::new("").thinking_close(), None);
+        assert_eq!(
+            ThinkingSplitter::new("<|im_start|>assistant\n<think>\n").thinking_close(),
+            Some("</think>")
+        );
+        assert_eq!(
+            ThinkingSplitter::new("<start_of_turn>model\n<|channel>thought").thinking_close(),
+            Some("<channel|>")
+        );
+        let mut qwen = ThinkingSplitter::new("");
+        qwen.feed_token("<think>", Some("<think>"));
+        assert_eq!(qwen.thinking_close(), Some("</think>"));
+        qwen.feed_token("plan", None);
+        assert_eq!(qwen.thinking_close(), Some("</think>"));
+        qwen.feed_token("</think>", Some("</think>"));
+        assert_eq!(qwen.thinking_close(), None);
+        let mut gemma = ThinkingSplitter::new("");
+        gemma.feed_token("<|channel>thought", Some("<|channel>thought"));
+        assert_eq!(gemma.thinking_close(), Some("<channel|>"));
+        let mut header = ThinkingSplitter::new("");
+        header.feed_token("<|channel>", Some("<|channel>"));
+        assert_eq!(header.thinking_close(), None);
+        header.feed_token("thought", None);
+        assert_eq!(header.thinking_close(), Some("<channel|>"));
+        let mut inkling = ThinkingSplitter::new("");
+        inkling.feed_token("<|message_model|>", Some("<|message_model|>"));
+        inkling.feed_token("<|content_thinking|>", Some("<|content_thinking|>"));
+        assert_eq!(inkling.thinking_close(), Some("<|end_message|>"));
+        inkling.feed_token("<|end_message|>", Some("<|end_message|>"));
+        assert_eq!(inkling.thinking_close(), None);
+        // a Gemma block after a Qwen one closes with its own marker
+        qwen.feed_token("<|channel>thought", Some("<|channel>thought"));
+        assert_eq!(qwen.thinking_close(), Some("<channel|>"));
+        let mut legacy = ThinkingSplitter::new("");
+        legacy.feed("<think>x");
+        assert_eq!(legacy.thinking_close(), Some("</think>"));
+        legacy.feed("</think><|channel>thoughty");
+        assert_eq!(legacy.thinking_close(), Some("<channel|>"));
+    }
+
+    #[test]
+    fn resumed_answer_streams_in_the_answer_channel() {
+        let mut splitter = ThinkingSplitter::new("<think>\n");
+        assert_eq!(
+            splitter.feed_token("deep", None)[0].channel,
+            Channel::Thinking
+        );
+        splitter.resume_answer();
+        assert_eq!(splitter.thinking_close(), None);
+        assert_eq!(
+            splitter.feed_token("\nact", None),
+            vec![Fragment {
+                channel: Channel::Answer,
+                text: "\nact".into()
             }]
         );
     }

@@ -180,6 +180,8 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     // here: the `json!` above is at the macro recursion limit).
     ready["tool_rounds_supported"] = json!(true);
     ready["mcp_call_timeout_supported"] = json!(true);
+    // AGENT-2026-11-23-BOUCLE: `reasoning_budget`, 512 rounds, pruning, repeated-call stop.
+    ready["agent_loop_supported"] = json!(true);
     emit_event(ready)?;
     for line in io::stdin().lock().lines() {
         let line = line?;
@@ -306,8 +308,12 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         draft.as_ref().map(|_| request.dflash_draft_path.clone()),
                     )?;
                     // An invalid round limit fails this request only, like any request error.
-                    let rounds = mlxl3_native::tool_call::tool_rounds(request.tool_rounds);
-                    let result = rounds.and_then(|rounds| {
+                    let rounds = mlxl3_native::tool_call::tool_rounds(request.tool_rounds)
+                        .and_then(|rounds| {
+                            mlxl3_native::agent_loop::reasoning_budget(request.reasoning_budget)
+                                .map(|budget| (rounds, budget))
+                        });
+                    let result = rounds.and_then(|(rounds, reasoning_budget)| {
                         bridge_generate(
                             &mut model,
                             &tokenizer,
@@ -336,6 +342,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                             request.allowed_tools.as_deref(),
                             request.response_schema.as_deref(),
                             rounds,
+                            reasoning_budget,
                         )
                     });
                     if result.is_err() || cancelled.load(Ordering::Relaxed) || request.memory_saver
