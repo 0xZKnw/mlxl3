@@ -3,6 +3,95 @@ use anyhow::Result;
 
 pub const PREFILL_CHUNK: usize = 8;
 
+/// A serial suffix lets demand-driven expert eviction adapt before decode.
+pub fn group_prompt_span(total: usize, end: usize, serial_tail: bool) -> bool {
+    end < total && (!serial_tail || total < 256 || total - end >= 48)
+}
+
+#[test]
+fn serial_tail_only_changes_the_end_of_long_prompts() {
+    for total in [0, 1, 255, 256, 654, usize::MAX] {
+        for end in [
+            0,
+            8,
+            total.saturating_sub(48),
+            total.saturating_sub(47),
+            total,
+            usize::MAX,
+        ] {
+            assert_eq!(group_prompt_span(total, end, false), end < total);
+            let expected = end < total && (total < 256 || (end as u128 + 48 <= total as u128));
+            assert_eq!(group_prompt_span(total, end, true), expected);
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn serial_tail_keeps_last_logits_and_groups_only_complete_prefixes() {
+    let total: usize = kani::any();
+    let end: usize = kani::any();
+    let tail: bool = kani::any();
+    let grouped = group_prompt_span(total, end, tail);
+    if end >= total {
+        assert!(!grouped);
+    } else if !tail || total < 256 {
+        assert!(grouped);
+    } else if grouped {
+        assert!(total - end >= 48);
+        // Every earlier boundary also belongs to the grouped prefix.
+        let earlier: usize = kani::any();
+        if earlier <= end {
+            assert!(group_prompt_span(total, earlier, true));
+        }
+    } else {
+        assert!(total - end < 48);
+    }
+    kani::cover!(tail && total >= 256 && grouped && total - end == 48);
+    kani::cover!(tail && total >= 256 && end < total && !grouped && total - end == 47);
+    kani::cover!(!grouped && end == total);
+    kani::cover!(grouped && tail && total < 256);
+}
+
+#[cfg(any(feature = "mlx", test, kani))]
+pub(crate) fn prompt_row_needs_head(
+    headonly: bool,
+    final_logits: bool,
+    end: usize,
+    len: usize,
+) -> bool {
+    !headonly || (final_logits && end == len)
+}
+
+#[test]
+fn flash_prompt_heads_match_the_observable_chunk_boundaries() {
+    for end in 1..=8 {
+        assert!(!prompt_row_needs_head(true, false, end, 8));
+        assert_eq!(prompt_row_needs_head(true, true, end, 8), end == 8);
+        for final_logits in [false, true] {
+            assert!(prompt_row_needs_head(false, final_logits, end, 8));
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn intermediate_prompt_rows_elide_only_unneeded_heads() {
+    let headonly: bool = kani::any();
+    let final_logits: bool = kani::any();
+    let len: usize = kani::any();
+    let end: usize = kani::any();
+    kani::assume(end > 0 && end <= len);
+    let head = prompt_row_needs_head(headonly, final_logits, end, len);
+    if headonly {
+        assert_eq!(head, final_logits && end >= len);
+    } else {
+        assert!(head);
+    }
+    kani::cover!(head && final_logits && headonly);
+    kani::cover!(!head && end == len && !final_logits);
+}
+
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 pub(crate) fn index_key_groups(
     shape: [u32; 2],
