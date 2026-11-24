@@ -58,7 +58,11 @@ pub const FORCED_CLOSE_NOTE: &str = "\n\nConsidering the limited time, I have to
 /// After Inkling 2's `<|end_message|>` the next message is opened so the model writes an
 /// answer or a call instead of a second thinking message.
 pub fn forced_close(close: &str) -> String {
-    let note = FORCED_CLOSE_NOTE;
+    close_thinking(close, FORCED_CLOSE_NOTE)
+}
+
+/// `note` then the marker closing this family's thinking block (see [`forced_close`]).
+pub fn close_thinking(close: &str, note: &str) -> String {
     match close {
         "<|end_message|>" => format!("{note}<|end_message|><|message_model|>"),
         "</think>" => format!("{note}</think>\n\n"),
@@ -175,7 +179,10 @@ pub fn prune_context(
         let Some(text) = message["content"].as_str() else {
             continue;
         };
-        if text.starts_with(PRUNED_OUTPUT) || text.contains(SHORTENED_OUTPUT) {
+        if text.starts_with(PRUNED_OUTPUT)
+            || text.contains(SHORTENED_OUTPUT)
+            || text.starts_with(SUMMARY_MARKER)
+        {
             continue;
         }
         let chars = text.chars().count();
@@ -250,7 +257,7 @@ pub fn prune_context(
         let Some(text) = message["content"].as_str() else {
             continue;
         };
-        if text.starts_with(PRUNED_OUTPUT) {
+        if text.starts_with(PRUNED_OUTPUT) || text.starts_with(SUMMARY_MARKER) {
             continue;
         }
         let before = count(text)?;
@@ -267,6 +274,117 @@ pub fn prune_context(
         pruned.freed += before - after;
     }
     Ok(pruned)
+}
+
+/// AGENT-2026-11-24-DSH-PISTES, P3 (after DeepSeek Harness's `compaction-basic`, sized for
+/// small windows): after pruning, a prompt still above this share of the context has the
+/// older exchanges of the current turn summarized by the model.
+pub const COMPACT_TRIGGER_PERCENT: usize = 75;
+/// The newest exchanges kept word for word, up to this share of the context (the newest one
+/// always).
+pub const COMPACT_KEEP_PERCENT: usize = 20;
+/// Tokens the summary may generate, thinking included.
+pub const SUMMARY_MAX_TOKENS: usize = 3072;
+/// Thinking allowed before the summary is written (then closed like a step's).
+pub const SUMMARY_REASONING_BUDGET: usize = 1024;
+/// Start of the text that carries a summary; pruning never shortens it.
+pub const SUMMARY_MARKER: &str = "[Summary of the earlier steps of this task";
+/// What the model is asked, after the exchanges to summarize (dsh's fixed sections, fewer).
+pub const SUMMARY_REQUEST: &str = "[The context is almost full: your steps above will be removed. Write a summary of them that lets you finish the task without them. Do not call any tool. Use these headings, each with a few short bullets (\"none\" if empty): Progress; Files and code (paths, functions, what you changed, exact names); Commands and results (what you ran, statuses, key output); Errors and fixes; Remaining work; Next step. Keep exact paths, commands, identifiers, numbers and error messages. If an earlier summary is above, merge it instead of repeating it. Write only the summary.]";
+/// Ends a summary's thinking cut by its budget.
+pub const SUMMARY_CLOSE_NOTE: &str = "\n\nI have to write the summary now.\n";
+
+/// The exchanges of the current turn (messages from `start`) to summarize: every exchange
+/// (an assistant message and the results or notes that follow it) except the newest ones
+/// that fit in [`COMPACT_KEEP_PERCENT`] of the context, the newest always kept. The cut is
+/// always before an assistant message, so a call is never separated from its result, and
+/// the kept part has a result or note to carry the summary. None: nothing to summarize.
+pub fn compaction_range(
+    dialogue: &[Value],
+    start: usize,
+    context_limit: usize,
+    count: &mut dyn FnMut(&str) -> Result<usize>,
+) -> Result<Option<std::ops::Range<usize>>> {
+    let starts: Vec<usize> = (start..dialogue.len())
+        .filter(|&index| dialogue[index]["role"] == "assistant")
+        .collect();
+    let (Some(&first), Some(&newest)) = (starts.first(), starts.last()) else {
+        return Ok(None);
+    };
+    if first != start || starts.len() < 2 {
+        return Ok(None);
+    }
+    let keep = context_limit * COMPACT_KEEP_PERCENT / 100;
+    let mut cut = newest;
+    let mut kept = 0;
+    for message in &dialogue[newest..] {
+        kept += message_tokens(message, count)?;
+    }
+    for pair in starts.windows(2).rev() {
+        let (older, newer) = (pair[0], pair[1]);
+        if newer != cut || older == first {
+            break;
+        }
+        let mut tokens = 0;
+        for message in &dialogue[older..newer] {
+            tokens += message_tokens(message, count)?;
+        }
+        if kept + tokens > keep {
+            break;
+        }
+        kept += tokens;
+        cut = older;
+    }
+    let carried = dialogue[cut..]
+        .iter()
+        .any(|message| message["role"] != "assistant" && message["content"].is_string());
+    Ok((cut > start && carried).then_some(start..cut))
+}
+
+/// The prompt of the summary step: the conversation up to the end of `range`, then the
+/// request (a prefix of the current prompt, so the prompt cache serves it).
+pub fn summary_dialogue(dialogue: &[Value], range: &std::ops::Range<usize>) -> Vec<Value> {
+    let mut request = dialogue[..range.end].to_vec();
+    request.push(serde_json::json!({"role":"user", "content":SUMMARY_REQUEST}));
+    request
+}
+
+/// Replaces `range` by `summary`, written at the start of the first result or note after it
+/// (no new message: every chat template accepts it, like the B5/B6 notes). False when no
+/// kept message can carry it.
+pub fn apply_summary(
+    dialogue: &mut Vec<Value>,
+    range: std::ops::Range<usize>,
+    summary: &str,
+) -> bool {
+    let Some(carrier) = dialogue[range.end..]
+        .iter()
+        .position(|message| message["role"] != "assistant" && message["content"].is_string())
+        .map(|offset| range.end + offset)
+    else {
+        return false;
+    };
+    let text = dialogue[carrier]["content"]
+        .as_str()
+        .unwrap_or_default()
+        .to_owned();
+    dialogue[carrier]["content"] = Value::String(format!(
+        "{SUMMARY_MARKER}, written by you to free context:]\n{}\n[End of the summary. Result of the call above:]\n\n{text}",
+        summary.trim()
+    ));
+    dialogue.drain(range);
+    true
+}
+
+/// Tokens of a message's text: its content and its calls' string arguments.
+fn message_tokens(message: &Value, count: &mut dyn FnMut(&str) -> Result<usize>) -> Result<usize> {
+    let content = message["content"].as_str().map_or(Ok(0), &mut *count)?;
+    let arguments = if message["role"] == "tool" {
+        0
+    } else {
+        prunable_tokens(message, count)?
+    };
+    Ok(content + arguments)
 }
 
 /// Tokens pruning could remove from a message: a tool output, or the string arguments of
@@ -308,6 +426,113 @@ mod tests {
         json!({"role":"assistant", "content":"", "tool_calls":[
             {"type":"function", "function":{"name":"javascript", "arguments":{"code":code}}}
         ]})
+    }
+
+    /// System, user, then `n` exchanges whose code is `size` characters (one token each 4).
+    fn turn_with(n: usize, size: usize) -> Vec<Value> {
+        let mut dialogue = vec![
+            json!({"role":"system", "content":"sys"}),
+            json!({"role":"user", "content":"task"}),
+        ];
+        for index in 0..n {
+            dialogue.push(call(&format!("{index}{}", "c".repeat(size))));
+            dialogue.push(tool(&format!("result {index}")));
+        }
+        dialogue
+    }
+
+    #[test]
+    fn compaction_keeps_the_newest_exchanges_that_fit_and_never_splits_a_call() -> Result<()> {
+        // 6 exchanges of 1 003 tokens (code and result): 20 % of 11 000 keeps the two newest,
+        // 20 % of 10 000 only the newest.
+        let dialogue = turn_with(6, 4_000);
+        assert_eq!(
+            compaction_range(&dialogue, 2, 11_000, &mut bytes)?,
+            Some(2..10)
+        );
+        assert_eq!(dialogue[10]["role"], "assistant");
+        assert_eq!(
+            compaction_range(&dialogue, 2, 10_000, &mut bytes)?,
+            Some(2..12)
+        );
+        // The newest exchange stays even when it alone exceeds the share.
+        let range = compaction_range(&turn_with(3, 40_000), 2, 10_000, &mut bytes)?;
+        assert_eq!(range, Some(2..6));
+        // One exchange, or a turn that does not start with the model's message: nothing.
+        assert_eq!(
+            compaction_range(&turn_with(1, 4_000), 2, 10_000, &mut bytes)?,
+            None
+        );
+        assert_eq!(
+            compaction_range(&turn_with(4, 4_000), 1, 10_000, &mut bytes)?,
+            None
+        );
+        // Small exchanges all fit in the kept share except the first, always summarized.
+        assert_eq!(
+            compaction_range(&turn_with(4, 10), 2, 10_000, &mut bytes)?,
+            Some(2..4)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_summary_replaces_its_range_inside_the_first_kept_result() {
+        let mut dialogue = turn_with(4, 10);
+        let request = summary_dialogue(&dialogue, &(2..6));
+        assert_eq!(request.len(), 7);
+        assert_eq!(
+            request[6],
+            json!({"role":"user", "content":SUMMARY_REQUEST})
+        );
+        assert!(apply_summary(&mut dialogue, 2..6, "  - did A\n- did B \n"));
+        assert_eq!(dialogue.len(), 6);
+        assert_eq!(dialogue[2], call(&format!("2{}", "c".repeat(10))));
+        assert_eq!(
+            dialogue[3]["content"],
+            format!(
+                "{SUMMARY_MARKER}, written by you to free context:]\n- did A\n- did B\n[End of the summary. Result of the call above:]\n\nresult 2"
+            )
+        );
+        assert_eq!(dialogue[5]["content"], "result 3");
+        // Nothing to carry it: unchanged.
+        let mut bare = turn_with(2, 10);
+        bare.truncate(5);
+        let before = bare.clone();
+        assert!(!apply_summary(&mut bare, 2..4, "x"));
+        assert_eq!(bare, before);
+    }
+
+    #[test]
+    fn pruning_never_shortens_a_summary() -> Result<()> {
+        let summary = format!("{SUMMARY_MARKER}, written by you:]\n{}", "s".repeat(8_000));
+        let mut dialogue = turn_with(1, 10);
+        dialogue[3] = tool(&summary);
+        for index in 0..4 {
+            dialogue.push(call(&format!("{index}")));
+            dialogue.push(tool(&"o".repeat(8_000)));
+        }
+        let used = dialogue
+            .iter()
+            .map(|m| bytes(&m.to_string()).unwrap())
+            .sum();
+        let pruned = prune_context(&mut dialogue, used, 9_000, &mut bytes)?;
+        assert!(pruned.outputs > 0, "other old outputs were pruned");
+        assert_eq!(dialogue[3]["content"], summary.as_str());
+        Ok(())
+    }
+
+    #[test]
+    fn close_thinking_carries_its_note_before_each_family_marker() {
+        assert_eq!(close_thinking("</think>", "N"), "N</think>\n\n");
+        assert_eq!(
+            close_thinking("<|end_message|>", "N"),
+            "N<|end_message|><|message_model|>"
+        );
+        assert_eq!(close_thinking("<channel|>", "N"), "N<channel|>");
+        assert_eq!(
+            forced_close("</think>"),
+            close_thinking("</think>", FORCED_CLOSE_NOTE)
+        );
     }
 
     #[test]

@@ -736,6 +736,25 @@ pub fn unreadable_call_message(error: &anyhow::Error) -> String {
     )
 }
 
+/// What the model reads when it calls a tool it was not offered (AGENT-2026-11-24-DSH-PISTES,
+/// P2, after DeepSeek Harness's code-mode hint): the tools it can call, and that functions a
+/// tool's description lists (the `javascript` tool's `read`, `run`...) go in that tool's input.
+pub fn unknown_tool_message(name: &str, offered: &[&str]) -> String {
+    if offered.is_empty() {
+        return format!(
+            "There is no tool named `{name}`; nothing was executed. No tool can be called now: answer without tools."
+        );
+    }
+    let list = offered
+        .iter()
+        .map(|tool| format!("`{tool}`"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "There is no tool named `{name}`; nothing was executed. The tools you can call are: {list}. Functions listed in a tool's description are called inside that tool's input, not as tools."
+    )
+}
+
 /// Token ranges kept from a tool result longer than `budget`: the first quarter and the
 /// rest from its end (errors and summaries come last), `reserve` tokens left for a marker.
 pub fn kept_token_ranges(
