@@ -57,7 +57,18 @@ Install the archive through the Desktop engine updater, or extract all its files
 
 ## Artifacts
 
-ARTIFACTS
+| File | Size | SHA-256 |
+|---|---|---|
+| `MLXL3-Engine-v2.0.31-arm64.tar.gz` | 69,194,070 bytes | `f43a45ede0214810cd8e9a4432e09baf04112b883acb195330fe520f8f97c419` |
+| `MLXL3-Engine-v2.0.31-arm64.tar.gz.sha256` | 100 bytes | |
+
+Source: `e117e02e8f7b` (tag `engine-v2.0.31`).
+
+The released archive was extracted into a new directory and checked:
+- **Manifest:** its four files match it (`engine-v2.0.31`, version 2.0.31, minimum Desktop 1.4.0, minimum macOS 26.2.0, arm64, bridge protocol 1).
+- **Binaries:** the three Mach-O files pass strict signature and arm64 checks, and `mlx.metallib` is identical to MLX 0.32.2's.
+- **`runtime-info`:** it reports 2.0.31 from source `e117e02e8f7b`; `mlxl3` is 15,280,992 bytes, SHA-256 `2735c0188524bb23f6fa6b6662e801c39879eba1d34a34e691d10aca536d7966`.
+- **Bridge on a real model:** without any environment variable, on the installed Inkling 2 Mini, with the sandbox server of the Desktop 2.0.23 app, a real Agent call went through the new loop. It ran `return list().length`, got `3` and answered "Your project has 3 files". `"dspark": true` ran 57 DSpark blocks; without the field, and with `false`, none ran. This is the only real-model run of this release.
 
 ## Thanks
 

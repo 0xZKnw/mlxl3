@@ -62,7 +62,12 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
   - The MCP protocol checks passed: 73, or 74 with the network.
   - Temporary mutations were tried and all detected: 5 sandbox and 5 output-file mutations.
 - **App build:** release build with the macOS 26.5 SDK.
-- **This DMG:** DMG_CHECKS
+- **This DMG:**
+  - `hdiutil verify` valid, `codesign --deep --strict` passed;
+  - version 2.0.23 / build 76, built with the macOS 26.5 SDK;
+  - `build-info` has commit `e117e02e8` with no tracked changes;
+  - the bundled engine reports 2.0.31 (`engine-v2.0.31`, commit `e117e02e8f7b`), and its runtime files are identical to the published engine archive;
+  - this app's sandbox server ran a real Agent call with the bundled engine on Inkling 2 Mini (see the engine's notes).
 - **Not verified:**
   - an Agent task on a real model that exercises the new sandbox and output files end to end;
   - the full Desktop suite, which was not run again (CI runs it);
@@ -70,7 +75,10 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Source and download
 
-DOWNLOADS
+- Source: [`e117e02e8`](https://github.com/0xZKnw/mlxl3/commit/e117e02e8f7bb78ab8540901adddbd8c752e374f) (tag `v2.0.23`).
+- `MLXL3-Desktop-v2.0.23-b76-Apple-Silicon.dmg`: 246,797,024 bytes, SHA-256 `8e89399faea637c07ff9c6c8b9fb5d8c6d0b58bf91650859af7d48eab5a91125`.
+- `MLXL3-Desktop-v2.0.23-b76-Apple-Silicon.dmg.sha256`: 110 bytes.
+- Bundled engine: MLXL3 engine 2.0.31, the same files as [`engine-v2.0.31`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.31).
 
 ## Acknowledgements
 
