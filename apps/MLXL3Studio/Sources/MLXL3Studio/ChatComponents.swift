@@ -1128,27 +1128,27 @@ private struct ComposerPasteMonitor: NSViewRepresentable {
 }
 
 
-/// Reasoning depth of models whose chat template accepts `reasoning_effort` (Inkling 2,
-/// Qwen3.8…): only the levels that template names, kept per model.
+/// The model’s native thinking switch or effort levels.
 private struct ReasoningMenu: View {
     @EnvironmentObject private var studio: StudioModel
     let support: ReasoningSupport
     let level: ReasoningEffort
 
+    private var currentLabel: String {
+        if studio.effectiveReasoningChoice == nil { return L("Réflexion auto", "Auto thinking") }
+        return support.title(for: level, inComposer: true)
+    }
+
     var body: some View {
         Menu {
             Picker(L("Raisonnement", "Reasoning"), selection: Binding(
-                get: { level }, set: { studio.setReasoningLevel($0) })) {
-                ForEach(support.levels) { option in
-                    Label {
-                        Text(option.title)
-                        Text(option == support.defaultLevel
-                             ? L("\(option.detail) · par défaut", "\(option.detail) · default")
-                             : option.detail)
-                    } icon: {
-                        Image(systemName: option.symbol)
-                    }
-                    .tag(option)
+                get: { studio.effectiveReasoningChoice }, set: { choice in
+                    if let choice { studio.setReasoningLevel(choice) } else { studio.resetReasoningLevel() }
+                })) {
+                Text(L("Par défaut du modèle", "Model default")).tag(nil as ReasoningEffort?)
+                ForEach(studio.reasoningLevels) { option in
+                    Label(support.title(for: option), systemImage: option.symbol)
+                    .tag(Optional(option))
                 }
             }
             .pickerStyle(.inline)
@@ -1156,7 +1156,7 @@ private struct ReasoningMenu: View {
             HStack(spacing: 6) {
                 Image(systemName: level.symbol)
                     .foregroundStyle(level == .none ? StudioTheme.quiet : studio.accentColor)
-                Text(level.label)
+                Text(currentLabel)
             }
             .font(.system(size: 12, weight: .medium))
             .padding(.horizontal, 9)
@@ -1169,7 +1169,7 @@ private struct ReasoningMenu: View {
         .disabled(studio.isGenerating)
         .accessibilityIdentifier("composer.reasoning")
         .accessibilityLabel(L("Raisonnement", "Reasoning"))
-        .accessibilityValue(level.label)
+        .accessibilityValue(currentLabel)
         .help(L("Profondeur de raisonnement du modèle", "Model reasoning depth"))
     }
 }

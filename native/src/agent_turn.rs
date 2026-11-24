@@ -24,8 +24,8 @@ pub struct Step {
     pub tool_text: String,
     /// The generated token ids (a forced end of thinking continues from them).
     pub generated: Vec<u32>,
-    /// The step stopped at its reasoning budget; holds the marker closing that block.
-    pub reasoning_cut: Option<&'static str>,
+    /// The step stopped at its reasoning budget; holds the exact text to resume the model.
+    pub reasoning_cut: Option<String>,
     /// Prompt and generated tokens in the context after this step.
     pub context_used: usize,
     pub generated_tokens: usize,
@@ -176,7 +176,7 @@ pub fn run_turn(
         host.emit(json!({
             "type":"generation_status", "request_id":request_id,
             "phase":"prefill", "text":if !continuation.is_empty() {
-                "Acting on its reasoning"
+                "Preparing the response"
             } else if round == 0 {
                 "Preparing context"
             } else {
@@ -200,15 +200,8 @@ pub fn run_turn(
         })?;
         generated_total += output.generated_tokens;
         prompt_estimate = Some(output.context_used);
-        if let Some(close) = output.reasoning_cut {
-            // B2: the thinking reached its budget: close it in the model's own format and let
-            // the same message go on to an action.
+        if let Some(text) = output.reasoning_cut {
             forced_closes += 1;
-            let text = agent_loop::forced_close(close);
-            host.emit(json!({
-                "type":"delta", "request_id":request_id, "phase":"thinking",
-                "text":agent_loop::FORCED_CLOSE_NOTE
-            }))?;
             step_raw.push_str(&output.raw);
             step_raw.push_str(&text);
             step_answer.push_str(&output.answer);
@@ -508,15 +501,12 @@ fn compact(
         *generated_total += step.generated_tokens;
         answer.push_str(&step.answer);
         tool_text.push_str(&step.tool_text);
-        if let Some(close) = step.reasoning_cut
+        if let Some(text) = step.reasoning_cut.as_deref()
             && generated < agent_loop::SUMMARY_MAX_TOKENS
         {
             cuts += 1;
             continuation.extend_from_slice(&step.generated);
-            continuation.extend(host.encode(&agent_loop::close_thinking(
-                close,
-                agent_loop::SUMMARY_CLOSE_NOTE,
-            ))?);
+            continuation.extend(host.encode(text)?);
             continue;
         }
         break step.stop_reason == GenerationStopReason::Eos && step.reasoning_cut.is_none();
@@ -692,7 +682,14 @@ mod tests {
                 raw: step.raw,
                 answer: step.answer,
                 tool_text: step.tool_text,
-                reasoning_cut: step.cut,
+                reasoning_cut: step.cut.map(|close| {
+                    agent_loop::reasoning_continuation(
+                        close,
+                        summary,
+                        !request.tools.is_empty(),
+                        false,
+                    )
+                }),
                 token_hash: format!("hash-{}", self.requests.len()),
             })
         }
@@ -989,15 +986,55 @@ mod tests {
         let mut settings = turn(100_000, 8);
         settings.reasoning_budget = Some(512);
         let end = run_turn(&mut host, dialogue(), &tools(), &settings)?;
-        let close = agent_loop::forced_close("</think>");
+        let close = agent_loop::reasoning_continuation("</think>", false, true, false);
         let mut expected: Vec<u32> = "<think>long".bytes().map(u32::from).collect();
         expected.extend(close.bytes().map(u32::from));
         assert_eq!(host.requests[1].continuation, expected);
         assert_eq!(host.requests[0].reasoning_budget, Some(512));
-        assert_eq!(host.events[1]["text"], agent_loop::FORCED_CLOSE_NOTE);
-        assert_eq!(host.statuses()[1], "Acting on its reasoning");
+        assert!(host.events.iter().all(|event| event["phase"] != "thinking"));
+        assert_eq!(host.statuses()[1], "Preparing the response");
         assert_eq!(end.raw, format!("<think>long{close}Done."));
         assert_eq!(end.rounds, 0);
+        Ok(())
+    }
+
+    #[test]
+    fn chat_can_still_call_a_tool_after_a_budgeted_thinking_block() -> Result<()> {
+        let mut thinking = answer("");
+        thinking.cut = Some("<|end_message|>");
+        let mut host = ScriptHost::new(vec![thinking, call("lookup"), answer("42")]);
+        let mut settings = turn(100_000, 8);
+        settings.reasoning_budget = Some(256);
+        let end = run_turn(&mut host, dialogue(), &tools(), &settings)?;
+        assert_eq!(end.assistant, "42");
+        assert_eq!(host.calls.len(), 1);
+        let header = host.encode("<|end_message|><|message_model|>")?;
+        assert!(host.requests[1].continuation.ends_with(&header));
+        assert!(host.events.iter().all(|event| event["phase"] != "thinking"));
+        Ok(())
+    }
+
+    #[test]
+    fn chat_reasoning_cut_continues_with_answer_and_no_injected_thinking_text() -> Result<()> {
+        let mut thinking = answer("");
+        thinking.raw = "x".into();
+        thinking.cut = Some("</think>");
+        let mut host = ScriptHost::new(vec![thinking, answer("42")]);
+        let mut settings = turn(1024, 8);
+        settings.reasoning_budget = Some(256);
+        let end = run_turn(&mut host, dialogue(), &[], &settings)?;
+        let close = agent_loop::reasoning_continuation("</think>", false, false, false);
+        assert_eq!(end.raw, format!("x{close}42"));
+        assert_eq!(end.assistant, "42");
+        assert_eq!(host.requests[0].reasoning_budget, Some(256));
+        assert_eq!(
+            host.requests[1].continuation,
+            format!("x{close}")
+                .bytes()
+                .map(u32::from)
+                .collect::<Vec<_>>()
+        );
+        assert!(host.events.iter().all(|event| event["phase"] != "thinking"));
         Ok(())
     }
 
@@ -1216,7 +1253,7 @@ mod tests {
         assert_eq!(asked.len(), 2);
         let mut expected: Vec<u32> = "<think>x".bytes().map(u32::from).collect();
         expected.extend(
-            agent_loop::close_thinking("</think>", agent_loop::SUMMARY_CLOSE_NOTE)
+            agent_loop::reasoning_continuation("</think>", true, true, false)
                 .bytes()
                 .map(u32::from),
         );

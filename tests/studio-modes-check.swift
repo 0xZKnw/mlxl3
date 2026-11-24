@@ -199,6 +199,30 @@ extension StudioModel {
       chatRequest["max_tokens"] as? Int == -1 && chatRequest["tool_rounds"] == nil
         && chatRequest["reasoning_budget"] == nil,
       "Chat keeps its request without Agent budgets")
+    let native: [ReasoningEffort] = [.none, .minimal, .low, .medium, .high, .max]
+    check(looping.reasoningLevels == native, "Chat offers the distinct levels of the installed model and engine")
+    for level in native {
+      looping.newConversation()
+      looping.setReasoningLevel(level)
+      looping.draft = "Native effort " + level.rawValue
+      looping.send()
+      try await wait { !looping.isGenerating }
+      let request = try JSONSerialization.jsonObject(with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+      check(request["reasoning_effort"] as? String == level.rawValue && request["reasoning_budget"] == nil
+              && request["max_tokens"] as? Int == -1, "Every level sends only native effort and allows a complete answer")
+    }
+    looping.selectMode(.agent)
+    try await wait { !looping.mcpUpdating && looping.engineState.isReady }
+    check(looping.reasoningLevels == native, "Agent and Chat use the same model controls")
+    looping.draft = "Agent after chat"
+    looping.send()
+    try await wait { !looping.isGenerating }
+    let agentRequest = try JSONSerialization.jsonObject(with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(agentRequest["reasoning_effort"] as? String == "max" && agentRequest["reasoning_budget"] == nil
+            && agentRequest["max_tokens"] as? Int == -1, "Agent preserves the natural effort")
+    looping.selectMode(.chat)
+    try await wait { !looping.mcpUpdating && looping.engineState.isReady }
+    check(looping.effectiveReasoningChoice == .max, "Returning to Chat restores the saved native choice")
     looping.stopServices()
     await looping.bridge.stopAndWait()
     return count
@@ -231,8 +255,12 @@ extension StudioModel {
       }
       preconditionFailure("Mode fixture timed out at line \(line): mode=\(studio.selectedMode), engine=\(studio.engineState), MCP updating=\(studio.mcpUpdating), tools=\(studio.mcpToolCount), server=\(studio.localServer.log), error=\(studio.featureError ?? "none")")
     }
+    let modelFolder = root.appendingPathComponent("model")
+    try FileManager.default.createDirectory(at: modelFolder, withIntermediateDirectories: true)
+    try #"{% set effort_map = {"none":0, "minimal":0.1, "low":0.2, "medium":0.7, "high":0.9, "xhigh":0.99, "max":0.99} %}{{ reasoning_effort }}"#
+      .write(to: modelFolder.appendingPathComponent("chat_template.jinja"), atomically: true, encoding: .utf8)
     let model = LocalModel(
-      name: "modes", path: "/tmp/fixture-model", modelType: "fixture", format: "EXL3", bits: 2.5,
+      name: "modes", path: modelFolder.path, modelType: "fixture", format: "EXL3", bits: 2.5,
       sizeBytes: 100, modules: 1, addedAt: "", size: "100 B")
     studio.models = [model]
     studio.selectModel(model.name)
