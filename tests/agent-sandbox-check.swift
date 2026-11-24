@@ -434,13 +434,24 @@ struct AgentSandboxCheck {
     started = Date()
     let memory = try js("const a = []; for (;;) a.push(new Array(1e6).fill(1.5))")
     check(memory.isError && Date().timeIntervalSince(started) < 13, "memory runaway bounded: \(memory.text)")
-    let huge = try js("write('huge.txt', 'x'.repeat(300000))")
-    check(huge.isError && huge.text.contains("256 KiB"), "write size limit")
+    let huge = try js("write('huge.txt', 'x'.repeat(\(AgentJavaScript.maximumFileBytes + 1)))")
+    check(huge.isError && huge.text.contains("1 MiB"), "write size limit: \(huge.text)")
     let large = try js("return console.log('y'.repeat(50000))")
     check(large.text.utf8.count < 33_000 && large.text.contains("truncated"), "output limit")
     let emptyCode = try js("")
-    let longCode = try js(String(repeating: "x", count: 32_769))
-    check(emptyCode.isError && longCode.isError, "code size")
+    let longCode = try js(String(repeating: "x", count: AgentJavaScript.maximumCode + 1))
+    check(
+      emptyCode.isError && longCode.isError && longCode.text.contains("\(AgentJavaScript.maximumCode + 1) bytes")
+        && longCode.text.contains("Nothing was run"), "code size: \(longCode.text.prefix(200))")
+    // A whole program in one call: a 45,000-token write() of a Python game failed at the old
+    // 32 KiB limit with no reason given. Oracle: the file on disk, read here.
+    let program = (0..<2500).map { "vitesse_\($0) = clamp(voiture.speed * 0.98 + \($0), -5, 41)  # é — ok\n" }.joined()
+    let whole = try js("write('circuit_race.py', `\(program)`); return 'written'")
+    check(
+      program.utf8.count > 150_000 && !whole.isError && whole.text == "Result:\nwritten"
+        && (try? String(contentsOf: root.appendingPathComponent("circuit_race.py"), encoding: .utf8)) == program,
+      "whole program in one call (\(program.utf8.count) bytes): \(whole.text.prefix(200))")
+    try? FileManager.default.removeItem(at: root.appendingPathComponent("circuit_race.py"))
     check(try js("a\0b").isError, "NUL refused")
   }
 

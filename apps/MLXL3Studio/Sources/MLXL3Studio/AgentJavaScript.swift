@@ -17,13 +17,17 @@ enum AgentHarness: String, Codable, CaseIterable, Sendable {
 /// model-controlled executable text still crosses the kernel-enforced boundary.
 enum AgentJavaScript {
   static let toolName = "javascript"
-  static let maximumCode = 32_768
+  /// Code of one call and text of one file: 1 MiB, far more than a model writes in one step
+  /// (over 250,000 tokens), so a whole program fits in one `write`.
+  static let maximumCode = 1 << 20
   /// Default wall time of one call, below the 12 s MCP call deadline of older engines.
   static let seconds = 10.0
   /// Longest wall an engine with per-server MCP deadlines may grant (commands: 30 s + 3).
   static let longestWall = 33.0
   static let maximumCalls = 200
-  static let maximumFileBytes = 256 * 1024
+  static let maximumFileBytes = 1 << 20
+  /// Paths `list()` returns before it says the list is partial.
+  static let maximumListBytes = 256 * 1024
   static let maximumFootprint: UInt64 = 512 * 1024 * 1024
   static let maximumText = 32_768
   /// `JSON.stringify(state)` length kept between calls (characters; the protocol escapes
@@ -34,6 +38,13 @@ enum AgentJavaScript {
   struct Outcome: Codable, Equatable {
     let text: String
     let isError: Bool
+  }
+
+  /// What the model reads for code over the limit: the sizes and what to do, nothing run.
+  static func tooLarge(_ bytes: Int) -> Outcome {
+    Outcome(
+      text: "Error: this code is \(bytes) bytes; one call takes at most \(maximumCode) bytes (1 MiB). Nothing was run. Write a long file in several calls (write the first part, then append the rest with write(path, read(path) + part)).",
+      isError: true)
   }
 
   /// Per-call settings from the MCP server.
@@ -71,14 +82,14 @@ enum AgentJavaScript {
       "glob": "glob(pattern: string): string[]  // e.g. \"src/**/*.ts\"; without / it matches file names anywhere",
       "view":
         "view(path: string, offset?: number, limit?: number): string  // numbered `N| ` lines, 200 by default",
-      "read": "read(path: string): string  // raw text, at most 256 KiB",
+      "read": "read(path: string): string  // raw text, at most 1 MiB",
       "search":
         "search(regex: string, path?: string): {path: string, line: number, text: string}[]  // grep -E; at most 200 matches, 50 per file",
       "edit":
         "edit(path: string, find: string, replace: string, all?: boolean): {line: number, count: number, snippet: string}  // `find` once (all: each); tolerates indentation, `N| ` prefixes, curly quotes",
       "edits": "edits(path: string, changes: [find: string, replace: string][]): {count: number, lines: number[]}  // several edits of one file, all or nothing",
       "write":
-        "write(path: string, text: string): void  // creates folders, at most 256 KiB",
+        "write(path: string, text: string): void  // creates folders, at most 1 MiB",
       "run":
         "run(command: string): {status: number | null, stopped: boolean, omitted: number, output: string, job?: number}  // /bin/sh in the project, \(permissions.internet ? "with Internet (curl, git clone, pip, npm)" : "no network"); still running after \(min(permissions.commandSeconds, Int(wall))) s: status null, continues as job `job`; output over 32 KiB keeps its first 8 and last 24 KiB, all of it in the file the result names",
       "spawn": "spawn(command: string): number  // background job (server, build), ≤\(Jobs.running) at once, ≤\(Int(AgentSandbox.longestJob) / 60) min; its end is announced in a later result",
@@ -209,7 +220,8 @@ enum AgentJavaScript {
       let result = job.watcher.result
       let end = job.watcher.endedAt ?? ProcessInfo.processInfo.systemUptime
       var value: [String: Any] = [
-        "id": id, "command": job.command, "running": result == nil,
+        "id": id, "command": job.command.count > 300 ? String(job.command.prefix(297)) + "..." : job.command,
+        "running": result == nil,
         "status": result.map { Int($0.status) as Any } ?? NSNull(),
         "seconds": Int((end - job.started).rounded()),
       ]
@@ -379,7 +391,8 @@ enum AgentJavaScript {
     /// they are part of the outcome the model reads.
     func run(code: String, permissions: AgentPermissions, settings: Settings = Settings()) throws -> Outcome {
       guard !code.isEmpty, code.utf8.count <= maximumCode, !code.contains("\0") else {
-        return Outcome(text: "Error: code must be 1 to \(maximumCode) bytes of text.", isError: true)
+        return code.utf8.count > maximumCode
+          ? tooLarge(code.utf8.count) : Outcome(text: "Error: the code is empty or contains NUL.", isError: true)
       }
       guard settings.wall.isFinite, (1...longestWall).contains(settings.wall) else {
         throw CocoaError(.fileReadCorruptFile)
@@ -626,11 +639,11 @@ enum AgentJavaScript {
     return result == 0 ? info.ri_phys_footprint : 0
   }
 
-  /// Newline-delimited messages, each at most 2 MiB (a 256 KiB write of non-ASCII text
+  /// Newline-delimited messages, each at most 8 MiB (a 1 MiB write of non-ASCII text
   /// grows about sixfold once escaped).
   struct LineBuffer {
     private var data = Data()
-    static let maximum = 2 << 20
+    static let maximum = 8 << 20
 
     mutating func append(_ bytes: some Sequence<UInt8>) -> Bool {
       data.append(contentsOf: bytes)
@@ -679,10 +692,10 @@ enum AgentJavaScript {
       guard
         let result = sandboxed(
           "find . -type f -not -path './.git/*' -not -path './\(AgentSandbox.Spill.folder)/*' -print0",
-          limit: maximumFileBytes)
+          limit: maximumListBytes)
       else { return failure("the file list is unavailable") }
       let raw = result.raw ?? Data(result.output.utf8)
-      let full = result.interrupted && raw.count >= maximumFileBytes
+      let full = result.interrupted && raw.count >= maximumListBytes
       guard full || (!result.interrupted && result.status == 0) else {
         return failure("the file list did not finish in time; use search or run")
       }
@@ -705,7 +718,7 @@ enum AgentJavaScript {
         let result = sandboxed("cat -- \(quote(path))", limit: maximumFileBytes + 1)
       else { return failure("the sandbox is unavailable") }
       if result.interrupted && result.output.utf8.count > maximumFileBytes {
-        return failure("\(path) is larger than 256 KiB; use search or run")
+        return failure("\(path) is larger than 1 MiB; use search or run")
       }
       guard result.status == 0, !result.interrupted else {
         return failure(
@@ -738,18 +751,18 @@ enum AgentJavaScript {
         return failure("use a relative path inside the project and text content")
       }
       guard content.utf8.count <= maximumFileBytes, !content.contains("\0") else {
-        return failure("content must be at most 256 KiB of text")
+        return failure("content must be at most 1 MiB of text")
       }
       let parent = (path as NSString).deletingLastPathComponent
       let temporary =
         (parent.isEmpty ? "" : parent + "/") + ".mlxl3-write-" + UUID().uuidString.prefix(8)
-      // printf arguments stay below the 16 KiB command limit, quotes included.
+      // printf arguments stay below the 256 KiB command limit, quotes included.
       var chunks: [String] = []
       var current = ""
       var quoted = 0
       for character in content {
         let cost = character == "'" ? 4 : character.utf8.count
-        if quoted + cost > 12_000 {
+        if quoted + cost > 240_000 {
           chunks.append(current)
           current = ""
           quoted = 0
@@ -792,7 +805,7 @@ enum AgentJavaScript {
     case "run":
       guard let command = text(0), !command.isEmpty, command.utf8.count <= AgentSandbox.maximumCommand,
         !command.contains("\0")
-      else { return failure("the command must be 1 to 16384 bytes") }
+      else { return failure("the command must be 1 to \(AgentSandbox.maximumCommand) bytes") }
       // A background job waited for `commandSeconds`: one still running keeps running (opencode
       // v2's shell), and the model gets its id and output so far instead of a killed command.
       let id: Int
@@ -821,7 +834,7 @@ enum AgentJavaScript {
     case "spawn":
       guard let command = text(0), !command.isEmpty, command.utf8.count <= AgentSandbox.maximumCommand,
         !command.contains("\0")
-      else { return failure("the command must be 1 to 16384 bytes") }
+      else { return failure("the command must be 1 to \(AgentSandbox.maximumCommand) bytes") }
       do {
         return ["ok": true, "value": try jobs.start(root: root, command: command, writable: permissions.write, network: permissions.internet)]
       } catch { return failure("\(error)") }
@@ -1036,7 +1049,7 @@ enum AgentJavaScript {
       let chunk = FileHandle.standardInput.availableData
       if chunk.isEmpty { break }
       buffer.append(chunk)
-      if buffer.count > 4 << 20 { break }
+      if buffer.count > 16 << 20 { break }
       while let end = buffer.firstIndex(of: 10) {
         let line = Data(buffer[..<end])
         buffer.removeSubrange(...end)
@@ -1096,7 +1109,7 @@ enum AgentJavaScript {
     do {
       let result =
         code.count > maximumCode
-        ? Outcome(text: "Error: code must be 1 to \(maximumCode) bytes of text.", isError: true)
+        ? tooLarge(code.count)
         : try execute(
           root: URL(fileURLWithPath: arguments[2]), code: String(decoding: code, as: UTF8.self),
           permissions: permissions,
