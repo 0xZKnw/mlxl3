@@ -55,12 +55,28 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
   - One check still expected the sandbox from before 2.0.23, where a command could not read the Agent task's metadata. The 2.0.24 notes list it as failing.
   - It now checks that commands can read that metadata but cannot change or remove it.
 - **CI:** the reviewed inventory of MLX call sites now includes the Agent loop and the 2.0.24 interface text. These new sites are iterator calls, `cfg` gates and text that mentions "mlx", not MLX calls. This inventory made `main`'s regression checks fail since 2.0.23.
-
-<!-- DMG_CHECKS -->
+- **This DMG:**
+  - `hdiutil verify` valid, `codesign --deep --strict` passed;
+  - version 2.0.25 / build 78, arm64, built with the macOS 26.5 SDK;
+  - `build-info` has commit `7866a2f7e` with no tracked changes;
+  - the bundled engine reports 2.0.31 (`engine-v2.0.31`, commit `e117e02e8f7b`), and its five runtime files are identical to the published engine archive;
+  - the 77 MCP protocol checks passed against this DMG's app executable, which is the server the app ships.
+- **The failing call, reproduced:** one call writes a Python file of 114,780 bytes.
+  - The 2.0.24 app answers "JavaScript sandbox refused or unavailable." and writes nothing.
+  - This DMG's app writes the file.
+  - The 2.0.24 app also fails the new protocol checks: a request over 192 KiB ends its MCP server.
+- **Not verified:**
+  - the game task run again on a real model;
+  - the time and memory of a call near 1 MiB with a real model (not measured);
+  - the full Desktop suite (`scripts/check-desktop.sh`), which was not run (`scripts/check-studios.sh` was);
+  - the app driven by hand.
 
 ## Source and download
 
-<!-- DOWNLOADS -->
+- Source: [`7866a2f7e`](https://github.com/0xZKnw/mlxl3/commit/7866a2f7e2a903a5241c44d87d67cabb5710cf8d) (tag `v2.0.25`).
+- `MLXL3-Desktop-v2.0.25-b78-Apple-Silicon.dmg`: 255,299,611 bytes, SHA-256 `59b12693a222f5a70ffb67f84c6391a121185fe7f32fa2b7faaf54db9e9d73ff`.
+- `MLXL3-Desktop-v2.0.25-b78-Apple-Silicon.dmg.sha256`: 110 bytes.
+- Bundled engine: MLXL3 engine 2.0.31, the same files as [`engine-v2.0.31`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.31).
 
 ## Acknowledgements
 
