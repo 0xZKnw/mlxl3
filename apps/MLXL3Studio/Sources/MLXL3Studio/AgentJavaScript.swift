@@ -80,7 +80,7 @@ enum AgentJavaScript {
       "write":
         "write(path: string, text: string): void  // creates folders, at most 256 KiB",
       "run":
-        "run(command: string): {status: number | null, stopped: boolean, omitted: number, output: string, job?: number}  // /bin/sh in the project, \(permissions.internet ? "with Internet (curl, git clone, pip, npm)" : "no network"); still running after \(min(permissions.commandSeconds, Int(wall))) s: status null, continues as job `job`; output over 32 KiB keeps its first 8 and last 24 KiB",
+        "run(command: string): {status: number | null, stopped: boolean, omitted: number, output: string, job?: number}  // /bin/sh in the project, \(permissions.internet ? "with Internet (curl, git clone, pip, npm)" : "no network"); still running after \(min(permissions.commandSeconds, Int(wall))) s: status null, continues as job `job`; output over 32 KiB keeps its first 8 and last 24 KiB, all of it in the file the result names",
       "spawn": "spawn(command: string): number  // background job (server, build), ≤\(Jobs.running) at once, ≤\(Int(AgentSandbox.longestJob) / 60) min; its end is announced in a later result",
       "jobs": "jobs(): {id, command, running, status, seconds}[];  tail(id, lines = 40): string;  wait(id, seconds?): {id, running, status, seconds, output};  kill(id)",
     ]
@@ -180,13 +180,19 @@ enum AgentJavaScript {
       for id in finished.dropLast(Self.kept - 1) { table[id] = nil }
       let id = next
       next += 1
-      let watcher = AgentSandbox.Watcher()
+      // P4: a cut output is kept whole in `.mlxl3-scratch/outputs/` (writable copies only).
+      let spill =
+        writable
+        ? AgentSandbox.Spill(root: root, name: "job-\(id)-\(UUID().uuidString.prefix(8).lowercased()).log")
+        : nil
+      let watcher = AgentSandbox.Watcher(spill: spill)
       table[id] = Job(id: id, command: command, started: ProcessInfo.processInfo.systemUptime, watcher: watcher)
       Thread {
         let result =
           (try? AgentSandbox.execute(
             root: root, command: command, seconds: AgentSandbox.longestJob, writable: writable,
-            limit: AgentSandbox.maximumOutput, mode: .headAndTail, network: network, watcher: watcher))
+            limit: AgentSandbox.maximumOutput, mode: .headAndTail, network: network, watcher: watcher,
+            spill: spill))
           ?? AgentSandbox.Result(
             output: "the sandbox refused the command", status: 126, interrupted: false, raw: nil, omitted: nil)
         watcher.finish(result)
@@ -672,7 +678,8 @@ enum AgentJavaScript {
       // NUL-separated bytes: any file name survives ("\r\n" is one Swift `Character`).
       guard
         let result = sandboxed(
-          "find . -type f -not -path './.git/*' -print0", limit: maximumFileBytes)
+          "find . -type f -not -path './.git/*' -not -path './\(AgentSandbox.Spill.folder)/*' -print0",
+          limit: maximumFileBytes)
       else { return failure("the file list is unavailable") }
       let raw = result.raw ?? Data(result.output.utf8)
       let full = result.interrupted && raw.count >= maximumFileBytes

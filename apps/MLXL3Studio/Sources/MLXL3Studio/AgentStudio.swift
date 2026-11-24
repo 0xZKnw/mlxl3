@@ -561,8 +561,8 @@ struct AgentStudioView: View {
       ).font(.system(size: 11))
       Text(
         L(
-          "Les commandes lisent le Mac sauf les secrets (clés, trousseaux, navigateurs, fichiers .env) et n’écrivent que dans la copie. Désactiver l’écriture bloque aussi leurs écritures.",
-          "Commands read the Mac except secrets (keys, keychains, browsers, .env files) and write only to the copy. Disabling writes also blocks their writes.")
+          "Les commandes lisent tout le Mac, y compris les clés et fichiers d’apps, et n’écrivent que dans la copie et /tmp. Désactiver l’écriture bloque aussi leurs écritures dans la copie.",
+          "Commands read the whole Mac, keys and app files included, and write only to the copy and /tmp. Disabling writes also blocks their writes to the copy.")
       ).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
       Divider()
       permission(L("Internet", "Internet"), key: \.internet)
