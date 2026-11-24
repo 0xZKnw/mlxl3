@@ -999,6 +999,22 @@ mod tests {
     }
 
     #[test]
+    fn chat_can_still_call_a_tool_after_a_budgeted_thinking_block() -> Result<()> {
+        let mut thinking = answer("");
+        thinking.cut = Some("<|end_message|>");
+        let mut host = ScriptHost::new(vec![thinking, call("lookup"), answer("42")]);
+        let mut settings = turn(100_000, 8);
+        settings.reasoning_budget = Some(256);
+        let end = run_turn(&mut host, dialogue(), &tools(), &settings)?;
+        assert_eq!(end.assistant, "42");
+        assert_eq!(host.calls.len(), 1);
+        let header = host.encode("<|end_message|><|message_model|>")?;
+        assert!(host.requests[1].continuation.ends_with(&header));
+        assert!(host.events.iter().all(|event| event["phase"] != "thinking"));
+        Ok(())
+    }
+
+    #[test]
     fn chat_reasoning_cut_continues_with_answer_and_no_injected_thinking_text() -> Result<()> {
         let mut thinking = answer("");
         thinking.raw = "x".into();

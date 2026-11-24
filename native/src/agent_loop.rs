@@ -86,7 +86,7 @@ pub fn reasoning_continuation(close: &str, summary: bool, tools: bool, compact: 
     } else if summary {
         SUMMARY_CLOSE_NOTE
     } else if tools {
-        "\n\nConsidering the limited time, I have to act now based on my thinking so far: take the next concrete step, then adjust from its result.\n"
+        "\n\nI will answer the request now, using a tool only if needed.\n"
     } else {
         "\n\nConsidering the limited time, I have to give my final answer in the requested format now.\n"
     };
@@ -610,8 +610,10 @@ mod tests {
     #[test]
     fn forced_close_ends_with_each_family_marker() {
         let qwen = reasoning_continuation("</think>", false, true, false);
-        assert!(qwen.starts_with("\n\nConsidering the limited time, I have to act now"));
-        assert!(qwen.ends_with("adjust from its result.\n</think>\n\n"));
+        assert_eq!(
+            qwen,
+            "\n\nI will answer the request now, using a tool only if needed.\n</think>\n\n"
+        );
         let chat = reasoning_continuation("</think>", false, false, false);
         assert!(chat.contains("final answer in the requested format"));
         assert!(chat.ends_with("</think>\n\n"));
