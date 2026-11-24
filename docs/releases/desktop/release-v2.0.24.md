@@ -68,7 +68,11 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
   - scroll following while a reply streams: **0 jumps** over 10 and 34 messages.
 - **Screenshots** of the preview fixtures: Graphite dark and light, Aurora ASCII, an Agent task running, finished and thinking live, and an expanded tool call.
 - **App build:** release build with the macOS 26.5 SDK.
-- **This DMG:** DMG_CHECKS
+- **This DMG:**
+  - `hdiutil verify` valid, `codesign --deep --strict` passed;
+  - version 2.0.24 / build 77, arm64, built with the macOS 26.5 SDK;
+  - `build-info` has commit `597d9fe1a` with no tracked changes;
+  - the bundled engine reports 2.0.31 (`engine-v2.0.31`, commit `e117e02e8f7b`), and its five runtime files are identical to the published engine archive.
 - **Not verified:**
   - hover and the folding animation, which were not driven by automated clicks;
   - the CPU and GPU cost of the light sweep during a real generation (not measured; it redraws only the running line, at 30 frames per second);
@@ -77,7 +81,10 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Source and download
 
-DOWNLOADS
+- Source: [`597d9fe1a`](https://github.com/0xZKnw/mlxl3/commit/597d9fe1aded14468378c0eb7d3789dc753dd22c) (tag `v2.0.24`).
+- `MLXL3-Desktop-v2.0.24-b77-Apple-Silicon.dmg`: 252,712,348 bytes, SHA-256 `8f1c8a259a2dd9b2ee65d8cc0e875fb243d757bd35dc63cddac3e8d4465b551a`.
+- `MLXL3-Desktop-v2.0.24-b77-Apple-Silicon.dmg.sha256`: 110 bytes.
+- Bundled engine: MLXL3 engine 2.0.31, the same files as [`engine-v2.0.31`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.31).
 
 ## Acknowledgements
 
