@@ -36,6 +36,35 @@ extension StudioModel {
         ])
         studio.conversations = [Conversation(), sample, Conversation(title: "Notes de lecture"), Conversation(title: "Idées pour un projet personnel")]
         studio.selectedConversationID = studio.conversations.first?.id
+        // Sidebar QA: a long history spread over every date group, with a pin and empty drafts.
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-history") {
+            let now = Date()
+            func past(_ title: String, days: Double, hours: Double = 0, pinned: Bool = false, empty: Bool = false) -> Conversation {
+                let date = now.addingTimeInterval(-(days * 86_400 + hours * 3_600))
+                var conversation = Conversation(
+                    title: title, messages: empty ? [] : [ChatMessage(role: .user, content: title)],
+                    createdAt: date, isPinned: pinned)
+                conversation.updatedAt = empty ? nil : date
+                return conversation
+            }
+            studio.conversations = [
+                past("Plan de lancement du site", days: 9, pinned: true),
+                past("Fais-moi un fichier Python qui trie mes photos par date", days: 0, hours: 0.2),
+                past("Nouvelle conversation", days: 0, hours: 1, empty: true),
+                past("Réécrire l’introduction du mémoire", days: 0, hours: 3),
+                past("Salut, tu sais faire quoi ?", days: 1, hours: 2),
+                past("Crée-moi un txt avec une blague", days: 1, hours: 5),
+                past("Comparer deux offres de forfait mobile", days: 3),
+                past("Fais un petit site web où tu présentes tes outils", days: 4),
+                past("Tu as quoi comme tools ?", days: 6),
+                past("Recette rapide avec ce qu’il reste au frigo", days: 12),
+                past("Résumé du chapitre 4", days: 19),
+                past("Script de sauvegarde pour le NAS", days: 41),
+                past("Idées de cadeaux pour l’anniversaire de Léa", days: 75),
+                past("Notes de lecture : Le Mythe de Sisyphe", days: 400),
+            ]
+            studio.selectedConversationID = studio.conversations[1].id
+        }
         if ProcessInfo.processInfo.arguments.contains("--ui-preview-tools") {
             let response = ChatMessage(role: .assistant, content: "", isStreaming: true)
             response.processing("Préparation du contexte")

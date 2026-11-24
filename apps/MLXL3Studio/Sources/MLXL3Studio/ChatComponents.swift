@@ -1174,6 +1174,42 @@ private struct ReasoningMenu: View {
     }
 }
 
+/// Agent: the task's folder and its Internet switch as icons beside Tools, in the
+/// composer itself rather than in a second bar under it.
+private struct ComposerAgentControls: View {
+    @EnvironmentObject private var studio: StudioModel
+
+    var body: some View {
+        let internet = studio.agentPermissions.internet
+        HStack(spacing: 2) {
+            Button(action: studio.openAgentWorkspace) {
+                Image(systemName: "folder")
+                    .foregroundStyle(StudioTheme.secondary)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(WorkspaceControlStyle())
+            .help(L("Ouvrir le dossier de la tâche dans le Finder", "Open the task’s folder in Finder"))
+            .accessibilityLabel(L("Dossier de la tâche", "Task folder"))
+
+            Button { studio.setAgentInternet(!internet) } label: {
+                Image(systemName: internet ? "globe" : "network.slash")
+                    .foregroundStyle(internet ? StudioTheme.ink : StudioTheme.quiet)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(WorkspaceControlStyle(selected: internet))
+            .disabled(studio.isGenerating || studio.agentStudioBusy)
+            .help(internet
+                ? L("Internet activé pour cette tâche : commandes (pip, npm, git clone), fetch et recherche web. Cliquer pour le couper.",
+                    "Internet is on for this task: commands (pip, npm, git clone), fetch and web search. Click to turn it off.")
+                : L("Internet coupé pour cette tâche. Cliquer pour l’activer.", "Internet is off for this task. Click to turn it on."))
+            .accessibilityLabel("Internet")
+            .accessibilityValue(internet ? L("activé", "on") : L("coupé", "off"))
+            .accessibilityIdentifier("agent.composer.internet")
+        }
+        .font(.system(size: 13))
+    }
+}
+
 private struct ComposerFooterView: View {
     @EnvironmentObject private var studio: StudioModel
 
@@ -1214,6 +1250,9 @@ private struct ComposerFooterView: View {
                 if studio.reasoningControlAvailable, let support = studio.reasoningSupport,
                    let level = studio.reasoningLevel {
                     ReasoningMenu(support: support, level: level)
+                }
+                if studio.selectedMode == .agent {
+                    ComposerAgentControls()
                 }
                 if studio.mcpUpdating {
                     ProgressView().controlSize(.mini).help(L("Connexion MCP…", "Connecting MCP…"))
