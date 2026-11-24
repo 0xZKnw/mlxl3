@@ -12,12 +12,17 @@ nonisolated func requestSpeechAuthorization(
 
 private struct DictationDraft {
     var confirmed: String
+    /// French typography puts a space before `!?;:`; English and most other languages do not.
+    var spacesBeforeHighPunctuation = false
 
     mutating func receive(_ phrase: String, isFinal: Bool) -> String {
         guard !phrase.isEmpty else { return confirmed }
         let needsSpace =
             confirmed.last.map { !$0.isWhitespace } == true
-            && phrase.first.map { !$0.isWhitespace && !",.…)".contains($0) } == true
+            && phrase.first.map { first in
+                !first.isWhitespace && !",.…)]}".contains(first)
+                    && (spacesBeforeHighPunctuation || !"!?;:".contains(first))
+            } == true
         let draft = confirmed + (needsSpace ? " " : "") + phrase
         if isFinal { confirmed = draft }
         return draft
@@ -25,14 +30,20 @@ private struct DictationDraft {
 }
 
 // The audio tap can race stop(). Serialize converter access and close the stream once.
-private final class SpeechAudioSink: @unchecked Sendable {
+// `wrap` turns each converted buffer into the stream's element (`AnalyzerInput` for the analyzer).
+private final class SpeechAudioSink<Output>: @unchecked Sendable {
     private let lock = NSLock()
     private let converter: AVAudioConverter
+    private let wrap: (AVAudioPCMBuffer) -> Output
     private var pendingInput: AVAudioPCMBuffer?
-    private var output: AsyncThrowingStream<AnalyzerInput, Error>.Continuation?
+    private var output: AsyncThrowingStream<Output, Error>.Continuation?
 
-    init(converter: AVAudioConverter, output: AsyncThrowingStream<AnalyzerInput, Error>.Continuation) {
+    init(
+        converter: AVAudioConverter, output: AsyncThrowingStream<Output, Error>.Continuation,
+        wrap: @escaping (AVAudioPCMBuffer) -> Output
+    ) {
         self.converter = converter
+        self.wrap = wrap
         self.output = output
         converter.primeMethod = .none
     }
@@ -67,7 +78,7 @@ private final class SpeechAudioSink: @unchecked Sendable {
             output.finish(throwing: error ?? CocoaError(.formatting))
             self.output = nil
         } else if converted.frameLength > 0 {
-            output.yield(AnalyzerInput(buffer: converted))
+            output.yield(wrap(converted))
         }
     }
 
@@ -86,7 +97,7 @@ final class VoiceController: ObservableObject {
     @Published var error: String?
     private let engine = AVAudioEngine()
     private let synthesizer = AVSpeechSynthesizer()
-    private var sink: SpeechAudioSink?
+    private var sink: SpeechAudioSink<AnalyzerInput>?
     private var analyzer: SpeechAnalyzer?
     private var recognition: Task<Void, Never>?
     private var timeout: Task<Void, Never>?
@@ -145,12 +156,13 @@ final class VoiceController: ObservableObject {
         }
         synthesizer.stopSpeaking(at: .immediate)
         let (audio, output) = AsyncThrowingStream<AnalyzerInput, Error>.makeStream()
-        let sink = SpeechAudioSink(converter: converter, output: output)
+        let sink = SpeechAudioSink(converter: converter, output: output) { AnalyzerInput(buffer: $0) }
         let analyzer = SpeechAnalyzer(modules: [transcriber])
         self.sink = sink
         self.analyzer = analyzer
+        let frenchSpacing = supported.language.languageCode?.identifier == "fr"
         recognition = Task { [weak self] in
-            var transcript = DictationDraft(confirmed: draft)
+            var transcript = DictationDraft(confirmed: draft, spacesBeforeHighPunctuation: frenchSpacing)
             do {
                 for try await result in transcriber.results {
                     guard self?.session == token else { return }
