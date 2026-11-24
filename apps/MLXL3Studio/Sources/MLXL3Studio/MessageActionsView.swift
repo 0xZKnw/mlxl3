@@ -4,20 +4,33 @@ struct MessageActionsView: View {
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var message: ChatMessage
     var body: some View {
-        HStack(spacing: 12) {
+        HStack(spacing: 2) {
             if message.role == .user {
-                Button { studio.editMessage(message.id) } label: { Label(L("Modifier dans une nouvelle branche", "Edit in a new branch"), systemImage: "pencil") }
+                action(L("Modifier dans une nouvelle branche", "Edit in a new branch"), "pencil") { studio.editMessage(message.id) }
                     .disabled(studio.isGenerating || message.isStreaming)
             } else {
-                Button { studio.regenerate(message.id) } label: { Label(L("Régénérer dans une nouvelle branche", "Regenerate in a new branch"), systemImage: "arrow.clockwise") }
+                action(L("Régénérer dans une nouvelle branche", "Regenerate in a new branch"), "arrow.clockwise") { studio.regenerate(message.id) }
                     .disabled(!studio.engineState.isReady || message.isStreaming)
-                Button { studio.voice.speak(message.content, locale: studio.voiceLocale) } label: { Label(L("Lire la réponse", "Read answer aloud"), systemImage: "speaker.wave.2") }
+                action(L("Lire la réponse", "Read answer aloud"), "speaker.wave.2") { studio.voice.speak(message.content, locale: studio.voiceLocale) }
                     .disabled(message.isStreaming || message.content.isEmpty)
-                Button { studio.voice.stopSpeaking() } label: { Label(L("Arrêter la lecture", "Stop reading"), systemImage: "speaker.slash") }
+                action(L("Arrêter la lecture", "Stop reading"), "speaker.slash") { studio.voice.stopSpeaking() }
             }
-            Button { studio.branchConversation(at: message.id) } label: { Label(L("Créer une branche ici", "Branch from here"), systemImage: "arrow.triangle.branch") }
+            action(L("Créer une branche ici", "Branch from here"), "arrow.triangle.branch") { studio.branchConversation(at: message.id) }
                 .disabled(studio.isGenerating || message.isStreaming)
-        }.labelStyle(.iconOnly).buttonStyle(.plain).font(.caption).foregroundStyle(StudioTheme.secondary)
+        }
+    }
+
+    /// One quiet icon button; the name is its tooltip and its accessibility label.
+    private func action(_ title: String, _ symbol: String, perform: @escaping () -> Void) -> some View {
+        Button(action: perform) {
+            Image(systemName: symbol)
+                .font(.system(size: 11.5, weight: .medium))
+                .foregroundStyle(StudioTheme.quiet)
+                .frame(width: 26, height: 26)
+        }
+        .buttonStyle(StudioControlStyle())
+        .help(title)
+        .accessibilityLabel(title)
     }
 }
 

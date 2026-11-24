@@ -778,7 +778,21 @@ pub struct DsparkSession {
     sampled: Option<(f32, u64)>,
     /// DSPARK-INK2M-P4: adaptive width (`None` = always `width`).
     policy: Option<WidthPolicy>,
+    /// SPEED-INK2M-P14: GPU token choice of width-0 blocks (`None` = the caller's `choose`).
+    device: Option<DeviceDraw>,
+    /// SPEED-INK2M-P14: the width-0 block anchored on the token `advance` returned last, already submitted:
+    /// the token after that anchor, on the GPU.
+    ahead: Option<Array>,
+    /// SPEED-INK2M-P14: the width drawn from the policy for the next block before its anchor was read.
+    decided: Option<usize>,
     pub stats: SpecStats,
+}
+
+/// SPEED-INK2M-P14: how width-0 blocks choose their token on the GPU.
+struct DeviceDraw {
+    rule: crate::inkling2::DrawRule,
+    seeds: crate::inkling2::DrawSeeds,
+    pipelined: bool,
 }
 
 /// Target-side choice of one block: `(proposals, draft log-probabilities, verified logits [1, 1 + n, vocab])`
@@ -805,6 +819,9 @@ impl DsparkSession {
             last_feature: None,
             sampled: None,
             policy: None,
+            device: None,
+            ahead: None,
+            decided: None,
             stats: SpecStats {
                 accepted_at: vec![0; width],
                 ..SpecStats::default()
@@ -828,6 +845,23 @@ impl DsparkSession {
         self.sampled.is_some()
     }
 
+    /// SPEED-INK2M-P14: width-0 blocks choose their token on the GPU under `rule` (the same law as the
+    /// caller's `choose` for that sampler); with `pipelined`, a width-0 block whose anchor is such a token
+    /// is submitted before the anchor is read.
+    pub fn with_device_draw(
+        mut self,
+        rule: crate::inkling2::DrawRule,
+        seeds: crate::inkling2::DrawSeeds,
+        pipelined: bool,
+    ) -> Self {
+        self.device = Some(DeviceDraw {
+            rule,
+            seeds,
+            pipelined,
+        });
+        self
+    }
+
     /// Choose each block's width (0 to the session width) from the acceptance observed so far.
     pub fn with_adaptive_width(mut self, policy: WidthPolicy) -> Result<Self> {
         ensure!(
@@ -849,12 +883,28 @@ impl DsparkSession {
         tokens: &[u32],
         cancelled: &dyn Fn() -> bool,
     ) -> Result<Array> {
+        self.prefill_with_images(target, draft, tokens, &[], cancelled)
+    }
+
+    /// `prefill` of a prompt whose image placeholders read the features of `images`
+    /// (`Inkling2::prepare_images`).
+    pub fn prefill_with_images(
+        &mut self,
+        target: &mut Inkling2,
+        draft: &mut Inkling2Draft,
+        tokens: &[u32],
+        images: &[crate::lfm3::PreparedImage],
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<Array> {
         ensure!(!tokens.is_empty(), "DSpark prefill needs tokens");
         let t = Instant::now();
         target.reset();
+        target.prepare_images(tokens, images)?;
         draft.reset();
         self.pending.clear();
         self.expected = None;
+        self.ahead = None;
+        self.decided = None;
         let mut logits = None;
         for chunk in tokens.chunks(Self::PREFILL_CHUNK) {
             ensure!(!cancelled(), "generation cancelled");
@@ -901,14 +951,23 @@ impl DsparkSession {
             self.expected = Some(token);
             return Ok(token);
         }
+        // SPEED-INK2M-P14: the block anchored on `next` already ran (submitted before `next` was read)
+        if let Some(after) = self.ahead.take() {
+            return self.deliver(target, draft, after, context_limit, remaining);
+        }
         // `next` is the anchor: the target has not seen it yet
         let offset = usize::try_from(target.offset())?;
         ensure!(offset < context_limit, "Inkling context is full");
-        let width = match self.policy.as_mut() {
-            Some(policy) => policy.next_width(),
-            None => self.width,
+        let width = match self.decided.take() {
+            Some(width) => width,
+            None => self.next_width(),
         };
         let count = width.min(remaining - 1).min(context_limit - offset - 1);
+        if count == 0 && self.device.is_some() {
+            let anchor = Array::from_u32(&[next], &[1])?;
+            let after = self.device_block(target, draft, &anchor)?;
+            return self.deliver(target, draft, after, context_limit, remaining);
+        }
         let last_feature = self
             .last_feature
             .take()
@@ -993,6 +1052,77 @@ impl DsparkSession {
         let first = self.pending.pop_front().context("empty DSpark block")?;
         self.expected = Some(first);
         Ok(first)
+    }
+
+    fn next_width(&mut self) -> usize {
+        match self.policy.as_mut() {
+            Some(policy) => policy.next_width(),
+            None => self.width,
+        }
+    }
+
+    /// SPEED-INK2M-P14: a width-0 block anchored on `anchor` (`[1]` on the GPU), committed, its token drawn
+    /// on the GPU (lazy; submitted without waiting when pipelined).
+    fn device_block(
+        &mut self,
+        target: &mut Inkling2,
+        draft: &mut Inkling2Draft,
+        anchor: &Array,
+    ) -> Result<Array> {
+        let device = self
+            .device
+            .as_mut()
+            .context("DSpark session without GPU draw")?;
+        let started = Instant::now();
+        let (logits, features) =
+            target.forward_device(anchor, Some(&self.taps), device.pipelined)?;
+        let features = features.context("features")?;
+        let token = crate::inkling2::draw_token(&logits, device.rule, device.seeds.next_seed())?;
+        if device.pipelined {
+            token.async_eval()?;
+        }
+        self.stats.verify_ms += started.elapsed().as_secs_f64() * 1e3;
+        let t = Instant::now();
+        draft.append_context(&features)?;
+        self.last_feature = Some(features);
+        self.stats.commit_ms += t.elapsed().as_secs_f64() * 1e3;
+        self.stats.blocks += 1;
+        if let Some(policy) = self.policy.as_mut() {
+            policy.observe(0, 0);
+            if let Some(slot) = self.stats.width_blocks.get_mut(0) {
+                *slot += 1;
+            }
+            if let Some(slot) = self.stats.width_ms.get_mut(0) {
+                *slot += started.elapsed().as_secs_f64() * 1e3;
+            }
+        }
+        Ok(token)
+    }
+
+    /// SPEED-INK2M-P14: delivers `after`, the token after the anchor of the block that just ran (`remaining`
+    /// counts it). When pipelined and a token will follow it, the next block's width is drawn first: a
+    /// width-0 block is submitted before `after` is read, otherwise the width is kept for `advance`.
+    fn deliver(
+        &mut self,
+        target: &mut Inkling2,
+        draft: &mut Inkling2Draft,
+        after: Array,
+        context_limit: usize,
+        remaining: usize,
+    ) -> Result<u32> {
+        let pipelined = self.device.as_ref().is_some_and(|d| d.pipelined);
+        let offset = usize::try_from(target.offset())?;
+        if pipelined && remaining >= 2 && offset < context_limit {
+            let width = self.next_width();
+            if width.min(remaining - 2).min(context_limit - offset - 1) == 0 {
+                self.ahead = Some(self.device_block(target, draft, &after)?);
+            } else {
+                self.decided = Some(width);
+            }
+        }
+        let token = crate::inkling2::single_token(&after)?;
+        self.expected = Some(token);
+        Ok(token)
     }
 }
 
@@ -1832,6 +1962,129 @@ mod tests {
         assert!(WidthPolicy::measured(&[1.0, 0.9], 1).is_err());
         assert!(WidthPolicy::measured(&[1.0, f64::NAN], 1).is_err());
         assert_eq!(WidthPolicy::measured(&costs, 2).unwrap().max_width(), 2);
+    }
+
+    /// SPEED-INK2M-P14: a session whose width-0 blocks draw on the GPU (synchronous or one step ahead)
+    /// delivers the host session's greedy tokens, blocks and widths; at T = 1 the pipelined and synchronous
+    /// device sessions agree for one seed stream and one acceptance state, and (where width 0 dominates)
+    /// another seed changes the tokens. Two policies: adaptive from the prior, and costs that keep width 0
+    /// between probes.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ORACLE"]
+    fn device_draw_session_matches_host_session() -> Result<()> {
+        use crate::inkling2::{DrawRule, DrawSeeds};
+        use crate::sampling::{Draw, History, Sampler};
+        const TOKENS: usize = 128;
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let prompt = prompt()?;
+        let mut target = Inkling2::load(&dir)?;
+        let mut draft = Inkling2Draft::load(&dir, &target)?;
+        let limit = usize::try_from(target.context_limit())?;
+        type Run = (Vec<u32>, usize, usize, Vec<usize>);
+        let mut run = |sampler: Sampler,
+                       adaptive: bool,
+                       device: Option<(bool, u64)>|
+         -> Result<Run> {
+            let policy = if adaptive {
+                WidthPolicy::new(DsparkSession::DEFAULT_WIDTH)
+            } else {
+                WidthPolicy::measured(&[1.0, 5.0, 9.0, 13.0], DsparkSession::DEFAULT_WIDTH)?
+            };
+            let mut session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?
+                .with_adaptive_width(policy)?;
+            if let Some((pipelined, seed)) = device {
+                let rule = DrawRule::for_sampler(&sampler).context("no GPU rule")?;
+                session = session.with_device_draw(rule, DrawSeeds::new(seed), pipelined);
+            }
+            let logits = session.prefill(&mut target, &mut draft, &prompt, &|| false)?;
+            let history = History::default();
+            let mut random = 0x1234_5678_9abc_def1u64;
+            let mut next = if sampler.is_greedy() {
+                logits.chat_greedy_ids()?[0]
+            } else {
+                Draw {
+                    sampler,
+                    history: &history,
+                    random: &mut random,
+                }
+                .sample_last_row(&logits)?
+            };
+            let mut out = vec![next];
+            while out.len() < TOKENS {
+                let mut choose = |proposals: &[u32],
+                                  _: Option<&[Vec<f32>]>,
+                                  verified: &Array|
+                 -> Result<(usize, u32)> {
+                    let acceptance = if sampler.is_greedy() {
+                        crate::speculative::greedy_accept(proposals, &verified.chat_greedy_ids()?)
+                            .context("invalid greedy acceptance")?
+                    } else {
+                        Draw {
+                            sampler,
+                            history: &history,
+                            random: &mut random,
+                        }
+                        .speculative_accept_logits(proposals, verified)?
+                    };
+                    Ok((acceptance.accepted_draft_tokens, acceptance.target_token))
+                };
+                next = session.advance(
+                    &mut target,
+                    &mut draft,
+                    next,
+                    limit,
+                    TOKENS - out.len(),
+                    &mut choose,
+                )?;
+                out.push(next);
+            }
+            let s = &session.stats;
+            Ok((out, s.blocks, s.accepted, s.width_blocks.clone()))
+        };
+        let greedy = Sampler::greedy();
+        let sampled = Sampler::new(1.0, 0, 1.0, 1.0, 0.0)?;
+        for adaptive in [true, false] {
+            let host = run(greedy, adaptive, None)?;
+            let sync = run(greedy, adaptive, Some((false, 9)))?;
+            let ahead = run(greedy, adaptive, Some((true, 9)))?;
+            println!(
+                "greedy adaptive={adaptive}: blocks {} accepted {} widths {:?}",
+                host.1, host.2, host.3
+            );
+            ensure!(
+                sync == host,
+                "greedy device session (synchronous) differs from the host session"
+            );
+            ensure!(
+                ahead == host,
+                "greedy device session (one step ahead) differs from the host session"
+            );
+            ensure!(
+                host.3[0] > 0 && host.3[1..].iter().sum::<usize>() > 0,
+                "both block kinds must run"
+            );
+            let sync = run(sampled, adaptive, Some((false, 9)))?;
+            let ahead = run(sampled, adaptive, Some((true, 9)))?;
+            println!(
+                "T=1 adaptive={adaptive}: blocks {} accepted {} widths {:?}",
+                sync.1, sync.2, sync.3
+            );
+            ensure!(
+                ahead == sync,
+                "T = 1 device sessions differ between synchronous and one step ahead"
+            );
+            ensure!(sync.3[0] > 0, "no width-0 block at T = 1");
+            // where width 0 dominates (between probes), the GPU draw picks most tokens: another seed must
+            // change them (from the prior, a few width-0 blocks may all draw the same confident token)
+            if !adaptive {
+                ensure!(sync.3[0] * 2 > sync.1, "width 0 does not dominate");
+                ensure!(
+                    run(sampled, adaptive, Some((true, 10)))?.0 != sync.0,
+                    "the seed does not change the tokens"
+                );
+            }
+        }
+        Ok(())
     }
 
     /// DSPARK-INK2M-P3: the GPU Gumbel draw follows softmax(logits / T): 40 000 independent rows per

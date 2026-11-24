@@ -371,6 +371,41 @@ impl NgramIndex {
         }
     }
 
+    /// SPEED-2026-11-23-INK2M-MAYA LK: `lookup` restricted to a matched suffix of at least `min` IDs (the
+    /// anchor included); the same proposals as `lookup` whenever its longest match is that long.
+    pub fn lookup_min(&mut self, width: usize, min: usize) -> Option<&[u32]> {
+        let length = self.sequence.len();
+        if width == 0 || length < NGRAM_MIN + 1 || min > NGRAM_MAX {
+            return None;
+        }
+        self.index_until(length - 1);
+        let mut found = None;
+        for n in (NGRAM_MIN.max(min)..=NGRAM_MAX).rev() {
+            if n >= length {
+                continue;
+            }
+            let gram = &self.sequence[length - n..];
+            match self.ends[n - NGRAM_MIN].get(&ngram_hash(gram)) {
+                Some(&end) if &self.sequence[end - n..end] == gram => {
+                    found = Some(end);
+                    break;
+                }
+                Some(_) => {
+                    if let Some(end) = (n..length)
+                        .rev()
+                        .find(|&end| &self.sequence[end - n..end] == gram)
+                    {
+                        found = Some(end);
+                        break;
+                    }
+                }
+                None => {}
+            }
+        }
+        let end = found?;
+        Some(&self.sequence[end..(end + width).min(length)])
+    }
+
     /// Up to `width` proposed IDs after the current sequence (which ends with
     /// the anchor).
     pub fn lookup(&mut self, width: usize) -> Option<&[u32]> {
@@ -1409,6 +1444,54 @@ mod tests {
 
     /// L4+L3: the incremental index equals the scan reference at every
     /// position and width, on random and repetitive sequences.
+    #[test]
+    fn lookup_min_matches_a_bounded_scan() {
+        // SPEED-2026-11-23-INK2M-MAYA LK: the longest suffix of at least `min` IDs, its latest earlier end
+        let reference = |sequence: &[u32], width: usize, min: usize| -> Option<Vec<u32>> {
+            let length = sequence.len();
+            for n in (super::NGRAM_MIN.max(min)..=super::NGRAM_MAX).rev() {
+                if n >= length {
+                    continue;
+                }
+                let gram = &sequence[length - n..];
+                if let Some(end) = (n..length)
+                    .rev()
+                    .find(|&end| &sequence[end - n..end] == gram)
+                {
+                    return Some(sequence[end..(end + width).min(length)].to_vec());
+                }
+            }
+            None
+        };
+        let mut state = 0x2545_f491_u32;
+        for case in 0..400 {
+            let alphabet = 2 + case % 6;
+            let mut index = super::NgramIndex::new(&[]);
+            let mut sequence = Vec::new();
+            for _ in 0..(40 + case % 50) {
+                state ^= state << 13;
+                state ^= state >> 17;
+                state ^= state << 5;
+                let id = state % alphabet as u32;
+                index.push(id);
+                sequence.push(id);
+                for (width, min) in [(1, 2), (4, 3), (7, 3), (3, 5), (2, 8), (5, 9)] {
+                    let got = index.lookup_min(width, min).map(<[u32]>::to_vec);
+                    let want = if width == 0 || sequence.len() < 3 || min > super::NGRAM_MAX {
+                        None
+                    } else {
+                        reference(&sequence, width, min)
+                    };
+                    assert_eq!(got, want, "case {case} width {width} min {min}");
+                }
+                assert_eq!(
+                    index.lookup_min(6, 2).map(<[u32]>::to_vec),
+                    index.lookup(6).map(<[u32]>::to_vec)
+                );
+            }
+        }
+    }
+
     #[test]
     fn ngram_index_matches_the_scan_reference() {
         let mut hits = 0;

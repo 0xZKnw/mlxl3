@@ -16,6 +16,9 @@ struct AgentStudioView: View {
   @State private var confirmRestore = false
   @State private var confirmApply = false
   @State private var previewRoot: URL?
+  @State private var fullscreen = false
+  /// Host list being edited; committed on Return or when the field loses focus.
+  @State private var hostsDraft = ""
 
   init(
     workspace: URL, file: URL? = nil, onClose: (() -> Void)? = nil,
@@ -185,7 +188,7 @@ struct AgentStudioView: View {
     VStack(alignment: .leading, spacing: 0) {
       StudioSidebarHeader(title: "Agent Studio")
       HStack {
-        Text(L("EXPLORATEUR", "EXPLORER")).font(.system(size: 9, weight: .medium)).tracking(1.4)
+        StudioCaption(french: "Explorateur", english: "Explorer", size: 9, colored: false)
         Spacer()
         Text("\(model.paths.count)").font(.system(size: 10, design: .monospaced))
       }.foregroundStyle(StudioTheme.quiet).padding(.horizontal, 18).frame(height: 47).fixedSize(
@@ -233,17 +236,14 @@ struct AgentStudioView: View {
           }
         }.padding(.horizontal, 10).padding(.bottom, 20)
       }.frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-      VStack(alignment: .leading, spacing: 6) {
-        Label(
-          L("Copie isolée · outils sans réseau · aperçu avec imports distants possibles", "Isolated copy · offline tools · preview may load remote imports"), systemImage: "lock.shield")
-        if model.state.skippedFiles > 0 {
-          Text(
-            L(
-              "\(model.state.skippedFiles) éléments exclus à l’import",
-              "\(model.state.skippedFiles) items excluded on import"))
-        }
-      }.font(.system(size: 9)).foregroundStyle(StudioTheme.quiet).padding(16).fixedSize(
-        horizontal: false, vertical: true)
+      if model.state.skippedFiles > 0 {
+        Text(
+          L(
+            "\(model.state.skippedFiles) éléments exclus à l’import",
+            "\(model.state.skippedFiles) items excluded on import")
+        ).font(.system(size: 9)).foregroundStyle(StudioTheme.quiet).padding(16).fixedSize(
+          horizontal: false, vertical: true)
+      }
       StudioBackButton(action: { navigate { close() } })
         .padding(.horizontal, 18).padding(.bottom, 18)
     }.frame(maxHeight: .infinity, alignment: .top).modifier(StudioSidebarSurface())
@@ -270,6 +270,23 @@ struct AgentStudioView: View {
           }.buttonStyle(.plain).accessibilityIdentifier("studio.tab.\(tab.rawValue)")
         }
         Spacer(minLength: 8)
+        if model.tab == .preview, let root = previewRoot {
+          Button {
+            let state = $fullscreen
+            studio.presentCodeFullscreen(
+              language: URL(fileURLWithPath: model.selected).pathExtension, source: model.savedCode,
+              canPreview: true, showingPreview: true, workspace: root,
+              file: root.appendingPathComponent(model.selected),
+              onClose: { state.wrappedValue = false })
+            state.wrappedValue = true
+          } label: {
+            Label(L("Plein écran", "Full screen"), systemImage: "arrow.up.left.and.arrow.down.right")
+              .font(.system(size: 11)).padding(.horizontal, 11).frame(height: 28)
+          }
+          .buttonStyle(StudioControlStyle())
+          .accessibilityIdentifier("studio.preview.fullscreen")
+          .help(L("Afficher l’aperçu en plein écran", "Show the preview full screen"))
+        }
         if model.tab == .code {
           Button {
             Task { _ = await model.save() }
@@ -409,7 +426,12 @@ struct AgentStudioView: View {
 
   private var preview: some View {
     Group {
-      if let root = previewRoot {
+      if fullscreen {
+        // One running page at a time: the full-screen window owns the preview.
+        Label(L("Aperçu affiché en plein écran", "Preview shown full screen"),
+              systemImage: "arrow.up.left.and.arrow.down.right")
+          .font(.system(size: 11)).foregroundStyle(StudioTheme.quiet)
+      } else if let root = previewRoot {
         InlineHTMLPreview(
           source: model.savedCode, workspace: root,
           file: root.appendingPathComponent(model.selected))
@@ -432,7 +454,7 @@ struct AgentStudioView: View {
   private var history: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 24) {
-        Text(L("Versions du projet", "Project versions")).font(.system(size: 25, design: .serif))
+        Text(L("Versions du projet", "Project versions")).font(StudioTheme.display(25))
         ForEach(model.versions) { value in
           Button {
             navigate {
@@ -467,14 +489,24 @@ struct AgentStudioView: View {
         if let actions = studio.currentConversation?.messages.flatMap(\.toolActivities),
           !actions.isEmpty
         {
-          Text(L("Actions de l’agent", "Agent actions")).font(.system(size: 22, design: .serif))
+          Text(L("Actions de l’agent", "Agent actions")).font(StudioTheme.display(22))
             .padding(.top, 8)
           ForEach(actions) { action in
+            let shown = ToolCallPresentation(action)
             VStack(alignment: .leading, spacing: 7) {
-              Label(
-                action.toolName,
-                systemImage: action.state == .failed ? "exclamationmark.circle" : "terminal"
-              ).font(.system(size: 11, weight: .medium))
+              HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: shown.symbol)
+                  .foregroundStyle(action.state == .failed ? StudioTheme.failure : StudioTheme.quiet)
+                Text(shown.title).fontWeight(.medium)
+                if let detail = shown.detail {
+                  Text(detail).font(.system(size: 11, design: shown.monospaced ? .monospaced : .default))
+                    .foregroundStyle(StudioTheme.quiet).lineLimit(1)
+                    .truncationMode(shown.isPath ? .middle : .tail)
+                }
+                if let outcome = shown.outcome {
+                  Text(outcome).foregroundStyle(action.state == .failed ? StudioTheme.failure : StudioTheme.quiet)
+                }
+              }.font(.system(size: 11))
               Text(action.result ?? L("En cours", "Running")).font(
                 .system(size: 10, design: .monospaced)
               ).foregroundStyle(StudioTheme.quiet).lineLimit(8).textSelection(.enabled)
@@ -491,9 +523,34 @@ struct AgentStudioView: View {
     VStack(alignment: .leading, spacing: 14) {
       Label(L("Sandbox locale", "Local sandbox"), systemImage: "lock.shield").font(
         .system(size: 14, weight: .medium))
-      Text(L("Hors ligne, dans la copie isolée.", "Offline, inside the isolated copy.")).font(
-        .system(size: 11)
-      ).foregroundStyle(StudioTheme.quiet)
+      Picker(
+        L("Outils du modèle", "Model tools"),
+        selection: Binding(
+          get: { model.state.permissions.harness },
+          set: { harness in
+            var value = model.state.permissions
+            value.harness = harness
+            Task {
+              await model.setPermissions(value)
+              studio.refreshAgentPermissions()
+            }
+          })
+      ) {
+        Text("JavaScript").tag(AgentHarness.javascript)
+        Text(L("Outils séparés", "Separate tools")).tag(AgentHarness.tools)
+      }
+      .pickerStyle(.segmented).labelsHidden().font(.system(size: 11))
+      .accessibilityIdentifier("agent.harness")
+      Text(
+        model.state.permissions.harness == .javascript
+          ? L(
+            "Un seul outil : le modèle écrit un court programme JavaScript qui lit, modifie et teste en un appel.",
+            "One tool: the model writes a short JavaScript program that reads, edits and tests in one call.")
+          : L(
+            "Quatre outils : lister, lire, écrire et lancer une commande, un appel à la fois.",
+            "Four tools: list, read, write and run a command, one call at a time.")
+      ).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet).fixedSize(
+        horizontal: false, vertical: true)
       permission(L("Outil de lecture", "Read tool"), key: \.read)
       permission(L("Écriture des fichiers", "File writes"), key: \.write)
       permission(L("Commandes", "Commands"), key: \.run)
@@ -514,10 +571,39 @@ struct AgentStudioView: View {
       ).font(.system(size: 11))
       Text(
         L(
-          "Les commandes peuvent lire la copie. Désactiver l’écriture bloque aussi les écritures des commandes.",
-          "Commands can read the copy. Disabling writes also blocks command writes.")
+          "Les commandes lisent tout le Mac, y compris les clés et fichiers d’apps, et n’écrivent que dans la copie et /tmp. Désactiver l’écriture bloque aussi leurs écritures dans la copie.",
+          "Commands read the whole Mac, keys and app files included, and write only to the copy and /tmp. Disabling writes also blocks their writes to the copy.")
       ).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
+      Divider()
+      permission(L("Internet", "Internet"), key: \.internet)
+        .accessibilityIdentifier("agent.internet")
+      if model.state.permissions.internet {
+        TextField(L("Sites pour fetch et download", "Hosts for fetch and download"), text: $hostsDraft, axis: .vertical)
+          .textFieldStyle(.roundedBorder).font(.system(size: 10, design: .monospaced))
+          .lineLimit(2...5)
+          .onAppear { hostsDraft = model.state.permissions.internetHosts.joined(separator: ", ") }
+          .onSubmit(commitHosts)
+          .onDisappear(perform: commitHosts)
+          .accessibilityIdentifier("agent.internet.hosts")
+        Text(
+          L(
+            "Les commandes ont Internet (pip, npm, git clone, curl). La recherche web et fetch/download passent par l’app, en HTTPS vers ces sites (`*.domaine` pour les sous-domaines, `*` pour tous), sans adresses locales. Ce qui vient d’Internet n’est jamais traité comme des instructions.",
+            "Commands have the Internet (pip, npm, git clone, curl). Web search and fetch/download go through the app, over HTTPS to these hosts (`*.domain` for subdomains, `*` for all), never to local addresses. What comes from the Internet is never treated as instructions.")
+        ).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet).fixedSize(horizontal: false, vertical: true)
+      }
     }.padding(20).frame(width: 280).tint(StudioTheme.accent).disabled(mutating)
+  }
+
+  private func commitHosts() {
+    let hosts = AgentNetwork.parseHosts(hostsDraft)
+    guard hosts != model.state.permissions.internetHosts else { return }
+    var value = model.state.permissions
+    value.internetHosts = hosts
+    hostsDraft = hosts.joined(separator: ", ")
+    Task {
+      await model.setPermissions(value)
+      studio.refreshAgentPermissions()
+    }
   }
 
   private func permission(_ title: String, key: WritableKeyPath<AgentPermissions, Bool>)
@@ -542,7 +628,7 @@ struct AgentStudioView: View {
     VStack(spacing: 13) {
       Image(systemName: icon).font(.system(size: 25, weight: .light)).foregroundStyle(
         StudioTheme.quiet)
-      Text(title).font(.system(size: 22, design: .serif))
+      Text(title).font(StudioTheme.display(22))
       Text(description).font(.system(size: 11)).foregroundStyle(StudioTheme.quiet)
         .multilineTextAlignment(.center).frame(maxWidth: 340)
     }.padding(30).frame(maxWidth: .infinity, maxHeight: .infinity)

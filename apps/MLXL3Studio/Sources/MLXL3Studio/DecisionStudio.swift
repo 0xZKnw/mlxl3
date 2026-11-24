@@ -947,7 +947,7 @@ struct DecisionWorkspaceView: View {
       VStack(alignment: .leading, spacing: 18) {
         HStack(alignment: .center, spacing: 16) {
           VStack(alignment: .leading, spacing: 4) {
-            Text(L("Décision", "Decision")).font(.system(size: 30, design: .serif))
+            Text(L("Décision", "Decision")).font(StudioTheme.display(30))
             Text(
               L(
                 "Réponses typées et calibrées en une passe, sans texte généré.",
@@ -1004,7 +1004,7 @@ private struct DecisionEmptyView: View {
           Button { studio.openRecommendedModel(model) } label: {
             VStack(alignment: .leading, spacing: 6) {
               Image(systemName: model.symbol).font(.system(size: 20, weight: .light)).foregroundStyle(StudioTheme.accent)
-              Text(model.title).font(.system(size: 20, design: .serif))
+              Text(model.title).font(StudioTheme.display(20))
               Text(model.parameters).font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
               Label(L("Télécharger", "Download"), systemImage: "arrow.down.circle").font(.system(size: 12, weight: .medium))
                 .padding(.top, 4)
@@ -1203,7 +1203,7 @@ private struct DecisionPlaygroundView: View {
   ) -> some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack {
-        Text(title.uppercased()).font(.system(size: 12, weight: .medium)).tracking(1.2).foregroundStyle(StudioTheme.quiet)
+        StudioCaption(french: title, english: title, tracking: 1.2)
         Spacer()
         accessory()
       }

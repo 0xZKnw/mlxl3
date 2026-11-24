@@ -2096,10 +2096,12 @@ fn model_payload(name: &str, entry: &registry::ModelEntry) -> Result<Value> {
 #[cfg(all(feature = "mlx", feature = "chat"))]
 enum NativeChatModel {
     Gemma4(mlxl3_native::gemma4::Gemma4),
-    /// Inkling 2 Mini and its DSpark drafter (`mtp.safetensors`), when present and not disabled.
+    /// Inkling 2 Mini, its DSpark drafter when loaded, and the checkpoint directory of a drafter that can
+    /// be loaded on demand (`mtp.safetensors` present and DSpark not disabled).
     Inkling(
         Box<mlxl3_native::inkling2::Inkling2>,
         Option<Box<mlxl3_native::inkling2_draft::Inkling2Draft>>,
+        Option<std::path::PathBuf>,
     ),
     Lfm2(mlxl3_native::lfm2::Lfm2),
     Lfm3(Box<mlxl3_native::lfm3::Lfm3>),
@@ -2130,10 +2132,38 @@ fn draft_noise_seed(random: u64) -> u64 {
     z ^ (z >> 31)
 }
 
-/// The loaded model is Inkling 2 with its DSpark drafter (`ready.dspark_supported`).
+/// SPEED-INK2M-P14: GPU token choice for Inkling decoding and whether it runs one step ahead, from the
+/// sampler and `MLXL3_INKLING_GPU_DRAW` / `MLXL3_INKLING_PIPELINE` ("0" turns either off; without the
+/// GPU draw nothing runs ahead). `None` keeps the CPU sampler.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_device_draw(
+    sampler: &mlxl3_native::sampling::Sampler,
+    draw: Option<&str>,
+    pipeline: Option<&str>,
+) -> Option<(mlxl3_native::inkling2::DrawRule, bool)> {
+    if draw == Some("0") {
+        return None;
+    }
+    mlxl3_native::inkling2::DrawRule::for_sampler(sampler).map(|rule| (rule, pipeline != Some("0")))
+}
+
+/// Seed of the GPU draws, derived from the request's random state apart from the draft noise and the
+/// CPU acceptance draws.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_draw_seeds(random: u64) -> mlxl3_native::inkling2::DrawSeeds {
+    mlxl3_native::inkling2::DrawSeeds::new(draft_noise_seed(
+        random.rotate_left(29) ^ 0x5851_f42d_4c95_7f2d,
+    ))
+}
+
+/// The loaded model is Inkling 2 with a DSpark drafter, loaded or loadable on demand
+/// (`ready.dspark_supported`).
 #[cfg(all(feature = "mlx", feature = "chat"))]
 fn inkling_has_drafter(model: &NativeChatModel) -> bool {
-    matches!(model, NativeChatModel::Inkling(_, Some(_)))
+    matches!(
+        model,
+        NativeChatModel::Inkling(_, Some(_), _) | NativeChatModel::Inkling(_, _, Some(_))
+    )
 }
 
 /// SPEED-INK2M-P6a: Inkling 2 is warmed up at load unless `MLXL3_INKLING_WARMUP=0`.
@@ -2189,29 +2219,19 @@ impl NativeChatModel {
                 checkpoint,
             )?)),
             "inkling2_loop" => {
-                let target = mlxl3_native::inkling2::Inkling2::from_checkpoint(checkpoint)?;
-                let draft = if checkpoint.path.join("mtp.safetensors").is_file()
-                    && inkling_dspark_enabled()
-                {
-                    Some(Box::new(
-                        mlxl3_native::inkling2_draft::Inkling2Draft::load(
-                            &checkpoint.path,
-                            &target,
-                        )
-                        .context("loading the Inkling DSpark drafter")?,
-                    ))
-                } else {
-                    None
-                };
-                let mut target = target;
-                let mut draft = draft;
+                let mut target = mlxl3_native::inkling2::Inkling2::from_checkpoint(checkpoint)?;
+                // DECISION-2026-11-22-INK2M-DSPARK-OFF: DSpark is off by default, so its drafter is
+                // loaded by the first request that asks for it (`prepare_inkling_drafter`)
+                let drafter_source = (checkpoint.path.join("mtp.safetensors").is_file()
+                    && inkling_dspark_enabled())
+                .then(|| checkpoint.path.clone());
                 // SPEED-INK2M-P6a: pay the Metal kernel compilation while loading, not on the first
                 // request (`MLXL3_INKLING_WARMUP=0` skips it)
                 if inkling_warmup_enabled() {
-                    mlxl3_native::inkling2_draft::warm_up(&mut target, draft.as_deref_mut())
+                    mlxl3_native::inkling2_draft::warm_up(&mut target, None)
                         .context("warming up Inkling 2")?;
                 }
-                Ok(Self::Inkling(Box::new(target), draft))
+                Ok(Self::Inkling(Box::new(target), None, drafter_source))
             }
             "lfm3" | "lfm3_vl" => Ok(Self::Lfm3(Box::new(
                 mlxl3_native::lfm3::Lfm3::from_checkpoint(checkpoint)?,
@@ -2229,7 +2249,7 @@ impl NativeChatModel {
     fn forward(&mut self, token: u32) -> Result<mlxl3_native::array::Array> {
         match self {
             Self::Gemma4(model) => model.forward(token),
-            Self::Inkling(model, _) => model.forward(token),
+            Self::Inkling(model, ..) => model.forward(token),
             Self::Lfm2(model) => model.forward(&[token]),
             Self::Lfm3(model) => model.forward(&[token]),
             Self::Ling(model) => model.forward(token),
@@ -2266,7 +2286,7 @@ impl NativeChatModel {
                 }
                 Self::Lfm2(model) if model.supports_batched_prefill() => model.forward(tokens),
                 Self::Lfm3(model) => model.forward(tokens),
-                Self::Inkling(model, _) => model.forward_tokens(tokens),
+                Self::Inkling(model, ..) => model.forward_tokens(tokens),
                 Self::Ling(_) => self.forward_many_serial(tokens),
                 Self::Qwen(model) => model.forward_tokens(tokens),
                 Self::Flash(model) => model.forward_tokens(tokens),
@@ -2281,7 +2301,7 @@ impl NativeChatModel {
             Self::Qwen(model) => return model.prefill_serial(tokens),
             Self::Flash(model) => return model.forward_tokens(tokens),
             Self::Ling(model) => return model.prefill_serial(tokens),
-            Self::Inkling(model, _) => return model.forward_tokens(tokens),
+            Self::Inkling(model, ..) => return model.forward_tokens(tokens),
             _ => {}
         }
         let mut output = None;
@@ -2368,7 +2388,7 @@ impl NativeChatModel {
     fn context_limit(&self) -> i32 {
         match self {
             Self::Gemma4(model) => model.context_limit(),
-            Self::Inkling(model, _) => model.context_limit(),
+            Self::Inkling(model, ..) => model.context_limit(),
             Self::Lfm2(model) => model.context_limit(),
             Self::Lfm3(model) => model.context_limit(),
             Self::Ling(model) => model.context_limit(),
@@ -2380,7 +2400,7 @@ impl NativeChatModel {
     fn reset(&mut self) {
         match self {
             Self::Gemma4(model) => model.reset(),
-            Self::Inkling(model, draft) => {
+            Self::Inkling(model, draft, _) => {
                 model.reset();
                 if let Some(draft) = draft {
                     draft.reset();
@@ -2392,6 +2412,31 @@ impl NativeChatModel {
             Self::Qwen(model) => model.reset(),
             Self::Flash(model) => model.reset(),
         }
+    }
+
+    /// Loads the Inkling DSpark drafter when a request wants DSpark and only its source is known, and frees
+    /// it when a request does not (DECISION-2026-11-22-INK2M-DSPARK-OFF). Returns whether it loaded one.
+    fn prepare_inkling_drafter(&mut self, wanted: bool) -> Result<bool> {
+        let Self::Inkling(target, draft, source) = self else {
+            return Ok(false);
+        };
+        if !wanted {
+            *draft = None;
+            return Ok(false);
+        }
+        let Some(path) = source.as_ref().filter(|_| draft.is_none()) else {
+            return Ok(false);
+        };
+        let mut loaded = Box::new(
+            mlxl3_native::inkling2_draft::Inkling2Draft::load(path, target)
+                .context("loading the Inkling DSpark drafter")?,
+        );
+        if inkling_warmup_enabled() {
+            mlxl3_native::inkling2_draft::warm_up(target, Some(loaded.as_mut()))
+                .context("warming up the Inkling DSpark drafter")?;
+        }
+        *draft = Some(loaded);
+        Ok(true)
     }
 
     fn eval_state(&self) -> Result<()> {
@@ -2406,14 +2451,24 @@ impl NativeChatModel {
                     state.eval()?;
                 }
             }
-            Self::Inkling(model, _) => model.eval_state()?,
+            Self::Inkling(model, ..) => model.eval_state()?,
             Self::Gemma4(_) | Self::Ling(_) | Self::Qwen(_) | Self::Flash(_) => {}
         }
         Ok(())
     }
 
     fn supports_images(&self) -> bool {
-        matches!(self, Self::Lfm3(model) if model.supports_images())
+        self.image_format().is_some()
+    }
+
+    /// Image input layout of the loaded model (`None`: text only).
+    fn image_format(&self) -> Option<mlxl3_native::vision_input::ImageFormat> {
+        use mlxl3_native::vision_input::ImageFormat;
+        match self {
+            Self::Lfm3(model) if model.supports_images() => Some(ImageFormat::Lfm3),
+            Self::Inkling(model, ..) if model.supports_images() => Some(ImageFormat::Inkling2),
+            _ => None,
+        }
     }
 
     fn prepare_images(
@@ -2421,6 +2476,10 @@ impl NativeChatModel {
         tokens: &[u32],
         images: &[mlxl3_native::lfm3::PreparedImage],
     ) -> Result<()> {
+        // Inkling also clears the features of a previous prompt when this one has no image
+        if let Self::Inkling(model, ..) = self {
+            return model.prepare_images(tokens, images);
+        }
         if images.is_empty() {
             return Ok(());
         }
@@ -2493,10 +2552,29 @@ struct BridgeRequest {
     mtp_head_path: String,
     #[serde(default = "default_mtp_depth")]
     mtp_depth: usize,
-    /// Inkling 2 DSpark drafter; on unless a request turns it off (older apps omit the field).
-    #[serde(default = "reuse_cache_by_default")]
+    /// Inkling 2 DSpark drafter; off unless a request turns it on (DECISION-2026-11-22-INK2M-DSPARK-OFF:
+    /// at temperature 1 plain decoding is as fast).
+    #[serde(default)]
     #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
     dspark: bool,
+    /// SPEED-2026-11-23-INK2M-MAYA LK: Inkling 2 prompt lookup without a drafter; omitted = on unless
+    /// `MLXL3_INKLING_LOOKUP=0` (DECISION-2026-11-23-INK2M-LOOKUP-ON).
+    #[serde(default)]
+    #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
+    lookup: Option<bool>,
+    /// Requested `reasoning_effort` (one of `tokenizer::REASONING_EFFORTS`); omitted = the
+    /// chat template's default.
+    #[serde(default)]
+    #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
+    reasoning_effort: Option<String>,
+    /// Tool rounds before the final answer (`tool_call::tool_rounds`); omitted = 5, the
+    /// chat default. The Agent mode asks for more.
+    #[serde(default)]
+    tool_rounds: Option<usize>,
+    /// Reasoning tokens per step before the engine ends the thinking block and lets the
+    /// model act (`agent_loop::reasoning_budget`); omitted = no budget.
+    #[serde(default)]
+    reasoning_budget: Option<usize>,
 }
 
 #[cfg(all(
@@ -2665,11 +2743,40 @@ fn reuse_cache_by_default() -> bool {
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
 thread_local! {
-    /// DSpark choice of the request being served (the bridge serves one request at a time).
-    static DSPARK_REQUESTED: std::cell::Cell<bool> = const { std::cell::Cell::new(true) };
+    /// DSpark choice of the request being served (the bridge serves one request at a time); off by
+    /// default, also for the CLI and the server.
+    static DSPARK_REQUESTED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// SPEED-2026-11-23-INK2M-MAYA LK: prompt lookup choice of the request being served (`None` = default).
+    static LOOKUP_REQUESTED: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
 }
 
-/// Sets the DSpark choice for the duration of one request; dropping it restores the default (on).
+/// Sets the prompt lookup choice for the duration of one request; dropping it restores the default.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+struct LookupRequest;
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl LookupRequest {
+    fn set(enabled: Option<bool>) -> Self {
+        LOOKUP_REQUESTED.with(|cell| cell.set(enabled));
+        Self
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl Drop for LookupRequest {
+    fn drop(&mut self) {
+        LOOKUP_REQUESTED.with(|cell| cell.set(None));
+    }
+}
+
+/// SPEED-2026-11-23-INK2M-MAYA LK: the request's choice, else on unless `MLXL3_INKLING_LOOKUP` (`flag`) is
+/// `0` (DECISION-2026-11-23-INK2M-LOOKUP-ON).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_lookup_requested(requested: Option<bool>, flag: Option<&str>) -> bool {
+    requested.unwrap_or(flag != Some("0"))
+}
+
+/// Sets the DSpark choice for the duration of one request; dropping it restores the default (off).
 #[cfg(all(feature = "mlx", feature = "chat"))]
 struct DsparkRequest;
 
@@ -2684,8 +2791,255 @@ impl DsparkRequest {
 #[cfg(all(feature = "mlx", feature = "chat"))]
 impl Drop for DsparkRequest {
     fn drop(&mut self) {
-        DSPARK_REQUESTED.with(|cell| cell.set(true));
+        DSPARK_REQUESTED.with(|cell| cell.set(false));
     }
+}
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+thread_local! {
+    /// Reasoning level of the request being served (the bridge serves one request at a time).
+    static REASONING_REQUESTED: std::cell::RefCell<Option<String>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+thread_local! {
+    /// AGENT-2026-11-23-BOUCLE B7: request whose prefill reports its progress, and when it last did.
+    static PREFILL_PROGRESS: std::cell::RefCell<Option<(String, Instant)>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// Lets a long prefill tell the app it is alive (the app stops an Agent turn after five
+/// silent minutes); dropping it ends the reports.
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+struct PrefillProgress;
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+impl PrefillProgress {
+    fn set(request_id: &str) -> Self {
+        PREFILL_PROGRESS
+            .with(|cell| *cell.borrow_mut() = Some((request_id.to_owned(), Instant::now())));
+        Self
+    }
+}
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+impl Drop for PrefillProgress {
+    fn drop(&mut self) {
+        PREFILL_PROGRESS.with(|cell| *cell.borrow_mut() = None);
+    }
+}
+
+/// At most one status every five seconds while a prompt is read.
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+#[cfg_attr(not(feature = "mlx"), allow(dead_code))]
+fn report_prefill_progress(done: usize, total: usize) -> Result<()> {
+    let due = PREFILL_PROGRESS.with(|cell| {
+        let mut slot = cell.borrow_mut();
+        match slot.as_mut() {
+            Some((request, last)) if last.elapsed() >= std::time::Duration::from_secs(5) => {
+                *last = Instant::now();
+                Some(request.clone())
+            }
+            _ => None,
+        }
+    });
+    if let Some(request_id) = due {
+        emit_event(json!({
+            "type":"generation_status", "request_id":request_id, "phase":"prefill",
+            "text":format!("Reading context · {done} / {total} tokens")
+        }))?;
+    }
+    Ok(())
+}
+
+/// Sets the reasoning level for one request; dropping it restores the template default.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+struct ReasoningRequest;
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl ReasoningRequest {
+    fn set(effort: Option<String>) -> Result<Self> {
+        if let Some(level) = &effort {
+            anyhow::ensure!(
+                mlxl3_native::tokenizer::REASONING_EFFORTS.contains(&level.as_str()),
+                "unsupported reasoning effort {level:?}"
+            );
+        }
+        REASONING_REQUESTED.with(|cell| *cell.borrow_mut() = effort);
+        Ok(Self)
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl Drop for ReasoningRequest {
+    fn drop(&mut self) {
+        REASONING_REQUESTED.with(|cell| *cell.borrow_mut() = None);
+    }
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn bridge_reasoning_effort_is_optional_validated_and_scoped() -> Result<()> {
+    let current = || REASONING_REQUESTED.with(|cell| cell.borrow().clone());
+    let legacy: BridgeRequest = serde_json::from_value(json!({"type":"generate"}))?;
+    assert!(
+        legacy.reasoning_effort.is_none(),
+        "older apps keep the template default"
+    );
+    for level in mlxl3_native::tokenizer::REASONING_EFFORTS {
+        let request: BridgeRequest =
+            serde_json::from_value(json!({"type":"generate", "reasoning_effort":level}))?;
+        {
+            let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;
+            assert_eq!(current().as_deref(), Some(level));
+        }
+        assert!(
+            current().is_none(),
+            "the next request starts from the default"
+        );
+    }
+    for invalid in ["", "ultra", "High", "0.9"] {
+        assert!(
+            ReasoningRequest::set(Some(invalid.into())).is_err(),
+            "{invalid:?}"
+        );
+        assert!(current().is_none());
+    }
+    for invalid in [json!(1), json!(true), json!(["low"])] {
+        assert!(
+            serde_json::from_value::<BridgeRequest>(
+                json!({"type":"generate", "reasoning_effort":invalid})
+            )
+            .is_err()
+        );
+    }
+    Ok(())
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn bridge_tool_rounds_are_optional_and_bounded() -> Result<()> {
+    let legacy: BridgeRequest = serde_json::from_value(json!({"type":"generate"}))?;
+    assert_eq!(
+        mlxl3_native::tool_call::tool_rounds(legacy.tool_rounds)?,
+        5,
+        "older apps keep five rounds"
+    );
+    assert_eq!(
+        legacy.reasoning_budget, None,
+        "older apps keep free reasoning"
+    );
+    let agent: BridgeRequest = serde_json::from_value(
+        json!({"type":"generate", "tool_rounds":256, "reasoning_budget":8192, "max_tokens":-1}),
+    )?;
+    assert_eq!(
+        mlxl3_native::tool_call::tool_rounds(agent.tool_rounds)?,
+        256
+    );
+    assert_eq!(
+        mlxl3_native::agent_loop::reasoning_budget(agent.reasoning_budget)?,
+        Some(8192)
+    );
+    assert_eq!(agent.max_tokens, -1);
+    for budget in [0, 255, 131_073] {
+        let request: BridgeRequest =
+            serde_json::from_value(json!({"type":"generate", "reasoning_budget":budget}))?;
+        assert!(mlxl3_native::agent_loop::reasoning_budget(request.reasoning_budget).is_err());
+    }
+    for rounds in [0, 513] {
+        let request: BridgeRequest =
+            serde_json::from_value(json!({"type":"generate", "tool_rounds":rounds}))?;
+        assert!(mlxl3_native::tool_call::tool_rounds(request.tool_rounds).is_err());
+    }
+    for invalid in [json!(-1), json!("24"), json!(2.5)] {
+        assert!(
+            serde_json::from_value::<BridgeRequest>(
+                json!({"type":"generate", "tool_rounds":invalid})
+            )
+            .is_err(),
+            "{invalid}"
+        );
+    }
+    Ok(())
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn bridge_inkling_lookup_follows_the_request_then_the_flag() -> Result<()> {
+    let legacy: BridgeRequest = serde_json::from_value(json!({"type":"generate"}))?;
+    assert_eq!(legacy.lookup, None);
+    for (requested, flag, want) in [
+        (None, None, true),
+        (None, Some("1"), true),
+        (None, Some("0"), false),
+        (None, Some("yes"), true),
+        (Some(true), None, true),
+        (Some(true), Some("0"), true),
+        (Some(false), Some("1"), false),
+        (Some(false), None, false),
+    ] {
+        assert_eq!(inkling_lookup_requested(requested, flag), want);
+    }
+    let request: BridgeRequest = serde_json::from_value(json!({"type":"generate", "lookup":true}))?;
+    assert_eq!(request.lookup, Some(true));
+    {
+        let _lookup = LookupRequest::set(request.lookup);
+        assert_eq!(LOOKUP_REQUESTED.with(std::cell::Cell::get), Some(true));
+    }
+    assert_eq!(LOOKUP_REQUESTED.with(std::cell::Cell::get), None);
+    assert!(
+        serde_json::from_value::<BridgeRequest>(json!({"type":"generate", "lookup":"on"})).is_err()
+    );
+    Ok(())
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn bridge_dspark_is_opt_in_and_scoped_to_one_request() -> Result<()> {
+    // DECISION-2026-11-22-INK2M-DSPARK-OFF: a request without the field decodes plainly
+    let current = || DSPARK_REQUESTED.with(std::cell::Cell::get);
+    let legacy: BridgeRequest = serde_json::from_value(json!({"type":"generate"}))?;
+    assert!(
+        !legacy.dspark,
+        "older apps and other clients get plain decoding"
+    );
+    assert!(!current(), "no request: off");
+    for enabled in [false, true] {
+        let request: BridgeRequest =
+            serde_json::from_value(json!({"type":"generate", "dspark":enabled}))?;
+        assert_eq!(request.dspark, enabled);
+        {
+            let _dspark = DsparkRequest::set(request.dspark);
+            assert_eq!(current(), enabled);
+        }
+        assert!(!current(), "the next request starts from the default (off)");
+    }
+    for invalid in [json!(null), json!(1), json!("true")] {
+        assert!(
+            serde_json::from_value::<BridgeRequest>(json!({"type":"generate", "dspark":invalid}))
+                .is_err()
+        );
+    }
+    Ok(())
 }
 
 #[cfg(all(test, feature = "mlx", feature = "chat"))]
@@ -2718,10 +3072,34 @@ fn bridge_memory_saver_is_opt_in_and_requires_boolean() -> Result<()> {
 struct PromptCache {
     conversation: String,
     tokens: Vec<u32>,
-    state: mlxl3_native::qwen35::QwenSnapshot,
+    state: CacheState,
     logits: mlxl3_native::array::Array,
     draft: Option<mlxl3_native::dflash::DFlashCache>,
     mtp: Option<mlxl3_native::mtp::Cache>,
+}
+
+/// The saved model state of a `PromptCache`.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+enum CacheState {
+    Qwen(mlxl3_native::qwen35::QwenSnapshot),
+    /// SPEED-2026-11-23-INK2M-MAYA PC: Inkling 2 resumes its live state at the saved boundary.
+    Inkling(mlxl3_native::inkling2::InklingPrefix),
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl CacheState {
+    fn retained_bytes(&self) -> Result<usize> {
+        match self {
+            Self::Qwen(state) => state.retained_bytes(),
+            Self::Inkling(prefix) => prefix.retained_bytes(),
+        }
+    }
+}
+
+/// SPEED-2026-11-23-INK2M-MAYA PC: the Inkling 2 prompt cache, on unless `MLXL3_INKLING_PROMPT_CACHE=0`.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_prompt_cache() -> bool {
+    std::env::var("MLXL3_INKLING_PROMPT_CACHE").as_deref() != Ok("0")
 }
 
 #[cfg(all(
@@ -2751,6 +3129,27 @@ impl PromptCache {
         logits: &mlxl3_native::array::Array,
         dflash: Option<&DFlashChat>,
     ) -> Result<Option<Self>> {
+        if let NativeChatModel::Inkling(target, ..) = model {
+            if !inkling_prompt_cache() || dflash.is_some() {
+                return Ok(None);
+            }
+            anyhow::ensure!(
+                usize::try_from(target.offset()).ok() == Some(tokens.len()),
+                "prefix cache position differs from its token history"
+            );
+            if prompt_cache_budget()? == 0 {
+                return Ok(None);
+            }
+            let saved = Self {
+                conversation: conversation.to_owned(),
+                tokens: tokens.to_vec(),
+                state: CacheState::Inkling(target.prefix_snapshot()?),
+                logits: logits.compact_for_cache()?,
+                draft: None,
+                mtp: None,
+            };
+            return saved.within_budget();
+        }
         let NativeChatModel::Qwen(target) = model else {
             return Ok(None);
         };
@@ -2779,7 +3178,7 @@ impl PromptCache {
         if prompt_cache_budget()? == 0 {
             return Ok(None);
         }
-        let state = state.compact_for_cache()?;
+        let state = CacheState::Qwen(state.compact_for_cache()?);
         let saved = Self {
             conversation: conversation.to_owned(),
             tokens: tokens.to_vec(),
@@ -2859,6 +3258,8 @@ fn prefill_round(
         *cache = None;
         return Ok((target.prefill_dflash2(tokens, cancelled)?, None, 0));
     }
+    // a state computed from image features is neither resumed nor saved for a later turn
+    let reuse = reuse && images.is_empty();
     let chunk_size = if draft.is_some() {
         mlxl3_native::dflash::PREFILL_CHUNK
     } else {
@@ -2875,16 +3276,50 @@ fn prefill_round(
             && saved.draft.is_some() == draft.is_some()
             && mlxl3_native::reusable_prefix_len(&saved.tokens, tokens, chunk_size) > 0
     });
-    model.reset();
-    model.prepare_images(tokens, images)?;
     let mut cached = 0;
     let mut logits = None;
+    // SPEED-2026-11-23-INK2M-MAYA PC: Inkling goes back to the saved boundary of its live state (no reset);
+    // when it cannot, the prompt is prefilled from scratch as before
+    let previous = match previous {
+        Some(PromptCache {
+            tokens: saved_tokens,
+            state: CacheState::Inkling(prefix),
+            logits: saved_logits,
+            ..
+        }) => {
+            if let NativeChatModel::Inkling(target, draft, _) = &mut *model
+                && target.resume_prefix(prefix)?
+            {
+                if let Some(draft) = draft {
+                    draft.reset();
+                }
+                cached = saved_tokens.len();
+                logits = Some(saved_logits);
+                if checkpoint_offset == cached {
+                    *cache = PromptCache::capture(
+                        conversation,
+                        &tokens[..cached],
+                        model,
+                        logits.as_ref().unwrap(),
+                        None,
+                    )?;
+                }
+            }
+            None
+        }
+        other => other,
+    };
+    if cached == 0 {
+        model.reset();
+    }
+    model.prepare_images(tokens, images)?;
     let mut dflash = draft.map(|_| DFlashChat::new());
     if let Some(saved) = previous {
-        let NativeChatModel::Qwen(target) = &mut *model else {
+        let (NativeChatModel::Qwen(target), CacheState::Qwen(state)) = (&mut *model, saved.state)
+        else {
             bail!("invalid prefix cache model")
         };
-        target.restore(saved.state)?;
+        target.restore(state)?;
         cached = saved.tokens.len();
         logits = Some(saved.logits);
         if let Some(session) = &mut dflash {
@@ -2911,6 +3346,7 @@ fn prefill_round(
     while let Some(end) = model.prefill_span_end(start, tokens.len(), chunk_size, group) {
         let chunk = &tokens[start..end];
         let inner_checkpoint = reuse && start < checkpoint_offset && checkpoint_offset < end;
+        report_prefill_progress(start, tokens.len())?;
         start = end;
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
@@ -2992,10 +3428,11 @@ fn prefill_mtp(
     let mut cached = 0;
     let mut logits = None;
     if let Some(saved) = previous {
-        let NativeChatModel::Qwen(target) = &mut *model else {
+        let (NativeChatModel::Qwen(target), CacheState::Qwen(state)) = (&mut *model, saved.state)
+        else {
             bail!("MTP requires Qwen");
         };
-        target.restore(saved.state)?;
+        target.restore(state)?;
         head.restore(saved.mtp.context("missing MTP prefix state")?)?;
         cached = saved.tokens.len();
         logits = Some(saved.logits);
@@ -3604,6 +4041,16 @@ struct NativeStats {
     lfm3_lookup_proposed_tokens: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     lfm3_lookup_accepted_tokens: Option<usize>,
+    /// SPEED-2026-11-23-INK2M-MAYA LK: Inkling 2 lookup blocks, proposed and accepted IDs.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    inkling_lookup_blocks: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    inkling_lookup_proposed_tokens: Option<usize>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    inkling_lookup_accepted_tokens: Option<usize>,
+    #[cfg(feature = "mlx")]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    inkling_lookup_profile: Option<mlxl3_native::inkling2_lookup::LookupStats>,
     /// LFM3-CERT-HEAD decode steps certified by the screening head, and
     /// steps that fell back to the full head.
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -3711,6 +4158,15 @@ impl NativeStats {
                 &mut self.lfm3_lookup_accepted_tokens,
                 round.lfm3_lookup_accepted_tokens,
             ),
+            (&mut self.inkling_lookup_blocks, round.inkling_lookup_blocks),
+            (
+                &mut self.inkling_lookup_proposed_tokens,
+                round.inkling_lookup_proposed_tokens,
+            ),
+            (
+                &mut self.inkling_lookup_accepted_tokens,
+                round.inkling_lookup_accepted_tokens,
+            ),
             (&mut self.lfm3_cert_tokens, round.lfm3_cert_tokens),
             (&mut self.lfm3_cert_fallbacks, round.lfm3_cert_fallbacks),
             (
@@ -3746,6 +4202,10 @@ struct RoundOutput {
     stats: NativeStats,
     first_text_seconds: Option<f64>,
     token_hash: String,
+    /// The generated token ids (a forced end of thinking continues from them).
+    generated: Vec<u32>,
+    /// The round stopped at its reasoning budget; holds the marker closing that block.
+    reasoning_cut: Option<&'static str>,
 }
 
 #[cfg(all(
@@ -4102,6 +4562,25 @@ fn lfm3_lookup_is_opt_in_greedy_and_exclusive() {
     }
 }
 
+/// Image input layout of the loaded chat model (`None`: text only).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn chat_image_format(model: &NativeChatModel) -> Option<mlxl3_native::vision_input::ImageFormat> {
+    model.image_format()
+}
+
+/// Image input layout of the loaded chat model (`None`: text only); the direct engine reads LFM3 only.
+#[cfg(all(
+    not(feature = "mlx"),
+    feature = "chat",
+    target_os = "macos",
+    feature = "direct-metal"
+))]
+fn chat_image_format(model: &NativeChatModel) -> Option<mlxl3_native::vision_input::ImageFormat> {
+    model
+        .supports_images()
+        .then_some(mlxl3_native::vision_input::ImageFormat::Lfm3)
+}
+
 #[cfg(all(
     feature = "chat",
     any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
@@ -4127,6 +4606,8 @@ fn bridge_generate_round(
     conversation: &str,
     reuse: bool,
     buffer_output: bool,
+    continuation: &[u32],
+    reasoning_budget: Option<usize>,
 ) -> Result<RoundOutput> {
     use mlxl3_native::{streaming::Channel, tool_call::StreamFilter};
     let started = Instant::now();
@@ -4147,11 +4628,22 @@ fn bridge_generate_round(
         max_tokens == -1 || max_tokens > 0,
         "max_tokens must be positive, or -1"
     );
+    let image_format = chat_image_format(model);
     let (prepared, images) =
-        mlxl3_native::vision_input::prepare_messages(messages, model.supports_images())?;
-    let rendered = tokenizer.render_values(&Value::Array(prepared), Some(tools))?;
-    let tokens = tokenizer.encode(&rendered)?;
+        mlxl3_native::vision_input::prepare_messages_as(messages, image_format)?;
+    let rendered = REASONING_REQUESTED.with(|effort| {
+        tokenizer.render_values_with_effort(
+            &Value::Array(prepared),
+            Some(tools),
+            effort.borrow().as_deref(),
+        )
+    })?;
+    let rendered =
+        mlxl3_native::vision_input::expand_image_placeholders(image_format, rendered, &images)?;
+    let mut tokens = tokenizer.encode(&rendered)?;
     anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
+    // AGENT-2026-11-23-BOUCLE: the same assistant message resumed after a forced end of thinking
+    tokens.extend_from_slice(continuation);
     anyhow::ensure!(
         tokens.len() < context_limit,
         "conversation exceeds model context"
@@ -4166,6 +4658,9 @@ fn bridge_generate_round(
     } else {
         usize::try_from(max_tokens)?.min(available)
     };
+    let reasoning_limit = reasoning_budget
+        .map(|limit| mlxl3_native::agent_loop::step_reasoning_budget(limit, available));
+    let _prefill_progress = PrefillProgress::set(request_id);
     #[cfg(feature = "mlx")]
     if let NativeChatModel::Flash(target) = &mut *model
         && let Some(plan) = target.admit_request(tokens.len() + budget)?
@@ -4185,7 +4680,7 @@ fn bridge_generate_round(
     // ordinary path (their stream filter and stops are unchanged).
     #[cfg(feature = "mlx")]
     let mut dspark = match &*model {
-        NativeChatModel::Inkling(target, Some(drafter))
+        NativeChatModel::Inkling(target, Some(drafter), _)
             if tools.is_empty()
                 && mtp.is_none()
                 && draft.is_none()
@@ -4199,6 +4694,17 @@ fn bridge_generate_round(
                 session.with_sampled_drafts(sampler.temperature, draft_noise_seed(*random))?
             } else {
                 session
+            };
+            // SPEED-INK2M-P14: width-0 blocks draw on the GPU, one step ahead
+            let session = match inkling_device_draw(
+                &sampler,
+                std::env::var("MLXL3_INKLING_GPU_DRAW").ok().as_deref(),
+                std::env::var("MLXL3_INKLING_PIPELINE").ok().as_deref(),
+            ) {
+                Some((rule, pipelined)) => {
+                    session.with_device_draw(rule, inkling_draw_seeds(*random), pipelined)
+                }
+                None => session,
             };
             // DSPARK-INK2M-P4: adaptive width by default; `MLXL3_INKLING_DSPARK_ADAPTIVE=0` keeps width 3
             Some(
@@ -4217,17 +4723,49 @@ fn bridge_generate_round(
         }
         _ => None,
     };
+    // SPEED-2026-11-23-INK2M-MAYA LK: prompt lookup without a drafter, plain steps drawn on the GPU
+    #[cfg(feature = "mlx")]
+    let mut inkling_lookup = match (
+        &*model,
+        inkling_device_draw(
+            &sampler,
+            std::env::var("MLXL3_INKLING_GPU_DRAW").ok().as_deref(),
+            std::env::var("MLXL3_INKLING_PIPELINE").ok().as_deref(),
+        ),
+    ) {
+        // AGENT-2026-11-23-VITESSE V1: tool rounds too (the Agent mode writes code and edits,
+        // where the lookup pays most); every token still goes through the same stream filter.
+        (NativeChatModel::Inkling(target, ..), Some((rule, pipelined)))
+            if dspark.is_none()
+                && mtp.is_none()
+                && draft.is_none()
+                && inkling_lookup_requested(
+                    LOOKUP_REQUESTED.with(std::cell::Cell::get),
+                    std::env::var("MLXL3_INKLING_LOOKUP").ok().as_deref(),
+                ) =>
+        {
+            Some(mlxl3_native::inkling2_lookup::LookupSession::new(
+                target,
+                &tokens,
+                rule,
+                inkling_draw_seeds(*random),
+                pipelined,
+            ))
+        }
+        _ => None,
+    };
     let prepare_seconds = started.elapsed().as_secs_f64();
     let prefill_started = Instant::now();
     #[cfg(feature = "mlx")]
     let (mut logits, mut dflash, cached, mut mtp_session) = {
         let (logits, mut dflash, cached) =
-            if let (Some(session), NativeChatModel::Inkling(target, Some(drafter))) =
+            if let (Some(session), NativeChatModel::Inkling(target, Some(drafter), _)) =
                 (dspark.as_mut(), &mut *model)
             {
-                let logits = session.prefill(target, drafter, &tokens, &|| {
-                    cancelled.load(Ordering::Relaxed)
-                })?;
+                let logits =
+                    session.prefill_with_images(target, drafter, &tokens, &images, &|| {
+                        cancelled.load(Ordering::Relaxed)
+                    })?;
                 (logits, None, 0)
             } else if let Some(head) = mtp.as_deref_mut() {
                 match head {
@@ -4360,12 +4898,49 @@ fn bridge_generate_round(
             cancelled,
         )?
     };
+    // SPEED-INK2M-P14: plain Inkling decoding chooses its tokens on the GPU, one step ahead
+    #[cfg(feature = "mlx")]
+    let mut inkling_decode = match (
+        &*model,
+        inkling_device_draw(
+            &sampler,
+            std::env::var("MLXL3_INKLING_GPU_DRAW").ok().as_deref(),
+            std::env::var("MLXL3_INKLING_PIPELINE").ok().as_deref(),
+        ),
+    ) {
+        // AGENT-2026-11-23-VITESSE V1: tool rounds draw on the GPU as well
+        (NativeChatModel::Inkling(..), Some((rule, pipelined)))
+            if dspark.is_none() && inkling_lookup.is_none() && mtp.is_none() && draft.is_none() =>
+        {
+            Some(mlxl3_native::inkling2::DeviceDecode::start(
+                &logits,
+                rule,
+                inkling_draw_seeds(*random),
+                pipelined,
+            )?)
+        }
+        _ => None,
+    };
     let prefill_seconds = prefill_started.elapsed().as_secs_f64();
     #[cfg(feature = "mlx")]
     let gpu_capture = mlxl3_native::array::capture_for_request(request_id)?;
     let mut decoder = tokenizer.tokenizer().decode_stream(false);
     let mut splitter = ThinkingSplitter::new(&rendered);
-    let mut filter = (!tools.is_empty()).then(StreamFilter::new);
+    if !continuation.is_empty() {
+        splitter.resume_answer();
+    }
+    let mut thinking_tokens = 0usize;
+    let mut reasoning_cut = None;
+    // The prompt says which call format the model will use: Inkling 2 declares its tools
+    // in a `tool_declare` system message, and may write text before a call.
+    let inkling_tools = rendered.contains("<|message_system|>tool_declare<|content_xml|>");
+    let mut filter = (!tools.is_empty()).then(|| {
+        if inkling_tools {
+            StreamFilter::inkling()
+        } else {
+            StreamFilter::new()
+        }
+    });
     let mut last_tool_progress: Option<Instant> = None;
     let mut decoded = String::new();
     let mut answer = String::new();
@@ -4392,7 +4967,14 @@ fn bridge_generate_round(
             token
         } else {
             #[cfg(feature = "mlx")]
-            let sampled = select_token(&logits, &history, &sampler, random)?;
+            let sampled = if let (Some(decode), NativeChatModel::Inkling(target, ..)) =
+                (inkling_decode.as_mut(), &mut *model)
+            {
+                // the step consuming this token runs when one more token will be delivered
+                decode.next_token(target, generated.len() + 1 < budget)?
+            } else {
+                select_token(&logits, &history, &sampler, random)?
+            };
             #[cfg(not(feature = "mlx"))]
             let sampled = if device_greedy {
                 match device_greedy_next.take() {
@@ -4445,6 +5027,13 @@ fn bridge_generate_round(
                 }
             }
         }
+        if let Some(close) = splitter.thinking_close() {
+            thinking_tokens += 1;
+            if reasoning_limit.is_some_and(|limit| thinking_tokens >= limit) {
+                reasoning_cut = Some(close);
+                break;
+            }
+        }
         if filter.as_ref().is_some_and(StreamFilter::is_preparing_tool)
             && last_tool_progress
                 .is_none_or(|last| last.elapsed() >= std::time::Duration::from_millis(500))
@@ -4458,7 +5047,7 @@ fn bridge_generate_round(
         if generated.len() < budget {
             #[cfg(feature = "mlx")]
             {
-                if let (Some(session), NativeChatModel::Inkling(target, Some(drafter))) =
+                if let (Some(session), NativeChatModel::Inkling(target, Some(drafter), _)) =
                     (dspark.as_mut(), &mut *model)
                 {
                     let mut choose = |proposals: &[u32],
@@ -4512,6 +5101,37 @@ fn bridge_generate_round(
                     dflash_next = Some(session.advance(
                         target,
                         drafter,
+                        next,
+                        context_limit,
+                        budget - generated.len(),
+                        &mut choose,
+                    )?);
+                } else if let (Some(session), NativeChatModel::Inkling(target, ..)) =
+                    (inkling_lookup.as_mut(), &mut *model)
+                {
+                    // the lookup proposals are deterministic: point-mass acceptance keeps every law
+                    let mut choose = |proposals: &[u32],
+                                      verified: &mlxl3_native::array::Array|
+                     -> Result<(usize, u32)> {
+                        let acceptance = if sampler.is_greedy() {
+                            mlxl3_native::speculative::greedy_accept(
+                                proposals,
+                                &verified.chat_greedy_ids()?,
+                            )
+                            .context("invalid lookup verification")?
+                        } else {
+                            mlxl3_native::sampling::Draw {
+                                sampler,
+                                history: &history,
+                                random: &mut *random,
+                            }
+                            .speculative_accept_logits(proposals, verified)
+                            .context("invalid lookup sampled verification")?
+                        };
+                        Ok((acceptance.accepted_draft_tokens, acceptance.target_token))
+                    };
+                    dflash_next = Some(session.advance(
+                        target,
                         next,
                         context_limit,
                         budget - generated.len(),
@@ -4607,7 +5227,7 @@ fn bridge_generate_round(
                         );
                     }
                     dflash_next = Some(step.id);
-                } else {
+                } else if inkling_decode.is_none() {
                     logits = model.forward(next)?;
                 }
             }
@@ -4757,6 +5377,14 @@ fn bridge_generate_round(
         #[cfg(feature = "mlx")]
         lfm3_lookup_accepted_tokens: lfm3_lookup.as_ref().map(|s| s.0.accepted),
         #[cfg(feature = "mlx")]
+        inkling_lookup_blocks: inkling_lookup.as_ref().map(|s| s.stats.blocks),
+        #[cfg(feature = "mlx")]
+        inkling_lookup_proposed_tokens: inkling_lookup.as_ref().map(|s| s.stats.proposed),
+        #[cfg(feature = "mlx")]
+        inkling_lookup_accepted_tokens: inkling_lookup.as_ref().map(|s| s.stats.accepted),
+        #[cfg(feature = "mlx")]
+        inkling_lookup_profile: inkling_lookup.as_ref().map(|s| s.stats.clone()),
+        #[cfg(feature = "mlx")]
         lfm3_cert_tokens: lfm3_cert.map(|counts| counts[0]).or_else(|| {
             lfm3_lookup
                 .as_ref()
@@ -4845,6 +5473,8 @@ fn bridge_generate_round(
         stats,
         first_text_seconds: first_visible_text,
         token_hash: token_hash(&generated),
+        generated,
+        reasoning_cut,
     })
 }
 
@@ -4911,7 +5541,7 @@ fn bridge_generate(
     random: &mut u64,
     mcp: &mut mlxl3_native::mcp::Manager,
     draft: Option<&RoundDraft>,
-    mut mtp: Option<&mut ChatMtpHead>,
+    mtp: Option<&mut ChatMtpHead>,
     mtp_depth: usize,
     dflash_mode: usize,
     started: Instant,
@@ -4921,6 +5551,8 @@ fn bridge_generate(
     reuse: bool,
     allowed_tools: Option<&[String]>,
     response_schema: Option<&str>,
+    tool_rounds: usize,
+    reasoning_budget: Option<usize>,
 ) -> Result<()> {
     let schema = response_schema
         .map(mlxl3_native::structured::Schema::parse)
@@ -4943,180 +5575,253 @@ fn bridge_generate(
         }
     }
     let original_length = dialogue.len();
-    // Inkling 2 calls tools as `<|content_invoke_tool_json|>` messages, which `tool_call` does not parse
-    // yet: offering tools would stream unexecuted calls, so Inkling answers without them for now.
-    #[cfg(feature = "mlx")]
-    let tools_supported = !matches!(model, NativeChatModel::Inkling(..));
-    #[cfg(not(feature = "mlx"))]
-    let tools_supported = true;
+    // Every model is offered its tools; Inkling 2's `<|content_invoke_tool_json|>` calls are
+    // parsed by `tool_call` like the other formats.
     let tools: Vec<_> = mcp
         .chat_tools()
         .into_iter()
-        .filter(|_| tools_supported)
         .filter(|tool| {
             tool["function"]["name"]
                 .as_str()
                 .is_some_and(|name| mlxl3_native::structured::tool_allowed(name, allowed_tools))
         })
         .collect();
-    let mut first_text = None;
-    let mut summary: Option<NativeStats> = None;
-    let mut round_stats = Vec::new();
-    let mut tool_seconds = 0.;
-    for round in 0..5 {
-        emit_event(json!({
-            "type":"generation_status", "request_id":request_id,
-            "phase":"prefill", "text":if round == 0 { "Preparing context" } else { "Reading MCP results" }
-        }))?;
-        let round_start = started.elapsed().as_secs_f64();
-        let round_max_tokens = mlxl3_native::structured::remaining_tokens(
-            max_tokens,
-            summary.as_ref().map_or(0, |stats| stats.generated_tokens),
-        )
-        .context(if schema.is_some() {
-            "JSON token budget exhausted"
-        } else {
-            "Generation token budget exhausted"
-        })?;
-        let output = bridge_generate_round(
-            model,
-            tokenizer,
+    let image_format = chat_image_format(model);
+    let mut host = BridgeHost {
+        model,
+        tokenizer,
+        request_id,
+        sampler,
+        context_limit,
+        resident_gb,
+        cancelled,
+        random,
+        mcp,
+        draft,
+        mtp,
+        mtp_depth,
+        dflash_mode,
+        cache,
+        conversation,
+        reuse,
+        image_format,
+        started,
+        first_text: None,
+        summary: None,
+        round_stats: Vec::new(),
+        tool_seconds: 0.,
+    };
+    let end = mlxl3_native::agent_turn::run_turn(
+        &mut host,
+        dialogue,
+        &tools,
+        &mlxl3_native::agent_turn::Turn {
             request_id,
-            &dialogue,
-            &tools,
-            round_max_tokens,
-            sampler,
             context_limit,
-            resident_gb,
-            cancelled,
-            random,
-            draft,
-            mtp.as_deref_mut(),
-            mtp_depth,
-            dflash_mode,
-            cache,
-            conversation,
-            reuse,
-            schema.is_some(),
+            max_tokens,
+            tool_rounds,
+            reasoning_budget,
+            schema: schema.as_ref(),
+            allowed_tools,
+            original_length,
+        },
+    )?;
+    let mut stats = host.summary.context("missing generation statistics")?;
+    stats.elapsed_seconds = started.elapsed().as_secs_f64();
+    stats.end_to_end_ttft_seconds = host.first_text;
+    stats.tool_seconds = host.tool_seconds;
+    stats.draft_load_seconds = draft_load_seconds;
+    stats.tool_rounds = if schema.is_some() { 0 } else { end.rounds };
+    emit_event(json!({
+        "type":"complete", "request_id":request_id,
+        "assistant_context":end.assistant, "cache_context":end.raw,
+        "token_hash":end.token_hash,
+        "stats":stats, "round_stats":host.round_stats, "context_full":end.context_full,
+        "stop_reason":end.stop_reason,
+        "turn_context":end.turn_context,
+        "elapsed_seconds":started.elapsed().as_secs_f64(),
+        "first_text_seconds":host.first_text,
+        "tool_rounds":end.rounds
+    }))
+}
+
+/// The engine side of `agent_turn::run_turn`: the loaded model, its tokenizer, the MCP
+/// servers and the bridge's event stream, plus the turn's statistics.
+/// The backend's model and MTP head; the direct-metal ones borrow the loaded checkpoint.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+type HostModel<'m> = NativeChatModel;
+#[cfg(all(feature = "mlx", feature = "chat"))]
+type HostMtp<'m> = ChatMtpHead;
+#[cfg(all(
+    not(feature = "mlx"),
+    feature = "chat",
+    target_os = "macos",
+    feature = "direct-metal"
+))]
+type HostModel<'m> = NativeChatModel<'m>;
+#[cfg(all(
+    not(feature = "mlx"),
+    feature = "chat",
+    target_os = "macos",
+    feature = "direct-metal"
+))]
+type HostMtp<'m> = ChatMtpHead<'m>;
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+struct BridgeHost<'a, M, H> {
+    model: &'a mut M,
+    tokenizer: &'a mlxl3_native::tokenizer::ChatTokenizer,
+    request_id: &'a str,
+    sampler: mlxl3_native::sampling::Sampler,
+    context_limit: usize,
+    resident_gb: f64,
+    cancelled: &'a AtomicBool,
+    random: &'a mut u64,
+    mcp: &'a mut mlxl3_native::mcp::Manager,
+    draft: Option<&'a RoundDraft>,
+    mtp: Option<&'a mut H>,
+    mtp_depth: usize,
+    dflash_mode: usize,
+    cache: &'a mut Option<PromptCache>,
+    conversation: &'a str,
+    reuse: bool,
+    image_format: Option<mlxl3_native::vision_input::ImageFormat>,
+    started: Instant,
+    first_text: Option<f64>,
+    summary: Option<NativeStats>,
+    round_stats: Vec<NativeStats>,
+    tool_seconds: f64,
+}
+
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+impl mlxl3_native::agent_turn::Host for BridgeHost<'_, HostModel<'_>, HostMtp<'_>> {
+    fn generate(
+        &mut self,
+        request: mlxl3_native::agent_turn::StepRequest<'_>,
+    ) -> Result<mlxl3_native::agent_turn::Step> {
+        let round_start = self.started.elapsed().as_secs_f64();
+        let output = bridge_generate_round(
+            self.model,
+            self.tokenizer,
+            self.request_id,
+            request.dialogue,
+            request.tools,
+            request.max_tokens,
+            self.sampler,
+            self.context_limit,
+            self.resident_gb,
+            self.cancelled,
+            self.random,
+            self.draft,
+            self.mtp.as_deref_mut(),
+            self.mtp_depth,
+            self.dflash_mode,
+            self.cache,
+            self.conversation,
+            self.reuse,
+            request.buffered,
+            request.continuation,
+            request.reasoning_budget,
         )?;
-        if first_text.is_none() {
-            first_text = output
+        if self.first_text.is_none() {
+            self.first_text = output
                 .first_text_seconds
                 .map(|seconds| round_start + seconds);
         }
-        if let Some(summary) = &mut summary {
+        if let Some(summary) = &mut self.summary {
             summary.accumulate(&output.stats);
         } else {
             let mut first = output.stats.clone();
             first.ttft_seconds += round_start;
-            summary = Some(first);
+            self.summary = Some(first);
         }
-        round_stats.push(output.stats.clone());
-        let validated_json = if let Some(schema) = &schema {
-            match schema.validate_cancellable(&output.answer, cancelled) {
-                Ok(answer) => Some(answer),
-                Err(error) if round < 2 => {
-                    dialogue.push(json!({"role":"assistant", "content":output.raw}));
-                    dialogue.push(json!({"role":"user", "content":format!("The previous response failed JSON validation: {error}. Return only valid JSON conforming to the schema.")}));
-                    *cache = None;
-                    continue;
-                }
-                Err(error) => return Err(error.context("JSON validation failed after 3 attempts")),
-            }
-        } else {
-            None
-        };
-        let calls = if tools.is_empty() {
-            Vec::new()
-        } else {
-            mlxl3_native::tool_call::parse_answer(&output.tool_text)?
-        };
-        let context_full = output.stats.context_used >= context_limit;
-        if calls.is_empty() || context_full {
-            let assistant = validated_json
-                .clone()
-                .unwrap_or_else(|| output.answer.clone());
-            if let Some(answer) = &validated_json {
-                first_text = Some(started.elapsed().as_secs_f64());
-                emit_event(
-                    json!({"type":"delta", "request_id":request_id,"phase":"answer","text":answer}),
-                )?;
-            }
-            let turn_context = if round == 0 {
-                None
-            } else {
-                let mut transcript = dialogue[original_length..].to_vec();
-                transcript.push(json!({"role":"assistant", "content":output.raw}));
-                Some(serde_json::to_string(&transcript)?)
-            };
-            let mut stats = summary.context("missing generation statistics")?;
-            stats.elapsed_seconds = started.elapsed().as_secs_f64();
-            stats.end_to_end_ttft_seconds = first_text;
-            stats.tool_seconds = tool_seconds;
-            stats.draft_load_seconds = draft_load_seconds;
-            stats.tool_rounds = if schema.is_some() { 0 } else { round };
-            return emit_event(json!({
-                "type":"complete", "request_id":request_id,
-                "assistant_context":assistant, "cache_context":output.raw,
-                "token_hash":output.token_hash,
-                "stats":stats, "round_stats":round_stats, "context_full":context_full,
-                "stop_reason":output.stop_reason.as_str(),
-                "turn_context":turn_context,
-                "elapsed_seconds":started.elapsed().as_secs_f64(),
-                "first_text_seconds":first_text,
-                "tool_rounds":round
-            }));
-        }
-        let tool_calls: Vec<_> = calls
-            .iter()
-            .map(|call| json!({"type":"function", "function":{"name":call.name, "arguments":call.arguments}}))
-            .collect();
-        dialogue.push(json!({
-            "role":"assistant",
-            "content":output.answer,
-            "tool_calls":tool_calls
-        }));
-        for call in calls {
-            if cancelled.load(Ordering::Relaxed) {
-                model.reset();
-                bail!("generation cancelled");
-            }
-            let tool = mcp.tools.get(&call.name);
-            let server = tool.map(|tool| tool.server.clone());
-            let call_id = format!("mcp-{round}-{}-{}", dialogue.len(), call.name);
-            emit_event(json!({
-                "type":"tool_start", "request_id":request_id,
-                "tool_call_id":call_id, "tool_name":call.name,
-                "server_name":server
-            }))?;
-            let tool_started = Instant::now();
-            anyhow::ensure!(
-                mlxl3_native::structured::tool_allowed(&call.name, allowed_tools),
-                "MCP tool is not allowed in this project: {}",
-                call.name
-            );
-            let mut result = mcp.call_cancellable(&call.name, call.arguments, cancelled);
-            tool_seconds += tool_started.elapsed().as_secs_f64();
-            let budget = 8192usize.min((context_limit / 8).max(256));
-            let result_tokens = tokenizer.encode(&result.text)?;
-            if result_tokens.len() > budget {
-                result.text = format!(
-                    "{}\n[Tool output truncated to fit context]",
-                    tokenizer.decode(&result_tokens[..budget])?
-                );
-            }
-            emit_event(json!({
-                "type":"tool_result", "request_id":request_id,
-                "tool_call_id":call_id, "tool_name":call.name,
-                "server_name":server, "text":result.text,
-                "is_error":result.is_error
-            }))?;
-            dialogue.push(json!({
-                "role":"tool", "name":call.name, "content":result.text
-            }));
-        }
+        self.round_stats.push(output.stats.clone());
+        Ok(mlxl3_native::agent_turn::Step {
+            stop_reason: output.stop_reason,
+            raw: output.raw,
+            answer: output.answer,
+            tool_text: output.tool_text,
+            generated: output.generated,
+            reasoning_cut: output.reasoning_cut,
+            context_used: output.stats.context_used,
+            generated_tokens: output.stats.generated_tokens,
+            token_hash: output.token_hash,
+        })
     }
-    bail!("the model exceeded the limit of 5 consecutive MCP tool rounds")
+
+    fn prompt_tokens(&mut self, dialogue: &[Value], tools: &[Value]) -> Result<usize> {
+        bridge_prompt_tokens(self.tokenizer, dialogue, tools, self.image_format)
+    }
+
+    fn encode(&mut self, text: &str) -> Result<Vec<u32>> {
+        self.tokenizer.encode(text)
+    }
+
+    fn decode(&mut self, tokens: &[u32]) -> Result<String> {
+        self.tokenizer.decode(tokens)
+    }
+
+    fn server(&self, tool: &str) -> Option<String> {
+        self.mcp.tools.get(tool).map(|tool| tool.server.clone())
+    }
+
+    fn call_tool(&mut self, name: &str, arguments: Value) -> mlxl3_native::mcp::ToolResult {
+        let started = Instant::now();
+        let result = self.mcp.call_cancellable(name, arguments, self.cancelled);
+        self.tool_seconds += started.elapsed().as_secs_f64();
+        result
+    }
+
+    fn emit(&mut self, event: Value) -> Result<()> {
+        emit_event(event)
+    }
+
+    fn cancellation(&self) -> &AtomicBool {
+        self.cancelled
+    }
+
+    fn forget_prompt_cache(&mut self) {
+        *self.cache = None;
+    }
+
+    fn reset_model(&mut self) {
+        self.model.reset();
+    }
+
+    fn answer_shown(&mut self) {
+        self.first_text = Some(self.started.elapsed().as_secs_f64());
+    }
+}
+
+/// Tokens of the prompt the next round would render (same template, tools and reasoning level).
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+fn bridge_prompt_tokens(
+    tokenizer: &mlxl3_native::tokenizer::ChatTokenizer,
+    dialogue: &[Value],
+    tools: &[Value],
+    image_format: Option<mlxl3_native::vision_input::ImageFormat>,
+) -> Result<usize> {
+    let (prepared, images) =
+        mlxl3_native::vision_input::prepare_messages_as(dialogue, image_format)?;
+    let rendered = REASONING_REQUESTED.with(|effort| {
+        tokenizer.render_values_with_effort(
+            &Value::Array(prepared),
+            Some(tools),
+            effort.borrow().as_deref(),
+        )
+    })?;
+    let rendered =
+        mlxl3_native::vision_input::expand_image_placeholders(image_format, rendered, &images)?;
+    Ok(tokenizer.encode(&rendered)?.len())
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -5201,10 +5906,15 @@ fn release_bridge_idle_state(
     model: &mut NativeChatModel,
     head: Option<&mut ChatMtpHead>,
     memory_saver: bool,
+    keep_inkling: bool,
 ) -> Result<()> {
     // Both prefill paths reset or restore their separate PromptCache on the next
-    // request. The final decode state is not a continuation checkpoint.
-    model.reset();
+    // request. The final decode state is not a continuation checkpoint, except for
+    // Inkling 2 with a saved prefix (SPEED-2026-11-23-INK2M-MAYA PC): its full visits
+    // resume from the rows the live state still holds.
+    if !(keep_inkling && !memory_saver && matches!(model, NativeChatModel::Inkling(..))) {
+        model.reset();
+    }
     let reset = head.map_or(Ok(()), ChatMtpHead::reset);
     let released = mlxl3_native::array::release_idle_cache_with_policy(memory_saver);
     reset?;
@@ -5282,6 +5992,11 @@ fn native_bridge(
         "flash":match &model { NativeChatModel::Flash(target) => Some(target.runtime_manifest()?), _ => None },
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "images_supported":model.supports_images(),
+        "reasoning_effort_supported":true,
+        // Agent mode: `tool_rounds` per request, and `callTimeoutSeconds` per MCP server;
+        // AGENT-2026-11-23-BOUCLE: `reasoning_budget`, 512 rounds, pruning, repeated-call stop.
+        "tool_rounds_supported":true, "mcp_call_timeout_supported":true,
+        "agent_loop_supported":true,
         "load_seconds":started.elapsed().as_secs_f64(), "resident_gb":resident_gb,
         "memory":memory,
         "runtime_commit":env!("MLXL3_BUILD_REVISION"),
@@ -5465,6 +6180,7 @@ fn native_bridge(
                     &mut model,
                     mtp_head.as_mut().map(|(_, head)| head),
                     request.memory_saver,
+                    false,
                 ) {
                     eprintln!("Idle memory cleanup failed: {error:#}");
                 }
@@ -5525,6 +6241,7 @@ fn native_bridge(
                     &mut model,
                     mtp_head.as_mut().map(|(_, head)| head),
                     request.memory_saver,
+                    false,
                 ) {
                     eprintln!("Idle memory cleanup failed: {error:#}");
                 }
@@ -5670,7 +6387,24 @@ fn native_bridge(
                         draft_path,
                     )?;
                     #[cfg(feature = "mlx")]
+                    if request.dspark
+                        && inkling_has_drafter(&model)
+                        && !matches!(model, NativeChatModel::Inkling(_, Some(_), _))
+                    {
+                        emit_event(json!({
+                            "type":"generation_status", "request_id":request.request_id,
+                            "phase":"dspark_loading", "text":"Loading DSpark…"
+                        }))?;
+                    }
+                    #[cfg(feature = "mlx")]
+                    if let Err(error) = model.prepare_inkling_drafter(request.dspark) {
+                        // the round decodes plainly; the source stays known for a later request
+                        eprintln!("DSpark drafter unavailable: {error:#}");
+                    }
+                    #[cfg(feature = "mlx")]
                     let _dspark = DsparkRequest::set(request.dspark);
+                    let _lookup = LookupRequest::set(request.lookup);
+                    let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;
                     bridge_generate(
                         &mut model,
                         &tokenizer,
@@ -5698,14 +6432,24 @@ fn native_bridge(
                         request.reuse_prompt_cache && !request.memory_saver,
                         request.allowed_tools.as_deref(),
                         request.response_schema.as_deref(),
+                        mlxl3_native::tool_call::tool_rounds(request.tool_rounds)?,
+                        mlxl3_native::agent_loop::reasoning_budget(request.reasoning_budget)?,
                     )
                 })();
                 // Runs after the whole turn (including tools), not between decode
                 // tokens. Also release temporary state after cancellation/error.
+                let keep_inkling = matches!(
+                    &prompt_cache,
+                    Some(PromptCache {
+                        state: CacheState::Inkling(_),
+                        ..
+                    })
+                );
                 if let Err(error) = release_bridge_idle_state(
                     &mut model,
                     mtp_head.as_mut().map(|(_, head)| head),
                     memory_saver,
+                    keep_inkling,
                 ) {
                     eprintln!("Idle memory cleanup failed: {error:#}");
                 }
@@ -5802,11 +6546,19 @@ fn native_chat(
             json!(parts)
         };
         messages.push(json!({"role":"user","content":content}));
+        #[cfg(feature = "mlx")]
+        let image_format = model.image_format();
+        #[cfg(not(feature = "mlx"))]
+        let image_format = model
+            .supports_images()
+            .then_some(mlxl3_native::vision_input::ImageFormat::Lfm3);
         let (prepared, images) =
-            mlxl3_native::vision_input::prepare_messages(&messages, model.supports_images())?;
+            mlxl3_native::vision_input::prepare_messages_as(&messages, image_format)?;
         #[cfg(not(feature = "mlx"))]
         let _ = &images;
         let rendered = tokenizer.render_values(&json!(prepared), None)?;
+        let rendered =
+            mlxl3_native::vision_input::expand_image_placeholders(image_format, rendered, &images)?;
         let tokens = tokenizer.encode(&rendered)?;
         anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
         let available = (model.context_limit() as usize).saturating_sub(tokens.len());
@@ -6045,6 +6797,42 @@ mod tests {
         }
         assert!(inkling_width_policy(Some("fast"), 8, false, 3).is_err());
         assert!(inkling_width_policy(None, 8, false, 4).is_err());
+        Ok(())
+    }
+
+    /// SPEED-INK2M-P14: the GPU draw follows the sampler, "0" turns the draw or the pipeline off, and
+    /// nothing runs ahead without the GPU draw.
+    #[test]
+    fn inkling_device_draw_follows_sampler_and_flags() -> Result<()> {
+        use mlxl3_native::{inkling2::DrawRule, sampling::Sampler};
+        let app = Sampler::new(1.0, 0, 1.0, 1.0, 0.0)?;
+        let greedy = Sampler::greedy();
+        assert_eq!(
+            inkling_device_draw(&app, None, None),
+            Some((DrawRule::Softmax(1.0), true))
+        );
+        assert_eq!(
+            inkling_device_draw(&greedy, Some("1"), Some("1")),
+            Some((DrawRule::Greedy, true))
+        );
+        assert_eq!(
+            inkling_device_draw(&app, None, Some("0")),
+            Some((DrawRule::Softmax(1.0), false))
+        );
+        assert_eq!(inkling_device_draw(&app, Some("0"), None), None);
+        assert_eq!(inkling_device_draw(&greedy, Some("0"), Some("1")), None);
+        for sampler in [
+            Sampler::new(1.0, 40, 1.0, 1.0, 0.0)?,
+            Sampler::new(1.0, 0, 0.9, 1.0, 0.0)?,
+            Sampler::new(0.7, 0, 1.0, 1.05, 0.0)?,
+            Sampler::new(0.7, 0, 1.0, 1.0, 0.3)?,
+        ] {
+            assert_eq!(
+                inkling_device_draw(&sampler, None, None),
+                None,
+                "{sampler:?}"
+            );
+        }
         Ok(())
     }
 
@@ -6465,6 +7253,8 @@ mod tests {
                 "lookup",
                 false,
                 false,
+                &[],
+                None,
             )?;
             assert!(!baseline.raw.is_empty());
             assert!(
@@ -6493,6 +7283,8 @@ mod tests {
                         "lookup",
                         true,
                         false,
+                        &[],
+                        None,
                     )?;
                     assert_eq!(actual.raw, baseline.raw);
                     assert_eq!(actual.token_hash, baseline.token_hash);
@@ -6535,6 +7327,8 @@ mod tests {
                 "lookup",
                 false,
                 false,
+                &[],
+                None,
             )
         };
         let baseline = run(None)?;
@@ -6600,6 +7394,8 @@ mod tests {
                 "mtp-sampling",
                 false,
                 false,
+                &[],
+                None,
             )
         };
         // Deterministic but penalized: the sampled verifier runs (not the
@@ -6784,6 +7580,8 @@ mod tests {
                 "dflash-copy",
                 false,
                 false,
+                &[],
+                None,
             )?;
             assert!(
                 !reference.raw.is_empty()
@@ -6812,6 +7610,8 @@ mod tests {
                         "dflash-copy",
                         true,
                         false,
+                        &[],
+                        None,
                     )?;
                     assert_eq!(actual.raw, reference.raw);
                     assert_eq!(actual.token_hash, reference.token_hash);
@@ -6885,6 +7685,8 @@ mod tests {
                 "dflash-sampling",
                 false,
                 false,
+                &[],
+                None,
             )
         };
         // Greedy: every mode (including the capped adaptive one) equals autoregressive IDs.

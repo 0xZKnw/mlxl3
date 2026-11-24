@@ -1,0 +1,185 @@
+{
+ "status": "ok",
+ "ready": {
+  "model": "/Users/justin/Documents/mix-stq1_0/models/Inkling-2-Mini-EXL3-R3-vision",
+  "images_supported": true,
+  "dspark_supported": true,
+  "runtime_commit": "d87a9ff8d994-dirty"
+ },
+ "complete": {
+  "assistant_context": "The image has a colorful gradient background, shifting from dark blue/purple at the top-left to magenta/red at the top-right, and from green at the bottom-left to yellow at the bottom-right.\n\nOn the left side, slightly left of center, there is a solid red square. On the right side, slightly right of center, there is a solid blue circle. The square and circle are roughly at the same vertical level.",
+  "cache_context": "<|message_model|><|content_thinking|>The user wants a description of shapes and colors and positions. Need inspect image. It shows gradient background from dark blue/purple top-left to magenta/red top-right, green bottom-left, yellow bottom-right. On left-center there is a red square. On right-center there is a blue circle. Need answer concise. Ensure no claim beyond. Mention positions: red square left of center, blue circle right of center, roughly same vertical level. Background gradient. No need tools beyond thinking already used. Final only.<|end_message|><|message_model|><|content_text|>The image has a colorful gradient background, shifting from dark blue/purple at the top-left to magenta/red at the top-right, and from green at the bottom-left to yellow at the bottom-right.\n\nOn the left side, slightly left of center, there is a solid red square. On the right side, slightly right of center, there is a solid blue circle. The square and circle are roughly at the same vertical level.<|end_message|>",
+  "context_full": false,
+  "elapsed_seconds": 9.139647875,
+  "first_text_seconds": 2.6784842920000003,
+  "request_id": "img1",
+  "round_stats": [
+   {
+    "cached_prompt_tokens": 0,
+    "context_limit": 16384,
+    "context_used": 266,
+    "decode_seconds": 6.551294167,
+    "decode_tokens": 211,
+    "decode_tps": 32.20737683599119,
+    "dflash_accepted_tokens": null,
+    "dflash_block_seconds": 0.0,
+    "dflash_blocks": null,
+    "dflash_lookup_blocks": null,
+    "dflash_profile": null,
+    "dflash_proposed_tokens": null,
+    "draft_load_seconds": 0.0,
+    "dspark_accepted_tokens": 132,
+    "dspark_blocks": 80,
+    "dspark_profile": {
+     "accepted": 132,
+     "accepted_at": [
+      67,
+      49,
+      16
+     ],
+     "blocks": 80,
+     "commit_ms": 32.528128,
+     "draft_ms": 820.5046690000001,
+     "prefill_ms": 1042.7660839999999,
+     "proposed": 193,
+     "verify_ms": 5695.923166000001,
+     "width_blocks": [
+      0,
+      0,
+      47,
+      33
+     ],
+     "width_ms": [
+      0.0,
+      0.0,
+      3627.4830049999996,
+      2921.504084
+     ]
+    },
+    "dspark_proposed_tokens": 193,
+    "elapsed_seconds": 7.5952285,
+    "end_to_end_ttft_seconds": null,
+    "evaluated_prompt_tokens": 54,
+    "generated_tokens": 212,
+    "memory": {
+     "mlx_active_bytes": 13467669716,
+     "mlx_cache_bytes": 567873188,
+     "mlx_peak_bytes": 13685207316,
+     "process_compressed_lifetime_logical_bytes": 1055604736,
+     "process_compressed_logical_bytes": 1032273920,
+     "process_compressed_peak_logical_bytes": 1032421376,
+     "process_decompressions": 415660,
+     "process_footprint_bytes": 14364839848,
+     "process_id": 3981,
+     "process_ledger_swapins_logical_bytes": 0,
+     "process_lifetime_peak_bytes": 14364839848,
+     "process_start_abstime": 20654467061189
+    },
+    "model_size_gb": 13.777442851,
+    "mtp_accepted_tokens": null,
+    "mtp_blocks": null,
+    "mtp_depth_blocks": null,
+    "mtp_lookup_blocks": null,
+    "mtp_proposed_tokens": null,
+    "prefill_seconds": 1.042785333,
+    "prefill_tps": 51.784387726903326,
+    "prepare_seconds": 0.000588208,
+    "prompt_tokens": 54,
+    "round_count": 1,
+    "tool_rounds": 0,
+    "tool_seconds": 0.0,
+    "ttft_seconds": 1.043934333
+   }
+  ],
+  "stats": {
+   "cached_prompt_tokens": 0,
+   "context_limit": 16384,
+   "context_used": 266,
+   "decode_seconds": 6.551294167,
+   "decode_tokens": 211,
+   "decode_tps": 32.20737683599119,
+   "dflash_accepted_tokens": null,
+   "dflash_block_seconds": 0.0,
+   "dflash_blocks": null,
+   "dflash_lookup_blocks": null,
+   "dflash_profile": null,
+   "dflash_proposed_tokens": null,
+   "draft_load_seconds": 0.0,
+   "dspark_accepted_tokens": 132,
+   "dspark_blocks": 80,
+   "dspark_profile": {
+    "accepted": 132,
+    "accepted_at": [
+     67,
+     49,
+     16
+    ],
+    "blocks": 80,
+    "commit_ms": 32.528128,
+    "draft_ms": 820.5046690000001,
+    "prefill_ms": 1042.7660839999999,
+    "proposed": 193,
+    "verify_ms": 5695.923166000001,
+    "width_blocks": [
+     0,
+     0,
+     47,
+     33
+    ],
+    "width_ms": [
+     0.0,
+     0.0,
+     3627.4830049999996,
+     2921.504084
+    ]
+   },
+   "dspark_proposed_tokens": 193,
+   "elapsed_seconds": 9.139637,
+   "end_to_end_ttft_seconds": 2.6784842920000003,
+   "evaluated_prompt_tokens": 54,
+   "generated_tokens": 212,
+   "memory": {
+    "mlx_active_bytes": 13467669716,
+    "mlx_cache_bytes": 567873188,
+    "mlx_peak_bytes": 13685207316,
+    "process_compressed_lifetime_logical_bytes": 1055604736,
+    "process_compressed_logical_bytes": 1032273920,
+    "process_compressed_peak_logical_bytes": 1032421376,
+    "process_decompressions": 415660,
+    "process_footprint_bytes": 14364839848,
+    "process_id": 3981,
+    "process_ledger_swapins_logical_bytes": 0,
+    "process_lifetime_peak_bytes": 14364839848,
+    "process_start_abstime": 20654467061189
+   },
+   "model_size_gb": 13.777442851,
+   "mtp_accepted_tokens": null,
+   "mtp_blocks": null,
+   "mtp_depth_blocks": null,
+   "mtp_lookup_blocks": null,
+   "mtp_proposed_tokens": null,
+   "prefill_seconds": 1.042785333,
+   "prefill_tps": 51.784387726903326,
+   "prepare_seconds": 0.000588208,
+   "prompt_tokens": 54,
+   "round_count": 1,
+   "tool_rounds": 0,
+   "tool_seconds": 0.0,
+   "ttft_seconds": 2.588317625
+  },
+  "stop_reason": "eos",
+  "token_hash": "250978306793aa3d",
+  "tool_rounds": 0,
+  "turn_context": null,
+  "type": "complete"
+ },
+ "text": {
+  "thinking": "The user wants a description of shapes and colors and positions. Need inspect image. It shows gradient background from dark blue/purple top-left to magenta/red top-right, green bottom-left, yellow bottom-right. On left-center there is a red square. On right-center there is a blue circle. Need answer concise. Ensure no claim beyond. Mention positions: red square left of center, blue circle right of center, roughly same vertical level. Background gradient. No need tools beyond thinking already used. Final only.",
+  "answer": "The image has a colorful gradient background, shifting from dark blue/purple at the top-left to magenta/red at the top-right, and from green at the bottom-left to yellow at the bottom-right.\n\nOn the left side, slightly left of center, there is a solid red square. On the right side, slightly right of center, there is a solid blue circle. The square and circle are roughly at the same vertical level."
+ },
+ "other_events": [
+  "context_usage",
+  "generation_mode",
+  "generation_status"
+ ]
+}

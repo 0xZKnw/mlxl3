@@ -13,47 +13,78 @@ struct StreamingScrollState {
   mutating func proximityChanged(_ nearBottom: Bool) {
     if userIsScrolling || nearBottom { followsBottom = nearBottom }
   }
+
+  /// A followed transcript more than a couple of points from its scroll end (or past it)
+  /// is re-pinned; layout rounding stays inside this tolerance.
+  static func needsRepin(gap: CGFloat) -> Bool { abs(gap) > 2 }
+  /// Delays (ms) between the re-pin checks that follow a content or viewport size change.
+  static let repinChecks = [0, 16, 33, 66, 133]
+}
+
+private struct BottomMetrics: Equatable {
+  var height: CGFloat = 0
+  var gap: CGFloat = 0
+  var container = CGSize.zero
+
+  /// Changes when the content or the viewport is resized, never when the reader scrolls.
+  struct Layout: Hashable {
+    let height: CGFloat
+    let width: CGFloat
+    let viewport: CGFloat
+  }
+  var layout: Layout { Layout(height: height, width: container.width, viewport: container.height) }
 }
 
 struct MessagesView: View {
+  /// Recent messages are measured eagerly. A `LazyVStack` re-estimates rows that leave its
+  /// window (their Markdown renders again from empty), which moved the transcript height by
+  /// thousands of points while a reply streamed and made the followed view jump up and down.
+  static let measuredTail = 12
+
   @Environment(\.conversationDensity) private var density
   @Environment(\.conversationReadingWidth) private var readingWidth
   let messages: [ChatMessage]
   @State private var scroll = StreamingScrollState()
-  @State private var renderedHeight: CGFloat = 0
+  @State private var metrics = BottomMetrics()
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
   var body: some View {
+    let split = max(0, messages.count - Self.measuredTail)
     ScrollViewReader { proxy in
       ScrollView {
         VStack(spacing: density.spacing) {
-          if messages.count > 1 {
+          if split > 0 {
             LazyVStack(spacing: density.spacing) {
-              ForEach(messages.dropLast()) { message in
-                MessageView(message: message)
-                  .transition(reduceMotion ? .identity : .offset(y: 7).combined(with: .opacity))
+              ForEach(messages.prefix(split)) { message in
+                MessageView(message: message, isLast: false)
                   .id(message.id)
               }
             }
           }
-          // Keep the growing response measured while older messages remain lazy.
-          if let message = messages.last {
-            MessageView(message: message)
+          ForEach(messages.suffix(from: split)) { message in
+            MessageView(message: message, isLast: message.id == messages.last?.id)
+              .transition(
+                reduceMotion || message.id == messages.last?.id
+                  ? .identity : .offset(y: 7).combined(with: .opacity))
               .id(message.id)
           }
+          // The marker carries the 26 pt bottom margin, so pinning it reaches the scroll end,
+          // where the native size-change anchor engages.
           Color.clear
-            .frame(height: 4)
+            .frame(height: 30)
             .id("conversation-bottom")
         }
         .padding(.horizontal, 28)
         .padding(.top, 38)
-        .padding(.bottom, 26)
         .frame(maxWidth: readingWidth.messageMaximum)
         .frame(maxWidth: .infinity)
       }
       .scrollIndicators(.never)
       .mask(StudioEdgeFade(top: 26, bottom: 16))
       .defaultScrollAnchor(.bottom, for: .initialOffset)
+      // Growth keeps the bottom pinned natively. Animated `scrollTo` calls restarted every
+      // 50 ms batch: each one showed the target for a frame, then slid from the old offset.
+      .defaultScrollAnchor(scroll.shouldFollow ? .bottom : nil, for: .sizeChanges)
       .onScrollPhaseChange { _, phase in
         scroll.phaseChanged(phase)
       }
@@ -62,28 +93,33 @@ struct MessagesView: View {
       } action: { _, nearBottom in
         scroll.proximityChanged(nearBottom)
       }
-      .onScrollGeometryChange(for: CGFloat.self) { geometry in
-        geometry.contentSize.height
-      } action: { _, height in
-        renderedHeight = height
+      .onScrollGeometryChange(for: BottomMetrics.self) { geometry in
+        BottomMetrics(
+          height: geometry.contentSize.height.rounded(),
+          gap: (geometry.contentSize.height - geometry.visibleRect.maxY).rounded(),
+          container: CGSize(
+            width: geometry.containerSize.width.rounded(),
+            height: geometry.containerSize.height.rounded()))
+      } action: { _, value in
+        metrics = value
       }
-      .task(id: renderedHeight) {
-        guard renderedHeight > 0, scroll.shouldFollow else { return }
-        await Task.yield()
-        guard !Task.isCancelled, scroll.shouldFollow else { return }
-        withAnimation(reduceMotion ? nil : .linear(duration: 0.12)) {
-          proxy.scrollTo("conversation-bottom", anchor: .bottom)
+      .task(id: metrics.layout) {
+        // Safety net when growth or a resize moved the end and the anchor did not absorb it:
+        // re-pin without animation. A reader's own scroll never starts it. The anchor and a
+        // reflow can settle a few frames after the change (a resize anchored to the old
+        // viewport height), so the gap is checked again for a short while.
+        guard metrics.height > 0 else { return }
+        for delay in StreamingScrollState.repinChecks {
+          if delay == 0 { await Task.yield() } else { try? await Task.sleep(for: .milliseconds(delay)) }
+          guard !Task.isCancelled else { return }
+          if scroll.shouldFollow, StreamingScrollState.needsRepin(gap: metrics.gap) { pin(proxy) }
         }
       }
       .task(id: messages.last?.id) {
         scroll.followsBottom = true
         await Task.yield()
         guard !Task.isCancelled else { return }
-        var transaction = Transaction(animation: nil)
-        transaction.disablesAnimations = true
-        withTransaction(transaction) {
-          proxy.scrollTo("conversation-bottom", anchor: .bottom)
-        }
+        pin(proxy)
       }
       .overlay(alignment: .bottom) {
         if !scroll.followsBottom {
@@ -102,29 +138,56 @@ struct MessagesView: View {
     }
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
+
+  private func pin(_ proxy: ScrollViewProxy) {
+    var transaction = Transaction(animation: nil)
+    transaction.disablesAnimations = true
+    withTransaction(transaction) {
+      proxy.scrollTo("conversation-bottom", anchor: .bottom)
+    }
+  }
 }
 
 private struct MessageView: View {
+    @Environment(\.studioStyle) private var style
     @Environment(\.conversationTextScale) private var textScale
     @Environment(\.conversationFont) private var conversationFont
     @Environment(\.messageBubbleStyle) private var bubbleStyle
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var message: ChatMessage
+    var isLast = false
+    @State private var hovered = false
 
     var body: some View {
         if message.role == .user {
           HStack(alignment: .top) {
             Spacer(minLength: 64)
-            VStack(alignment: .trailing, spacing: 9) {
-                HStack(spacing: 9) {
-                    Text(L("Vous", "You"))
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(StudioTheme.quiet)
+            VStack(alignment: .trailing, spacing: style.isGraphite ? 8 : 9) {
+                // Graphite: the bubble already says who wrote it.
+                if !style.isGraphite {
+                    HStack(spacing: 9) {
+                        Text(L("Vous", "You"))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(StudioTheme.quiet)
+                    }
                 }
                 ForEach(message.attachments) { attachment in
                     ChatAttachmentView(attachment: attachment)
                 }
-                if !message.content.isEmpty {
+                if !message.content.isEmpty && style.isGraphite {
+                  Text(message.content)
+                    .font(.system(size: 15 * textScale, weight: .regular, design: conversationFont.design))
+                    .foregroundStyle(StudioTheme.ink)
+                    .lineSpacing(5 * textScale)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 11)
+                    .background(bubbleStyle == .tinted ? studio.accentColor.opacity(0.16) : StudioTheme.contrast.opacity(bubbleStyle == .subtle ? 0.065 : 0), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(StudioTheme.edge, lineWidth: bubbleStyle == .outlined ? 1 : 0)
+                    }
+                } else if !message.content.isEmpty {
                   Text(message.content)
                     .font(.system(size: 15 * textScale, weight: .medium, design: conversationFont.design))
                     .foregroundStyle(StudioTheme.ink)
@@ -138,47 +201,63 @@ private struct MessageView: View {
                             .strokeBorder(StudioTheme.edge, lineWidth: bubbleStyle == .outlined ? 1 : bubbleStyle == .subtle ? 0.5 : 0)
                     }
                 }
-                HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
+            }
+            // Beside the bubble on hover, outside the layout: a row of identical buttons
+            // under every question was noise, and reserving its height left a gap.
+            .overlay(alignment: .bottomLeading) {
+                MessageActionBar(message: message)
+                    .alignmentGuide(.leading) { $0[.trailing] + 8 }
+                    .opacity(hovered ? 1 : 0)
+                    .animation(.easeOut(duration: 0.12), value: hovered)
             }
           }
             .frame(maxWidth: .infinity, alignment: .trailing)
             .padding(.bottom, 4)
+            .contentShape(Rectangle())
+            .onHover { hovered = $0 }
         } else {
-            AssistantMessageView(message: message)
+            AssistantMessageView(message: message, isLast: isLast)
         }
     }
 }
 
 private struct AssistantMessageView: View {
+    @Environment(\.studioStyle) private var style
     @Environment(\.conversationTextScale) private var textScale
     @ObservedObject var message: ChatMessage
+    var isLast = false
     @State private var citedSource: DocumentExcerpt?
+    @State private var hovered = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: 13) {
-                HStack(spacing: 7) {
-                    MonogramMark(size: 15)
-                    Text("MLXL3")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(StudioTheme.secondary)
-                    if message.isStreaming {
-                        StreamingIndicator()
+                // Graphite: the answer speaks for itself, no mark and name above each reply.
+                if !style.isGraphite {
+                    HStack(spacing: 7) {
+                        MonogramMark(size: 15)
+                        Text("MLXL3")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(StudioTheme.secondary)
+                        Spacer(minLength: 8)
                     }
-                    Spacer(minLength: 8)
                 }
 
                 if message.parts.isEmpty && message.isStreaming {
-                    ThinkingPlaceholder()
+                    PendingActivityRow(label: L("Préparation de la réponse", "Preparing response"))
                 }
-                ForEach(message.parts) { part in
-                    let live = message.isStreaming && message.parts.last?.id == part.id
-                    switch part.kind {
-                    case .thinking:
-                        ThinkingBlock(text: part.text, streaming: live, textScale: textScale)
-                            .equatable()
-                    case .answer:
-                        MarkdownResponseView(part.text, streaming: live,
+                ForEach(AssistantSegment.split(message.parts)) { segment in
+                    if segment.isActivity {
+                        // Reasoning and tool lines read as one log, tighter than paragraphs.
+                        VStack(alignment: .leading, spacing: 3) {
+                            ForEach(segment.parts) { part in activity(part) }
+                            // A finished tool before the next round's first event: the run goes on.
+                            if segment.parts.last?.id == message.parts.last?.id, awaitingNextStep {
+                                PendingActivityRow(label: L("Préparation de l’étape suivante", "Preparing the next step"))
+                            }
+                        }
+                    } else if let part = segment.parts.first {
+                        MarkdownResponseView(part.text, streaming: isLive(part),
                                              textScale: textScale, htmlPreviewEnabled: !message.isStreaming && message.error == nil)
                             .equatable()
                             .environment(\.openURL, OpenURLAction { url in
@@ -188,45 +267,196 @@ private struct AssistantMessageView: View {
                                 }
                                 return ["http", "https"].contains(url.scheme ?? "") ? .systemAction : .discarded
                             })
-                    case .tool:
-                        if let activity = message.toolActivities.first(where: { $0.id == part.toolID }) {
-                            MCPToolActivityRow(activity: activity)
-                        }
-                    case .processing:
-                        PrefillActivityRow(part: part, live: live)
                     }
                 }
 
                 if let error = message.error {
-                    Label(error, systemImage: "exclamationmark.circle.fill")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color(red: 1.0, green: 0.48, blue: 0.50))
+                    Label(error, systemImage: "exclamationmark.circle")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(StudioTheme.failure)
                 }
 
                 if !message.sources.isEmpty {
                     ScrollView(.horizontal) {
-                        HStack {
+                        HStack(spacing: 6) {
                             ForEach(message.sources) { source in
-                                Button(source.label) { citedSource = source }.buttonStyle(.bordered).font(.caption)
+                                Button { citedSource = source } label: {
+                                    Label(source.label, systemImage: "doc.text")
+                                        .font(.system(size: 11.5, weight: .medium))
+                                        .lineLimit(1)
+                                        .padding(.horizontal, 10)
+                                        .frame(height: 26)
+                                        .overlay {
+                                            Capsule().strokeBorder(StudioTheme.edge, lineWidth: 0.5)
+                                        }
+                                }
+                                .buttonStyle(StudioControlStyle(cornerRadius: 13))
                             }
                         }
                     }
+                    .scrollIndicators(.never)
                 }
                 if let stats = message.stats {
                     StatsRow(stats: stats)
                 }
                 if !message.content.isEmpty {
-                    HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
+                    // The latest reply keeps its actions; older ones show them on hover.
+                    MessageActionBar(message: message)
+                        .opacity(isLast || hovered ? 1 : 0)
+                        .animation(.easeOut(duration: 0.12), value: hovered)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
         .sheet(item: $citedSource) { DocumentSourceView(source: $0) }
     }
 
+    private func isLive(_ part: AssistantPart) -> Bool {
+        message.isStreaming && message.parts.last?.id == part.id
+    }
+
+    private var awaitingNextStep: Bool {
+        guard message.isStreaming, let last = message.parts.last, last.kind == .tool else { return false }
+        return message.toolActivities.first(where: { $0.id == last.toolID })?.state != .running
+    }
+
+    @ViewBuilder
+    private func activity(_ part: AssistantPart) -> some View {
+        switch part.kind {
+        case .thinking:
+            ThinkingBlock(text: part.text, streaming: isLive(part), elapsed: part.elapsed, textScale: textScale)
+                .equatable()
+        case .tool:
+            if let activity = message.toolActivities.first(where: { $0.id == part.toolID }) {
+                ToolCallRow(activity: activity, elapsed: part.elapsed)
+            }
+        case .processing:
+            PrefillActivityRow(part: part, live: isLive(part))
+        case .answer:
+            EmptyView()
+        }
+    }
 }
 
+/// Consecutive reasoning, tool and context parts form one activity segment; each answer
+/// part stands alone. A segment is identified by its first part, so it keeps its identity
+/// (and the rows inside keep their expanded state) while it grows.
+struct AssistantSegment: Identifiable {
+    let parts: [AssistantPart]
+    var id: UUID { parts[0].id }
+    var isActivity: Bool { parts[0].kind != .answer }
+
+    static func split(_ parts: [AssistantPart]) -> [AssistantSegment] {
+        var segments: [AssistantSegment] = []
+        var run: [AssistantPart] = []
+        for part in parts {
+            if part.kind == .answer {
+                if !run.isEmpty { segments.append(AssistantSegment(parts: run)); run = [] }
+                segments.append(AssistantSegment(parts: [part]))
+            } else {
+                run.append(part)
+            }
+        }
+        if !run.isEmpty { segments.append(AssistantSegment(parts: run)) }
+        return segments
+    }
+}
+
+/// Copy, regenerate, read aloud and branch: one row of quiet icon buttons.
+struct MessageActionBar: View {
+    @ObservedObject var message: ChatMessage
+
+    var body: some View {
+        HStack(spacing: 2) {
+            MessageCopyButton(message: message)
+            MessageActionsView(message: message)
+        }
+        // The first icon's glyph lines up with the text above it.
+        .padding(.leading, message.role == .assistant ? -6 : 0)
+    }
+}
+
+// MARK: - Activity column
+
+/// Reasoning, tool calls and context reading share one column: an icon, what happened and
+/// its object, then quiet metadata. Nothing is boxed; detail opens under the line.
+private enum ActivityMetrics {
+    static let iconWidth: CGFloat = 16
+    static let spacing: CGFloat = 8
+    static var indent: CGFloat { iconWidth + spacing }
+
+    /// "4 s", "1 min 12 s".
+    static func duration(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        return total < 60 ? "\(total) s" : "\(total / 60) min \(total % 60) s"
+    }
+}
+
+private struct ActivityIcon: View {
+    @Environment(\.conversationTextScale) private var textScale
+    let symbol: String
+    var color: Color = StudioTheme.quiet
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 11 * textScale, weight: .medium))
+            .foregroundStyle(color)
+            .frame(width: ActivityMetrics.iconWidth)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct ActivityChevron: View {
+    let expanded: Bool
+    let visible: Bool
+
+    var body: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 8.5, weight: .bold))
+            .foregroundStyle(StudioTheme.quiet)
+            .rotationEffect(.degrees(expanded ? 90 : 0))
+            .opacity(visible || expanded ? 1 : 0)
+            .accessibilityHidden(true)
+    }
+}
+
+/// The clickable line of an expandable activity: a hover wash that hugs the text.
+private struct ActivityLineStyle: ButtonStyle {
+    let hovered: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                StudioTheme.contrast.opacity(configuration.isPressed ? 0.075 : hovered ? 0.045 : 0),
+                in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .padding(.horizontal, -6)
+    }
+}
+
+/// Waiting with nothing to show yet: the words say what for, the sweep that it is ongoing.
+private struct PendingActivityRow: View {
+    @Environment(\.conversationTextScale) private var textScale
+    let label: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: ActivityMetrics.spacing) {
+            ActivityIcon(symbol: "circle.dotted")
+            StudioShimmerText(text: label, font: .system(size: 13 * textScale, weight: .medium))
+        }
+        .padding(.vertical, 3)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Context reading (prefill). Live: what is read and for how long. Done: kept only when it
+/// took a noticeable time or was interrupted; "Context processed · 0 s" said nothing.
 private struct PrefillActivityRow: View {
+    @Environment(\.conversationTextScale) private var textScale
     let part: AssistantPart
     let live: Bool
 
@@ -235,237 +465,293 @@ private struct PrefillActivityRow: View {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 row(at: context.date)
             }
-        } else {
+        } else if part.interrupted == true || (part.elapsed ?? 0) >= 1 {
             row(at: .now)
         }
     }
 
     private func row(at date: Date) -> some View {
-            HStack(spacing: 8) {
-                if live {
-                    ProgressView().controlSize(.mini)
-                } else {
-                    Image(systemName: part.interrupted == true ? "stop" : "checkmark")
-                        .font(.system(size: 10))
-                }
-                Text(live ? localizedProgress(part.text) : (part.interrupted == true ? L("Traitement interrompu", "Processing interrupted") : L("Contexte traité", "Context processed")))
-                    .lineLimit(2)
-                Spacer(minLength: 8)
-                let elapsed = part.elapsed ?? date.timeIntervalSince(part.startedAt ?? date)
-                Text("\(max(0, Int(elapsed))) s").monospacedDigit()
-            }
-            .font(.system(size: 11))
-            .foregroundStyle(StudioTheme.secondary)
-            .padding(.vertical, 4)
-            .accessibilityElement(children: .combine)
+        let elapsed = part.elapsed ?? date.timeIntervalSince(part.startedAt ?? date)
+        let interrupted = part.interrupted == true
+        return HStack(alignment: .firstTextBaseline, spacing: ActivityMetrics.spacing) {
+            ActivityIcon(symbol: interrupted ? "stop" : "doc.text.magnifyingglass")
+            StudioShimmerText(
+                text: live ? localizedProgress(part.text)
+                    : interrupted ? L("Lecture du contexte interrompue", "Context reading interrupted")
+                    : L("Contexte lu", "Read the context"),
+                font: .system(size: 13 * textScale, weight: .medium), active: live)
+                .lineLimit(2)
+            Text(ActivityMetrics.duration(elapsed))
+                .font(.system(size: 12 * textScale))
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.quiet)
+        }
+        .padding(.vertical, 3)
+        .accessibilityElement(children: .combine)
     }
 }
 
-private struct MCPToolActivityRow: View {
+/// One tool call as a line: "Read src/stats.pl", "Ran sh test.sh · Exit 1", "Web search
+/// “mlx cache” · exa". Running calls sweep their title; the arguments and the result open
+/// underneath on click.
+private struct ToolCallRow: View {
     @Environment(\.conversationTextScale) private var textScale
     let activity: ToolActivity
+    let elapsed: Double?
     @State private var expanded = false
-    @State private var fullOutput = false
+    @State private var hovered = false
 
     var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            if let result = activity.result, !result.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    if fullOutput {
-                        ScrollView([.vertical, .horizontal]) {
-                            Text(result).textSelection(.enabled)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }.frame(maxHeight: 240)
-                    } else {
-                        Text(result).lineLimit(10).textSelection(.enabled)
-                    }
-                    HStack {
-                        Button(fullOutput ? L("Réduire", "Show less") : L("Voir la sortie complète", "Show full output")) {
-                            fullOutput.toggle()
-                        }
-                        Button(L("Copier", "Copy")) {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(result, forType: .string)
-                        }
-                    }.buttonStyle(.borderless)
-                }
-                .font(.system(size: 10.5 * textScale, weight: .regular, design: .monospaced))
-                .foregroundStyle(StudioTheme.contrast.opacity(0.58))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 8)
+        let shown = ToolCallPresentation(activity)
+        let input = shown.input(of: activity)
+        let output = activity.result.flatMap { $0.isEmpty ? nil : $0 }
+        let expandable = input != nil || output != nil
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                withAnimation(.easeOut(duration: 0.16)) { expanded.toggle() }
+            } label: {
+                line(shown, expandable: expandable)
             }
-        } label: {
-            HStack(spacing: 8) {
-                stateIcon
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(activity.toolName)
-                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
+            .buttonStyle(ActivityLineStyle(hovered: hovered && expandable))
+            .allowsHitTesting(expandable)
+            .onHover { hovered = $0 }
+            .accessibilityLabel(accessibilityText(shown))
+            .accessibilityHint(expandable ? L("Afficher le détail", "Show details") : "")
+            if expanded {
+                ToolCallDetails(activity: activity, input: input, output: output)
+                    .padding(.leading, ActivityMetrics.indent)
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    private func line(_ shown: ToolCallPresentation, expandable: Bool) -> some View {
+        let failed = activity.state == .failed
+        return HStack(alignment: .firstTextBaseline, spacing: ActivityMetrics.spacing) {
+            ActivityIcon(symbol: shown.symbol, color: failed ? StudioTheme.failure : StudioTheme.quiet)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                StudioShimmerText(text: shown.title, font: .system(size: 13 * textScale, weight: .medium),
+                                  active: activity.state == .running)
+                    .layoutPriority(1)
+                if let detail = shown.detail {
+                    Text(detail)
+                        .font(shown.monospaced ? .system(size: 12 * textScale, design: .monospaced)
+                              : .system(size: 13 * textScale))
+                        .foregroundStyle(StudioTheme.quiet)
                         .lineLimit(1)
-                    if let server = activity.serverName {
-                        Text("MCP · \(server)")
-                            .font(.system(size: 8, weight: .bold, design: .rounded))
-                            .tracking(0.65)
-                            .foregroundStyle(StudioTheme.quiet)
-                    }
+                        .truncationMode(shown.isPath ? .middle : .tail)
                 }
-                Spacer()
-                Text(stateLabel)
-                    .font(.system(size: 8, weight: .bold, design: .rounded))
-                    .tracking(0.5)
-                    .foregroundStyle(stateColor)
+                if let source = shown.source {
+                    Text("· \(source)")
+                        .font(.system(size: 12 * textScale))
+                        .foregroundStyle(StudioTheme.quiet)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                }
+                if let outcome = shown.outcome {
+                    Text(outcome)
+                        .font(.system(size: 12 * textScale, weight: .medium))
+                        .foregroundStyle(failed ? StudioTheme.failure : StudioTheme.quiet)
+                        .fixedSize()
+                } else if activity.state != .running, let elapsed, elapsed >= 1 {
+                    Text(ActivityMetrics.duration(elapsed))
+                        .font(.system(size: 12 * textScale))
+                        .monospacedDigit()
+                        .foregroundStyle(StudioTheme.quiet)
+                        .fixedSize()
+                }
+                if expandable {
+                    ActivityChevron(expanded: expanded, visible: hovered)
+                }
             }
         }
-        .tint(StudioTheme.contrast.opacity(0.42))
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .background(StudioTheme.contrast.opacity(0.025), in: RoundedRectangle(cornerRadius: 11))
+    }
+
+    private func accessibilityText(_ shown: ToolCallPresentation) -> String {
+        [shown.title, shown.detail, shown.source, shown.outcome ?? (activity.state == .running ? L("en cours", "running") : nil)]
+            .compactMap { $0 }.joined(separator: ", ")
+    }
+}
+
+/// What a tool was given and what it returned, in one quiet panel.
+private struct ToolCallDetails: View {
+    @Environment(\.conversationTextScale) private var textScale
+    let activity: ToolActivity
+    let input: (title: String, text: String)?
+    let output: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let input {
+                ToolCallSection(title: input.title, text: input.text, lines: 14)
+                    .accessibilityIdentifier("tool.arguments")
+            }
+            if input != nil && output != nil {
+                Rectangle().fill(StudioTheme.edge).frame(height: 0.5)
+            }
+            if let output {
+                ToolCallSection(title: activity.state == .failed ? L("Erreur", "Error") : L("Résultat", "Output"),
+                                text: output, lines: 12)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(StudioTheme.contrast.opacity(0.03), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: 11)
-                .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.6)
+            RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(StudioTheme.edge, lineWidth: 0.5)
         }
-    }
-
-    @ViewBuilder
-    private var stateIcon: some View {
-        if activity.state == .running {
-            ProgressView()
-                .controlSize(.mini)
-                .tint(StudioTheme.accent)
-        } else {
-            Image(systemName: activity.state == .complete ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .font(.system(size: 11, weight: .semibold))
-                .foregroundStyle(stateColor)
-        }
-    }
-
-    private var stateLabel: String {
-        switch activity.state {
-        case .running: L("EXÉCUTION", "RUNNING")
-        case .complete: L("TERMINÉ", "DONE")
-        case .failed: L("ERREUR", "ERROR")
-        }
-    }
-
-    private var stateColor: Color {
-        activity.state == .failed
-            ? Color(red: 1, green: 0.48, blue: 0.50)
-            : StudioTheme.accent.opacity(0.82)
     }
 }
 
-private struct StreamingIndicator: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pulse = false
+private struct ToolCallSection: View {
+    @Environment(\.conversationTextScale) private var textScale
+    let title: String
+    let text: String
+    let lines: Int
+    @State private var full = false
+    @State private var copied = false
 
     var body: some View {
-        Circle()
-            .fill(StudioTheme.accent)
-            .frame(width: 5, height: 5)
-            // Scope the endless animation to opacity/scale. A view-wide
-            // `.animation(_:value:)` started from `onAppear` also captured the
-            // insertion layout, so the dot's position looped forever between
-            // its first frame and its real slot (a "bouncing ball").
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.72).repeatForever()) { dot in
-                dot
-                    .opacity(!reduceMotion && pulse ? 0.3 : 1)
-                    .scaleEffect(!reduceMotion && pulse ? 0.72 : 1)
+        let long = text.split(separator: "\n", omittingEmptySubsequences: false).count > lines || text.count > lines * 120
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(.system(size: 11 * textScale, weight: .medium))
+                    .foregroundStyle(StudioTheme.quiet)
+                Spacer(minLength: 8)
+                if long {
+                    Button(full ? L("Réduire", "Show less") : L("Tout afficher", "Show all")) { full.toggle() }
+                        .font(.system(size: 11 * textScale, weight: .medium))
+                        .padding(.horizontal, 7).frame(height: 22)
+                        .buttonStyle(StudioControlStyle())
+                }
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                    copied = true
+                } label: {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(StudioControlStyle())
+                .help(L("Copier", "Copy"))
+                .accessibilityLabel(L("Copier", "Copy"))
             }
-            .onAppear { pulse = !reduceMotion }
-            .onChange(of: reduceMotion) { _, value in pulse = !value }
-    }
-}
-
-private struct ThinkingPlaceholder: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var shimmer = false
-
-    var body: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 10, weight: .bold))
-            Text(L("Réflexion en cours", "Thinking"))
-                .font(.system(size: 11, weight: .medium))
-            HStack(spacing: 3) {
-                ForEach(0..<3, id: \.self) { index in
-                    Circle()
-                        .frame(width: 3, height: 3)
-                        // Only opacity repeats, never layout (see StreamingIndicator).
-                        .animation(dotAnimation) { dot in dot.opacity(dotOpacity(index)) }
+            Group {
+                if full {
+                    ScrollView([.vertical, .horizontal]) {
+                        Text(text).fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 300)
+                } else {
+                    Text(text).lineLimit(lines)
                 }
             }
+            .font(.system(size: 11.5 * textScale, design: .monospaced))
+            .foregroundStyle(StudioTheme.secondary)
+            .lineSpacing(2)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .foregroundStyle(StudioTheme.thinking)
-        .onAppear { shimmer = !reduceMotion }
-        .onChange(of: reduceMotion) { _, value in shimmer = !value }
-    }
-
-    // Typed helpers keep this view within the hosted compiler's type-check budget.
-    private var dotAnimation: Animation? {
-        reduceMotion ? nil : .easeInOut(duration: 0.8).repeatForever()
-    }
-
-    private func dotOpacity(_ index: Int) -> Double {
-        let position = Double(index)
-        return !reduceMotion && shimmer ? 0.25 + position * 0.28 : 0.9 - position * 0.25
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 11)
+        .task(id: copied) {
+            guard copied else { return }
+            try? await Task.sleep(for: .seconds(1.2))
+            guard !Task.isCancelled else { return }
+            copied = false
+        }
     }
 }
 
+/// Reasoning: open while it streams, folded to "Thought for 4 s" once the model moves on.
+/// A click keeps it the way the reader chose.
 private struct ThinkingBlock: View, Equatable {
     let text: String
     let streaming: Bool
+    let elapsed: Double?
     let textScale: CGFloat
-    @State private var expanded = true
+    /// nil follows the stream; a click pins it.
+    @State private var chosen: Bool?
+    @State private var hovered = false
     @State private var chunkCache = StreamingTextChunker.Cache(markdown: false)
     @State private var scroll = StreamingScrollState()
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.text == rhs.text && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
+        lhs.text == rhs.text && lhs.streaming == rhs.streaming && lhs.elapsed == rhs.elapsed
+            && lhs.textScale == rhs.textScale
+    }
+
+    private var title: String {
+        if streaming { return L("Réflexion en cours", "Thinking") }
+        if let elapsed, elapsed >= 1 {
+            let duration = ActivityMetrics.duration(elapsed)
+            return L("Réflexion · \(duration)", "Thought for \(duration)")
+        }
+        return L("Réflexion", "Thought")
     }
 
     var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            ScrollView {
-                let chunks = chunkCache.chunks(text)
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(chunks) { chunk in
-                        ThinkingTextChunk(
-                            source: chunk.source,
-                            streaming: streaming && chunk.id == chunks.last?.id,
-                            textScale: textScale
-                        )
-                        .equatable()
-                    }
+        let expanded = chosen ?? streaming
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                withAnimation(.easeOut(duration: 0.16)) { chosen = !expanded }
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: ActivityMetrics.spacing) {
+                    ActivityIcon(symbol: "brain")
+                    StudioShimmerText(text: title, font: .system(size: 13 * textScale, weight: .medium),
+                                      active: streaming)
+                    ActivityChevron(expanded: expanded, visible: hovered)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 10)
             }
-            .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .defaultScrollAnchor(scroll.shouldFollow ? .bottom : nil, for: .sizeChanges)
-            .onScrollPhaseChange { _, phase in scroll.phaseChanged(phase) }
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentSize.height - geometry.visibleRect.maxY < 60
-            } action: { _, nearBottom in
-                scroll.proximityChanged(nearBottom)
+            .buttonStyle(ActivityLineStyle(hovered: hovered))
+            .onHover { hovered = $0 }
+            .accessibilityLabel(title)
+            .accessibilityValue(expanded ? L("développé", "expanded") : L("replié", "collapsed"))
+            if expanded {
+                ScrollView {
+                    let chunks = chunkCache.chunks(text)
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(chunks) { chunk in
+                            ThinkingTextChunk(
+                                source: chunk.source,
+                                streaming: streaming && chunk.id == chunks.last?.id,
+                                textScale: textScale
+                            )
+                            .equatable()
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                }
+                .defaultScrollAnchor(.bottom, for: .initialOffset)
+                .defaultScrollAnchor(scroll.shouldFollow ? .bottom : nil, for: .sizeChanges)
+                .onScrollPhaseChange { _, phase in scroll.phaseChanged(phase) }
+                .onScrollGeometryChange(for: Bool.self) { geometry in
+                    geometry.contentSize.height - geometry.visibleRect.maxY < 60
+                } action: { _, nearBottom in
+                    scroll.proximityChanged(nearBottom)
+                }
+                .frame(maxHeight: 180)
+                .mask(StudioEdgeFade(top: 6, bottom: 6))
+                .padding(.leading, ActivityMetrics.indent)
+                // The thread under the icon ties the text to its line.
+                .overlay(alignment: .leading) {
+                    Rectangle().fill(StudioTheme.edge)
+                        .frame(width: 1)
+                        .padding(.leading, ActivityMetrics.iconWidth / 2 - 0.5)
+                        .padding(.vertical, 2)
+                }
+                .transition(.opacity)
             }
-            .frame(maxHeight: 180)
-        } label: {
-            HStack(spacing: 8) {
-                Text(streaming ? L("Réflexion en cours", "Thinking") : L("Réflexion", "Thinking"))
-                    .font(.system(size: 11, weight: .medium))
-                if streaming { StreamingIndicator() }
-            }
-            .foregroundStyle(StudioTheme.thinking)
-        }
-        .tint(StudioTheme.contrast.opacity(0.52))
-        .padding(.leading, 14)
-        .padding(.vertical, 5)
-        .overlay(alignment: .leading) {
-            Rectangle().fill(StudioTheme.edge).frame(width: 1)
         }
     }
 }
 
 private struct ThinkingTextChunk: View, Equatable {
+    @Environment(\.studioStyle) private var style
     let source: String
     let streaming: Bool
     let textScale: CGFloat
@@ -476,9 +762,11 @@ private struct ThinkingTextChunk: View, Equatable {
 
     var body: some View {
         SmoothTokenText(content: Text(source), source: source, streaming: streaming)
-            .font(.system(size: 11.5 * textScale, weight: .regular, design: .monospaced))
-            .foregroundStyle(StudioTheme.secondary)
-            .lineSpacing(3 * textScale)
+            // Graphite: proportional type, de-emphasised; mono belongs to code.
+            .font(style.isGraphite ? .system(size: 13 * textScale, weight: .regular)
+                  : .system(size: 11.5 * textScale, weight: .regular, design: .monospaced))
+            .foregroundStyle(style.isGraphite ? StudioTheme.contrast.opacity(0.62) : StudioTheme.secondary)
+            .lineSpacing((style.isGraphite ? 4 : 3) * textScale)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -530,11 +818,28 @@ private struct StatsRow: View {
 }
 
 private struct MetricChip: View {
+    @Environment(\.studioStyle) private var style
     let icon: String
     let value: String
     let label: String
 
     var body: some View {
+        if style.isGraphite {
+            // Numbers, not an icon per chip.
+            HStack(spacing: 5) {
+                Text(value).foregroundStyle(StudioTheme.secondary)
+                Text(label).foregroundStyle(StudioTheme.quiet)
+            }
+            .font(.system(size: 11))
+            .frame(height: 22)
+            .monospacedDigit()
+            .accessibilityElement(children: .combine)
+        } else {
+            chip
+        }
+    }
+
+    private var chip: some View {
         HStack(spacing: 5) {
             Image(systemName: icon)
                 .font(.system(size: 8, weight: .semibold))
@@ -624,6 +929,7 @@ struct ChatAttachmentView: View {
 }
 
 struct ComposerView: View {
+    @Environment(\.studioStyle) private var style
     @Environment(\.conversationReadingWidth) private var readingWidth
     @EnvironmentObject private var studio: StudioModel
     @FocusState private var focused: Bool
@@ -716,19 +1022,23 @@ struct ComposerView: View {
             focused = true
         }
         .background {
-            // Two shadows: a tight contact shadow and a wide ambient lift.
+            // Two shadows: a tight contact shadow and a wide ambient lift (softer in Graphite).
+            let graphite = style.isGraphite
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(StudioTheme.composer)
-                .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
-                .shadow(color: .black.opacity(focused ? 0.16 : 0.11), radius: focused ? 22 : 16, y: focused ? 10 : 7)
+                .shadow(color: .black.opacity(graphite ? 0.06 : 0.08), radius: graphite ? 1 : 2, y: 1)
+                .shadow(color: .black.opacity(focused ? (graphite ? 0.12 : 0.16) : (graphite ? 0.08 : 0.11)),
+                        radius: focused ? (graphite ? 18 : 22) : (graphite ? 14 : 16), y: focused ? (graphite ? 8 : 10) : (graphite ? 6 : 7))
         }
         .overlay {
+            // Graphite keeps the focus ring neutral: the accent is not decoration.
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(
                     dropTargeted ? AnyShapeStyle(studio.accentColor)
+                        : style.isGraphite ? AnyShapeStyle(StudioTheme.contrast.opacity(focused ? 0.18 : 0.10))
                         : focused ? AnyShapeStyle(studio.accentColor.opacity(0.45))
                         : AnyShapeStyle(StudioTheme.contrast.opacity(0.12)),
-                    lineWidth: dropTargeted ? 2 : 1)
+                    lineWidth: dropTargeted ? 2 : style.isGraphite ? 0.5 : 1)
                 .allowsHitTesting(false)
         }
         .animation(.easeOut(duration: 0.18), value: focused)
@@ -818,6 +1128,52 @@ private struct ComposerPasteMonitor: NSViewRepresentable {
 }
 
 
+/// Reasoning depth of models whose chat template accepts `reasoning_effort` (Inkling 2,
+/// Qwen3.8…): only the levels that template names, kept per model.
+private struct ReasoningMenu: View {
+    @EnvironmentObject private var studio: StudioModel
+    let support: ReasoningSupport
+    let level: ReasoningEffort
+
+    var body: some View {
+        Menu {
+            Picker(L("Raisonnement", "Reasoning"), selection: Binding(
+                get: { level }, set: { studio.setReasoningLevel($0) })) {
+                ForEach(support.levels) { option in
+                    Label {
+                        Text(option.title)
+                        Text(option == support.defaultLevel
+                             ? L("\(option.detail) · par défaut", "\(option.detail) · default")
+                             : option.detail)
+                    } icon: {
+                        Image(systemName: option.symbol)
+                    }
+                    .tag(option)
+                }
+            }
+            .pickerStyle(.inline)
+        } label: {
+            HStack(spacing: 6) {
+                Image(systemName: level.symbol)
+                    .foregroundStyle(level == .none ? StudioTheme.quiet : studio.accentColor)
+                Text(level.label)
+            }
+            .font(.system(size: 12, weight: .medium))
+            .padding(.horizontal, 9)
+            .frame(height: 28)
+            .background(StudioTheme.panel, in: Capsule())
+            .contentTransition(.symbolEffect(.replace))
+        }
+        .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+        .fixedSize()
+        .disabled(studio.isGenerating)
+        .accessibilityIdentifier("composer.reasoning")
+        .accessibilityLabel(L("Raisonnement", "Reasoning"))
+        .accessibilityValue(level.label)
+        .help(L("Profondeur de raisonnement du modèle", "Model reasoning depth"))
+    }
+}
+
 private struct ComposerFooterView: View {
     @EnvironmentObject private var studio: StudioModel
 
@@ -855,6 +1211,10 @@ private struct ComposerFooterView: View {
                 .accessibilityLabel(L("Fichiers et outils", "Files and tools"))
                 .accessibilityValue(studio.mcpEnabled ? L("Outils activés", "Tools enabled") : L("Outils désactivés", "Tools disabled"))
                 .help(L("Fichiers et outils (⌘⇧O pour joindre un fichier)", "Files and tools (⌘⇧O to attach a file)"))
+                if studio.reasoningControlAvailable, let support = studio.reasoningSupport,
+                   let level = studio.reasoningLevel {
+                    ReasoningMenu(support: support, level: level)
+                }
                 if studio.mcpUpdating {
                     ProgressView().controlSize(.mini).help(L("Connexion MCP…", "Connecting MCP…"))
                 } else if studio.mcpEnabled && !studio.mcpErrors.isEmpty {

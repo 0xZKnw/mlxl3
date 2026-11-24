@@ -29,6 +29,8 @@ pub use contracts::{
 };
 #[cfg(feature = "mlx")]
 pub use contracts::{switch_glu_layout, switch_glu_route_rows};
+pub mod agent_loop;
+pub mod agent_turn;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod ar20_kernel_policy;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
@@ -109,6 +111,9 @@ pub mod hub;
 pub mod inkling2;
 #[cfg(feature = "mlx")]
 pub mod inkling2_draft;
+#[cfg(feature = "mlx")]
+pub mod inkling2_lookup;
+pub mod inkling2_vision;
 #[cfg(feature = "mlx")]
 pub mod lfm2;
 pub mod lfm3;

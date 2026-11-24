@@ -14,6 +14,9 @@ const GEMMA_OPEN: &str = "<|tool_call>";
 const GEMMA_CLOSE: &str = "<tool_call|>";
 const JSON_OPEN: &str = "<tool_call>";
 const JSON_CLOSE: &str = "</tool_call>";
+/// Inkling 2: `<|message_model|>NAME<|content_invoke_tool_json|>{"name":…,"args":{…}}<|end_message|>`.
+/// The splitter removes the message structure, so the answer text holds `NAME<marker>{json}`.
+const INKLING_INVOKE: &str = "<|content_invoke_tool_json|>";
 
 pub fn parse(response: &str) -> Result<Vec<ToolCall>> {
     parse_answer(assistant_context(response))
@@ -22,6 +25,9 @@ pub fn parse(response: &str) -> Result<Vec<ToolCall>> {
 /// Parse an already channel-separated answer, without lexical reasoning removal.
 pub fn parse_answer(response: &str) -> Result<Vec<ToolCall>> {
     let response = response.trim();
+    if response.contains(INKLING_INVOKE) {
+        return parse_inkling_calls(response);
+    }
     if response.starts_with(PYTHON_OPEN) {
         return parse_blocks(response, PYTHON_OPEN, PYTHON_CLOSE, parse_python_calls);
     }
@@ -82,6 +88,110 @@ fn parse_blocks(
     }
     ensure!(!calls.is_empty(), "tool marker contained no calls");
     Ok(calls)
+}
+
+/// Characters of a public MCP tool name (`server.tool`, see `mcp::unique_name`).
+fn tool_name_char(character: char) -> bool {
+    character.is_ascii_alphanumeric() || "._-".contains(character)
+}
+
+/// Byte offset where the tool-name characters ending `text` start.
+fn trailing_name_start(text: &str) -> usize {
+    text.char_indices()
+        .rev()
+        .take_while(|(_, character)| tool_name_char(*character))
+        .last()
+        .map_or(text.len(), |(index, _)| index)
+}
+
+/// Inkling 2 calls, one or more, after optional text. That text is the model's own
+/// `<|content_text|>` message (a separate message in this format), never part of a call;
+/// text after a call is refused like in the other formats. The JSON `name` names the tool
+/// (the header must end with it); a damaged JSON still runs when its `"args":{…}` is
+/// readable, under the header name.
+fn parse_inkling_calls(response: &str) -> Result<Vec<ToolCall>> {
+    let mut calls = Vec::new();
+    let mut rest = response;
+    while let Some(position) = rest.find(INKLING_INVOKE) {
+        let before = &rest[..position];
+        let body = &rest[position + INKLING_INVOKE.len()..];
+        let mut values = serde_json::Deserializer::from_str(body).into_iter::<Value>();
+        let parsed = values.next();
+        let (name, arguments, end) = match parsed {
+            Some(Ok(Value::Object(mut call))) => {
+                let end = values.byte_offset();
+                let name = match call.remove("name") {
+                    Some(Value::String(name)) => {
+                        ensure!(
+                            before.ends_with(&name),
+                            "Inkling tool call name differs from its header"
+                        );
+                        name
+                    }
+                    None => before[trailing_name_start(before)..].to_owned(),
+                    Some(_) => anyhow::bail!("Inkling tool call name must be a string"),
+                };
+                let arguments = call
+                    .remove("args")
+                    .unwrap_or_else(|| Value::Object(Map::new()));
+                (name, arguments, end)
+            }
+            Some(Err(error)) if error.is_eof() => {
+                anyhow::bail!("unfinished tool call; nothing executed")
+            }
+            None => anyhow::bail!("unfinished tool call; nothing executed"),
+            _ => recover_inkling_arguments(before, body)?,
+        };
+        ensure!(end <= 65_536, "tool payload too large");
+        ensure!(
+            arguments.is_object(),
+            "Inkling tool arguments must be an object"
+        );
+        ensure!(
+            !name.is_empty() && name.len() <= 256 && name.chars().all(tool_name_char),
+            "invalid Inkling tool name"
+        );
+        let prose = &before[..before.len() - name.len()];
+        ensure!(
+            calls.is_empty() || prose.trim().is_empty(),
+            "ordinary text mixed with a tool call; nothing executed"
+        );
+        calls.push(ToolCall { name, arguments });
+        rest = &body[end..];
+    }
+    ensure!(
+        rest.trim().is_empty(),
+        "ordinary text mixed with a tool call; nothing executed"
+    );
+    ensure!(!calls.is_empty(), "tool marker contained no calls");
+    Ok(calls)
+}
+
+/// `{…"args":{…}}` whose other fields do not parse (seen: `{"name"""javascript","args":…}`).
+fn recover_inkling_arguments(before: &str, body: &str) -> Result<(String, Value, usize)> {
+    let malformed = || anyhow::anyhow!("malformed Inkling tool call; nothing executed");
+    ensure!(body.trim_start().starts_with('{'), malformed());
+    let key = body.find("\"args\"").ok_or_else(malformed)?;
+    let after_key = &body[key + "\"args\"".len()..];
+    let colon = after_key
+        .trim_start()
+        .strip_prefix(':')
+        .ok_or_else(malformed)?;
+    let start = body.len() - colon.len();
+    let mut values = serde_json::Deserializer::from_str(colon).into_iter::<Value>();
+    let arguments = match values.next() {
+        Some(Ok(value)) => value,
+        Some(Err(error)) if error.is_eof() => {
+            anyhow::bail!("unfinished tool call; nothing executed")
+        }
+        _ => return Err(malformed()),
+    };
+    let after_value = start + values.byte_offset();
+    let closing = body[after_value..].trim_start();
+    ensure!(closing.starts_with('}'), malformed());
+    let end = body.len() - closing.len() + 1;
+    let name = before[trailing_name_start(before)..].to_owned();
+    Ok((name, arguments, end))
 }
 
 fn parse_json_calls(body: &str) -> Result<Vec<ToolCall>> {
@@ -460,6 +570,8 @@ pub struct StreamFilter {
     closer: &'static str,
     inside: bool,
     passthrough: bool,
+    /// Inkling 2 format: a call may follow the model's text; from it on, nothing is shown.
+    inkling: bool,
 }
 
 impl Default for StreamFilter {
@@ -475,12 +587,53 @@ impl StreamFilter {
             closer: JSON_CLOSE,
             inside: false,
             passthrough: false,
+            inkling: false,
+        }
+    }
+
+    /// Filter for prompts that declare tools in the Inkling 2 format.
+    pub fn inkling() -> Self {
+        Self {
+            inkling: true,
+            ..Self::new()
+        }
+    }
+
+    /// Inkling: show text up to `NAME<|content_invoke_tool_json|>`, holding back a trailing
+    /// name (or a partial marker) until the next text tells whether a call starts there.
+    fn feed_inkling(&mut self, visible: &mut Vec<String>) {
+        if self.inside {
+            self.buffer.clear();
+            return;
+        }
+        if let Some(position) = self.buffer.find(INKLING_INVOKE) {
+            let before = &self.buffer[..position];
+            let shown = before[..trailing_name_start(before)].to_owned();
+            if !shown.is_empty() {
+                visible.push(shown);
+            }
+            self.buffer.clear();
+            self.inside = true;
+            return;
+        }
+        let partial = (1..INKLING_INVOKE.len())
+            .rev()
+            .find(|&length| self.buffer.ends_with(&INKLING_INVOKE[..length]))
+            .unwrap_or(0);
+        let held = trailing_name_start(&self.buffer[..self.buffer.len() - partial]);
+        if held > 0 {
+            visible.push(self.buffer[..held].to_owned());
+            self.buffer.drain(..held);
         }
     }
 
     pub fn feed(&mut self, text: &str) -> Vec<String> {
         self.buffer.push_str(text);
         let mut visible = Vec::new();
+        if self.inkling {
+            self.feed_inkling(&mut visible);
+            return visible;
+        }
         loop {
             if self.buffer.is_empty() {
                 break;
@@ -551,8 +704,293 @@ fn marker_suffix_start(text: &[u8], marker: &[u8]) -> usize {
         .unwrap_or(text.len())
 }
 
+/// Tool rounds a chat request may run before its final answer (older clients: 5).
+pub const DEFAULT_TOOL_ROUNDS: usize = 5;
+/// Upper bound a request may ask for (the Agent mode asks for more than the chat).
+pub const MAX_TOOL_ROUNDS: usize = 512;
+/// Largest `tool_start` arguments shown as JSON; longer ones become a text prefix.
+pub const SHOWN_ARGUMENTS_BYTES: usize = 16 * 1024;
+
+/// The requested round limit, validated; omitted means [`DEFAULT_TOOL_ROUNDS`].
+pub fn tool_rounds(requested: Option<usize>) -> Result<usize> {
+    let rounds = requested.unwrap_or(DEFAULT_TOOL_ROUNDS);
+    ensure!(
+        (1..=MAX_TOOL_ROUNDS).contains(&rounds),
+        "tool_rounds must be 1 to {MAX_TOOL_ROUNDS}"
+    );
+    Ok(rounds)
+}
+
+/// Appended to the last tool result before the final round: the model answers instead of
+/// the run ending on an error.
+pub fn round_limit_note(rounds: usize) -> String {
+    format!(
+        "[Tool-round limit of {rounds} reached: answer now from these results, without calling a tool.]"
+    )
+}
+
+/// What the model reads when its tool call could not be parsed; nothing was executed.
+pub fn unreadable_call_message(error: &anyhow::Error) -> String {
+    format!(
+        "Your tool call could not be read ({error}); nothing was executed. Send one complete tool call and nothing else, or answer without tools."
+    )
+}
+
+/// What the model reads when it calls a tool it was not offered (AGENT-2026-11-24-DSH-PISTES,
+/// P2, after DeepSeek Harness's code-mode hint): the tools it can call, and that functions a
+/// tool's description lists (the `javascript` tool's `read`, `run`...) go in that tool's input.
+pub fn unknown_tool_message(name: &str, offered: &[&str]) -> String {
+    if offered.is_empty() {
+        return format!(
+            "There is no tool named `{name}`; nothing was executed. No tool can be called now: answer without tools."
+        );
+    }
+    let list = offered
+        .iter()
+        .map(|tool| format!("`{tool}`"))
+        .collect::<Vec<_>>()
+        .join(", ");
+    format!(
+        "There is no tool named `{name}`; nothing was executed. The tools you can call are: {list}. Functions listed in a tool's description are called inside that tool's input, not as tools."
+    )
+}
+
+/// Token ranges kept from a tool result longer than `budget`: the first quarter and the
+/// rest from its end (errors and summaries come last), `reserve` tokens left for a marker.
+pub fn kept_token_ranges(
+    len: usize,
+    budget: usize,
+    reserve: usize,
+) -> (std::ops::Range<usize>, std::ops::Range<usize>) {
+    if len <= budget {
+        return (0..len, len..len);
+    }
+    let room = budget.saturating_sub(reserve).max(2);
+    let head = room / 4;
+    let tail = room - head;
+    (0..head, len - tail..len)
+}
+
+/// Arguments shown with `tool_start`: the value itself, or the first
+/// [`SHOWN_ARGUMENTS_BYTES`] of its JSON text (on a character boundary).
+pub fn shown_arguments(arguments: &Value) -> Value {
+    let text = arguments.to_string();
+    if text.len() <= SHOWN_ARGUMENTS_BYTES {
+        return arguments.clone();
+    }
+    let mut end = SHOWN_ARGUMENTS_BYTES;
+    while !text.is_char_boundary(end) {
+        end -= 1;
+    }
+    Value::String(format!("{}…", &text[..end]))
+}
+
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn parses_inkling_tool_calls() {
+        let m = super::INKLING_INVOKE;
+        let call = |name: &str, args: serde_json::Value| ToolCall {
+            name: name.into(),
+            arguments: args,
+        };
+        let single = format!(
+            r#"sandbox.javascript{m}{{"name":"sandbox.javascript","args":{{"code":"return list()"}}}}"#
+        );
+        assert_eq!(
+            parse_answer(&single).unwrap(),
+            [call(
+                "sandbox.javascript",
+                serde_json::json!({"code": "return list()"})
+            )]
+        );
+        // The model's own message first, then the call (a paragraph apart, see the splitter).
+        let prose = format!("Je liste les fichiers.\n\n{single}");
+        assert_eq!(parse_answer(&prose).unwrap().len(), 1);
+        let glued = format!("the files{single}");
+        assert_eq!(parse_answer(&glued).unwrap()[0].name, "sandbox.javascript");
+        let two =
+            format!(r#"a.b{m}{{"name":"a.b","args":{{}}}}c.d{m}{{"name":"c.d","args":{{"x":1}}}}"#);
+        assert_eq!(
+            parse_answer(&two).unwrap(),
+            [
+                call("a.b", serde_json::json!({})),
+                call("c.d", serde_json::json!({"x": 1}))
+            ]
+        );
+        // The user's screenshot: the name field is damaged, `args` is readable.
+        let damaged = format!(
+            r#"javascript{m}{{"name"""javascript","args":{{"code":"return await list();"}}}}"#
+        );
+        assert_eq!(
+            parse_answer(&damaged).unwrap(),
+            [call(
+                "javascript",
+                serde_json::json!({"code": "return await list();"})
+            )]
+        );
+        let nameless = format!(r#"x.y{m}{{"args":{{"q":"z"}}}}"#);
+        assert_eq!(
+            parse_answer(&nameless).unwrap(),
+            [call("x.y", serde_json::json!({"q": "z"}))]
+        );
+        let argless = format!(r#"x{m}{{"name":"x"}}"#);
+        assert_eq!(
+            parse_answer(&argless).unwrap(),
+            [call("x", serde_json::json!({}))]
+        );
+        // A marker inside the code is data, not a second call.
+        let nested = format!(r#"x{m}{{"name":"x","args":{{"code":"'{m}'"}}}}"#);
+        assert_eq!(
+            parse_answer(&nested).unwrap()[0].arguments["code"],
+            format!("'{m}'")
+        );
+        for (input, error) in [
+            (format!("{single} done"), "ordinary text"),
+            (
+                format!(
+                    r#"a{m}{{"name":"a","args":{{}}}}text between b{m}{{"name":"b","args":{{}}}}"#
+                ),
+                "ordinary text",
+            ),
+            (
+                format!(r#"javascript{m}{{"name":"javascript","args":{{"code":"ret"#),
+                "unfinished",
+            ),
+            (format!("javascript{m}"), "unfinished"),
+            (
+                format!(r#"other{m}{{"name":"javascript","args":{{}}}}"#),
+                "differs from its header",
+            ),
+            (
+                format!(r#"x{m}{{"name":"x","args":"code"}}"#),
+                "must be an object",
+            ),
+            (
+                format!(r#"x{m}{{"name":7,"args":{{}}}}"#),
+                "must be a string",
+            ),
+            (
+                format!(r#"{m}{{"args":{{}}}}"#),
+                "invalid Inkling tool name",
+            ),
+            (format!("x{m}not json"), "malformed"),
+            (
+                format!(
+                    r#"x{m}{{"name":"x","args":{{"code":"{}"}}}}"#,
+                    "a".repeat(70_000)
+                ),
+                "too large",
+            ),
+        ] {
+            let message = parse_answer(&input).unwrap_err().to_string();
+            assert!(message.contains(error), "{input:.80}: {message}");
+        }
+    }
+
+    #[test]
+    fn inkling_filter_hides_calls_at_every_chunk_boundary() {
+        let m = super::INKLING_INVOKE;
+        for (input, shown) in [
+            (
+                format!(
+                    r#"Je liste.{}sandbox.javascript{m}{{"name":"sandbox.javascript","args":{{}}}}"#,
+                    "\n\n"
+                ),
+                "Je liste.\n\n",
+            ),
+            (
+                format!(r#"javascript{m}{{"name"""javascript","args":{{}}}}"#),
+                "",
+            ),
+            (
+                "Réponse sans outil, javascript compris.".to_owned(),
+                "Réponse sans outil, javascript compris.",
+            ),
+            (format!("x{}", &m[..10]), "x<|content_"),
+        ] {
+            let boundaries: Vec<usize> = input
+                .char_indices()
+                .map(|(index, _)| index)
+                .chain([input.len()])
+                .collect();
+            for &split in &boundaries {
+                let mut filter = StreamFilter::inkling();
+                let mut visible = filter.feed(&input[..split]).concat();
+                visible += &filter.feed(&input[split..]).concat();
+                visible += &filter.finish().concat();
+                assert_eq!(visible, shown, "{input:?} split at {split}");
+            }
+            let mut filter = StreamFilter::inkling();
+            let mut visible = String::new();
+            for character in input.chars() {
+                visible += &filter.feed(&character.to_string()).concat();
+            }
+            visible += &filter.finish().concat();
+            assert_eq!(visible, shown, "{input:?} one character at a time");
+        }
+        let mut filter = StreamFilter::inkling();
+        filter.feed(&format!("x{m}{{"));
+        assert!(
+            filter.is_preparing_tool(),
+            "a started call reports its preparation"
+        );
+    }
+
+    #[test]
+    fn tool_round_limit_is_optional_and_bounded() {
+        assert_eq!(super::tool_rounds(None).unwrap(), 5);
+        assert_eq!(super::tool_rounds(Some(1)).unwrap(), 1);
+        assert_eq!(super::tool_rounds(Some(64)).unwrap(), 64);
+        assert_eq!(super::tool_rounds(Some(256)).unwrap(), 256);
+        assert_eq!(super::tool_rounds(Some(512)).unwrap(), 512);
+        assert!(super::tool_rounds(Some(0)).is_err());
+        assert!(super::tool_rounds(Some(513)).is_err());
+        assert!(super::round_limit_note(24).contains("limit of 24 reached"));
+        let message = super::unreadable_call_message(&anyhow::anyhow!("unfinished tool call"));
+        assert!(
+            message.contains("(unfinished tool call)") && message.contains("nothing was executed")
+        );
+    }
+
+    #[test]
+    fn long_tool_output_keeps_its_start_and_end() {
+        assert_eq!(super::kept_token_ranges(100, 100, 32), (0..100, 100..100));
+        let (head, tail) = super::kept_token_ranges(10_000, 8192, 32);
+        assert_eq!(head, 0..2040);
+        assert_eq!(tail, 3880..10_000);
+        assert_eq!(head.len() + tail.len() + 32, 8192);
+        // Every length and budget: in bounds, ordered, disjoint, within the budget.
+        for len in 0..300 {
+            for budget in 1..120 {
+                let (head, tail) = super::kept_token_ranges(len, budget, 16);
+                assert!(
+                    head.start == 0 && head.end <= tail.start && tail.end == len,
+                    "{len} {budget}"
+                );
+                if len > budget {
+                    assert!(
+                        head.len() + tail.len() <= budget.max(2) && !tail.is_empty(),
+                        "{len} {budget}"
+                    );
+                } else {
+                    assert_eq!((head.len(), tail.len()), (len, 0));
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn tool_start_arguments_are_bounded() {
+        let small = serde_json::json!({"code": "return 1"});
+        assert_eq!(super::shown_arguments(&small), small);
+        let code = "é".repeat(20_000);
+        let shown = super::shown_arguments(&serde_json::json!({ "code": code }));
+        let text = shown.as_str().unwrap();
+        assert!(text.starts_with(r#"{"code":"éé"#) && text.ends_with('…'));
+        assert!(text.len() <= super::SHOWN_ARGUMENTS_BYTES + '…'.len_utf8());
+    }
+
     use super::*;
     use serde_json::json;
 
@@ -604,6 +1042,37 @@ mod tests {
         assert!(filter.feed("rt|>[search(q='x')]").is_empty());
         assert!(filter.feed("<|tool_call_end|>").is_empty());
         assert!(filter.finish().is_empty());
+    }
+
+    #[test]
+    fn javascript_tool_code_reaches_the_tool_intact() {
+        // Agent mode's single `javascript` tool: multi-line code with comparisons, quotes,
+        // backticks and markup-like text must arrive unchanged in every supported format.
+        let code = "const files = list();\nif (files.length < 3 && files[0] > \"a\") {\n  console.log(`${files.length} <files> & 'x'`);\n}\nreturn read('src/a.js');";
+        let qwen = format!(
+            "<think>plan</think>\n\n<tool_call>\n<function=sandbox.javascript>\n<parameter=code>\n{code}\n</parameter>\n</function>\n</tool_call>"
+        );
+        assert_eq!(
+            parse(&qwen).unwrap(),
+            [ToolCall {
+                name: "sandbox.javascript".into(),
+                arguments: json!({ "code": code })
+            }]
+        );
+        let hermes = format!(
+            "<tool_call>{}</tool_call>",
+            json!({"name": "sandbox.javascript", "arguments": {"code": code}})
+        );
+        assert_eq!(parse(&hermes).unwrap()[0].arguments["code"], code);
+        let gemma =
+            format!("<|tool_call>call:sandbox.javascript{{code:<|\"|>{code}<|\"|>}}<tool_call|>");
+        assert_eq!(parse(&gemma).unwrap()[0].arguments["code"], code);
+        // XML values that are valid JSON are decoded; the sandbox turns them back into text.
+        let numeric = parse(
+            "<tool_call>\n<function=sandbox.javascript>\n<parameter=code>\n42\n</parameter>\n</function>\n</tool_call>",
+        )
+        .unwrap();
+        assert_eq!(numeric[0].arguments, json!({ "code": 42 }));
     }
 
     #[test]

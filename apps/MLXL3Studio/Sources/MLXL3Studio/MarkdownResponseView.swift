@@ -590,7 +590,7 @@ private struct MarkdownChunkView: View, Equatable {
             animatedText(
                 text,
                 size: headingSize(level),
-                weight: level <= 2 ? .bold : .semibold
+                weight: level <= 2 && !StudioTheme.style.isGraphite ? .bold : .semibold
             )
             .tracking(level <= 2 ? -0.3 : -0.1)
             .padding(.top, level <= 2 ? 8 : 4)
@@ -1106,6 +1106,7 @@ struct CodeBlockView: View, Equatable {
     var htmlPreviewEnabled = false
     @EnvironmentObject private var studio: StudioModel
     @State private var showingPreview = false
+    @State private var fullscreen = false
     @State private var copied = false
     @State private var codeScroll = StreamingScrollState()
     @State private var chunkCache = CodeTextChunker.Cache()
@@ -1123,11 +1124,19 @@ struct CodeBlockView: View, Equatable {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 10) {
+                if StudioTheme.style.isGraphite {
+                    // The language as written, quietly; no icon, no capitals.
+                    Text(language.flatMap { $0.isEmpty ? nil : $0.lowercased() } ?? "code")
+                        .font(.system(size: 11.5, weight: .medium))
+                        .foregroundStyle(StudioTheme.quiet)
+                        .lineLimit(1).truncationMode(.middle)
+                } else {
                 Image(systemName: "chevron.left.forwardslash.chevron.right")
                     .foregroundStyle(StudioTheme.quiet)
                 Text(language?.uppercased() ?? "CODE")
                     .font(.system(size: 11, weight: .medium, design: .monospaced))
                     .lineLimit(1).truncationMode(.middle)
+                }
                 Spacer(minLength: 8)
                 if streaming {
                     Text(L("Écriture…", "Writing…"))
@@ -1138,7 +1147,20 @@ struct CodeBlockView: View, Equatable {
                         modeButton("Code", icon: "chevron.left.forwardslash.chevron.right", preview: false)
                         modeButton(L("Aperçu", "Preview"), icon: "play", preview: true)
                     }
-                    .padding(3).background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+                    .padding(3).background(StudioTheme.contrast.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+                }
+                if !streaming {
+                    Button(action: openFullscreen) {
+                        Image(systemName: "arrow.up.left.and.arrow.down.right")
+                            .foregroundStyle(StudioTheme.secondary)
+                            .frame(width: 28, height: 28)
+                    }
+                    .buttonStyle(StudioControlStyle())
+                    .accessibilityIdentifier("code.fullscreen")
+                    .accessibilityLabel(L("Plein écran", "Full screen"))
+                    .help(canPreview && showingPreview
+                          ? L("Afficher l’aperçu en plein écran", "Show the preview full screen")
+                          : L("Afficher le code en plein écran", "Show the code full screen"))
                 }
                 Button(action: copySource) {
                     Image(systemName: copied ? "checkmark" : "doc.on.doc")
@@ -1150,24 +1172,34 @@ struct CodeBlockView: View, Equatable {
                 .accessibilityLabel(copied ? L("Copié", "Copied") : L("Copier le code", "Copy code"))
                 .help(L("Copier tout le bloc", "Copy entire block"))
             }
-            .padding(.horizontal, 14).frame(height: 48)
-            .background(Color.white.opacity(0.025))
-            Rectangle().fill(StudioTheme.edge).frame(height: 1)
-            if showingPreview && canPreview && studio.studioDocument == nil {
+            .padding(.leading, 14).padding(.trailing, StudioTheme.style.isGraphite ? 6 : 14)
+            .frame(height: StudioTheme.style.isGraphite ? 38 : 48)
+            .background(StudioTheme.contrast.opacity(StudioTheme.style.isGraphite ? 0 : 0.025))
+            Rectangle().fill(StudioTheme.edge).frame(height: StudioTheme.style.isGraphite ? 0.5 : 1)
+            if showingPreview && canPreview && studio.studioDocument == nil && fullscreen {
+                // One running page at a time: the full-screen window owns the preview.
+                Label(L("Aperçu affiché en plein écran", "Preview shown full screen"),
+                      systemImage: "arrow.up.left.and.arrow.down.right")
+                    .font(.system(size: 11)).foregroundStyle(StudioTheme.quiet)
+                    .frame(maxWidth: .infinity).frame(height: 76)
+                    .accessibilityIdentifier("code.fullscreen.placeholder")
+            } else if showingPreview && canPreview && studio.studioDocument == nil {
                 InlineHTMLPreview(source: source, workspace: studio.selectedMode == .agent ? studio.agentWorkspaceURL : nil)
                     .frame(height: 440)
             } else if !streaming {
                 StudioCodeEditor(text: .constant(source), language: language ?? "text", editable: false,
                                   documentID: "inline-code", fontSize: 12.5 * textScale)
-                     .frame(height: min(440, max(76, CGFloat(lineCount) * 19 * textScale + 34)))
+                     // Sized to its lines: a one-line snippet no longer sits in a box twice its height.
+                     .frame(height: min(440, CGFloat(max(1, lineCount)) * 19 * textScale + 34))
             } else {
                 streamingCode.padding(16)
             }
         }
-        .background(StudioTheme.canvas)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
+        .background { StudioTheme.canvas.overlay(StudioTheme.contrast.opacity(StudioTheme.style.isGraphite ? 0.03 : 0)) }
+        .clipShape(RoundedRectangle(cornerRadius: 12, style: StudioTheme.style.isGraphite ? .continuous : .circular))
         .overlay {
-            RoundedRectangle(cornerRadius: 12).stroke(StudioTheme.edge, lineWidth: 1)
+            RoundedRectangle(cornerRadius: 12, style: StudioTheme.style.isGraphite ? .continuous : .circular)
+                .strokeBorder(StudioTheme.edge, lineWidth: StudioTheme.style.isGraphite ? 0.5 : 1)
                 .allowsHitTesting(false)
         }
         .onChange(of: canPreview) { _, allowed in if !allowed { showingPreview = false } }
@@ -1179,7 +1211,7 @@ struct CodeBlockView: View, Equatable {
                 .font(.system(size: 10, weight: .medium))
                 .padding(.horizontal, 9).frame(height: 26)
                 .foregroundStyle(showingPreview == preview ? StudioTheme.ink : StudioTheme.quiet)
-                .background(showingPreview == preview ? Color.white.opacity(0.085) : .clear,
+                .background(showingPreview == preview ? StudioTheme.contrast.opacity(0.085) : .clear,
                             in: RoundedRectangle(cornerRadius: 6))
         }
         .buttonStyle(.plain)
@@ -1222,6 +1254,18 @@ struct CodeBlockView: View, Equatable {
                 }
             }.frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    private func openFullscreen() {
+        let state = $fullscreen
+        // Presenting closes any previous window first, which runs that window's `onClose`.
+        studio.presentCodeFullscreen(
+            language: language, source: source, canPreview: canPreview,
+            showingPreview: showingPreview && canPreview,
+            workspace: studio.selectedMode == .agent ? studio.agentWorkspaceURL : nil,
+            textScale: textScale,
+            onClose: { state.wrappedValue = false })
+        state.wrappedValue = true
     }
 
     private func copySource() {

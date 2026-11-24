@@ -30,7 +30,7 @@ if [[ -z "${studios_bin}" || -z "${agent_bin}" ]]; then
     studios_bin="${test_dir}/studios-check"
     agent_bin="${test_dir}/agent-check"
     swiftc "${swiftc_args[@]}" "${sources[@]}" "${math_objects[@]}" tests/studios-check.swift -o "${studios_bin}"
-    swiftc "${swiftc_args[@]}" apps/MLXL3Studio/Sources/MLXL3Studio/AgentSandbox.swift tests/agent-sandbox-check.swift -o "${agent_bin}"
+    swiftc "${swiftc_args[@]}" apps/MLXL3Studio/Sources/MLXL3Studio/AgentSandbox.swift apps/MLXL3Studio/Sources/MLXL3Studio/AgentJavaScript.swift apps/MLXL3Studio/Sources/MLXL3Studio/AgentNetwork.swift tests/agent-sandbox-check.swift -o "${agent_bin}"
 fi
 MLXL3_STUDIOS_TMP="${test_dir}" "${studios_bin}"
 "${agent_bin}"

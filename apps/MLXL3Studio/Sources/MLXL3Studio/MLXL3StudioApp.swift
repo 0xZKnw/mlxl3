@@ -13,11 +13,20 @@ struct MLXL3StudioApp: App {
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
-        if (arguments.count == 4 || arguments.count == 6), arguments[1] == "--agent-command" {
-            AgentSandbox.commandMode(root: arguments[2], command: arguments[3], seconds: arguments.count == 6 ? Double(arguments[4]) ?? 0 : 5, writable: arguments.count == 4 || arguments[5] == "write")
+        if [4, 6, 7].contains(arguments.count), arguments[1] == "--agent-command" {
+            AgentSandbox.commandMode(root: arguments[2], command: arguments[3], seconds: arguments.count >= 6 ? Double(arguments[4]) ?? 0 : 5, writable: arguments.count == 4 || arguments[5] == "write",
+                                     mode: arguments.count == 7 && arguments[6].hasPrefix("tail") ? .headAndTail : .stop,
+                                     network: arguments.count == 7 && arguments[6] == "tail+net")
         }
-        if (arguments.count == 3 || arguments.count == 4), arguments[1] == "--agent-tools" {
-            AgentSandbox.serve(root: arguments[2], permissionsPath: arguments.count == 4 ? arguments[3] : nil)
+        if arguments.count == 10, arguments[1] == "--agent-js" {
+            AgentJavaScript.supervisorMode(arguments: arguments)
+        }
+        if arguments.count == 4, arguments[1] == "--agent-js-kernel" {
+            AgentJavaScript.kernelMode(arguments: arguments)
+        }
+        if (3...5).contains(arguments.count), arguments[1] == "--agent-tools" {
+            AgentSandbox.serve(root: arguments[2], permissionsPath: arguments.count >= 4 ? arguments[3] : nil,
+                               longCalls: arguments.count == 5 && arguments[4] == "long-calls")
         }
         if ProcessInfo.processInfo.arguments.contains("--check-chat-timeline") {
             do {
@@ -51,7 +60,9 @@ struct MLXL3StudioApp: App {
                 } else { StudioView() }
             }
                 .environmentObject(studio)
-                .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
+                .studioAppearance(studio)
+                // Tokens resolve the style when drawn: rebuild the window on a style change.
+                .id(studio.style)
                 .onAppear {
                     if !isPreview {
                         studio.start()
@@ -72,6 +83,23 @@ struct MLXL3StudioApp: App {
             CommandGroup(replacing: .appSettings) {
                 Button(L("Réglages…", "Settings…")) { studio.openAppSettings() }
                     .keyboardShortcut(",", modifiers: .command)
+            }
+        }
+
+        Window(L("Générer une image", "Generate an image"), id: "image-generation") {
+            if Image21Hardware.available {
+                ImageGenerationView()
+            } else {
+                Text(Image21Hardware.requirement).padding()
+            }
+        }
+        .defaultSize(width: 680, height: 670)
+        .defaultLaunchBehavior(.suppressed)
+        .commandsReplaced {
+            CommandGroup(after: .windowList) {
+                if Image21Hardware.available {
+                    WindowVisibilityToggle(windowID: "image-generation")
+                }
             }
         }
 

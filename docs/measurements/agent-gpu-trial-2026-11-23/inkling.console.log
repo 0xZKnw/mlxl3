@@ -1,0 +1,22 @@
+[1] bugfix/javascript rep0 rounds<=24: PASS rounds=3 calls=3 unreadable=0 errors=0 stop=eos tokens=1599 90.6 s 
+[2] rename/javascript rep0 rounds<=24: PASS rounds=5 calls=5 unreadable=0 errors=0 stop=eos tokens=1441 112.0 s 
+[3] question/javascript rep0 rounds<=24: FAIL rounds=3 calls=3 unreadable=0 errors=0 stop=eos tokens=673 52.1 s 
+[4] fetch/javascript rep0 rounds<=24: PASS rounds=1 calls=1 unreadable=0 errors=0 stop=eos tokens=277 23.3 s 
+[5] fetch/javascript rep1 rounds<=24: PASS rounds=2 calls=2 unreadable=0 errors=1 stop=eos tokens=402 37.1 s 
+[6] question/javascript rep1 rounds<=24: FAIL rounds=3 calls=3 unreadable=0 errors=0 stop=eos tokens=595 47.8 s 
+[7] rename/javascript rep1 rounds<=24: PASS rounds=5 calls=5 unreadable=0 errors=0 stop=eos tokens=1236 99.5 s 
+[8] bugfix/javascript rep1 rounds<=24: PASS rounds=5 calls=5 unreadable=0 errors=0 stop=eos tokens=1397 105.5 s 
+Traceback (most recent call last):
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-js-harness/docs/measurements/agent-gpu-trial-2026-11-23/agent_trial.py", line 329, in <module>
+    if __name__ == "__main__":
+        ^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-js-harness/docs/measurements/agent-gpu-trial-2026-11-23/agent_trial.py", line 263, in main
+    timed_out = True
+        ^^^^^^^^^^^^^
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-js-harness/docs/measurements/agent-gpu-trial-2026-11-23/agent_trial.py", line 200, in read_event
+    left = deadline - time.monotonic()
+                        ^^^^^^^^^^^^^^^
+  File "/opt/homebrew/Cellar/python@3.12/3.12.14/Frameworks/Python.framework/Versions/3.12/lib/python3.12/selectors.py", line 566, in select
+    kev_list = self._selector.control(None, max_ev, timeout)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+KeyboardInterrupt

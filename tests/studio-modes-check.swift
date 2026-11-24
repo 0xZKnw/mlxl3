@@ -88,13 +88,13 @@ extension StudioModel {
     ignored.stopServices()
     await ignored.bridge.stopAndWait()
 
-    for deadline in [120, 600] {
+    for deadline in [300] {
       let guarded = try await readyAgent("deadline-\(deadline)")
       guarded.draft = "hang-cooperative"
       guarded.send()
       try await wait { guarded.currentConversation?.messages.last?.thinking.isEmpty == false }
       let start = guarded.generationStartedAt!
-      guarded.generationLastActivity = deadline == 120 ? start : start + .seconds(599)
+      guarded.generationLastActivity = start
       let last = guarded.generationLastActivity
       let stale = try JSONDecoder().decode(
         BridgeEvent.self,
@@ -107,7 +107,7 @@ extension StudioModel {
       try await wait { !guarded.isGenerating }
       check(
         guarded.currentConversation!.messages.last!.error?.contains(
-          deadline == 120 ? "2 minutes" : "10 minutes") == true,
+          "5 minutes") == true,
         "Deadline stops the real request and explains why")
       check(
         guarded.generationWatchdog == nil && guarded.cancellationFallback == nil,
@@ -115,20 +115,92 @@ extension StudioModel {
       guarded.stopServices()
       await guarded.bridge.stopAndWait()
     }
+    // No total time limit (it used to stop at 10 minutes): an answer that keeps streaming
+    // runs as long as it needs; only silence stops it.
+    let active = try await readyAgent("deadline-active")
+    active.draft = "hang-cooperative"
+    active.send()
+    try await wait { active.currentConversation?.messages.last?.thinking.isEmpty == false }
+    let activeStart = active.generationStartedAt!
+    active.generationLastActivity = activeStart + .seconds(3_599)
+    active.checkAgentGenerationDeadline(at: activeStart + .seconds(3_600))
+    try await Task.sleep(for: .milliseconds(200))
+    check(
+      active.isGenerating && active.cancellationFallback == nil
+        && active.currentConversation!.messages.last!.error == nil,
+      "An Agent answer still streaming after an hour is not stopped")
+    active.checkAgentGenerationDeadline(at: activeStart + .seconds(3_599 + 300))
+    try await wait { !active.isGenerating }
+    check(
+      active.currentConversation!.messages.last!.error?.contains("5 minutes") == true,
+      "Five silent minutes still stop it")
+    active.stopServices()
+    await active.bridge.stopAndWait()
     let limited = try await readyAgent("budget")
     limited.draft = "budget-limit"
     limited.send()
     try await wait { !limited.isGenerating }
     check(
-      limited.currentConversation!.messages.last!.error?.contains("4 096") == true,
+      limited.currentConversation!.messages.last!.error?.contains("32 768") == true,
       "Budget exhaustion keeps the partial output and reports truncation")
     let limitedRequest =
       try JSONSerialization.jsonObject(
         with: Data(limited.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    // Finite, but no longer the 4,096 tokens a reasoning model spent before acting.
     check(
-      limitedRequest["max_tokens"] as? Int == 4096, "Agent sends a finite production token budget")
+      limitedRequest["max_tokens"] as? Int == 32_768 && limitedRequest["tool_rounds"] as? Int == 24,
+      "Agent sends a finite production token budget and its tool-round limit: \(limitedRequest["max_tokens"] ?? "nil") \(limitedRequest["tool_rounds"] ?? "nil")")
     limited.stopServices()
     await limited.bridge.stopAndWait()
+    // AGENT-2026-11-23-BOUCLE: an engine announcing `agent_loop_supported` gets no total
+    // budget and the long round limit; reasoning is never cut (no `reasoning_budget`).
+    let marker = root.appendingPathComponent("agent-loop-engine")
+    FileManager.default.createFile(atPath: marker.path, contents: Data())
+    defer { try? FileManager.default.removeItem(at: marker) }
+    let looping = try await readyAgent("agent-loop")
+    looping.draft = "Write the whole game"
+    looping.send()
+    try await wait { !looping.isGenerating && !looping.agentStudioBusy }
+    let loopRequest =
+      try JSONSerialization.jsonObject(
+        with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(
+      loopRequest["max_tokens"] as? Int == -1 && loopRequest["tool_rounds"] as? Int == 256
+        && loopRequest["reasoning_budget"] == nil
+        && looping.currentConversation!.messages.last!.error == nil,
+      "A newer engine's Agent turn has no total budget, 256 rounds and no reasoning cut: \(loopRequest["max_tokens"] ?? "nil") \(loopRequest["tool_rounds"] ?? "nil") \(loopRequest["reasoning_budget"] ?? "nil")")
+    let turnsBefore = looping.currentConversation!.messages.count
+    looping.draft = "budget-limit"
+    looping.send()
+    try await wait {
+      looping.currentConversation!.messages.count == turnsBefore + 2 && !looping.isGenerating
+        && !looping.agentStudioBusy
+    }
+    let loopError = looping.currentConversation!.messages.last!.error ?? ""
+    check(
+      loopError.contains("Limite de sortie") || loopError.contains("Output limit"),
+      "A newer engine's output limit is reported without the old 32,768 total: \(loopError)")
+    check(
+      limitedRequest["reasoning_budget"] == nil,
+      "An older engine is not sent a reasoning budget")
+    looping.selectMode(.chat)
+    try await wait { !looping.mcpUpdating && looping.engineState.isReady }
+    let chatBefore = looping.currentConversation?.messages.count ?? 0
+    looping.draft = "Plain chat"
+    looping.send()
+    try await wait {
+      (looping.currentConversation?.messages.count ?? 0) >= 2
+        && looping.currentConversation!.messages.count != chatBefore && !looping.isGenerating
+    }
+    let chatRequest =
+      try JSONSerialization.jsonObject(
+        with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(
+      chatRequest["max_tokens"] as? Int == -1 && chatRequest["tool_rounds"] == nil
+        && chatRequest["reasoning_budget"] == nil,
+      "Chat keeps its request without Agent budgets")
+    looping.stopServices()
+    await looping.bridge.stopAndWait()
     return count
   }
 }
@@ -184,8 +256,8 @@ extension StudioModel {
       as! [String: Any]
     let servers = config["mcpServers"] as! [String: [String: Any]]
     check(
-      Set(servers.keys) == ["exa", "sandbox"] && servers["exa"]?["enabled"] as? Bool == false,
-      "No user or remote MCP in Agent")
+      Set(servers.keys) == ["exa", "sandbox"] && servers["exa"]?["enabled"] as? Bool == true,
+      "No user or remote MCP in Agent; web search on with Internet, the default")
     check(
       (servers["sandbox"]?["args"] as? [String]) == [
         "--agent-tools", workspace.path,
@@ -206,6 +278,7 @@ extension StudioModel {
     restricted.write = false
     restricted.run = false
     restricted.commandSeconds = 1
+    restricted.internet = false
     try project.setPermissions(restricted)
     _ = try studio.modesRegistryForCheck()
     let restrictedState = try JSONDecoder().decode(
@@ -216,6 +289,24 @@ extension StudioModel {
     check(
       !workspace.path.hasPrefix(registry.deletingLastPathComponent().path),
       "Commands cannot write their configuration")
+    // Web search follows the task's Internet setting; the sandbox entry is unchanged.
+    let offlineServers =
+      (try JSONSerialization.jsonObject(
+        with: Data(contentsOf: registry.deletingLastPathComponent().appendingPathComponent("mcp.json")))
+        as! [String: Any])["mcpServers"] as! [String: [String: Any]]
+    check(offlineServers["exa"]?["enabled"] as? Bool == false, "Internet off disables web search")
+    var online = restricted
+    online.internet = true
+    try project.setPermissions(online)
+    let onlineServers =
+      (try JSONSerialization.jsonObject(
+        with: Data(contentsOf: try studio.modesRegistryForCheck().deletingLastPathComponent().appendingPathComponent("mcp.json")))
+        as! [String: Any])["mcpServers"] as! [String: [String: Any]]
+    check(
+      onlineServers["exa"]?["enabled"] as? Bool == true && onlineServers["sandbox"]?["args"] as? [String] == servers["sandbox"]?["args"] as? [String],
+      "Internet enables web search for this task only")
+    try project.setPermissions(restricted)
+    _ = try studio.modesRegistryForCheck()
     func launches() throws -> [[String: Any]] {
       try String(contentsOf: root.appendingPathComponent("mode-launches.jsonl"), encoding: .utf8)
         .split(separator: "\n").map {

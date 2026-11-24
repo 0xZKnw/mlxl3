@@ -88,7 +88,7 @@ pub(crate) enum Command {
         prompt: Option<String>,
         #[arg(long, default_value_t = 128)]
         max_tokens: usize,
-        /// Image files for LFM3-VL (PNG, JPEG or WebP). Requires --prompt.
+        /// Image files for LFM3-VL or Inkling 2 Mini (PNG, JPEG or WebP). Requires --prompt.
         #[arg(long = "image", requires = "prompt")]
         images: Vec<PathBuf>,
     },

@@ -175,9 +175,14 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
         .unwrap_or_default()
         .as_nanos() as u64
         | 1;
-    emit_event(
-        json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":mtp_max_depth>0,"mtp_auto_download_supported":false,"mtp_supported":mtp_max_depth>0,"mtp_sampling_supported":false,"mtp_max_depth":mtp_max_depth,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"context_memory_profile":context_memory_profile,"qwen_profile":qwen_profile,"qwen_effective_flags":qwen_effective_flags,"qwen_device_kv":qwen_device_kv,"qwen_prefill_last_head":qwen_prefill_last_head,"qwen_group_expert_qmv":qwen_group_expert_qmv,"qwen_group_expert_stages":qwen_group_expert_stages,"qwen_device_greedy":qwen_device_greedy,"flash":if model.is_flash(){json!({"backend":"direct-metal","memory":model.memory_ledger(None)?})}else{Value::Null}}),
-    )?;
+    let mut ready = json!({"type":"ready","model":name,"model_path":path,"load_seconds":started.elapsed().as_secs_f64(),"resident_gb":size,"memory":model.memory_stats()?,"runtime_commit":env!("MLXL3_BUILD_REVISION"),"runtime_profile":env!("MLXL3_BUILD_PROFILE"),"runtime_executable":std::env::current_exe()?,"backend":"direct-metal","runtime_version":env!("CARGO_PKG_VERSION"),"bridge_protocol":1,"modules":c.modules.len(),"dflash_supported":speculative,"dflash_tune_supported":false,"dflash_configure_supported":speculative,"mtp_configure_supported":mtp_max_depth>0,"mtp_auto_download_supported":false,"mtp_supported":mtp_max_depth>0,"mtp_sampling_supported":false,"mtp_max_depth":mtp_max_depth,"mtp_tune_supported":false,"memory_saver_supported":true,"mcp_servers":0,"mcp_tools":0,"mcp_errors":{},"workspace_features":true,"context_limit":context,"model_context_limit":limit,"context_memory_profile":context_memory_profile,"qwen_profile":qwen_profile,"qwen_effective_flags":qwen_effective_flags,"qwen_device_kv":qwen_device_kv,"qwen_prefill_last_head":qwen_prefill_last_head,"qwen_group_expert_qmv":qwen_group_expert_qmv,"qwen_group_expert_stages":qwen_group_expert_stages,"qwen_device_greedy":qwen_device_greedy,"flash":if model.is_flash(){json!({"backend":"direct-metal","memory":model.memory_ledger(None)?})}else{Value::Null}});
+    // Agent mode: `tool_rounds` per request, `callTimeoutSeconds` per MCP server (added
+    // here: the `json!` above is at the macro recursion limit).
+    ready["tool_rounds_supported"] = json!(true);
+    ready["mcp_call_timeout_supported"] = json!(true);
+    // AGENT-2026-11-23-BOUCLE: `reasoning_budget`, 512 rounds, pruning, repeated-call stop.
+    ready["agent_loop_supported"] = json!(true);
+    emit_event(ready)?;
     for line in io::stdin().lock().lines() {
         let line = line?;
         if line.trim().is_empty() {
@@ -302,34 +307,44 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                         draft.as_ref().map_or(0, |(_, _, d)| d.width()),
                         draft.as_ref().map(|_| request.dflash_draft_path.clone()),
                     )?;
-                    let result = bridge_generate(
-                        &mut model,
-                        &tokenizer,
-                        &id,
-                        request.messages,
-                        request.max_tokens,
-                        sampler,
-                        context,
-                        size,
-                        &cancelled,
-                        &mut random,
-                        &mut mcp,
-                        draft.as_ref().map(|(_, _, d)| d),
-                        head.as_mut().map(|(_, h)| h),
-                        request.mtp_depth,
-                        request.dflash_mode,
-                        started,
-                        draft_seconds,
-                        &mut prompt_cache,
-                        if request.conversation_id.is_empty() {
-                            &id
-                        } else {
-                            &request.conversation_id
-                        },
-                        request.reuse_prompt_cache && !request.memory_saver,
-                        request.allowed_tools.as_deref(),
-                        request.response_schema.as_deref(),
-                    );
+                    // An invalid round limit fails this request only, like any request error.
+                    let rounds = mlxl3_native::tool_call::tool_rounds(request.tool_rounds)
+                        .and_then(|rounds| {
+                            mlxl3_native::agent_loop::reasoning_budget(request.reasoning_budget)
+                                .map(|budget| (rounds, budget))
+                        });
+                    let result = rounds.and_then(|(rounds, reasoning_budget)| {
+                        bridge_generate(
+                            &mut model,
+                            &tokenizer,
+                            &id,
+                            request.messages,
+                            request.max_tokens,
+                            sampler,
+                            context,
+                            size,
+                            &cancelled,
+                            &mut random,
+                            &mut mcp,
+                            draft.as_ref().map(|(_, _, d)| d),
+                            head.as_mut().map(|(_, h)| h),
+                            request.mtp_depth,
+                            request.dflash_mode,
+                            started,
+                            draft_seconds,
+                            &mut prompt_cache,
+                            if request.conversation_id.is_empty() {
+                                &id
+                            } else {
+                                &request.conversation_id
+                            },
+                            request.reuse_prompt_cache && !request.memory_saver,
+                            request.allowed_tools.as_deref(),
+                            request.response_schema.as_deref(),
+                            rounds,
+                            reasoning_budget,
+                        )
+                    });
                     if result.is_err() || cancelled.load(Ordering::Relaxed) || request.memory_saver
                     {
                         prompt_cache = None;

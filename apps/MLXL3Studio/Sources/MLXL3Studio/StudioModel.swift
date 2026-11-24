@@ -134,7 +134,28 @@ final class StudioModel: ObservableObject {
     /// The loaded model ships a DSpark drafter (Inkling 2); nil until the engine reports it.
     @Published private(set) var dsparkSupported: Bool?
     /// DSpark on or off, kept across launches (on by default).
-    @Published private(set) var dsparkEnabled = true
+    @Published private(set) var dsparkEnabled = false
+    /// Reasoning levels the selected model's chat template accepts; nil when it has none.
+    @Published private(set) var reasoningSupport: ReasoningSupport?
+    /// Level chosen for the selected model (kept per model); nil = the template default.
+    @Published private(set) var reasoningChoice: ReasoningEffort?
+    /// The running engine passes `reasoning_effort` to the template (reported at ready).
+    @Published private(set) var engineReasoningSupported = false
+    /// Older engines only: output tokens of one Agent turn, all tool rounds and reasoning
+    /// included. A long task ran out of it mid-work (AGENT-2026-11-23-BOUCLE).
+    static let agentTokenBudget = 32_768
+    /// Older engines only: tool rounds of one Agent turn (chat keeps the engine's 5).
+    static let agentToolRounds = 24
+    /// Engines with `agent_loop_supported`: no total budget (each step may use the rest of the
+    /// context) and tool rounds as in Unharnessed and opencode (no practical cap, the engine
+    /// stops repeated identical calls). Reasoning is never cut, as in deepseek-harness and
+    /// opencode: no `reasoning_budget` is sent (the engine's option stays unused).
+    static let agentLoopToolRounds = 256
+    /// The engine accepts `tool_rounds` and a per-server MCP deadline (reported at ready):
+    /// Agent calls may then last as long as their commands. Kept across model loads.
+    private(set) var engineLongToolCalls = false
+    /// The running engine announces `agent_loop_supported` (reported at ready).
+    private(set) var engineAgentLoop = false
     /// Engines announcing this verify MTP drafts by exact speculative sampling.
     @Published private(set) var mtpSamplingSupported: Bool?
     /// The engine verifies DFlash2 with exact speculative sampling (engine 2.0.19+).
@@ -191,6 +212,7 @@ final class StudioModel: ObservableObject {
     private var mtpLegacyPreferenceClaimed = false
     @Published private(set) var theme: AppTheme = .dark
     @Published private(set) var accent: AppAccent = .violet
+    @Published private(set) var style: AppStyle = .graphite
     @Published private(set) var customAccentHex = CustomAccent.defaultHex
     var customAccentColor: Color { CustomAccent.color(customAccentHex) }
     var accentColor: Color { accent == .custom ? customAccentColor : accent.color }
@@ -277,7 +299,12 @@ final class StudioModel: ObservableObject {
         self.readingWidth = ConversationReadingWidth.load(from: preferences)
         self.responseTextSize = ResponseTextSize.load(from: preferences)
         self.theme = AppTheme.load(from: preferences)
-        self.accent = AppAccent.load(from: preferences)
+        let savedStyle = AppStyle.load(from: preferences)
+        self.style = savedStyle
+        // Never chosen: the accent the style is designed around.
+        self.accent = preferences.string(forKey: AppAccent.preferenceKey) == nil
+            ? savedStyle.accent : AppAccent.load(from: preferences)
+        StudioTheme.style = savedStyle
         self.customAccentHex = CustomAccent.normalized(preferences.string(forKey: CustomAccent.preferenceKey))
         self.conversationDensity = ConversationDensity.load(from: preferences)
         self.sidebarWidth = SidebarWidth.load(from: preferences)
@@ -286,7 +313,8 @@ final class StudioModel: ObservableObject {
         self.loadModelOnStartup = StartupModelPreference.load(from: preferences)
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
         self.memorySaverEnabled = preferences.bool(forKey: "studio.memorySaverEnabled")
-        self.dsparkEnabled = (preferences.object(forKey: "studio.dsparkEnabled") as? Bool) ?? true
+        // DECISION-2026-11-22-INK2M-DSPARK-OFF: plain decoding unless the user turns DSpark on
+        self.dsparkEnabled = (preferences.object(forKey: "studio.dsparkEnabled") as? Bool) ?? false
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
         self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
@@ -544,6 +572,14 @@ final class StudioModel: ObservableObject {
         preferences.set(value.rawValue, forKey: AppAccent.preferenceKey)
     }
 
+    /// A style brings its accent; a different accent can still be picked afterwards.
+    func setStyle(_ value: AppStyle) {
+        StudioTheme.style = value
+        style = value
+        preferences.set(value.rawValue, forKey: AppStyle.preferenceKey)
+        if accent != .custom { setAccent(value.accent) }
+    }
+
     func setCustomAccent(_ value: Color) {
         guard let hex = CustomAccent.hex(value) else { return }
         customAccentHex = hex
@@ -573,7 +609,8 @@ final class StudioModel: ObservableObject {
 
     func resetAppearance() {
         setTheme(.dark)
-        setAccent(.violet)
+        setStyle(.graphite)
+        setAccent(AppStyle.graphite.accent)
         customAccentHex = CustomAccent.defaultHex
         preferences.set(customAccentHex, forKey: CustomAccent.preferenceKey)
         setConversationDensity(.comfortable)
@@ -651,6 +688,35 @@ final class StudioModel: ObservableObject {
         preferences.set(enabled, forKey: "studio.memorySaverEnabled")
     }
 
+    /// The reasoning selector shows only when both the model and the engine support it.
+    var reasoningControlAvailable: Bool { engineReasoningSupported && reasoningSupport != nil }
+
+    /// Level the next request uses: the saved choice when this model supports it, else its default.
+    var reasoningLevel: ReasoningEffort? {
+        guard let support = reasoningSupport else { return nil }
+        return reasoningChoice.flatMap { support.levels.contains($0) ? $0 : nil } ?? support.defaultLevel
+    }
+
+    /// Sent only when it differs from the template default, so default prompts stay identical.
+    var requestReasoningEffort: String? {
+        guard reasoningControlAvailable, let support = reasoningSupport, let level = reasoningLevel,
+              level != support.defaultLevel else { return nil }
+        return level.rawValue
+    }
+
+    func setReasoningLevel(_ level: ReasoningEffort) {
+        guard let model = selectedModel, reasoningSupport?.levels.contains(level) == true else { return }
+        reasoningChoice = level
+        preferences.set(level.rawValue, forKey: "studio.reasoning.\(model.path)")
+    }
+
+    private func restoreReasoningPreference() {
+        reasoningSupport = selectedModel.flatMap { ReasoningSupport.detect(modelPath: $0.path) }
+        reasoningChoice = selectedModel
+            .flatMap { preferences.string(forKey: "studio.reasoning.\($0.path)") }
+            .flatMap(ReasoningEffort.init(rawValue:))
+    }
+
     /// Turns the DSpark drafter on or off for the next requests and remembers the choice.
     func setDSparkEnabled(_ enabled: Bool) {
         dsparkEnabled = enabled
@@ -721,11 +787,16 @@ final class StudioModel: ObservableObject {
         !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || !pendingAttachments.isEmpty
     }
 
+    /// The sandbox answered; web search (Exa) is optional and its absence never blocks Agent.
+    var agentToolsReady: Bool {
+        bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.keys.allSatisfy { $0 == "exa" }
+    }
+
     var canAttemptSend: Bool { canSend || (!engineState.isReady && !isGenerating && hasDraftContent) }
 
     var canSend: Bool {
         !preparingDocuments && !quantizer.converting && !agentStudioBusy && !localServer.active && modeTransition == nil && (selectedMode == .chat || selectedMode == .agent)
-            && (selectedMode != .agent || (bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.isEmpty))
+            && (selectedMode != .agent || agentToolsReady)
             && engineState.isReady && (!isTuningMTP || mtpAutoTuneActive) && !mcpUpdating && !dflashDownloading && !dflashConfigurationPending && !mtpDownloading && !mtpConfigurationPending && !modelInstallState.isWorking && !updateManager.isInstalling
             && !isImportingFiles && (conversationImages.isEmpty || canImportImages) && imageInputWithinLimits
             && hasDraftContent
@@ -754,13 +825,16 @@ final class StudioModel: ObservableObject {
             if selectedModel?.modelType == "lfm3_vl" {
                 return L("Mettez le moteur à jour pour envoyer des images avec LFM3-VL.", "Update the engine to send images with LFM3-VL.")
             }
-            return L("Cette conversation contient des images. Chargez LFM3-VL pour continuer.", "This conversation contains images. Load LFM3-VL to continue.")
+            if selectedModel?.modelType == "inkling2_loop" {
+                return L("Cette version d’Inkling 2 Mini n’a pas son encodeur vision. Téléchargez la dernière révision et mettez le moteur à jour.", "This Inkling 2 Mini download has no vision encoder. Download the latest revision and update the engine.")
+            }
+            return L("Cette conversation contient des images. Chargez LFM3-VL ou Inkling 2 Mini pour continuer.", "This conversation contains images. Load LFM3-VL or Inkling 2 Mini to continue.")
         }
         if !imageInputWithinLimits {
             return L("Limite de 8 images et 8 Mio par conversation. Retirez des images ou ouvrez une nouvelle conversation.", "Limit of 8 images and 8 MiB per conversation. Remove images or start a new conversation.")
         }
         if localServer.active || (selectedMode != .chat && selectedMode != .agent) { return L("Choisissez Chat ou Agent pour envoyer", "Choose Chat or Agent to send") }
-        if selectedMode == .agent && (!bridgeUsesAgentRegistry || mcpToolCount == 0 || !mcpErrors.isEmpty) { return L("Les outils Agent ne sont pas prêts", "Agent tools are not ready") }
+        if selectedMode == .agent && !agentToolsReady { return L("Les outils Agent ne sont pas prêts", "Agent tools are not ready") }
         return nil
     }
 
@@ -776,8 +850,12 @@ final class StudioModel: ObservableObject {
         !isGenerating && !isImportingFiles && currentConversation != nil
     }
 
+    /// Model types whose engine path reads images (the engine still confirms it per checkpoint with
+    /// `images_supported`: an Inkling 2 revision without its vision encoder stays text only).
+    static let visionModelTypes: Set<String> = ["lfm3_vl", "inkling2_loop"]
+
     var canImportImages: Bool {
-        readyInfo != nil && selectedModel?.modelType == "lfm3_vl" && imagesSupported
+        readyInfo != nil && Self.visionModelTypes.contains(selectedModel?.modelType ?? "") && imagesSupported
     }
 
     private var conversationImages: [ChatImage] {
@@ -1323,7 +1401,7 @@ final class StudioModel: ObservableObject {
 
         var messages: [PromptMessage] = []
         let system = [systemPrompt, currentProject?.instructions ?? "", sources.isEmpty ? "" : DocumentSearch.instruction,
-            selectedMode == .agent ? "You are a local coding agent. Use list_files and read_file to explore the project, write_file to edit it, and run to execute commands and verify your changes. Only enabled tools are available. You work on an isolated copy; originals are changed only after user review. Commands use macOS system tools, have no network or personal-file access, and have a configurable deadline (at most 30 seconds) and 32 KiB output limit. Use relative paths. Never claim to have executed a command unless its tool result confirms it. Explain failures and limits honestly." : ""]
+            selectedMode == .agent ? AgentSandbox.instructions(for: agentPermissions) : ""]
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: "\n\n")
         if !system.isEmpty {
             messages.append(PromptMessage(role: "system", content: system))
@@ -1344,7 +1422,7 @@ final class StudioModel: ObservableObject {
                     requestID: requestID,
                     conversationID: conversations[conversationIndex].id.uuidString,
                     messages: messages,
-                    maxTokens: selectedMode == .agent ? 4096 : -1,
+                    maxTokens: selectedMode == .agent && !engineAgentLoop ? Self.agentTokenBudget : -1,
                     temperature: samplingTemperature,
                     topK: samplingTopK,
                     repetitionPenalty: samplingRepetitionPenalty,
@@ -1360,7 +1438,10 @@ final class StudioModel: ObservableObject {
                     memorySaver: memorySaverEnabled && memorySaverSupported,
                     dspark: dsparkEnabled,
                     allowedTools: selectedMode == .agent ? nil : currentProject?.allowedTools,
-                    responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema
+                    responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema,
+                    reasoningEffort: requestReasoningEffort,
+                    toolRounds: selectedMode == .agent
+                        ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil
                 )
             )
         } catch {
@@ -1410,10 +1491,12 @@ final class StudioModel: ObservableObject {
     private func checkAgentGenerationDeadline(at now: ContinuousClock.Instant) {
         guard activeRequestID != nil, cancellationFallback == nil,
               let start = generationStartedAt, let last = generationLastActivity else { return }
-        if now - start >= .seconds(600) {
-            requestGenerationStop(L("Limite de 10 minutes atteinte. La réponse partielle est conservée.", "10-minute Agent limit reached. Partial output was kept."))
-        } else if now - last >= .seconds(120) {
-            requestGenerationStop(L("L’agent ne répond plus depuis 2 minutes. La réponse partielle est conservée.", "Agent has not responded for 2 minutes. Partial output was kept."))
+        // No total limit (it stopped long tasks at 10 minutes): the user can stop at any time,
+        // and only five silent minutes stop an answer. The engine reports a prefill once, at its
+        // start, so a long context can stay silent for a few minutes without being stalled.
+        _ = start
+        if now - last >= .seconds(300) {
+            requestGenerationStop(L("L’agent ne répond plus depuis 5 minutes. La réponse partielle est conservée.", "Agent has not responded for 5 minutes. Partial output was kept."))
         }
     }
 
@@ -2127,6 +2210,8 @@ final class StudioModel: ObservableObject {
         cancelMTPPreparation()
         mtpConfigureSupported = false
         restoreMTPPreference()
+        restoreReasoningPreference()
+        engineReasoningSupported = false
         mtpHeadPath = selectedModel.flatMap { preferences.string(forKey: "studio.mtpHead.\($0.path)") }
             ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
         mtpError = nil
@@ -2244,6 +2329,11 @@ final class StudioModel: ObservableObject {
             engineState = .loading(event.model ?? selectedModelName ?? "modèle")
         case "ready":
             memorySaverSupported = event.memorySaverSupported == true
+            engineReasoningSupported = event.reasoningEffortSupported == true
+            let longCalls = event.mcpCallTimeoutSupported == true && event.toolRoundsSupported == true
+            let rewriteAgentRegistry = longCalls != engineLongToolCalls
+            engineLongToolCalls = longCalls
+            engineAgentLoop = event.agentLoopSupported == true
             workspaceFeaturesAvailable = event.workspaceFeatures == true
             imagesSupported = event.imagesSupported == true
             if let tools = event.mcpToolCatalog { mcpTools = tools }
@@ -2284,6 +2374,11 @@ final class StudioModel: ObservableObject {
                 modules: info.modules,
                 residentGB: info.residentGB
             )
+            // A sandbox entry written for another engine gets this one's deadline before the
+            // reconnection below reads it.
+            if rewriteAgentRegistry && bridgeUsesAgentRegistry {
+                do { _ = try prepareAgentRegistry() } catch { featureError = error.localizedDescription }
+            }
             if mcpEnabled || bridgeUsesAgentRegistry { updateMCPConnection() }
             if dflash2Enabled && dflash2Available { setDFlash2Enabled(true) }
             else if mtpRememberedEnabled && mtpAvailable { setMTPEnabled(true) }
@@ -2333,7 +2428,8 @@ final class StudioModel: ObservableObject {
             message.startTool(
                 id: callID,
                 serverName: event.serverName,
-                toolName: toolName
+                toolName: toolName,
+                arguments: event.arguments?.text
             )
             schedulePersistence()
         case "tool_result":
@@ -2370,7 +2466,11 @@ final class StudioModel: ObservableObject {
             if event.contextFull == true {
                 message?.fail(L("Limite de contexte atteinte. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", "Context limit reached. Increase the limit in model settings or start a new conversation."))
             } else if generationStartedAt != nil && event.stopReason == "max_tokens" {
-                message?.fail(L("Limite de 4 096 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "4,096-token Agent limit reached. Partial output was kept; continue in another turn."))
+                if engineAgentLoop {
+                    message?.fail(L("Limite de sortie atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "Output limit reached. Partial output was kept; continue in another turn."))
+                } else {
+                    message?.fail(L("Limite de 32 768 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "32,768-token Agent limit reached. Partial output was kept; continue in another turn."))
+                }
             }
             if message?.error == nil, event.contextFull != true, message?.content.isEmpty == false {
                 notifyGenerationFinished(requestID: requestID)
@@ -2422,6 +2522,8 @@ final class StudioModel: ObservableObject {
             ? L("Contexte plein. Augmente la limite dans les paramètres du modèle ou ouvre une nouvelle conversation.", message)
             : message
         activeMessage()?.fail(detail)
+        // A failed Agent turn may have changed files: checkpoint them like a finished one.
+        finishAgentTurn()
         activeRequestID = nil
         activeResponseID = nil
         if readyInfo == nil || !bridge.isRunning {
@@ -2592,9 +2694,11 @@ extension StudioModel {
         try JSONSerialization.data(withJSONObject: ["version": 1, "models": [model.name: entry]])
             .write(to: registry, options: .atomic)
         let config: [String: Any] = ["version": 1, "mcpServers": [
-            "exa": ["enabled": false, "url": "https://mcp.exa.ai/mcp"],
-            "sandbox": ["enabled": true, "command": Bundle.main.executableURL?.path ?? CommandLine.arguments[0],
-                "args": ["--agent-tools", root.path, store.metadata.appendingPathComponent("project.json").path]]]]
+            // Web search only when this task allows Internet (Sandbox panel).
+            "exa": ["enabled": (try? store.state().permissions.internet) == true, "url": "https://mcp.exa.ai/mcp"],
+            "sandbox": AgentSandbox.serverEntry(
+                executable: Bundle.main.executableURL?.path ?? CommandLine.arguments[0], root: root,
+                project: store.metadata.appendingPathComponent("project.json"), longCalls: engineLongToolCalls)]]
         try JSONSerialization.data(withJSONObject: config).write(to: metadata.appending(path: "mcp.json"), options: .atomic)
         return registry
     }
@@ -2607,7 +2711,31 @@ extension StudioModel {
         } else { loadSelectedModel() }
     }
 
+    /// Permissions (and harness) of the current Agent workspace; defaults when none is saved.
+    var agentPermissions: AgentPermissions {
+        guard let url = agentWorkspaceURL else { return AgentPermissions() }
+        return (try? AgentProjectStore(workspace: url).state().permissions) ?? AgentPermissions()
+    }
+
+    /// The Internet switch of the Agent bar: saved in the task's permissions (Agent Studio's
+    /// Sandbox panel shows the same value), then the sandbox registry is refreshed.
+    func setAgentInternet(_ enabled: Bool) {
+        guard !isGenerating, !agentStudioBusy, let url = agentWorkspaceURL else { return }
+        do {
+            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            let store = AgentProjectStore(workspace: url)
+            try store.ensureState()
+            var permissions = try store.state().permissions
+            guard permissions.internet != enabled else { return }
+            permissions.internet = enabled
+            objectWillChange.send()
+            try store.setPermissions(permissions)
+            refreshAgentPermissions()
+        } catch { featureError = error.localizedDescription }
+    }
+
     func refreshAgentPermissions() {
+        objectWillChange.send()  // the Agent bar reads the saved permissions
         guard !isGenerating, engineState.isReady, bridgeUsesAgentRegistry else { return }
         do { _ = try prepareAgentRegistry(); updateMCPConnection() }
         catch { featureError = error.localizedDescription }

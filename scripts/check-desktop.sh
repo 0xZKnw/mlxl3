@@ -232,7 +232,7 @@ queue_rest() {
     combine StudioHardeningCombined.swift "${app_sources}/UpdateManager.swift" tests/studio-hardening-check.swift
     queue_compile hardening "${(@)sources:#*/UpdateManager.swift}" "${math_objects[@]}" \
         "${test_dir}/StudioHardeningCombined.swift" -o "${test_dir}/check"
-    queue_compile agent-sandbox -O "${app_sources}/AgentSandbox.swift" \
+    queue_compile agent-sandbox -O "${app_sources}/AgentSandbox.swift" "${app_sources}/AgentJavaScript.swift" "${app_sources}/AgentNetwork.swift" \
         tests/agent-sandbox-check.swift -o "${test_dir}/agent-sandbox-check"
     queue_studio_model_check studio-modes StudioModesCombined.swift tests/studio-modes-check.swift
     queue_app_check decision tests/decision-studio-check.swift
@@ -274,7 +274,9 @@ queue_after_preferences() {
 }
 
 queue_tail() {
-    queue_compile aurora-shader -O "${app_sources}/StudioAurora.swift" \
+    # StudioAurora.swift resolves its colours and style through Theme.swift and the app's
+    # environment, so the shader check builds with every app source (no MLXL3StudioApp.swift).
+    queue_compile aurora-shader -O "${sources[@]}" "${math_objects[@]}" \
         tests/aurora-shader-check.swift -o "${test_dir}/aurora-shader-check"
     queue_compile cli-command -O "${app_sources}/CLICommand.swift" \
         tests/cli-command-check.swift -o "${test_dir}/cli-command-check"
@@ -292,7 +294,7 @@ queue_tail() {
     [[ -n "${MLXL3_MACOS_SDK:-}" ]] && swiftc_args+=(-sdk "${MLXL3_MACOS_SDK}")
     swiftc_args+=(-I "${binary_dir}" -I "${binary_dir}/Modules")
     queue_compile studios "${sources[@]}" "${math_objects[@]}" tests/studios-check.swift -o "${test_dir}/studios-check"
-    queue_compile studios-agent "${app_sources}/AgentSandbox.swift" tests/agent-sandbox-check.swift \
+    queue_compile studios-agent "${app_sources}/AgentSandbox.swift" "${app_sources}/AgentJavaScript.swift" "${app_sources}/AgentNetwork.swift" tests/agent-sandbox-check.swift \
         -o "${test_dir}/studios-agent-check"
     swiftc_args=(-swift-version 6 -warnings-as-errors -parse-as-library)
     [[ -n "${MLXL3_MACOS_SDK:-}" ]] && swiftc_args+=(-sdk "${MLXL3_MACOS_SDK}")
@@ -317,6 +319,8 @@ run_response_ui() {
     run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py"
     # A fresh process runs the fixed-size native bitmap/OCR checks.
     run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py" --check-long-visibility
+    # Long replies streamed below long histories must keep the view pinned (own time budget).
+    run_fixture_check "${response_app}/Contents/MacOS/response-check" "$PWD/tests/fake-desktop-engine.py" --check-scroll-follow
 }
 
 # The focused PR job and the full suite execute the same production fixtures.
@@ -370,7 +374,8 @@ run_after_preferences() {
     "${test_dir}/sampling-check" "$PWD/tests/fake-desktop-engine.py" \
         "$PWD/apps/MLXL3Studio/Sources/MLXL3Studio/GenerationInspector.swift"
     await_compile experience
-    run_fixture_check "${test_dir}/experience-check" "$PWD/tests/fake-desktop-engine.py"
+    run_fixture_check "${test_dir}/experience-check" "$PWD/tests/fake-desktop-engine.py" | tee "${test_dir}/experience.log"
+    grep -q "^Desktop experience checks passed:" "${test_dir}/experience.log"
     await_compile text-size
     run_fixture_check "${test_dir}/text-size-check"
     await_compile mtp-layout

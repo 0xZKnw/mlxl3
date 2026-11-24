@@ -63,10 +63,20 @@ import SwiftUI
       Data("<!doctype html><p>after</p>".utf8), path: "index.html", root: workspace)
     try AgentProjectStore.write(Data("window.result = 2".utf8), path: "main.js", root: workspace)
     try AgentProjectStore.write(Data("new file".utf8), path: "nested/new.txt", root: workspace)
+    // Downloaded test material (Agent Internet) never enters a checkpoint or a review.
+    try files.createDirectory(
+      at: workspace.appendingPathComponent(".mlxl3-scratch/repo"), withIntermediateDirectories: true)
+    try Data("downloaded".utf8).write(to: workspace.appendingPathComponent(".mlxl3-scratch/repo/README"))
     check(
       try String(contentsOf: source.appendingPathComponent("index.html"), encoding: .utf8).contains(
         "before"), "Agent changed originals before review")
     let second = try store.checkpoint("Edit files")
+    let checkpointPaths = try store.paths(at: second)
+    check(
+      AgentProjectStore.excludedNames.contains(AgentProjectStore.scratchFolder)
+        && checkpointPaths.contains("nested/new.txt")
+        && !checkpointPaths.contains { $0.hasPrefix(".mlxl3-scratch") },
+      "The Agent scratch folder stays out of checkpoints")
     let branchURL = root.appendingPathComponent("historical-branch/files")
     try store.fork(to: branchURL, at: boundary, retaining: [boundary])
     let historical = AgentProjectStore(workspace: branchURL)
@@ -183,8 +193,16 @@ import SwiftUI
       _ = try store.checkpoint("Unsafe alias")
       preconditionFailure("Checkpoint accepted a symlink")
     } catch { checks += 1 }
-    let denied = try AgentSandbox.execute(root: workspace, command: "cat ../studio/project.json")
-    check(denied.status != 0, "Model read private checkpoint/permission metadata")
+    // Commands read the whole Mac since 2.0.23 (DeepSeek Harness's sandbox level), the task's
+    // metadata included, but cannot change its permissions or history.
+    let metadata = workspace.deletingLastPathComponent().appendingPathComponent("studio/project.json")
+    let before = try Data(contentsOf: metadata)
+    let read = try AgentSandbox.execute(root: workspace, command: "cat ../studio/project.json")
+    check(read.status == 0 && read.output == String(decoding: before, as: UTF8.self), "Commands no longer read the task metadata")
+    let tamper = try AgentSandbox.execute(
+      root: workspace, command: "printf '{}' > ../studio/project.json; rm -f ../studio/project.json")
+    let after = try Data(contentsOf: metadata)
+    check(tamper.status != 0 && after == before, "Model changed private checkpoint/permission metadata")
     let readonly = try AgentSandbox.execute(
       root: workspace, command: "printf BAD > index.html", writable: false)
     check(readonly.status != 0, "Run bypassed disabled writes")
