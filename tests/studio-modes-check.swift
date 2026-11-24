@@ -199,26 +199,30 @@ extension StudioModel {
       chatRequest["max_tokens"] as? Int == -1 && chatRequest["tool_rounds"] == nil
         && chatRequest["reasoning_budget"] == nil,
       "Chat keeps its request without Agent budgets")
-    check(looping.reasoningLevels == [.none, .low, .medium, .high, .max], "The ready event enables bounded Chat choices")
-    looping.setReasoningLevel(.low)
-    looping.draft = "Short reasoning"
-    looping.send()
-    try await wait { !looping.isGenerating }
-    let lowRequest = try JSONSerialization.jsonObject(with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
-    check(lowRequest["reasoning_effort"] as? String == "low" && lowRequest["reasoning_budget"] as? Int == 256
-            && lowRequest["max_tokens"] as? Int == -1, "Low caps thinking while preserving room for a full answer")
+    let native: [ReasoningEffort] = [.none, .minimal, .low, .medium, .high, .max]
+    check(looping.reasoningLevels == native, "Chat offers the distinct levels of the installed model and engine")
+    for level in native {
+      looping.newConversation()
+      looping.setReasoningLevel(level)
+      looping.draft = "Native effort " + level.rawValue
+      looping.send()
+      try await wait { !looping.isGenerating }
+      let request = try JSONSerialization.jsonObject(with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+      check(request["reasoning_effort"] as? String == level.rawValue && request["reasoning_budget"] == nil
+              && request["max_tokens"] as? Int == -1, "Every level sends only native effort and allows a complete answer")
+    }
     looping.selectMode(.agent)
     try await wait { !looping.mcpUpdating && looping.engineState.isReady }
-    check(looping.reasoningLevels == [.none, .max], "A toggle-only Agent offers only real template choices")
-    looping.draft = "Agent after low chat"
+    check(looping.reasoningLevels == native, "Agent and Chat use the same model controls")
+    looping.draft = "Agent after chat"
     looping.send()
     try await wait { !looping.isGenerating }
     let agentRequest = try JSONSerialization.jsonObject(with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
-    check(agentRequest["reasoning_effort"] == nil && agentRequest["reasoning_budget"] == nil,
-          "A budget-only chat choice does not silently cap Agent steps")
+    check(agentRequest["reasoning_effort"] as? String == "max" && agentRequest["reasoning_budget"] == nil
+            && agentRequest["max_tokens"] as? Int == -1, "Agent preserves the natural effort")
     looping.selectMode(.chat)
     try await wait { !looping.mcpUpdating && looping.engineState.isReady }
-    check(looping.effectiveReasoningChoice == .low, "Returning to Chat restores the selected budget")
+    check(looping.effectiveReasoningChoice == .max, "Returning to Chat restores the saved native choice")
     looping.stopServices()
     await looping.bridge.stopAndWait()
     return count
@@ -253,7 +257,7 @@ extension StudioModel {
     }
     let modelFolder = root.appendingPathComponent("model")
     try FileManager.default.createDirectory(at: modelFolder, withIntermediateDirectories: true)
-    try "{% if enable_thinking is defined and enable_thinking is false %}<think></think>{% else %}<think>{% endif %}"
+    try #"{% set effort_map = {"none":0, "minimal":0.1, "low":0.2, "medium":0.7, "high":0.9, "xhigh":0.99, "max":0.99} %}{{ reasoning_effort }}"#
       .write(to: modelFolder.appendingPathComponent("chat_template.jinja"), atomically: true, encoding: .utf8)
     let model = LocalModel(
       name: "modes", path: modelFolder.path, modelType: "fixture", format: "EXL3", bits: 2.5,

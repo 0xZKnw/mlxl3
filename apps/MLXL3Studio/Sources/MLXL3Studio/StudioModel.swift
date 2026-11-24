@@ -143,7 +143,7 @@ final class StudioModel: ObservableObject {
     @Published private(set) var reasoningChoice: ReasoningEffort?
     /// The running engine passes `reasoning_effort` to the template (reported at ready).
     @Published private(set) var engineReasoningSupported = false
-    @Published private(set) var engineReasoningBudgetSupported = false
+    @Published private(set) var engineReasoningLevels = ReasoningEffort.legacyLevels
     /// Older engines only: output tokens of one Agent turn, all tool rounds and reasoning
     /// included. A long task ran out of it mid-work (AGENT-2026-11-23-BOUCLE).
     static let agentTokenBudget = 32_768
@@ -692,22 +692,17 @@ final class StudioModel: ObservableObject {
     }
 
     /// The reasoning selector shows only when both the model and the engine support it.
-    var reasoningControlAvailable: Bool { engineReasoningSupported && reasoningSupport != nil }
-
-    var boundedReasoningAvailable: Bool {
-        engineReasoningBudgetSupported && selectedMode == .chat
-            && responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
+    var reasoningControlAvailable: Bool { engineReasoningSupported && !reasoningLevels.isEmpty }
 
     var reasoningLevels: [ReasoningEffort] {
-        reasoningSupport?.choices(bounded: boundedReasoningAvailable) ?? []
+        reasoningSupport?.choices(acceptedByEngine: engineReasoningLevels) ?? []
     }
 
     var effectiveReasoningChoice: ReasoningEffort? {
         guard let choice = reasoningChoice, let support = reasoningSupport else { return nil }
         if reasoningLevels.contains(choice) { return choice }
         if let level = support.nativeAliases[choice], reasoningLevels.contains(level) { return level }
-        // A saved budgeted chat level becomes ordinary thinking on a switch-only template.
+        // Obsolete budget-only preferences revert to the template default.
         return nil
     }
 
@@ -716,11 +711,6 @@ final class StudioModel: ObservableObject {
     var requestReasoningEffort: String? {
         guard reasoningControlAvailable, let choice = effectiveReasoningChoice else { return nil }
         return choice.rawValue
-    }
-
-    var requestReasoningBudget: Int? {
-        guard reasoningControlAvailable, boundedReasoningAvailable else { return nil }
-        return effectiveReasoningChoice?.budget
     }
 
     func setReasoningLevel(_ level: ReasoningEffort) {
@@ -1466,8 +1456,7 @@ final class StudioModel: ObservableObject {
                     responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema,
                     reasoningEffort: requestReasoningEffort,
                     toolRounds: selectedMode == .agent
-                        ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil,
-                    reasoningBudget: requestReasoningBudget
+                        ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil
                 )
             )
         } catch {
@@ -2238,7 +2227,7 @@ final class StudioModel: ObservableObject {
         restoreMTPPreference()
         restoreReasoningPreference()
         engineReasoningSupported = false
-        engineReasoningBudgetSupported = false
+        engineReasoningLevels = ReasoningEffort.legacyLevels
         mtpHeadPath = selectedModel.flatMap { preferences.string(forKey: "studio.mtpHead.\($0.path)") }
             ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
         mtpError = nil
@@ -2357,7 +2346,8 @@ final class StudioModel: ObservableObject {
         case "ready":
             memorySaverSupported = event.memorySaverSupported == true
             engineReasoningSupported = event.reasoningEffortSupported == true
-            engineReasoningBudgetSupported = event.reasoningBudgetSupported == true
+            engineReasoningLevels = event.reasoningEffortLevels.map { Set($0.compactMap(ReasoningEffort.init(rawValue:))) }
+                ?? ReasoningEffort.legacyLevels
             let longCalls = event.mcpCallTimeoutSupported == true && event.toolRoundsSupported == true
             let rewriteAgentRegistry = longCalls != engineLongToolCalls
             engineLongToolCalls = longCalls

@@ -1128,8 +1128,7 @@ private struct ComposerPasteMonitor: NSViewRepresentable {
 }
 
 
-/// Reasoning depth of models whose chat template accepts `reasoning_effort` (Inkling 2,
-/// Qwen3.8…): only the levels that template names, kept per model.
+/// The model’s native thinking switch or effort levels.
 private struct ReasoningMenu: View {
     @EnvironmentObject private var studio: StudioModel
     let support: ReasoningSupport
@@ -1148,16 +1147,7 @@ private struct ReasoningMenu: View {
                 })) {
                 Text(L("Par défaut du modèle", "Model default")).tag(nil as ReasoningEffort?)
                 ForEach(studio.reasoningLevels) { option in
-                    Label {
-                        if studio.boundedReasoningAvailable, let budget = option.budget {
-                            Text(L("\(option.title) · budget de \(budget) tokens",
-                                   "\(option.title) · \(budget)-token budget"))
-                        } else {
-                            Text(support.title(for: option))
-                        }
-                    } icon: {
-                        Image(systemName: option.symbol)
-                    }
+                    Label(support.title(for: option), systemImage: option.symbol)
                     .tag(Optional(option))
                 }
             }

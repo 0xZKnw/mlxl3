@@ -4,13 +4,17 @@ import SwiftUI
 /// Reasoning levels the engine passes to the chat template as `reasoning_effort`
 /// (`none` turns thinking off). Each template supports its own subset.
 enum ReasoningEffort: String, CaseIterable, Codable, Identifiable, Sendable {
-  case none, low, medium, high, xhigh, max
+  case none, minimal, low, medium, high, xhigh, max
+
+  /// The previous engine protocol had no advertised list and no minimal effort.
+  static let legacyLevels: Set<Self> = [.none, .low, .medium, .high, .xhigh, .max]
 
   var id: String { rawValue }
 
   var title: String {
     switch self {
     case .none: L("Sans réflexion", "No thinking")
+    case .minimal: L("Minimal", "Minimal")
     case .low: L("Faible", "Low")
     case .medium: L("Moyen", "Medium")
     case .high: L("Élevé", "High")
@@ -23,6 +27,7 @@ enum ReasoningEffort: String, CaseIterable, Codable, Identifiable, Sendable {
   var label: String {
     switch self {
     case .none: L("Sans réflexion", "No thinking")
+    case .minimal: L("Réflexion minimale", "Minimal thinking")
     case .low: L("Réflexion faible", "Low thinking")
     case .medium: L("Réflexion moyenne", "Medium thinking")
     case .high: L("Réflexion élevée", "High thinking")
@@ -31,22 +36,11 @@ enum ReasoningEffort: String, CaseIterable, Codable, Identifiable, Sendable {
     }
   }
 
-  /// Maximum generated thinking tokens per step when the model supports a bounded chat.
-  var budget: Int? {
-    switch self {
-    case .none, .max: nil
-    case .low: 256
-    case .medium: 1_024
-    case .high: 4_096
-    case .xhigh: 8_192
-    }
-  }
-
   /// Gauge needle that rises with the level.
   var symbol: String {
     switch self {
     case .none: "gauge.with.dots.needle.0percent"
-    case .low: "gauge.with.dots.needle.33percent"
+    case .minimal, .low: "gauge.with.dots.needle.33percent"
     case .medium: "gauge.with.dots.needle.50percent"
     case .high: "gauge.with.dots.needle.67percent"
     case .xhigh, .max: "gauge.with.dots.needle.100percent"
@@ -54,20 +48,20 @@ enum ReasoningEffort: String, CaseIterable, Codable, Identifiable, Sendable {
   }
 }
 
-/// The model template controls the native levels. A compatible chat engine can
-/// additionally distinguish levels with a thinking-token budget.
+/// The model template supplies the native controls. The engine may understand fewer names.
 struct ReasoningSupport: Equatable, Sendable {
   let levels: [ReasoningEffort]
   let defaultLevel: ReasoningEffort
 
   var toggleOnly = false
-  // Some templates assign two names to one native effort. An explicit chat budget
-  // can distinguish them, while the native-only picker needs one representative.
+  // Some templates assign two names to the same native effort.
   var nativeAliases: [ReasoningEffort: ReasoningEffort] = [:]
 
-  func choices(bounded: Bool) -> [ReasoningEffort] {
-    if toggleOnly && bounded { return [.none, .low, .medium, .high, .max] }
-    return bounded ? levels : levels.filter { nativeAliases[$0] == nil }
+  func choices(acceptedByEngine accepted: Set<ReasoningEffort>) -> [ReasoningEffort] {
+    levels.filter { level in
+      guard accepted.contains(level) else { return false }
+      return nativeAliases[level].map { !accepted.contains($0) } ?? true
+    }
   }
 
   func title(for level: ReasoningEffort) -> String {
@@ -83,29 +77,34 @@ struct ReasoningSupport: Equatable, Sendable {
                            options: .regularExpression) != nil else { return nil }
       return ReasoningSupport(levels: [.none, .max], defaultLevel: .max, toggleOnly: true)
     }
-    func named(_ value: String) -> Bool {
-      template.contains("'\(value)'") || template.contains("\"\(value)\"")
-    }
-    // A template may normalize an alias before checking its list of supported levels.
+    // Detect names in the effort control, not unrelated strings in the template
+    // (for example a tool schema containing "high" as a priority).
     let accepted = template.firstMatch(of: /\b\w*reasoning_effort\s+not\s+in\s*[\[(]([^\])]+)[\])]/)?.1
-    var levels = ReasoningEffort.allCases.filter { level in
-      guard level != .none else { return false }
-      guard let accepted else { return named(level.rawValue) }
-      return accepted.contains("'\(level.rawValue)'") || accepted.contains("\"\(level.rawValue)\"")
-    }
-    guard !levels.isEmpty else { return nil }
-    if named("none") || template.contains("enable_thinking") { levels.insert(.none, at: 0) }
-    guard levels.count >= 2 else { return nil }
-    let fallback = defaultLevel(in: template, levels: levels)
-    var aliases: [ReasoningEffort: ReasoningEffort] = [:]
+    let effortMap = template.firstMatch(of: /\bset\s+\w*effort\w*\s*=\s*\{([^}]+)\}/)?.1
     var numericLevels: [Double: [ReasoningEffort]] = [:]
-    for match in template.matches(of: /['"](low|medium|high|xhigh|max)['"]\s*:\s*([0-9]+(?:\.[0-9]+)?)/) {
+    for match in (effortMap ?? "").matches(of: /['"](\w+)['"]\s*:\s*([0-9]+(?:\.[0-9]+)?)/) {
       if let level = ReasoningEffort(rawValue: String(match.1)), let value = Double(match.2) {
         numericLevels[value, default: []].append(level)
       }
     }
+    let compared = template.matches(of: /\b\w*reasoning_effort\s*==\s*['"](\w+)['"]/)
+      .compactMap { ReasoningEffort(rawValue: String($0.1)) }
+    let fallbackName = template.firstMatch(of: /reasoning_effort\s*\|\s*default\(\s*['"](\w+)['"]/)
+      .flatMap { ReasoningEffort(rawValue: String($0.1)) }
+    let declaresSwitch = template.contains("enable_thinking")
+    let levels = ReasoningEffort.allCases.filter { level in
+      if level == .none && declaresSwitch { return true }
+      if let accepted {
+        return accepted.contains("'\(level.rawValue)'") || accepted.contains("\"\(level.rawValue)\"")
+      }
+      return numericLevels.values.contains(where: { $0.contains(level) })
+        || compared.contains(level) || fallbackName == level
+    }
+    guard levels.count >= 2 else { return nil }
+    let fallback = defaultLevel(named: fallbackName, in: template, levels: levels, numericLevels: numericLevels)
+    var aliases: [ReasoningEffort: ReasoningEffort] = [:]
     for group in numericLevels.values where group.count > 1 {
-      // Keep the default, or the highest supported name, for the unbounded selector.
+      // Prefer the default name, then the highest supported name.
       guard let representative = group.contains(fallback) ? fallback : levels.last(where: group.contains) else { continue }
       for alias in group where alias != representative { aliases[alias] = representative }
     }
@@ -114,20 +113,12 @@ struct ReasoningSupport: Equatable, Sendable {
 
   /// `reasoning_effort|default('xhigh')` (Qwen3.8) or a numeric fallback mapped through the
   /// template's own level table (Inkling 2: `else 0.9` with `"high": 0.9`).
-  private static func defaultLevel(in template: String, levels: [ReasoningEffort])
-    -> ReasoningEffort
-  {
-    if let match = template.firstMatch(of: /reasoning_effort\s*\|\s*default\(\s*['"](\w+)['"]/),
-      let level = ReasoningEffort(rawValue: String(match.1)), levels.contains(level)
-    {
-      return level
-    }
-    if let number = template.firstMatch(of: /reasoning_effort[^\n]*?else\s+([0-9]+(?:\.[0-9]+)?)/)?.1 {
-      for level in levels where level != .none {
-        let pattern = "[\"']\(level.rawValue)[\"']\\s*:\\s*\(NSRegularExpression.escapedPattern(for: String(number)))\\b"
-        if template.range(of: pattern, options: .regularExpression) != nil { return level }
-      }
-    }
+  private static func defaultLevel(named: ReasoningEffort?, in template: String, levels: [ReasoningEffort],
+                                   numericLevels: [Double: [ReasoningEffort]]) -> ReasoningEffort {
+    if let named, levels.contains(named) { return named }
+    if let match = template.firstMatch(of: /reasoning_effort[^\n]*?else\s+([0-9]+(?:\.[0-9]+)?)/),
+       let number = Double(match.1), let group = numericLevels[number],
+       let level = levels.last(where: group.contains) { return level }
     return levels.last { $0 != .none } ?? levels[0]
   }
 
