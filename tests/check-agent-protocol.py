@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     root.mkdir()
 
     # The structured-tools checks name their harness; `permissions=False` omits the file.
-    def exchange(messages, raw=None, permissions=None, long_calls=False):
+    def exchange(messages, raw=None, permissions=None, long_calls=False, *, timeout=12):
         payload = raw if raw is not None else ''.join(json.dumps(item) + '\n' for item in messages)
         arguments = [helper, '--agent-tools', str(root)]
         if permissions is None:
@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
             if long_calls:
                 arguments.append('long-calls')
         result = subprocess.run(arguments, input=payload, text=True,
-                                capture_output=True, timeout=12, check=False)
+                                capture_output=True, timeout=timeout, check=False)
         return result, [json.loads(line) for line in result.stdout.splitlines()]
 
     result, responses = exchange([
@@ -135,15 +135,18 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "return typeof write + typeof run"}})], permissions=readonly)
     check(responses[0]['result']['content'][0]['text'] == 'Result:\nundefinedundefined', 'Read-only JavaScript API')
     limit = 1 << 20
+    # JSON escaping can turn a 1 MiB source into a 6 MiB pipe transfer on the hosted Mac.
+    large_exchange_timeout = 60
     for code in ['é' * 600000, '// x\n' * 220000, '/' * (limit + 1), '\x01' * (limit + 1)]:
         result, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': code}}, 7),
-                                      request('tools/list', identifier=8)], permissions=js_policy)
+                                      request('tools/list', identifier=8)], permissions=js_policy, timeout=large_exchange_timeout)
         text = responses[0]['result']['content'][0]['text'] if responses else ''
         check(result.returncode == 0 and [row['id'] for row in responses] == [7, 8] and responses[0]['result']['isError']
               and f'this code is {len(code.encode())} bytes' in text and 'Nothing was run' in text,
               f'Oversized code refused with its size, without ending the server ({len(code.encode())} bytes): {text[:160]!r}')
     # Exactly the limit runs (a comment: no result).
-    _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': '//' + 'x' * (limit - 2)}})], permissions=js_policy)
+    _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': '//' + 'x' * (limit - 2)}})],
+                            permissions=js_policy, timeout=large_exchange_timeout)
     check(not responses[0]['result']['isError'], f"Code of exactly 1 MiB runs: {responses[0]['result']['content'][0]['text'][:200]!r}")
     # The failing call of a real task: a whole Python game written in one call (about 45,000
     # tokens), refused at the old 32 KiB limit as "JavaScript sandbox refused or unavailable".

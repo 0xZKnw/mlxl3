@@ -138,6 +138,9 @@ extension StudioModel {
         if ProcessInfo.processInfo.arguments.contains("--ui-preview-models") {
             studio.showModelManager = true
         }
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-images") && Image21Hardware.available {
+            studio.showImages = true
+        }
         return studio
     }
 }

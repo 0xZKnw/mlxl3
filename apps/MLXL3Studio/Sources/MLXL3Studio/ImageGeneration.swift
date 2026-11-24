@@ -21,6 +21,10 @@ enum Image21Hardware {
 
 @MainActor
 final class ImageGeneration: ObservableObject {
+    @Published var prompt = ""
+    @Published var size = 512
+    @Published var steps = 40
+    @Published var seed = UInt32.random(in: 0...UInt32.max)
     @Published private(set) var running = false
     @Published private(set) var status = ""
     @Published private(set) var result: URL?
@@ -76,7 +80,7 @@ final class ImageGeneration: ObservableObject {
                 try await run(URL(fileURLWithPath: python),
                               ["-I", "-u", script.path, "--model", model.path, "--prompt", prompt,
                                "--size", String(size), "--steps", String(steps), "--seed", String(seed), "--output", png.path],
-                              log: log, stdout: log, timeout: 3600)
+                              log: log, stdout: log, timeout: 3600, steps: steps)
                 try Task.checkCancellation()
                 guard let image = NSBitmapImageRep(data: try Data(contentsOf: png)), image.pixelsWide == size, image.pixelsHigh == size else {
                     throw failure(L("Le moteur a produit une image illisible.", "The engine returned an unreadable image."))
@@ -115,7 +119,23 @@ final class ImageGeneration: ObservableObject {
         return String(decoding: data, as: UTF8.self)
     }
 
-    private func run(_ executable: URL, _ arguments: [String], log: URL, stdout: URL, timeout: Int) async throws {
+    static func progressMessage(in log: String, steps: Int) -> String? {
+        for line in log.split(whereSeparator: \.isNewline).reversed() {
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if let bar = trimmed.prefixMatch(of: /^\d{1,3}%\|[^|]*\|\s*(\d+)\/(\d+)\s/),
+               Int(bar.2) == steps, let done = Int(bar.1), (0...steps).contains(done) {
+                return done == steps
+                    ? L("Finalisation de l’image…", "Finishing the image…")
+                    : L("Étape \(done) sur \(steps)", "Step \(done) of \(steps)")
+            }
+            if trimmed.hasPrefix("Loading tokenizer") {
+                return L("Chargement de l’encodeur de texte et du VAE…", "Loading the text encoder and VAE…")
+            }
+        }
+        return nil
+    }
+
+    private func run(_ executable: URL, _ arguments: [String], log: URL, stdout: URL, timeout: Int, steps: Int? = nil) async throws {
         try Task.checkCancellation()
         let fm = FileManager.default
         guard fm.createFile(atPath: log.path, contents: nil) else { throw failure("Cannot create worker log") }
@@ -139,13 +159,8 @@ final class ImageGeneration: ObservableObject {
                 guard ContinuousClock.now < deadline else {
                     throw failure(L("Le moteur image a dépassé le délai.", "The image engine timed out."))
                 }
-                if stdout == log {
-                    let message = tail(log)
-                    if let pct = message.ranges(of: /\d{1,3}%\|/).last {
-                        status = L("Génération", "Generating") + " · " + message[pct].dropLast()
-                    } else if message.contains("Loading tokenizer") {
-                        status = L("Chargement de l’encodeur de texte et du VAE…", "Loading the text encoder and VAE…")
-                    }
+                if let steps, let message = Self.progressMessage(in: tail(log), steps: steps) {
+                    status = message
                 }
             }
             try Task.checkCancellation()
@@ -165,72 +180,5 @@ final class ImageGeneration: ObservableObject {
             let detail = tail(log).split(whereSeparator: \.isNewline).suffix(3).joined(separator: "\n")
             throw failure(detail.isEmpty ? L("Le moteur image s’est arrêté.", "The image engine stopped.") : detail)
         }
-    }
-}
-
-struct ImageGenerationView: View {
-    @StateObject private var engine = ImageGeneration()
-    @AppStorage("image21ModelDirectory") private var modelPath = ""
-    @State private var prompt = ""
-    @State private var size = 512
-    @State private var steps = 40
-    @State private var seed = UInt32.random(in: 0...UInt32.max)
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                Text("Qwen-Image-2.1 · EXL3").font(.title2.bold())
-                Spacer()
-                Button(L("Choisir le modèle…", "Choose model…")) {
-                    let panel = NSOpenPanel()
-                    panel.canChooseFiles = false
-                    panel.canChooseDirectories = true
-                    if panel.runModal() == .OK, let url = panel.url { modelPath = url.path }
-                }.disabled(engine.running)
-            }
-            if !modelPath.isEmpty {
-                Text(URL(fileURLWithPath: modelPath).lastPathComponent).font(.caption).foregroundStyle(.secondary)
-            }
-            TextField(L("Décris l’image à générer", "Describe the image to generate"), text: $prompt, axis: .vertical)
-                .textFieldStyle(.roundedBorder).lineLimit(2...5).disabled(engine.running)
-            HStack {
-                Picker(L("Taille", "Size"), selection: $size) {
-                    ForEach([512,768,1024], id: \.self) { Text("\($0) × \($0)").tag($0) }
-                }
-                Stepper(L("\(steps) étapes", "\(steps) steps"), value: $steps, in: 2...50)
-                Spacer()
-                Text(L("Graine", "Seed"))
-                TextField("Seed", value: $seed, format: .number.grouping(.never)).frame(width: 104)
-                Button { seed = .random(in: 0...UInt32.max) } label: { Image(systemName: "dice") }
-                    .help(L("Nouvelle graine", "New seed"))
-            }.disabled(engine.running)
-            HStack {
-                if engine.running {
-                    ProgressView().controlSize(.small)
-                    Button(L("Annuler", "Cancel")) { engine.cancel() }
-                } else {
-                    Button(L("Générer", "Generate")) {
-                        engine.start(model: URL(fileURLWithPath: modelPath), prompt: prompt, size: size, steps: steps, seed: seed)
-                    }.buttonStyle(.borderedProminent)
-                    .disabled(modelPath.isEmpty || prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
-                }
-                Text(engine.status).font(.callout).foregroundStyle(.secondary)
-                Spacer()
-                if let url = engine.result {
-                    Button(L("Afficher le PNG", "Show PNG")) { NSWorkspace.shared.activateFileViewerSelecting([url]) }
-                }
-            }
-            if let error = engine.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-            if let url = engine.result, let image = NSImage(contentsOf: url) {
-                Image(nsImage: image).resizable().scaledToFit().frame(maxWidth: .infinity, maxHeight: .infinity)
-            } else {
-                Spacer()
-                Text(L("Le premier lancement télécharge les composants texte et image (~5 Go).", "First use downloads the text and image components (~5 GB)."))
-                    .font(.caption).foregroundStyle(.secondary)
-            }
-        }
-        .padding(22).frame(minWidth: 570, minHeight: 480)
-        .onDisappear { engine.cancel() }
-        .onReceive(NotificationCenter.default.publisher(for: NSApplication.willTerminateNotification)) { _ in engine.cancel() }
     }
 }

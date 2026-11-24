@@ -59,6 +59,8 @@ final class StudioModel: ObservableObject {
     private var documentSearchTicket: UUID?
     private weak var activeMessageReference: ChatMessage?
     @Published var selectedProjectID: UUID?
+    let imageGeneration = ImageGeneration()
+    @Published var showImages = false
     @Published var showWorkspace = false
     @Published var showMCPManager = false
     @Published var responseSchema = ""

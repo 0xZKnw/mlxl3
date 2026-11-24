@@ -8,7 +8,7 @@ struct StudioView: View {
     @AppStorage("studio.sidebarVisible") private var sidebarVisible = true
 
     private var coveredByPage: Bool {
-        studio.showAppSettings || studio.showModelManager || studio.showWorkspace || studio.showMCPManager
+        studio.showImages || studio.showAppSettings || studio.showModelManager || studio.showWorkspace || studio.showMCPManager
     }
 
     var body: some View {
@@ -26,7 +26,7 @@ struct StudioView: View {
                 }
             }
             .background {
-                StudioAurora(busy: studio.isGenerating, animated: !studio.showAppSettings && !studio.showWorkspace && !studio.showModelManager && !studio.showMCPManager && studio.studioDocument == nil,
+                StudioAurora(busy: studio.isGenerating, animated: !coveredByPage && studio.studioDocument == nil,
                              fullHeight: true)
                     .background(StudioTheme.canvas)
             }
@@ -65,6 +65,15 @@ struct StudioView: View {
                     .background(StudioTheme.canvas)
             }
         }
+        .disabled(studio.showImages)
+        .accessibilityHidden(studio.showImages)
+        .allowsHitTesting(!studio.showImages)
+        .overlay {
+            if studio.showImages && Image21Hardware.available {
+                ImageGenerationView(engine: studio.imageGeneration, close: { studio.showImages = false })
+                    .transition(.opacity)
+            }
+        }
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
         .disabled(studio.showAppSettings)
         .allowsHitTesting(!studio.showAppSettings)
@@ -90,7 +99,7 @@ struct StudioView: View {
         .ignoresSafeArea()
         .frame(minWidth: 820, minHeight: 600)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2),
-                   value: [studio.showAppSettings, studio.showModelManager, studio.showWorkspace, studio.showMCPManager])
+                   value: [studio.showImages, studio.showAppSettings, studio.showModelManager, studio.showWorkspace, studio.showMCPManager])
         .alert(L("MLXL3", "MLXL3"), isPresented: Binding(get: { studio.featureError != nil }, set: { if !$0 { studio.featureError = nil } })) {
             Button("OK") { studio.featureError = nil }
         } message: { Text(studio.featureError ?? "") }
@@ -105,7 +114,6 @@ struct StudioView: View {
 }
 
 private struct SidebarView: View {
-    @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var studio: StudioModel
     @Environment(\.studioStyle) private var style
     @State private var search = ""
@@ -245,7 +253,7 @@ private struct SidebarView: View {
             .mask(StudioEdgeFade(top: 10, bottom: 18))
 
             if Image21Hardware.available {
-                Button { openWindow(id: "image-generation") } label: {
+                Button { studio.showImages = true } label: {
                     Label(L("Générer une image", "Generate an image"), systemImage: "photo")
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
