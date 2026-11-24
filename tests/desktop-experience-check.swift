@@ -669,6 +669,7 @@ extension DesktopExperienceCheck {
             studio.setTheme(theme)
             var agentClosed = false
             for (label, view) in [
+                ("images", AnyView(ImageGenerationView(engine: studio.imageGeneration, close: { studio.showImages = false }))),
                 ("models", AnyView(ModelManagerView())),
                 ("mcp", AnyView(MCPManagerView())),
                 ("projects", AnyView(WorkspaceManagerView())),
@@ -684,6 +685,7 @@ extension DesktopExperienceCheck {
                 host.frame = bounds
                 window.setFrameOrigin(NSPoint(x: -6000, y: -6000))
                 window.orderBack(nil)
+                studio.showImages = label == "images"
                 studio.showModelManager = label == "models"
                 studio.showMCPManager = label == "mcp"
                 studio.showWorkspace = label == "projects"
@@ -705,6 +707,7 @@ extension DesktopExperienceCheck {
                     window.sendEvent(event)
                 }
                 try await Task.sleep(for: .milliseconds(80))
+                precondition(label != "images" || !studio.showImages, "Images Back failed")
                 precondition(label != "models" || !studio.showModelManager, "Models Back failed")
                 precondition(label != "mcp" || !studio.showMCPManager, "MCP Back failed")
                 precondition(label != "projects" || !studio.showWorkspace, "Projects Back failed")
@@ -714,7 +717,7 @@ extension DesktopExperienceCheck {
         }
         studio.setTheme(.dark)
         studio.showModelManager = false
-        print("Management surfaces passed: four production pages, light/dark, compact width, translucent sidebar pixels and actual Back clicks")
+        print("Management surfaces passed: five production pages, light/dark, compact width, translucent sidebar pixels and actual Back clicks")
     }
 }
 

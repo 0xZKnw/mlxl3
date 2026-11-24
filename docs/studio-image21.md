@@ -2,10 +2,16 @@
 
 In MLXL3 Studio, open **Generate an image** in the sidebar. Select the local EXL3
 denoiser folder containing `manifest.json`, describe the image, then click
-**Generate**. The seed can be reused. **Show PNG** reveals the saved image in Finder.
+**Generate**. The Images page opens inside the main Studio window and follows its theme.
+The preview labels the bundled example until you generate your own image. **Back**
+returns to the previous screen. You can reopen Images to resume your draft, follow an
+active generation or reveal the finished PNG. **Cancel** stops an active generation.
+The seed can be reused. **Show PNG** reveals the saved image in Finder.
 Studio accepts 2–50 steps. Start with 512 × 512 and 40 steps.
 The feature requires an Apple M5-family GPU, macOS 26.3 or later and TensorOps enabled.
 Studio checks eligibility before it starts uv or downloads components. The physical validation used an M5 with 24 GiB of memory.
+
+![The Images page in Studio, with model controls on the left and a labeled sample above the prompt](images/studio-image-workspace.jpg)
 
 The first launch requires internet access and uv installed in ~/.local/bin,
 /opt/homebrew/bin or /usr/local/bin. Studio sets up an isolated Python 3.12 environment. Package resolution is capped at 2026-11-22 20:00 UTC.

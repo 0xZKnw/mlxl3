@@ -22,6 +22,7 @@ jobs:
         run: |
           bundle="$RUNNER_TEMP/Studio Resources/Image21"
           sh scripts/copy-image21-resources.sh "$bundle"
+          cmp docs/images/studio-image21-m5.png "$bundle/studio-image21-m5.png"
           cmp apps/MLXL3Studio/Resources/Image21/render.py "$bundle/render.py"
           for shader in _qmm_tensor_kernel.metal _qmm_tensor_window_kernel.metal; do
             cmp "native/shaders/$shader" "$bundle/$shader"
