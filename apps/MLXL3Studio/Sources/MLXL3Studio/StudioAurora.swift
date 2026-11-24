@@ -45,33 +45,49 @@ struct StudioAurora: View {
   }
 
   /// The same cells and glyphs as the aurora, without the light: type a few percent
-  /// above the paper, rising from the bottom edge like a horizon.
+  /// above the paper, rising from the bottom edge like a horizon. The top half stays
+  /// clear for the greeting, whatever the caller does.
   private var texture: some View {
     GeometryReader { geometry in
       let size = geometry.size
       if animated && !reduceMotion && scenePhase == .active && size.width > 0 && size.height > 0 {
         AuroraSurface(size: size, fullHeight: true, busy: busy, tint: inkComponents)
       } else {
-        Self.homePrint(size: size, image: Self.artwork.type).colorMultiply(StudioTheme.ink)
+        // The still print (Reduce Motion, inactive window) fills its glyph shapes with the
+        // same ink as the shader. `colorMultiply` is a filter that some render paths skip
+        // (the white glyphs then vanished on light paper); a template image is not.
+        Self.homePrint(size: size, image: Self.artwork.type, ink: Color(nsColor: ink))
       }
     }
     .opacity(contrast == .increased ? 0.10 : (scheme == .dark ? 0.30 : 0.24))
+    .mask(Self.homeMask)
     .clipped()
     .allowsHitTesting(false)
     .accessibilityHidden(true)
   }
 
+  /// Clear over the top half, full at the bottom edge.
+  static let homeMask = LinearGradient(
+    stops: [.init(color: .clear, location: 0.5), .init(color: .black, location: 1)],
+    startPoint: .top, endPoint: .bottom)
+
+  /// Graphite ink for the current scheme, as the texture draws it.
+  private var ink: NSColor { scheme == .dark ? StudioTheme.rgb(0xEAE6DF) : StudioTheme.rgb(0x1C1B19) }
+
   private var inkComponents: SIMD3<Float> {
-    let ink = scheme == .dark ? StudioTheme.rgb(0xEAE6DF) : StudioTheme.rgb(0x1C1B19)
-    return SIMD3(Float(ink.redComponent), Float(ink.greenComponent), Float(ink.blueComponent))
+    SIMD3(Float(ink.redComponent), Float(ink.greenComponent), Float(ink.blueComponent))
   }
 
-  /// One curtain, wide, its hot foot on the bottom edge.
-  static func homePrint(size: CGSize, image: CGImage) -> some View {
+  /// One curtain, wide, its hot foot on the bottom edge. With `ink`, the image's alpha
+  /// is drawn in that colour (the type print); without, the image keeps its own colours
+  /// (the light the shader samples).
+  static func homePrint(size: CGSize, image: CGImage, ink: Color? = nil) -> some View {
     let width = size.width * 1.35
     let depth = width * 620 / 740
     return Image(decorative: image, scale: 2)
+      .renderingMode(ink == nil ? .original : .template)
       .resizable().frame(width: width, height: depth)
+      .foregroundStyle(ink ?? .white)
       .position(x: size.width * 0.5, y: size.height + depth * (0.5 - 0.74))
       .frame(width: size.width, height: size.height, alignment: .topLeading)
   }

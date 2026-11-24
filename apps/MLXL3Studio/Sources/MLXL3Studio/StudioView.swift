@@ -691,10 +691,9 @@ private struct WelcomeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
-            // Graphite's home texture; the other styles draw nothing here.
+            // Graphite's home texture (it keeps the top half clear itself); the other
+            // styles draw nothing here.
             StudioAurora(animated: true, fullHeight: true, placement: .home)
-                .mask(LinearGradient(stops: [.init(color: .clear, location: 0.5), .init(color: .black, location: 1)],
-                                     startPoint: .top, endPoint: .bottom))
                 .ignoresSafeArea()
         }
     }

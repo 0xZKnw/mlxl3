@@ -274,7 +274,9 @@ queue_after_preferences() {
 }
 
 queue_tail() {
-    queue_compile aurora-shader -O "${app_sources}/StudioAurora.swift" \
+    # StudioAurora.swift resolves its colours and style through Theme.swift and the app's
+    # environment, so the shader check builds with every app source (no MLXL3StudioApp.swift).
+    queue_compile aurora-shader -O "${sources[@]}" "${math_objects[@]}" \
         tests/aurora-shader-check.swift -o "${test_dir}/aurora-shader-check"
     queue_compile cli-command -O "${app_sources}/CLICommand.swift" \
         tests/cli-command-check.swift -o "${test_dir}/cli-command-check"
