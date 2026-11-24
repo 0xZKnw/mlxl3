@@ -129,6 +129,8 @@ the retained details as JSON. **This Mac** shows hardware and current memory
 use. Daily totals persist after individual details age out. On first upgrade,
 Studio starts the totals from the generation details still available on the Mac.
 
+[Preview Lab on macOS with sample usage data](docs/images/studio-lab-usage.png).
+
 ## Models and compatibility
 
 EXL3 is a quantization format. A checkpoint also needs a supported architecture,
