@@ -52,17 +52,18 @@ trap 'cleanup; trap - EXIT; exit 130' INT TERM HUP
 
 # The new I/O fixtures must also be reaped if a Swift assertion aborts the check.
 run_fixture_check() {
-    "${test_python}" - "$@" <<'PY'
+    "${test_python}" - "${fixture_timeout:-90}" "$@" <<'PY'
 import os
 import signal
 import subprocess
 import sys
 
-process = subprocess.Popen(sys.argv[1:], start_new_session=True)
+timeout = int(sys.argv[1])
+process = subprocess.Popen(sys.argv[2:], start_new_session=True)
 try:
-    code = process.wait(timeout=90)
+    code = process.wait(timeout=timeout)
 except subprocess.TimeoutExpired:
-    print("Desktop fixture exceeded its 90-second limit", file=sys.stderr)
+    print(f"Desktop fixture exceeded its {timeout}-second limit", file=sys.stderr)
     code = 1
 finally:
     try:
@@ -351,7 +352,8 @@ run_rest() {
     "${test_dir}/agent-sandbox-check"
     "${test_python}" tests/check-agent-protocol.py "${test_dir}/agent-sandbox-check"
     await_compile studio-modes
-    "${test_dir}/studio-modes-check" "$PWD/tests/fake-mode-engine.py"
+    fixture_timeout=180 run_fixture_check "${test_dir}/studio-modes-check" "$PWD/tests/fake-mode-engine.py" | tee "${test_dir}/studio-modes.log"
+    grep -q "^Studio modes checks passed:" "${test_dir}/studio-modes.log"
     # Decision mode: drafts, discovery, decide-bridge lifecycle and decide-serve launch on a fake engine.
     await_compile decision
     "${test_dir}/decision-check" "$PWD/tests/fake-decision-engine.py"

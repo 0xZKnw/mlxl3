@@ -16,6 +16,7 @@ struct WorkspaceSnapshot: Codable, Sendable {
     var documents: [LibraryDocument]? = nil
     var responseSchema: String? = nil
     var labSamples: [LabSample]? = nil
+    var labUsage: LabUsageLedger? = nil
     var drafts: [ConversationDraft]? = nil
     var topP: Double? = nil
     var presencePenalty: Double? = nil
@@ -130,6 +131,7 @@ final class ConversationStore: @unchecked Sendable {
     }
 
     static func validate(_ snapshot: WorkspaceSnapshot) throws {
+        guard snapshot.labUsage?.valid != false else { throw CocoaError(.fileReadCorruptFile) }
         let drafts = snapshot.drafts ?? []
         guard drafts.count <= 128, Set(drafts.map(\.conversationID)).count == drafts.count,
               drafts.allSatisfy({ draft in draft.valid && snapshot.conversations.contains(where: { $0.id == draft.conversationID }) }),

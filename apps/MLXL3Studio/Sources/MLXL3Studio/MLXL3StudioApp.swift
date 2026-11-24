@@ -91,7 +91,7 @@ struct MLXL3StudioApp: App {
                 ForEach(Array(StudioMode.allCases.enumerated()), id: \.element) { index, mode in
                     Button(mode.displayTitle) { studio.selectMode(mode) }
                         .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
-                        .disabled(studio.isGenerating)
+                        .disabled(mode == .lab ? !studio.canOpenLab : studio.isGenerating)
                 }
                 Divider()
             }

@@ -14,6 +14,8 @@ private struct DFlashInstallEvent: Decodable {
 final class StudioModel: ObservableObject {
     @Published private(set) var selectedMode: StudioMode = .chat
     @Published private(set) var labSamples: [LabSample] = []
+    @Published private(set) var labUsage = LabUsageLedger()
+    private var modeBeforeLab: StudioMode = .chat
     let localServer = LocalServer()
     let decision = DecisionStudio()
     let quantizer = QuantizationModel()
@@ -328,8 +330,9 @@ final class StudioModel: ObservableObject {
         AppLocalization.set(language)
         quantizationObservation = quantizer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         do {
-        if let snapshot = try ConversationStore.load(from: conversationFileURL),
-           !snapshot.conversations.isEmpty {
+        let loaded = try ConversationStore.load(from: conversationFileURL)
+        if let loaded { restoreLab(from: loaded) }
+        if let snapshot = loaded, !snapshot.conversations.isEmpty {
             conversations = snapshot.conversations.map(Conversation.init(snapshot:))
             selectedConversationID = conversations.contains {
                 $0.id == snapshot.selectedConversationID
@@ -341,7 +344,6 @@ final class StudioModel: ObservableObject {
             if let value = snapshot.topP, value.isFinite, value > 0, value <= 1 { topP = value }
             if let value = snapshot.presencePenalty, value.isFinite, (-2...2).contains(value) { presencePenalty = value }
             systemPrompt = snapshot.systemPrompt
-            labSamples = Array((snapshot.labSamples ?? []).filter(\.valid).suffix(1000))
             projects = snapshot.projects ?? []
             profiles = snapshot.profiles ?? []
             documents = snapshot.documents ?? []
@@ -1407,7 +1409,8 @@ final class StudioModel: ObservableObject {
             let system = ProcessInfo.processInfo.operatingSystemVersionString, hardware = LabHardware.identity
             let context = activeContextLimit ?? 0, temperature = samplingTemperature, topK = samplingTopK
             let mtp = mtpApplicable, dflash = dflash2Applicable
-            labConfiguration = { stats in LabSample(model: model.name, modelPath: model.path, bits: model.bits, mode: mode,
+            let sampleID = assistant.id
+            labConfiguration = { stats in LabSample(id: sampleID, model: model.name, modelPath: model.path, bits: model.bits, mode: mode,
                 runtime: runtime, system: system, hardware: hardware, context: context, temperature: temperature,
                 topK: topK, mtp: mtp, dflash: dflash, stats: stats) }
         }
@@ -2131,6 +2134,7 @@ final class StudioModel: ObservableObject {
             if let backup = try? ConversationStore.load(from: backupURL) {
                 conversations = backup.conversations.map(Conversation.init(snapshot:))
                 selectedConversationID = conversations.first?.id
+                restoreLab(from: backup)
                 projects = backup.projects ?? []
                 profiles = backup.profiles ?? []
                 documents = backup.documents ?? []
@@ -2463,11 +2467,16 @@ final class StudioModel: ObservableObject {
             schedulePersistence()
         case "complete":
             guard let requestID = activeRequestID, event.requestID == requestID else { return }
-            if event.contextFull != true, let stats = event.stats, let sample = labConfiguration?(stats), sample.valid {
-                labSamples.append(sample)
-                labSamples = Array(labSamples.suffix(1000))
-            }
+            let sample = event.stats.flatMap { labConfiguration?($0) }
             labConfiguration = nil
+            if var sample {
+                sample.localDay = LabUsagePeriod.day(sample.date, calendar: .current)
+                labUsage.record(sample)
+                if event.contextFull != true && sample.valid {
+                    labSamples.append(sample)
+                    labSamples = Array(labSamples.suffix(1000))
+                }
+            }
             if let stats = event.stats, let name = selectedModelName,
                let index = conversations.firstIndex(where: { $0.messages.contains { $0.id == activeResponseID } }),
                let limit = stats.contextLimit ?? conversations[index].contextUsage?.limit ?? activeContextLimit,
@@ -2572,6 +2581,22 @@ final class StudioModel: ObservableObject {
         return title.count > 46 ? String(title.prefix(46)) + "…" : title
     }
 
+    private func restoreLab(from snapshot: WorkspaceSnapshot) {
+        let saved = snapshot.labSamples ?? []
+        if var ledger = snapshot.labUsage {
+            ledger.backfillDecodeIfNeeded(from: saved)
+            labUsage = ledger
+        } else {
+            labUsage = LabUsageLedger(samples: saved)
+        }
+        var seen = Set<UUID>()
+        labSamples = saved.filter { $0.valid && seen.insert($0.id).inserted }.suffix(1000).map { sample in
+            var dated = sample
+            dated.localDay = sample.localDay ?? LabUsagePeriod.day(sample.date, calendar: .current)
+            return dated
+        }
+    }
+
     private var workspaceSnapshot: WorkspaceSnapshot {
         var snapshot = WorkspaceSnapshot(
             selectedConversationID: selectedConversationID,
@@ -2589,6 +2614,7 @@ final class StudioModel: ObservableObject {
         snapshot.topP = topP
         snapshot.presencePenalty = presencePenalty
         snapshot.labSamples = labSamples
+        snapshot.labUsage = labUsage
         var savedDrafts: [ConversationDraft] = []
         var bytes = 0
         var omitted = false
@@ -2627,14 +2653,31 @@ final class StudioModel: ObservableObject {
 }
 
 extension StudioModel {
+    var canOpenLab: Bool {
+        !isGenerating && modeTransition == nil && !showImages && !showAppSettings && !showModelManager
+            && !showWorkspace && !showMCPManager && studioDocument == nil
+    }
+
+    func leaveLab() {
+        guard selectedMode == .lab else { return }
+        // Opening Lab keeps the running workspace and its selected conversation alive.
+        selectedMode = modeBeforeLab
+    }
+
     func selectMode(_ mode: StudioMode) {
         guard !isGenerating, modeTransition == nil, mode != selectedMode else { return }
+        if mode == .lab && !canOpenLab { return }
+        if selectedMode == .lab && mode == modeBeforeLab {
+            leaveLab()
+            return
+        }
         voice.stop()
         if mode == .decision {
             decision.refresh(registered: models)
             selectedMode = mode
             return
         }
+        if mode == .lab { modeBeforeLab = selectedMode }
         if mode == .server || mode == .lab { selectedMode = mode; return }
         if selectedMode == .decision || decision.active || decision.server.active {
             // The decision model leaves memory to the chat model.
