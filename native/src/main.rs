@@ -2886,7 +2886,7 @@ impl ReasoningRequest {
     fn set(effort: Option<String>) -> Result<Self> {
         if let Some(level) = &effort {
             anyhow::ensure!(
-                mlxl3_native::tokenizer::REASONING_EFFORTS.contains(&level.as_str()),
+                mlxl3_native::tokenizer::accepts_reasoning_effort(level),
                 "unsupported reasoning effort {level:?}"
             );
         }
@@ -2919,8 +2919,11 @@ fn bridge_reasoning_effort_is_optional_validated_and_scoped() -> Result<()> {
         "older apps keep the template default"
     );
     for level in mlxl3_native::tokenizer::REASONING_EFFORTS {
-        let request: BridgeRequest =
-            serde_json::from_value(json!({"type":"generate", "reasoning_effort":level}))?;
+        let request: BridgeRequest = serde_json::from_value(
+            json!({"type":"generate", "reasoning_effort":level, "max_tokens":-1}),
+        )?;
+        assert!(request.reasoning_budget.is_none());
+        assert_eq!(request.max_tokens, -1);
         {
             let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;
             assert_eq!(current().as_deref(), Some(level));
@@ -6037,7 +6040,7 @@ fn native_bridge(
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "images_supported":model.supports_images(),
         "reasoning_effort_supported":true,
-        "reasoning_budget_supported":tokenizer.supports_reasoning_budget(),
+        "reasoning_effort_levels":mlxl3_native::tokenizer::REASONING_EFFORTS,
         // Agent mode: `tool_rounds` per request, and `callTimeoutSeconds` per MCP server;
         // AGENT-2026-11-23-BOUCLE: `reasoning_budget`, 512 rounds, pruning, repeated-call stop.
         "tool_rounds_supported":true, "mcp_call_timeout_supported":true,

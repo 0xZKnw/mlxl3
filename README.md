@@ -85,7 +85,7 @@ A managed engine that fails before startup can fall back to the bundled runtime.
 ### Chat
 
 - Stream answers and separate reasoning with Markdown, tables, syntax-colored code and rendered math.
-- Choose a reasoning level next to **Tools**. Studio remembers the choice for each model. **Model default** restores the model’s own behavior. In Chat, models with a supported thinking channel can switch to the answer after a thinking budget: Low 256 tokens, Medium 1,024, High 4,096, or Extra high 8,192, depending on the model. The engine reserves room for the answer when context or output space is tight. A short question can finish before any budget is reached. Agent mode and structured JSON requests use native reasoning controls only.
+- Choose a reasoning level next to **Tools**. Studio remembers a separate choice for each model. **Model default** uses the original chat template. Qwen3.6 offers thinking on or off, Qwen3.8 Flash Next offers Off, Low, Medium and Extra high, and Inkling 2 Mini supports Off, Minimal, Low, Medium, High and Max. Each setting uses the model’s native instruction. The model decides when to finish thinking and when to end its reply, within the available context.
 - Edit, regenerate or branch messages. Pin and search saved conversations, then export them.
 - Attach text documents and PDFs with extracted text, source excerpts and page references. Scanned PDFs require prior text extraction.
 - Send PNG, JPEG or WebP images with **LFM3-VL** using the picker, drag and drop or Command-V. Saved history retains image bytes after the original is removed.

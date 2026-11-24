@@ -14,7 +14,33 @@ pub struct Message {
 
 /// Levels the bridge accepts as `reasoning_effort` (`none` turns thinking off). Each
 /// template supports its own subset: Inkling 2 all of them, Qwen3.8 none/low/medium/xhigh.
-pub const REASONING_EFFORTS: [&str; 6] = ["none", "low", "medium", "high", "xhigh", "max"];
+pub const REASONING_EFFORTS: [&str; 7] =
+    ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
+
+pub fn accepts_reasoning_effort(level: &str) -> bool {
+    REASONING_EFFORTS.contains(&level)
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(12)]
+fn native_effort_names_match_advertised_protocol() {
+    let bytes: [u8; 8] = kani::any();
+    let len: usize = kani::any();
+    kani::assume(len <= bytes.len());
+    if let Ok(level) = std::str::from_utf8(&bytes[..len]) {
+        let accepted = accepts_reasoning_effort(level);
+        assert_eq!(
+            accepted,
+            matches!(
+                level,
+                "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
+            )
+        );
+        kani::cover!(accepted && level == "minimal");
+        kani::cover!(!accepted && len == 8);
+    }
+}
 
 pub struct ChatTokenizer {
     tokenizer: Tokenizer,
@@ -317,7 +343,7 @@ impl ChatTokenizer {
             None => self.render_values_options(messages, tools, None, None),
             Some(level) => {
                 ensure!(
-                    REASONING_EFFORTS.contains(&level),
+                    accepts_reasoning_effort(level),
                     "unsupported reasoning effort {level:?}"
                 );
                 if level == "none" {
@@ -404,17 +430,6 @@ impl ChatTokenizer {
     /// assembled from ordinary tokens are literal text.
     pub fn control_marker(&self, id: u32) -> Option<&str> {
         self.control_tokens.get(&id).map(String::as_str)
-    }
-
-    /// The streaming splitter can close only thinking channels declared by this tokenizer.
-    pub fn supports_reasoning_budget(&self) -> bool {
-        let has = |name| self.control_tokens.values().any(|marker| marker == name);
-        (has("<think>") && has("</think>"))
-            || ((has("<|channel>") || has("<|channel>thought")) && has("<channel|>"))
-            || (has("<|content_thinking|>")
-                && has("<|end_message|>")
-                && has("<|message_model|>")
-                && has("<|content_text|>"))
     }
 
     pub fn eos_ids(&self) -> &[u32] {
@@ -762,35 +777,6 @@ print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads
     }
 
     #[test]
-    fn inkling_budget_requires_a_declared_answer_channel() -> Result<()> {
-        let root = fixture("{{ messages[0].content }}");
-        let path = root.path().join("tokenizer.json");
-        let mut file: Value = serde_json::from_slice(&fs::read(&path)?)?;
-        for (index, marker) in [
-            "<|content_thinking|>",
-            "<|end_message|>",
-            "<|message_model|>",
-            "<|content_text|>",
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            let id = 5 + index;
-            file["model"]["vocab"][marker] = json!(id);
-            file["added_tokens"].as_array_mut().unwrap().push(json!({
-                "id":id, "content":marker, "special":true, "single_word":false,
-                "lstrip":false, "rstrip":false, "normalized":false
-            }));
-            fs::write(&path, file.to_string())?;
-            assert_eq!(
-                ChatTokenizer::load(root.path())?.supports_reasoning_budget(),
-                index == 3
-            );
-        }
-        Ok(())
-    }
-
-    #[test]
     fn actual_tokenizer_distinguishes_literal_and_declared_marker_ids() {
         use crate::streaming::{Channel, ThinkingSplitter};
         // Qwen3 declares these added delimiters with special:false: the flag
@@ -806,7 +792,6 @@ print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads
             fs::write(&path, json.to_string()).unwrap();
             let plain = ChatTokenizer::load(root.path()).unwrap();
             assert_eq!(plain.control_marker(4), None);
-            assert!(!plain.supports_reasoning_budget());
             for (content, id) in [("<think>", 4), ("</think>", 8)] {
                 json["added_tokens"].as_array_mut().unwrap().push(json!({
                     "id":id,"content":content,"special":special,"single_word":false,
@@ -821,7 +806,6 @@ print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads
                 "special={special}"
             );
             assert_eq!(tokenizer.control_marker(8), Some("</think>"));
-            assert!(tokenizer.supports_reasoning_budget());
             assert_eq!(tokenizer.decode(&[5, 6, 7]).unwrap(), "<think>");
             let mut decoder = tokenizer.tokenizer().decode_stream(false);
             let mut splitter = ThinkingSplitter::new("");
@@ -854,13 +838,13 @@ print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads
         let render = |effort| tokenizer.render_values_with_effort(&messages, None, effort);
         assert_eq!(render(None).unwrap(), "True||unset|hi", "template default");
         assert_eq!(render(Some("none")).unwrap(), "False|False|0.0|hi");
-        for level in ["low", "medium", "high", "xhigh", "max"] {
+        for level in ["minimal", "low", "medium", "high", "xhigh", "max"] {
             assert_eq!(
                 render(Some(level)).unwrap(),
                 format!("False|True|{level}|hi")
             );
         }
-        for invalid in ["", "minimal", "HIGH", "0.5", "ultra"] {
+        for invalid in ["", "minimum", "HIGH", "0.5", "ultra"] {
             assert!(render(Some(invalid)).is_err(), "{invalid:?}");
         }
     }

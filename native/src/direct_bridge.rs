@@ -183,7 +183,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     // AGENT-2026-11-23-BOUCLE: `reasoning_budget`, 512 rounds, pruning, repeated-call stop.
     ready["agent_loop_supported"] = json!(true);
     ready["reasoning_effort_supported"] = json!(true);
-    ready["reasoning_budget_supported"] = json!(tokenizer.supports_reasoning_budget());
+    ready["reasoning_effort_levels"] = json!(mlxl3_native::tokenizer::REASONING_EFFORTS);
     emit_event(ready)?;
     for line in io::stdin().lock().lines() {
         let line = line?;

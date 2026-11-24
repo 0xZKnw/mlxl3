@@ -1,5 +1,7 @@
 # Reasoning levels in Studio Chat on an M5
 
+**Historical experiment.** These measurements apply to the previous budget-based prototype. The current Studio selector uses the model’s native reasoning settings and lets it finish naturally.
+
 Comparison source `399016ffac36`, based on `d32130c8dfe4`. The app verification below uses the follow-up source `5bb09853dbc1`. Each setting ran once per question on the same Apple M5 with 24 GiB. The requests used a fresh conversation and greedy decoding with temperature 0, top-k 1, repetition penalty 1, no tools and a 4,096-token context. Both MLX and direct Metal used the shipping bridge protocol and local EXL3 weights. The output limit was 1,536 sampled tokens for MLX and 512 for the separate direct Metal check. Flash used the optional 5 GiB SSD expert cache and GPU hot cache for both requests. Inkling ran with DSPARK disabled.
 
 The product question requested only the integer for 37 × 24. The independently computed answer is 888. The remainder question requested the smallest positive multiple of 7 that leaves remainders 1 and 2 modulo 5 and 3 respectively. Its answer is 56. Thinking tokens are re-encoded from the streamed thinking channel. Total tokens are the engine’s sampled count across all rounds, including structural tokens. The injected transition occupies context and is excluded from both counts. The engine reserves at least half of a short output allowance when selecting the initial thinking threshold. It can finish earlier.
