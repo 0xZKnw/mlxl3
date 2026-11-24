@@ -1237,6 +1237,171 @@ mod tests {
     use super::*;
     use half::f16;
 
+    /// DSPARK-2026-11-23-INK2M-MTPLX-C0 (diagnostic): GPU wall time of each stage of
+    /// `Exl3SwitchGlu::forward` on the real Inkling 2 Mini expert banks (layer 12 of `MLXL3_INKLING_MODEL`) for
+    /// 1 to 4 rows with distinct random routes, each stage evaluated alone from evaluated inputs (median of
+    /// 30 after 5 warm-up runs, rows ascending then descending), and the whole call.
+    #[test]
+    #[ignore = "requires an Apple GPU and MLXL3_INKLING_MODEL"]
+    fn inkling_moe_stage_cost() -> Result<()> {
+        use std::time::Instant;
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let checkpoint = crate::checkpoint::inspect(&dir)?;
+        let (experts, top_k) = (128i32, 8i32);
+        let moe = Exl3SwitchGlu::from_inkling_checkpoint(
+            &checkpoint,
+            "model.llm.layers.12.mlp.experts",
+            experts,
+            top_k,
+            4.0,
+            25.0,
+        )?;
+        let mut state = 0x2545_f491_4f6c_dd1du64;
+        let mut next = move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) as u32
+        };
+        let time = |f: &mut dyn FnMut() -> Result<Array>| -> Result<f64> {
+            let mut samples = Vec::new();
+            for rep in 0..35 {
+                let start = Instant::now();
+                f()?.eval()?;
+                if rep >= 5 {
+                    samples.push(start.elapsed().as_secs_f64() * 1e3);
+                }
+            }
+            samples.sort_by(f64::total_cmp);
+            Ok(samples[samples.len() / 2])
+        };
+        // `MLXL3_MOE_PATTERN=same`: every row chooses the same 8 experts (in a rotated order)
+        let same = std::env::var("MLXL3_MOE_PATTERN").as_deref() == Ok("same");
+        let mut report = std::collections::BTreeMap::<i32, Vec<Vec<f64>>>::new();
+        for rows in [1i32, 2, 3, 4, 4, 3, 2, 1] {
+            let mut ids = Vec::new();
+            let mut first = Vec::new();
+            for r in 0..rows {
+                let mut row = Vec::new();
+                if same && r > 0 {
+                    row = (0..top_k as usize)
+                        .map(|i| first[(i + r as usize) % top_k as usize])
+                        .collect();
+                }
+                while row.len() < top_k as usize {
+                    let e = next() % experts as u32;
+                    if !row.contains(&e) {
+                        row.push(e);
+                    }
+                }
+                if r == 0 {
+                    first = row.clone();
+                }
+                ids.extend(row);
+            }
+            let x: Vec<f32> = (0..rows * 2304)
+                .map(|_| ((next() % 2001) as f32 / 1000.0 - 1.0) * 0.5)
+                .collect();
+            let x = Array::from_f32(&x, &[rows, 2304])?.astype(Dtype::Float16)?;
+            let scores: Vec<f32> = (0..rows * top_k)
+                .map(|_| (next() % 1000) as f32 / 4000.0 + 0.01)
+                .collect();
+            let scores = Array::from_f32(&scores, &[rows, top_k])?;
+            let routes = Array::from_u32(&ids, &[rows, top_k])?;
+            let selected = routes.reshape(&[rows * top_k])?;
+            Array::eval_many(&[&x, &scores, &routes, &selected])?;
+            let x_gu =
+                routed_inputs_small(&x, &moe.gu_suh, &selected, rows, top_k, moe.input, false)?;
+            let gate_up = crate::linear::prepared_expert_raw(
+                &x_gu,
+                &moe.gu_trellis,
+                &selected,
+                moe.hidden,
+                2,
+                moe.experts * moe.hidden / 16,
+                moe.k,
+                moe.cb,
+                false,
+            )?;
+            let down_input = glu_down_input(
+                &gate_up,
+                &moe.gu_svh,
+                &moe.down_suh,
+                &selected,
+                moe.activation,
+                moe.logical_hidden,
+                false,
+            )?;
+            let down = crate::linear::prepared_expert_raw(
+                &down_input,
+                &moe.down_trellis,
+                &selected,
+                moe.input,
+                1,
+                0,
+                moe.down_k,
+                moe.cb,
+                false,
+            )?;
+            Array::eval_many(&[&x_gu, &gate_up, &down_input, &down])?;
+            let svh = moe.down_svh.take(&selected, 0)?;
+            svh.eval()?;
+            let t = [
+                time(&mut || {
+                    routed_inputs_small(&x, &moe.gu_suh, &selected, rows, top_k, moe.input, false)
+                })?,
+                time(&mut || {
+                    crate::linear::prepared_expert_raw(
+                        &x_gu,
+                        &moe.gu_trellis,
+                        &selected,
+                        moe.hidden,
+                        2,
+                        moe.experts * moe.hidden / 16,
+                        moe.k,
+                        moe.cb,
+                        false,
+                    )
+                })?,
+                time(&mut || {
+                    glu_down_input(
+                        &gate_up,
+                        &moe.gu_svh,
+                        &moe.down_suh,
+                        &selected,
+                        moe.activation,
+                        moe.logical_hidden,
+                        false,
+                    )
+                })?,
+                time(&mut || {
+                    crate::linear::prepared_expert_raw(
+                        &down_input,
+                        &moe.down_trellis,
+                        &selected,
+                        moe.input,
+                        1,
+                        0,
+                        moe.down_k,
+                        moe.cb,
+                        false,
+                    )
+                })?,
+                time(&mut || finish_and_reduce(&down, &svh, &scores))?,
+                time(&mut || moe.forward(&x, &routes, &scores))?,
+                // an empty evaluation: the fixed cost of one eval round trip
+                time(&mut || x.try_clone())?,
+            ];
+            println!(
+                "rows {rows}: inputs {:.3} gate_up {:.3} glu {:.3} down {:.3} reduce {:.3} | forward {:.3} | eval floor {:.3} ms",
+                t[0], t[1], t[2], t[3], t[4], t[5], t[6]
+            );
+            report.entry(rows).or_default().push(t.to_vec());
+        }
+        println!("MOE_STAGE_COST {}", serde_json::to_string(&report)?);
+        Ok(())
+    }
+
     #[test]
     #[ignore = "physical Apple GPU; disposable signed/unsigned EXL3 checkpoint"]
     fn mixed_signed_trellises_preserve_checkpoint_bits() -> Result<()> {
