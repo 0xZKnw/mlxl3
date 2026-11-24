@@ -56,13 +56,13 @@ struct MessagesView: View {
           if split > 0 {
             LazyVStack(spacing: density.spacing) {
               ForEach(messages.prefix(split)) { message in
-                MessageView(message: message)
+                MessageView(message: message, isLast: false)
                   .id(message.id)
               }
             }
           }
           ForEach(messages.suffix(from: split)) { message in
-            MessageView(message: message)
+            MessageView(message: message, isLast: message.id == messages.last?.id)
               .transition(
                 reduceMotion || message.id == messages.last?.id
                   ? .identity : .offset(y: 7).combined(with: .opacity))
@@ -155,6 +155,8 @@ private struct MessageView: View {
     @Environment(\.messageBubbleStyle) private var bubbleStyle
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var message: ChatMessage
+    var isLast = false
+    @State private var hovered = false
 
     var body: some View {
         if message.role == .user {
@@ -199,13 +201,22 @@ private struct MessageView: View {
                             .strokeBorder(StudioTheme.edge, lineWidth: bubbleStyle == .outlined ? 1 : bubbleStyle == .subtle ? 0.5 : 0)
                     }
                 }
-                HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
+            }
+            // Beside the bubble on hover, outside the layout: a row of identical buttons
+            // under every question was noise, and reserving its height left a gap.
+            .overlay(alignment: .bottomLeading) {
+                MessageActionBar(message: message)
+                    .alignmentGuide(.leading) { $0[.trailing] + 8 }
+                    .opacity(hovered ? 1 : 0)
+                    .animation(.easeOut(duration: 0.12), value: hovered)
             }
           }
             .frame(maxWidth: .infinity, alignment: .trailing)
             .padding(.bottom, 4)
+            .contentShape(Rectangle())
+            .onHover { hovered = $0 }
         } else {
-            AssistantMessageView(message: message)
+            AssistantMessageView(message: message, isLast: isLast)
         }
     }
 }
@@ -214,7 +225,9 @@ private struct AssistantMessageView: View {
     @Environment(\.studioStyle) private var style
     @Environment(\.conversationTextScale) private var textScale
     @ObservedObject var message: ChatMessage
+    var isLast = false
     @State private var citedSource: DocumentExcerpt?
+    @State private var hovered = false
 
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
@@ -226,24 +239,25 @@ private struct AssistantMessageView: View {
                         Text("MLXL3")
                             .font(.system(size: 11, weight: .medium))
                             .foregroundStyle(StudioTheme.secondary)
-                        if message.isStreaming {
-                            StreamingIndicator()
-                        }
                         Spacer(minLength: 8)
                     }
                 }
 
                 if message.parts.isEmpty && message.isStreaming {
-                    ThinkingPlaceholder()
+                    PendingActivityRow(label: L("Préparation de la réponse", "Preparing response"))
                 }
-                ForEach(message.parts) { part in
-                    let live = message.isStreaming && message.parts.last?.id == part.id
-                    switch part.kind {
-                    case .thinking:
-                        ThinkingBlock(text: part.text, streaming: live, textScale: textScale)
-                            .equatable()
-                    case .answer:
-                        MarkdownResponseView(part.text, streaming: live,
+                ForEach(AssistantSegment.split(message.parts)) { segment in
+                    if segment.isActivity {
+                        // Reasoning and tool lines read as one log, tighter than paragraphs.
+                        VStack(alignment: .leading, spacing: 3) {
+                            ForEach(segment.parts) { part in activity(part) }
+                            // A finished tool before the next round's first event: the run goes on.
+                            if segment.parts.last?.id == message.parts.last?.id, awaitingNextStep {
+                                PendingActivityRow(label: L("Préparation de l’étape suivante", "Preparing the next step"))
+                            }
+                        }
+                    } else if let part = segment.parts.first {
+                        MarkdownResponseView(part.text, streaming: isLive(part),
                                              textScale: textScale, htmlPreviewEnabled: !message.isStreaming && message.error == nil)
                             .equatable()
                             .environment(\.openURL, OpenURLAction { url in
@@ -253,50 +267,196 @@ private struct AssistantMessageView: View {
                                 }
                                 return ["http", "https"].contains(url.scheme ?? "") ? .systemAction : .discarded
                             })
-                    case .tool:
-                        if let activity = message.toolActivities.first(where: { $0.id == part.toolID }) {
-                            MCPToolActivityRow(activity: activity)
-                        }
-                    case .processing:
-                        PrefillActivityRow(part: part, live: live)
                     }
                 }
 
-                // Graphite has no header to carry the live dot: it follows the text instead.
-                if style.isGraphite && message.isStreaming && !message.parts.isEmpty {
-                    StreamingIndicator().padding(.leading, 2)
-                }
                 if let error = message.error {
-                    Label(error, systemImage: "exclamationmark.circle.fill")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(Color(red: 1.0, green: 0.48, blue: 0.50))
+                    Label(error, systemImage: "exclamationmark.circle")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(StudioTheme.failure)
                 }
 
                 if !message.sources.isEmpty {
                     ScrollView(.horizontal) {
-                        HStack {
+                        HStack(spacing: 6) {
                             ForEach(message.sources) { source in
-                                Button(source.label) { citedSource = source }.buttonStyle(.bordered).font(.caption)
+                                Button { citedSource = source } label: {
+                                    Label(source.label, systemImage: "doc.text")
+                                        .font(.system(size: 11.5, weight: .medium))
+                                        .lineLimit(1)
+                                        .padding(.horizontal, 10)
+                                        .frame(height: 26)
+                                        .overlay {
+                                            Capsule().strokeBorder(StudioTheme.edge, lineWidth: 0.5)
+                                        }
+                                }
+                                .buttonStyle(StudioControlStyle(cornerRadius: 13))
                             }
                         }
                     }
+                    .scrollIndicators(.never)
                 }
                 if let stats = message.stats {
                     StatsRow(stats: stats)
                 }
                 if !message.content.isEmpty {
-                    HStack { MessageCopyButton(message: message); MessageActionsView(message: message) }
+                    // The latest reply keeps its actions; older ones show them on hover.
+                    MessageActionBar(message: message)
+                        .opacity(isLast || hovered ? 1 : 0)
+                        .animation(.easeOut(duration: 0.12), value: hovered)
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+        .contentShape(Rectangle())
+        .onHover { hovered = $0 }
         .sheet(item: $citedSource) { DocumentSourceView(source: $0) }
     }
 
+    private func isLive(_ part: AssistantPart) -> Bool {
+        message.isStreaming && message.parts.last?.id == part.id
+    }
+
+    private var awaitingNextStep: Bool {
+        guard message.isStreaming, let last = message.parts.last, last.kind == .tool else { return false }
+        return message.toolActivities.first(where: { $0.id == last.toolID })?.state != .running
+    }
+
+    @ViewBuilder
+    private func activity(_ part: AssistantPart) -> some View {
+        switch part.kind {
+        case .thinking:
+            ThinkingBlock(text: part.text, streaming: isLive(part), elapsed: part.elapsed, textScale: textScale)
+                .equatable()
+        case .tool:
+            if let activity = message.toolActivities.first(where: { $0.id == part.toolID }) {
+                ToolCallRow(activity: activity, elapsed: part.elapsed)
+            }
+        case .processing:
+            PrefillActivityRow(part: part, live: isLive(part))
+        case .answer:
+            EmptyView()
+        }
+    }
 }
 
+/// Consecutive reasoning, tool and context parts form one activity segment; each answer
+/// part stands alone. A segment is identified by its first part, so it keeps its identity
+/// (and the rows inside keep their expanded state) while it grows.
+struct AssistantSegment: Identifiable {
+    let parts: [AssistantPart]
+    var id: UUID { parts[0].id }
+    var isActivity: Bool { parts[0].kind != .answer }
+
+    static func split(_ parts: [AssistantPart]) -> [AssistantSegment] {
+        var segments: [AssistantSegment] = []
+        var run: [AssistantPart] = []
+        for part in parts {
+            if part.kind == .answer {
+                if !run.isEmpty { segments.append(AssistantSegment(parts: run)); run = [] }
+                segments.append(AssistantSegment(parts: [part]))
+            } else {
+                run.append(part)
+            }
+        }
+        if !run.isEmpty { segments.append(AssistantSegment(parts: run)) }
+        return segments
+    }
+}
+
+/// Copy, regenerate, read aloud and branch: one row of quiet icon buttons.
+struct MessageActionBar: View {
+    @ObservedObject var message: ChatMessage
+
+    var body: some View {
+        HStack(spacing: 2) {
+            MessageCopyButton(message: message)
+            MessageActionsView(message: message)
+        }
+        // The first icon's glyph lines up with the text above it.
+        .padding(.leading, message.role == .assistant ? -6 : 0)
+    }
+}
+
+// MARK: - Activity column
+
+/// Reasoning, tool calls and context reading share one column: an icon, what happened and
+/// its object, then quiet metadata. Nothing is boxed; detail opens under the line.
+private enum ActivityMetrics {
+    static let iconWidth: CGFloat = 16
+    static let spacing: CGFloat = 8
+    static var indent: CGFloat { iconWidth + spacing }
+
+    /// "4 s", "1 min 12 s".
+    static func duration(_ seconds: Double) -> String {
+        let total = max(0, Int(seconds.rounded()))
+        return total < 60 ? "\(total) s" : "\(total / 60) min \(total % 60) s"
+    }
+}
+
+private struct ActivityIcon: View {
+    @Environment(\.conversationTextScale) private var textScale
+    let symbol: String
+    var color: Color = StudioTheme.quiet
+
+    var body: some View {
+        Image(systemName: symbol)
+            .font(.system(size: 11 * textScale, weight: .medium))
+            .foregroundStyle(color)
+            .frame(width: ActivityMetrics.iconWidth)
+            .accessibilityHidden(true)
+    }
+}
+
+private struct ActivityChevron: View {
+    let expanded: Bool
+    let visible: Bool
+
+    var body: some View {
+        Image(systemName: "chevron.right")
+            .font(.system(size: 8.5, weight: .bold))
+            .foregroundStyle(StudioTheme.quiet)
+            .rotationEffect(.degrees(expanded ? 90 : 0))
+            .opacity(visible || expanded ? 1 : 0)
+            .accessibilityHidden(true)
+    }
+}
+
+/// The clickable line of an expandable activity: a hover wash that hugs the text.
+private struct ActivityLineStyle: ButtonStyle {
+    let hovered: Bool
+
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .padding(.horizontal, 6)
+            .padding(.vertical, 3)
+            .background(
+                StudioTheme.contrast.opacity(configuration.isPressed ? 0.075 : hovered ? 0.045 : 0),
+                in: RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .contentShape(RoundedRectangle(cornerRadius: 7, style: .continuous))
+            .padding(.horizontal, -6)
+    }
+}
+
+/// Waiting with nothing to show yet: the words say what for, the sweep that it is ongoing.
+private struct PendingActivityRow: View {
+    @Environment(\.conversationTextScale) private var textScale
+    let label: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: ActivityMetrics.spacing) {
+            ActivityIcon(symbol: "circle.dotted")
+            StudioShimmerText(text: label, font: .system(size: 13 * textScale, weight: .medium))
+        }
+        .padding(.vertical, 3)
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// Context reading (prefill). Live: what is read and for how long. Done: kept only when it
+/// took a noticeable time or was interrupted; "Context processed · 0 s" said nothing.
 private struct PrefillActivityRow: View {
-    @Environment(\.studioStyle) private var style
+    @Environment(\.conversationTextScale) private var textScale
     let part: AssistantPart
     let live: Bool
 
@@ -305,299 +465,287 @@ private struct PrefillActivityRow: View {
             TimelineView(.periodic(from: .now, by: 1)) { context in
                 row(at: context.date)
             }
-        } else {
+        } else if part.interrupted == true || (part.elapsed ?? 0) >= 1 {
             row(at: .now)
         }
     }
 
     private func row(at date: Date) -> some View {
-            HStack(spacing: 8) {
-                if live {
-                    ProgressView().controlSize(.mini)
-                } else {
-                    Image(systemName: part.interrupted == true ? "stop" : "checkmark")
-                        .font(.system(size: 10))
-                }
-                Text(live ? localizedProgress(part.text) : (part.interrupted == true ? L("Traitement interrompu", "Processing interrupted") : L("Contexte traité", "Context processed")))
-                    .lineLimit(2)
-                Spacer(minLength: 8)
-                let elapsed = part.elapsed ?? date.timeIntervalSince(part.startedAt ?? date)
-                Text("\(max(0, Int(elapsed))) s").monospacedDigit()
-            }
-            .font(.system(size: style.isGraphite ? 11.5 : 11))
-            .foregroundStyle(style.isGraphite ? StudioTheme.quiet : StudioTheme.secondary)
-            .padding(.vertical, style.isGraphite ? 2 : 4)
-            .accessibilityElement(children: .combine)
+        let elapsed = part.elapsed ?? date.timeIntervalSince(part.startedAt ?? date)
+        let interrupted = part.interrupted == true
+        return HStack(alignment: .firstTextBaseline, spacing: ActivityMetrics.spacing) {
+            ActivityIcon(symbol: interrupted ? "stop" : "doc.text.magnifyingglass")
+            StudioShimmerText(
+                text: live ? localizedProgress(part.text)
+                    : interrupted ? L("Lecture du contexte interrompue", "Context reading interrupted")
+                    : L("Contexte lu", "Read the context"),
+                font: .system(size: 13 * textScale, weight: .medium), active: live)
+                .lineLimit(2)
+            Text(ActivityMetrics.duration(elapsed))
+                .font(.system(size: 12 * textScale))
+                .monospacedDigit()
+                .foregroundStyle(StudioTheme.quiet)
+        }
+        .padding(.vertical, 3)
+        .accessibilityElement(children: .combine)
     }
 }
 
-private struct MCPToolActivityRow: View {
-    @Environment(\.studioStyle) private var style
+/// One tool call as a line: "Read src/stats.pl", "Ran sh test.sh · Exit 1", "Web search
+/// “mlx cache” · exa". Running calls sweep their title; the arguments and the result open
+/// underneath on click.
+private struct ToolCallRow: View {
     @Environment(\.conversationTextScale) private var textScale
     let activity: ToolActivity
+    let elapsed: Double?
     @State private var expanded = false
-    @State private var fullOutput = false
-
-    @State private var fullArguments = false
+    @State private var hovered = false
 
     var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            // What ran (the program of a JavaScript call), then what came back.
-            if let arguments = activity.arguments, !arguments.isEmpty {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(activity.toolName == "javascript" ? L("Code exécuté", "Code run") : L("Arguments", "Arguments"))
-                        .font(style.isGraphite ? .system(size: 11, weight: .medium) : .system(size: 8, weight: .bold, design: .rounded))
-                        .tracking(style.isGraphite ? 0 : 0.65)
+        let shown = ToolCallPresentation(activity)
+        let input = shown.input(of: activity)
+        let output = activity.result.flatMap { $0.isEmpty ? nil : $0 }
+        let expandable = input != nil || output != nil
+        VStack(alignment: .leading, spacing: 6) {
+            Button {
+                withAnimation(.easeOut(duration: 0.16)) { expanded.toggle() }
+            } label: {
+                line(shown, expandable: expandable)
+            }
+            .buttonStyle(ActivityLineStyle(hovered: hovered && expandable))
+            .allowsHitTesting(expandable)
+            .onHover { hovered = $0 }
+            .accessibilityLabel(accessibilityText(shown))
+            .accessibilityHint(expandable ? L("Afficher le détail", "Show details") : "")
+            if expanded {
+                ToolCallDetails(activity: activity, input: input, output: output)
+                    .padding(.leading, ActivityMetrics.indent)
+                    .transition(.opacity)
+            }
+        }
+    }
+
+    private func line(_ shown: ToolCallPresentation, expandable: Bool) -> some View {
+        let failed = activity.state == .failed
+        return HStack(alignment: .firstTextBaseline, spacing: ActivityMetrics.spacing) {
+            ActivityIcon(symbol: shown.symbol, color: failed ? StudioTheme.failure : StudioTheme.quiet)
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                StudioShimmerText(text: shown.title, font: .system(size: 13 * textScale, weight: .medium),
+                                  active: activity.state == .running)
+                    .layoutPriority(1)
+                if let detail = shown.detail {
+                    Text(detail)
+                        .font(shown.monospaced ? .system(size: 12 * textScale, design: .monospaced)
+                              : .system(size: 13 * textScale))
                         .foregroundStyle(StudioTheme.quiet)
-                    if fullArguments {
-                        ScrollView([.vertical, .horizontal]) {
-                            Text(arguments).textSelection(.enabled)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }.frame(maxHeight: 240)
-                    } else {
-                        Text(arguments).lineLimit(12).textSelection(.enabled)
-                    }
-                    HStack {
-                        if arguments.split(separator: "\n", omittingEmptySubsequences: false).count > 12 {
-                            Button(fullArguments ? L("Réduire", "Show less") : L("Voir tout le code", "Show all code")) {
-                                fullArguments.toggle()
-                            }
-                        }
-                        Button(L("Copier le code", "Copy code")) {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(arguments, forType: .string)
-                        }
-                    }.buttonStyle(.borderless)
-                }
-                .font(.system(size: 10.5 * textScale, weight: .regular, design: .monospaced))
-                .foregroundStyle(StudioTheme.contrast.opacity(0.58))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 8)
-                .accessibilityIdentifier("tool.arguments")
-            }
-            if let result = activity.result, !result.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
-                    if fullOutput {
-                        ScrollView([.vertical, .horizontal]) {
-                            Text(result).textSelection(.enabled)
-                                .fixedSize(horizontal: false, vertical: true)
-                        }.frame(maxHeight: 240)
-                    } else {
-                        Text(result).lineLimit(10).textSelection(.enabled)
-                    }
-                    HStack {
-                        Button(fullOutput ? L("Réduire", "Show less") : L("Voir la sortie complète", "Show full output")) {
-                            fullOutput.toggle()
-                        }
-                        Button(L("Copier", "Copy")) {
-                            NSPasteboard.general.clearContents()
-                            NSPasteboard.general.setString(result, forType: .string)
-                        }
-                    }.buttonStyle(.borderless)
-                }
-                .font(.system(size: 10.5 * textScale, weight: .regular, design: .monospaced))
-                .foregroundStyle(StudioTheme.contrast.opacity(0.58))
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 8)
-            }
-        } label: {
-            if style.isGraphite {
-                HStack(spacing: 8) {
-                    stateIcon
-                    VStack(alignment: .leading, spacing: 1) {
-                        Text(activity.toolName == "invalid_tool_call" ? L("Appel d’outil illisible", "Unreadable tool call") : activity.toolName)
-                            .font(.system(size: 12, weight: .medium))
-                            .foregroundStyle(StudioTheme.ink)
-                            .lineLimit(1)
-                        if let server = activity.serverName {
-                            Text("MCP · \(server)")
-                                .font(.system(size: 11))
-                                .foregroundStyle(StudioTheme.quiet)
-                        }
-                    }
-                    Spacer()
-                    Text(stateLabel)
-                        .font(.system(size: 11))
-                        .foregroundStyle(stateColor)
-                }
-            } else {
-            HStack(spacing: 8) {
-                stateIcon
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(activity.toolName == "invalid_tool_call" ? L("Appel d’outil illisible", "Unreadable tool call") : activity.toolName)
-                        .font(.system(size: 10.5, weight: .semibold, design: .rounded))
                         .lineLimit(1)
-                    if let server = activity.serverName {
-                        Text("MCP · \(server)")
-                            .font(.system(size: 8, weight: .bold, design: .rounded))
-                            .tracking(0.65)
-                            .foregroundStyle(StudioTheme.quiet)
-                    }
+                        .truncationMode(shown.isPath ? .middle : .tail)
                 }
-                Spacer()
-                Text(stateLabel)
-                    .font(.system(size: 8, weight: .bold, design: .rounded))
-                    .tracking(0.5)
-                    .foregroundStyle(stateColor)
-            }
+                if let source = shown.source {
+                    Text("· \(source)")
+                        .font(.system(size: 12 * textScale))
+                        .foregroundStyle(StudioTheme.quiet)
+                        .lineLimit(1)
+                        .layoutPriority(1)
+                }
+                if let outcome = shown.outcome {
+                    Text(outcome)
+                        .font(.system(size: 12 * textScale, weight: .medium))
+                        .foregroundStyle(failed ? StudioTheme.failure : StudioTheme.quiet)
+                        .fixedSize()
+                } else if activity.state != .running, let elapsed, elapsed >= 1 {
+                    Text(ActivityMetrics.duration(elapsed))
+                        .font(.system(size: 12 * textScale))
+                        .monospacedDigit()
+                        .foregroundStyle(StudioTheme.quiet)
+                        .fixedSize()
+                }
+                if expandable {
+                    ActivityChevron(expanded: expanded, visible: hovered)
+                }
             }
         }
-        .tint(StudioTheme.contrast.opacity(0.42))
-        .padding(.horizontal, 12)
-        .padding(.vertical, style.isGraphite ? 8 : 9)
-        .background(StudioTheme.contrast.opacity(style.isGraphite ? 0.04 : 0.025),
-                    in: RoundedRectangle(cornerRadius: style.isGraphite ? 10 : 11, style: style.isGraphite ? .continuous : .circular))
+    }
+
+    private func accessibilityText(_ shown: ToolCallPresentation) -> String {
+        [shown.title, shown.detail, shown.source, shown.outcome ?? (activity.state == .running ? L("en cours", "running") : nil)]
+            .compactMap { $0 }.joined(separator: ", ")
+    }
+}
+
+/// What a tool was given and what it returned, in one quiet panel.
+private struct ToolCallDetails: View {
+    @Environment(\.conversationTextScale) private var textScale
+    let activity: ToolActivity
+    let input: (title: String, text: String)?
+    let output: String?
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            if let input {
+                ToolCallSection(title: input.title, text: input.text, lines: 14)
+                    .accessibilityIdentifier("tool.arguments")
+            }
+            if input != nil && output != nil {
+                Rectangle().fill(StudioTheme.edge).frame(height: 0.5)
+            }
+            if let output {
+                ToolCallSection(title: activity.state == .failed ? L("Erreur", "Error") : L("Résultat", "Output"),
+                                text: output, lines: 12)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(StudioTheme.contrast.opacity(0.03), in: RoundedRectangle(cornerRadius: 9, style: .continuous))
         .overlay {
-            RoundedRectangle(cornerRadius: style.isGraphite ? 10 : 11, style: style.isGraphite ? .continuous : .circular)
-                .stroke(style.isGraphite ? StudioTheme.edge : StudioTheme.contrast.opacity(0.07), lineWidth: style.isGraphite ? 0.5 : 0.6)
+            RoundedRectangle(cornerRadius: 9, style: .continuous).strokeBorder(StudioTheme.edge, lineWidth: 0.5)
         }
-    }
-
-    @ViewBuilder
-    private var stateIcon: some View {
-        if activity.state == .running {
-            ProgressView()
-                .controlSize(.mini)
-                .tint(StudioTheme.accent)
-        } else {
-            Image(systemName: style.isGraphite ? (activity.state == .complete ? "checkmark" : "xmark")
-                  : (activity.state == .complete ? "checkmark.circle.fill" : "xmark.circle.fill"))
-                .font(.system(size: style.isGraphite ? 10 : 11, weight: .semibold))
-                .frame(width: style.isGraphite ? 14 : nil)
-                .foregroundStyle(stateColor)
-        }
-    }
-
-    private var stateLabel: String {
-        if style.isGraphite {
-            switch activity.state {
-            case .running: return L("En cours", "Running")
-            case .complete: return L("Terminé", "Done")
-            case .failed: return L("Erreur", "Error")
-            }
-        }
-        switch activity.state {
-        case .running: return L("EXÉCUTION", "RUNNING")
-        case .complete: return L("TERMINÉ", "DONE")
-        case .failed: return L("ERREUR", "ERROR")
-        }
-    }
-
-    private var stateColor: Color {
-        activity.state == .failed
-            ? (style.isGraphite ? Color(red: 0.93, green: 0.45, blue: 0.42) : Color(red: 1, green: 0.48, blue: 0.50))
-            : (style.isGraphite ? StudioTheme.quiet : StudioTheme.accent.opacity(0.82))
     }
 }
 
-private struct StreamingIndicator: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var pulse = false
+private struct ToolCallSection: View {
+    @Environment(\.conversationTextScale) private var textScale
+    let title: String
+    let text: String
+    let lines: Int
+    @State private var full = false
+    @State private var copied = false
 
     var body: some View {
-        Circle()
-            .fill(StudioTheme.live)
-            .frame(width: 5, height: 5)
-            // Scope the endless animation to opacity/scale. A view-wide
-            // `.animation(_:value:)` started from `onAppear` also captured the
-            // insertion layout, so the dot's position looped forever between
-            // its first frame and its real slot (a "bouncing ball").
-            .animation(reduceMotion ? nil : .easeInOut(duration: 0.72).repeatForever()) { dot in
-                dot
-                    .opacity(!reduceMotion && pulse ? 0.3 : 1)
-                    .scaleEffect(!reduceMotion && pulse ? 0.72 : 1)
+        let long = text.split(separator: "\n", omittingEmptySubsequences: false).count > lines || text.count > lines * 120
+        VStack(alignment: .leading, spacing: 7) {
+            HStack(spacing: 4) {
+                Text(title)
+                    .font(.system(size: 11 * textScale, weight: .medium))
+                    .foregroundStyle(StudioTheme.quiet)
+                Spacer(minLength: 8)
+                if long {
+                    Button(full ? L("Réduire", "Show less") : L("Tout afficher", "Show all")) { full.toggle() }
+                        .font(.system(size: 11 * textScale, weight: .medium))
+                        .padding(.horizontal, 7).frame(height: 22)
+                        .buttonStyle(StudioControlStyle())
+                }
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                    copied = true
+                } label: {
+                    Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        .font(.system(size: 10.5, weight: .medium))
+                        .frame(width: 22, height: 22)
+                }
+                .buttonStyle(StudioControlStyle())
+                .help(L("Copier", "Copy"))
+                .accessibilityLabel(L("Copier", "Copy"))
             }
-            .onAppear { pulse = !reduceMotion }
-            .onChange(of: reduceMotion) { _, value in pulse = !value }
-    }
-}
-
-private struct ThinkingPlaceholder: View {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var shimmer = false
-
-    var body: some View {
-        HStack(spacing: 9) {
-            Image(systemName: "ellipsis")
-                .font(.system(size: 10, weight: .bold))
-            Text(L("Réflexion en cours", "Thinking"))
-                .font(.system(size: 11, weight: .medium))
-            HStack(spacing: 3) {
-                ForEach(0..<3, id: \.self) { index in
-                    Circle()
-                        .frame(width: 3, height: 3)
-                        // Only opacity repeats, never layout (see StreamingIndicator).
-                        .animation(dotAnimation) { dot in dot.opacity(dotOpacity(index)) }
+            Group {
+                if full {
+                    ScrollView([.vertical, .horizontal]) {
+                        Text(text).fixedSize(horizontal: false, vertical: true)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .frame(maxHeight: 300)
+                } else {
+                    Text(text).lineLimit(lines)
                 }
             }
+            .font(.system(size: 11.5 * textScale, design: .monospaced))
+            .foregroundStyle(StudioTheme.secondary)
+            .lineSpacing(2)
+            .textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading)
         }
-        .foregroundStyle(StudioTheme.thinking)
-        .onAppear { shimmer = !reduceMotion }
-        .onChange(of: reduceMotion) { _, value in shimmer = !value }
-    }
-
-    // Typed helpers keep this view within the hosted compiler's type-check budget.
-    private var dotAnimation: Animation? {
-        reduceMotion ? nil : .easeInOut(duration: 0.8).repeatForever()
-    }
-
-    private func dotOpacity(_ index: Int) -> Double {
-        let position = Double(index)
-        return !reduceMotion && shimmer ? 0.25 + position * 0.28 : 0.9 - position * 0.25
+        .padding(.horizontal, 12)
+        .padding(.top, 8)
+        .padding(.bottom, 11)
+        .task(id: copied) {
+            guard copied else { return }
+            try? await Task.sleep(for: .seconds(1.2))
+            guard !Task.isCancelled else { return }
+            copied = false
+        }
     }
 }
 
+/// Reasoning: open while it streams, folded to "Thought for 4 s" once the model moves on.
+/// A click keeps it the way the reader chose.
 private struct ThinkingBlock: View, Equatable {
     let text: String
     let streaming: Bool
+    let elapsed: Double?
     let textScale: CGFloat
-    @State private var expanded = true
+    /// nil follows the stream; a click pins it.
+    @State private var chosen: Bool?
+    @State private var hovered = false
     @State private var chunkCache = StreamingTextChunker.Cache(markdown: false)
     @State private var scroll = StreamingScrollState()
 
     nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
-        lhs.text == rhs.text && lhs.streaming == rhs.streaming && lhs.textScale == rhs.textScale
+        lhs.text == rhs.text && lhs.streaming == rhs.streaming && lhs.elapsed == rhs.elapsed
+            && lhs.textScale == rhs.textScale
+    }
+
+    private var title: String {
+        if streaming { return L("Réflexion en cours", "Thinking") }
+        if let elapsed, elapsed >= 1 {
+            let duration = ActivityMetrics.duration(elapsed)
+            return L("Réflexion · \(duration)", "Thought for \(duration)")
+        }
+        return L("Réflexion", "Thought")
     }
 
     var body: some View {
-        DisclosureGroup(isExpanded: $expanded) {
-            ScrollView {
-                let chunks = chunkCache.chunks(text)
-                VStack(alignment: .leading, spacing: 0) {
-                    ForEach(chunks) { chunk in
-                        ThinkingTextChunk(
-                            source: chunk.source,
-                            streaming: streaming && chunk.id == chunks.last?.id,
-                            textScale: textScale
-                        )
-                        .equatable()
-                    }
+        let expanded = chosen ?? streaming
+        VStack(alignment: .leading, spacing: 4) {
+            Button {
+                withAnimation(.easeOut(duration: 0.16)) { chosen = !expanded }
+            } label: {
+                HStack(alignment: .firstTextBaseline, spacing: ActivityMetrics.spacing) {
+                    ActivityIcon(symbol: "brain")
+                    StudioShimmerText(text: title, font: .system(size: 13 * textScale, weight: .medium),
+                                      active: streaming)
+                    ActivityChevron(expanded: expanded, visible: hovered)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 10)
             }
-            .defaultScrollAnchor(.bottom, for: .initialOffset)
-            .defaultScrollAnchor(scroll.shouldFollow ? .bottom : nil, for: .sizeChanges)
-            .onScrollPhaseChange { _, phase in scroll.phaseChanged(phase) }
-            .onScrollGeometryChange(for: Bool.self) { geometry in
-                geometry.contentSize.height - geometry.visibleRect.maxY < 60
-            } action: { _, nearBottom in
-                scroll.proximityChanged(nearBottom)
+            .buttonStyle(ActivityLineStyle(hovered: hovered))
+            .onHover { hovered = $0 }
+            .accessibilityLabel(title)
+            .accessibilityValue(expanded ? L("développé", "expanded") : L("replié", "collapsed"))
+            if expanded {
+                ScrollView {
+                    let chunks = chunkCache.chunks(text)
+                    VStack(alignment: .leading, spacing: 0) {
+                        ForEach(chunks) { chunk in
+                            ThinkingTextChunk(
+                                source: chunk.source,
+                                streaming: streaming && chunk.id == chunks.last?.id,
+                                textScale: textScale
+                            )
+                            .equatable()
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 4)
+                }
+                .defaultScrollAnchor(.bottom, for: .initialOffset)
+                .defaultScrollAnchor(scroll.shouldFollow ? .bottom : nil, for: .sizeChanges)
+                .onScrollPhaseChange { _, phase in scroll.phaseChanged(phase) }
+                .onScrollGeometryChange(for: Bool.self) { geometry in
+                    geometry.contentSize.height - geometry.visibleRect.maxY < 60
+                } action: { _, nearBottom in
+                    scroll.proximityChanged(nearBottom)
+                }
+                .frame(maxHeight: 180)
+                .mask(StudioEdgeFade(top: 6, bottom: 6))
+                .padding(.leading, ActivityMetrics.indent)
+                // The thread under the icon ties the text to its line.
+                .overlay(alignment: .leading) {
+                    Rectangle().fill(StudioTheme.edge)
+                        .frame(width: 1)
+                        .padding(.leading, ActivityMetrics.iconWidth / 2 - 0.5)
+                        .padding(.vertical, 2)
+                }
+                .transition(.opacity)
             }
-            .frame(maxHeight: 180)
-        } label: {
-            HStack(spacing: 8) {
-                Text(streaming ? L("Réflexion en cours", "Thinking") : L("Réflexion", "Thinking"))
-                    .font(.system(size: 11, weight: .medium))
-                if streaming { StreamingIndicator() }
-            }
-            .foregroundStyle(StudioTheme.thinking)
-        }
-        .tint(StudioTheme.contrast.opacity(0.52))
-        .padding(.leading, 14)
-        .padding(.vertical, 5)
-        .overlay(alignment: .leading) {
-            Rectangle().fill(StudioTheme.edge).frame(width: 1)
         }
     }
 }

@@ -1189,7 +1189,8 @@ struct CodeBlockView: View, Equatable {
             } else if !streaming {
                 StudioCodeEditor(text: .constant(source), language: language ?? "text", editable: false,
                                   documentID: "inline-code", fontSize: 12.5 * textScale)
-                     .frame(height: min(440, max(76, CGFloat(lineCount) * 19 * textScale + 34)))
+                     // Sized to its lines: a one-line snippet no longer sits in a box twice its height.
+                     .frame(height: min(440, CGFloat(max(1, lineCount)) * 19 * textScale + 34))
             } else {
                 streamingCode.padding(16)
             }

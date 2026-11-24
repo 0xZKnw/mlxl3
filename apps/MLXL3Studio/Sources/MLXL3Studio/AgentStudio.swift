@@ -492,11 +492,21 @@ struct AgentStudioView: View {
           Text(L("Actions de l’agent", "Agent actions")).font(StudioTheme.display(22))
             .padding(.top, 8)
           ForEach(actions) { action in
+            let shown = ToolCallPresentation(action)
             VStack(alignment: .leading, spacing: 7) {
-              Label(
-                action.toolName,
-                systemImage: action.state == .failed ? "exclamationmark.circle" : "terminal"
-              ).font(.system(size: 11, weight: .medium))
+              HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Image(systemName: shown.symbol)
+                  .foregroundStyle(action.state == .failed ? StudioTheme.failure : StudioTheme.quiet)
+                Text(shown.title).fontWeight(.medium)
+                if let detail = shown.detail {
+                  Text(detail).font(.system(size: 11, design: shown.monospaced ? .monospaced : .default))
+                    .foregroundStyle(StudioTheme.quiet).lineLimit(1)
+                    .truncationMode(shown.isPath ? .middle : .tail)
+                }
+                if let outcome = shown.outcome {
+                  Text(outcome).foregroundStyle(action.state == .failed ? StudioTheme.failure : StudioTheme.quiet)
+                }
+              }.font(.system(size: 11))
               Text(action.result ?? L("En cours", "Running")).font(
                 .system(size: 10, design: .monospaced)
               ).foregroundStyle(StudioTheme.quiet).lineLimit(8).textSelection(.enabled)

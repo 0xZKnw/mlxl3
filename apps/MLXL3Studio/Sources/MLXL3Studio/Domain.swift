@@ -368,7 +368,8 @@ struct AssistantPart: Codable, Identifiable, Sendable {
         self.kind = kind
         self.text = text
         self.toolID = toolID
-        startedAt = kind == .processing ? Date() : nil
+        // Answers need no clock; reasoning and tool calls show how long they took.
+        startedAt = kind == .answer ? nil : Date()
     }
 }
 
@@ -487,7 +488,10 @@ final class ChatMessage: ObservableObject, Identifiable {
         objectWillChange.send()
         endProcessing()
         let kind: AssistantPart.Kind = phase == "thinking" ? .thinking : .answer
-        if parts.last?.kind != kind { parts.append(AssistantPart(kind: kind)) }
+        if parts.last?.kind != kind {
+            endThinking()
+            parts.append(AssistantPart(kind: kind))
+        }
         parts[parts.count - 1].text += text
         if phase == "thinking" {
             thinking += text
@@ -500,6 +504,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     func finish(stats: GenerationStats?, fallbackAnswer: String?, cacheContext: String?) {
         objectWillChange.send()
         endProcessing()
+        endThinking()
         isStreaming = false
         self.stats = stats
         self.cacheContext = cacheContext
@@ -514,10 +519,12 @@ final class ChatMessage: ObservableObject, Identifiable {
     func fail(_ message: String) {
         objectWillChange.send()
         endProcessing(interrupted: true)
+        endThinking()
         isStreaming = false
         error = message
         for index in toolActivities.indices where toolActivities[index].state == .running {
             toolActivities[index].state = .failed
+            endToolClock(toolActivities[index].id)
         }
         streamRevision &+= 1
     }
@@ -525,6 +532,7 @@ final class ChatMessage: ObservableObject, Identifiable {
     func startTool(id: String, serverName: String?, toolName: String, arguments: String? = nil) {
         objectWillChange.send()
         endProcessing()
+        endThinking()
         parts.append(AssistantPart(kind: .tool, toolID: id))
         toolActivities.append(
             ToolActivity(
@@ -544,11 +552,13 @@ final class ChatMessage: ObservableObject, Identifiable {
         objectWillChange.send()
         toolActivities[index].state = isError ? .failed : .complete
         toolActivities[index].result = result
+        endToolClock(id)
         streamRevision &+= 1
     }
 
     func processing(_ label: String) {
         objectWillChange.send()
+        endThinking()
         if parts.last?.kind != .processing || parts.last?.elapsed != nil {
             parts.append(AssistantPart(kind: .processing))
         }
@@ -561,6 +571,19 @@ final class ChatMessage: ObservableObject, Identifiable {
               last.elapsed == nil, let start = last.startedAt else { return }
         parts[parts.count - 1].elapsed = Date().timeIntervalSince(start)
         parts[parts.count - 1].interrupted = interrupted
+    }
+
+    /// The reasoning block that just ended keeps its duration ("Thought for 4 s").
+    private func endThinking() {
+        guard let last = parts.last, last.kind == .thinking,
+              last.elapsed == nil, let start = last.startedAt else { return }
+        parts[parts.count - 1].elapsed = Date().timeIntervalSince(start)
+    }
+
+    private func endToolClock(_ id: String) {
+        guard let index = parts.lastIndex(where: { $0.kind == .tool && $0.toolID == id }),
+              parts[index].elapsed == nil, let start = parts[index].startedAt else { return }
+        parts[index].elapsed = Date().timeIntervalSince(start)
     }
 
     var promptContent: String {
