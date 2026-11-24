@@ -85,6 +85,16 @@ struct MLXL3StudioApp: App {
                 Button(L("Réglages…", "Settings…")) { studio.openAppSettings() }
                     .keyboardShortcut(",", modifiers: .command)
             }
+            // ⌘1…⌘5 switch modes, as the sidebar rows show on hover; they also work
+            // with the sidebar hidden. selectMode keeps its own guards.
+            CommandGroup(before: .sidebar) {
+                ForEach(Array(StudioMode.allCases.enumerated()), id: \.element) { index, mode in
+                    Button(mode.displayTitle) { studio.selectMode(mode) }
+                        .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
+                        .disabled(studio.isGenerating)
+                }
+                Divider()
+            }
             CommandGroup(after: .windowList) {
                 if Image21Hardware.available {
                     Button(L("Générer une image", "Generate an image")) {
