@@ -152,6 +152,55 @@ extension StudioModel {
       "Agent sends a finite production token budget and its tool-round limit: \(limitedRequest["max_tokens"] ?? "nil") \(limitedRequest["tool_rounds"] ?? "nil")")
     limited.stopServices()
     await limited.bridge.stopAndWait()
+    // AGENT-2026-11-23-BOUCLE: an engine announcing `agent_loop_supported` gets no total
+    // budget and the long round limit; reasoning is never cut (no `reasoning_budget`).
+    let marker = root.appendingPathComponent("agent-loop-engine")
+    FileManager.default.createFile(atPath: marker.path, contents: Data())
+    defer { try? FileManager.default.removeItem(at: marker) }
+    let looping = try await readyAgent("agent-loop")
+    looping.draft = "Write the whole game"
+    looping.send()
+    try await wait { !looping.isGenerating && !looping.agentStudioBusy }
+    let loopRequest =
+      try JSONSerialization.jsonObject(
+        with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(
+      loopRequest["max_tokens"] as? Int == -1 && loopRequest["tool_rounds"] as? Int == 256
+        && loopRequest["reasoning_budget"] == nil
+        && looping.currentConversation!.messages.last!.error == nil,
+      "A newer engine's Agent turn has no total budget, 256 rounds and no reasoning cut: \(loopRequest["max_tokens"] ?? "nil") \(loopRequest["tool_rounds"] ?? "nil") \(loopRequest["reasoning_budget"] ?? "nil")")
+    let turnsBefore = looping.currentConversation!.messages.count
+    looping.draft = "budget-limit"
+    looping.send()
+    try await wait {
+      looping.currentConversation!.messages.count == turnsBefore + 2 && !looping.isGenerating
+        && !looping.agentStudioBusy
+    }
+    let loopError = looping.currentConversation!.messages.last!.error ?? ""
+    check(
+      loopError.contains("Limite de sortie") || loopError.contains("Output limit"),
+      "A newer engine's output limit is reported without the old 32,768 total: \(loopError)")
+    check(
+      limitedRequest["reasoning_budget"] == nil,
+      "An older engine is not sent a reasoning budget")
+    looping.selectMode(.chat)
+    try await wait { !looping.mcpUpdating && looping.engineState.isReady }
+    let chatBefore = looping.currentConversation?.messages.count ?? 0
+    looping.draft = "Plain chat"
+    looping.send()
+    try await wait {
+      (looping.currentConversation?.messages.count ?? 0) >= 2
+        && looping.currentConversation!.messages.count != chatBefore && !looping.isGenerating
+    }
+    let chatRequest =
+      try JSONSerialization.jsonObject(
+        with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(
+      chatRequest["max_tokens"] as? Int == -1 && chatRequest["tool_rounds"] == nil
+        && chatRequest["reasoning_budget"] == nil,
+      "Chat keeps its request without Agent budgets")
+    looping.stopServices()
+    await looping.bridge.stopAndWait()
     return count
   }
 }

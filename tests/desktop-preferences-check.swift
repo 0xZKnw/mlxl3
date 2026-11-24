@@ -63,6 +63,34 @@ extension StudioModel {
             preferences.set(name, forKey: AppAccent.preferenceKey)
             check(AppAccent.load(from: preferences) == expected, "Unexpected legacy accent " + name)
         }
+        // Styles: Graphite by default; each style persists and brings its accent; an accent
+        // picked afterwards (or a custom colour) sticks; unknown values fall back.
+        check(AppStyle.allCases == [.graphite, .minimal, .auroraASCII, .aurora], "Unexpected style list")
+        check(AppStyle.load(from: preferences) == .graphite, "Graphite must be the default style")
+        for style in AppStyle.allCases {
+            studio.setStyle(style)
+            let reopened = make(preview: true)
+            check(reopened.style == style && StudioTheme.style == style, "Style not persisted: " + style.rawValue)
+            check(reopened.accent == style.accent, "Style did not bring its accent: " + style.rawValue)
+            check(studio.draft == "Unsent text" && studio.selectedConversationID == conversation,
+                  "Changing style changed conversation or draft")
+            check(!style.title.isEmpty && !style.detail.isEmpty, "Missing style text")
+        }
+        check(AppStyle.graphite.isGraphite && AppStyle.minimal.isGraphite
+              && !AppStyle.auroraASCII.isGraphite && !AppStyle.aurora.isGraphite, "Style families mixed up")
+        studio.setStyle(.auroraASCII)
+        studio.setAccent(.amber)
+        check(make(preview: true).accent == .amber && make(preview: true).style == .auroraASCII,
+              "An accent chosen after the style must stick")
+        preferences.removeObject(forKey: AppAccent.preferenceKey)
+        check(make(preview: true).accent == .violet, "An Aurora style without a saved accent must open on Iris")
+        preferences.set(AppStyle.graphite.rawValue, forKey: AppStyle.preferenceKey)
+        check(make(preview: true).accent == .neutral, "Graphite without a saved accent must open on the neutral accent")
+        for invalid in ["neon", "", "Graphite"] {
+            preferences.set(invalid, forKey: AppStyle.preferenceKey)
+            check(AppStyle.load(from: preferences) == .graphite, "Unknown style accepted: " + invalid)
+        }
+        preferences.removeObject(forKey: AppStyle.preferenceKey)
         for theme in AppTheme.allCases {
             studio.setTheme(theme)
             check(make(preview: true).theme == theme, "Theme not persisted")
@@ -84,6 +112,9 @@ extension StudioModel {
         }
         studio.setCustomAccent(Color(red: 1, green: 0.5, blue: 0))
         check(studio.accent == .custom && studio.customAccentHex == "FF8000", "Custom color selection failed")
+        studio.setStyle(.aurora)
+        check(studio.accent == .custom, "Choosing a style replaced a custom colour")
+        studio.setStyle(.graphite)
         check(make(preview: true).customAccentHex == "FF8000" && make(preview: true).accent == .custom,
               "Custom color did not persist")
         for density in ConversationDensity.allCases {
@@ -127,7 +158,7 @@ extension StudioModel {
         studio.setStartupModelPath("/fixture/startup")
         studio.resetAppearance()
         let reset = make(preview: true)
-        check(reset.theme == .dark && reset.accent == .violet && reset.conversationDensity == .comfortable
+        check(reset.theme == .dark && reset.style == .graphite && reset.accent == .neutral && reset.conversationDensity == .comfortable
               && reset.readingWidth == .centered && reset.responseTextSize == 15
               && reset.sidebarWidth == .standard && reset.conversationFont == .standard && reset.messageBubbleStyle == .subtle
               && reset.customAccentHex == CustomAccent.defaultHex,
@@ -149,6 +180,41 @@ extension StudioModel {
             preferences.set(invalid, forKey: StartupModelPreference.key)
             check(StartupModelPreference.load(from: preferences), "Invalid startup value must use default")
         }
+        // WCAG contrast of the resolved tokens on the canvas, in every style and scheme.
+        func linear(_ v: CGFloat) -> CGFloat { v <= 0.04045 ? v / 12.92 : pow((v + 0.055) / 1.055, 2.4) }
+        func composite(_ color: Color, over base: Color) -> (CGFloat, CGFloat, CGFloat) {
+            let c = NSColor(color).usingColorSpace(.sRGB)!, b = NSColor(base).usingColorSpace(.sRGB)!
+            let a = c.alphaComponent
+            return (c.redComponent * a + b.redComponent * (1 - a), c.greenComponent * a + b.greenComponent * (1 - a),
+                    c.blueComponent * a + b.blueComponent * (1 - a))
+        }
+        func ratio(_ text: Color, on base: Color) -> CGFloat {
+            func lum(_ rgb: (CGFloat, CGFloat, CGFloat)) -> CGFloat {
+                0.2126 * linear(rgb.0) + 0.7152 * linear(rgb.1) + 0.0722 * linear(rgb.2)
+            }
+            let t = lum(composite(text, over: base)), b = lum(composite(base, over: base))
+            return (max(t, b) + 0.05) / (min(t, b) + 0.05)
+        }
+        for style in AppStyle.allCases {
+            StudioTheme.style = style
+            for dark in [false, true] {
+                NSAppearance(named: dark ? .darkAqua : .aqua)!.performAsCurrentDrawingAppearance {
+                    let ink = ratio(StudioTheme.ink, on: StudioTheme.canvas)
+                    check(ink >= 12, "Body text below 12:1 in \(style) dark=\(dark): \(ink)")
+                    check(ratio(StudioTheme.secondary, on: StudioTheme.canvas) >= 6, "Secondary text below 6:1 in \(style)")
+                    check(ratio(StudioTheme.quiet, on: StudioTheme.canvas) >= 4.5, "Quiet text below 4.5:1 in \(style) dark=\(dark)")
+                    check(ratio(StudioTheme.quiet, on: StudioTheme.sidebar) >= 4.5, "Sidebar metadata below 4.5:1 in \(style)")
+                    if style.isGraphite {
+                        // No pure white text and a sidebar darker than the canvas in dark mode.
+                        check(!dark || ink <= 15, "Graphite dark text glares: \(ink)")
+                        let canvas = composite(StudioTheme.canvas, over: StudioTheme.canvas)
+                        let sidebar = composite(StudioTheme.sidebar, over: StudioTheme.sidebar)
+                        check(sidebar.0 + sidebar.1 + sidebar.2 < canvas.0 + canvas.1 + canvas.2, "Graphite sidebar must sit below the canvas")
+                    }
+                }
+            }
+        }
+        StudioTheme.style = .graphite
         for dark in [false, true] {
             let appearance = NSAppearance(named: dark ? .darkAqua : .aqua)!
             appearance.performAsCurrentDrawingAppearance {
@@ -172,7 +238,11 @@ extension StudioModel {
         window.contentView = host
         host.frame = NSRect(x: 0, y: 0, width: 1000, height: 720)
         defer { window.close() }
-        for theme in [AppTheme.light, .dark, .light] {
+        // Aurora ASCII must carry the aurora across the settings header; Graphite (the default)
+        // keeps a plain canvas there.
+        for style in [AppStyle.auroraASCII, .graphite] {
+          studio.setStyle(style)
+          for theme in [AppTheme.light, .dark, .light] {
             studio.setTheme(theme)
             try await Task.sleep(for: .milliseconds(150))
             host.layoutSubtreeIfNeeded()
@@ -186,12 +256,18 @@ extension StudioModel {
                   "Rendered settings did not follow selected theme")
             let cool = bitmap.colorAt(x: bitmap.pixelsWide * 77 / 100, y: bitmap.pixelsHigh * 2 / 100)!.usingColorSpace(.sRGB)!
             let warm = bitmap.colorAt(x: bitmap.pixelsWide * 78 / 100, y: bitmap.pixelsHigh * 24 / 100)!.usingColorSpace(.sRGB)!
-            check(cool.blueComponent > cool.redComponent + 0.04 && warm.redComponent > warm.blueComponent + 0.06,
-                  "Settings must carry the workspace aurora across its header")
+            if style.isGraphite {
+                check(abs(cool.blueComponent - cool.redComponent) < 0.03 && abs(warm.redComponent - warm.blueComponent) < 0.03,
+                      "Graphite settings must not show a coloured aurora")
+            } else {
+                check(cool.blueComponent > cool.redComponent + 0.04 && warm.redComponent > warm.blueComponent + 0.06,
+                      "Settings must carry the workspace aurora across its header")
+            }
             if let output = ProcessInfo.processInfo.environment["MLXL3_PREFERENCE_SNAPSHOTS"],
                let data = bitmap.representation(using: .png, properties: [:]) {
-                try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("settings-" + theme.rawValue + ".png"))
+                try data.write(to: URL(fileURLWithPath: output).appendingPathComponent("settings-\(style.rawValue)-" + theme.rawValue + ".png"))
             }
+          }
         }
         let darkHost = NSHostingView(rootView: StudioView().environmentObject(studio)
             .studioAppearance(.dark).frame(width: 1280, height: 800))

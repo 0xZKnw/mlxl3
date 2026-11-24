@@ -149,6 +149,7 @@ struct MessagesView: View {
 }
 
 private struct MessageView: View {
+    @Environment(\.studioStyle) private var style
     @Environment(\.conversationTextScale) private var textScale
     @Environment(\.conversationFont) private var conversationFont
     @Environment(\.messageBubbleStyle) private var bubbleStyle
@@ -159,16 +160,32 @@ private struct MessageView: View {
         if message.role == .user {
           HStack(alignment: .top) {
             Spacer(minLength: 64)
-            VStack(alignment: .trailing, spacing: 9) {
-                HStack(spacing: 9) {
-                    Text(L("Vous", "You"))
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(StudioTheme.quiet)
+            VStack(alignment: .trailing, spacing: style.isGraphite ? 8 : 9) {
+                // Graphite: the bubble already says who wrote it.
+                if !style.isGraphite {
+                    HStack(spacing: 9) {
+                        Text(L("Vous", "You"))
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(StudioTheme.quiet)
+                    }
                 }
                 ForEach(message.attachments) { attachment in
                     ChatAttachmentView(attachment: attachment)
                 }
-                if !message.content.isEmpty {
+                if !message.content.isEmpty && style.isGraphite {
+                  Text(message.content)
+                    .font(.system(size: 15 * textScale, weight: .regular, design: conversationFont.design))
+                    .foregroundStyle(StudioTheme.ink)
+                    .lineSpacing(5 * textScale)
+                    .textSelection(.enabled)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 11)
+                    .background(bubbleStyle == .tinted ? studio.accentColor.opacity(0.16) : StudioTheme.contrast.opacity(bubbleStyle == .subtle ? 0.065 : 0), in: RoundedRectangle(cornerRadius: 16, style: .continuous))
+                    .overlay {
+                        RoundedRectangle(cornerRadius: 16, style: .continuous)
+                            .strokeBorder(StudioTheme.edge, lineWidth: bubbleStyle == .outlined ? 1 : 0)
+                    }
+                } else if !message.content.isEmpty {
                   Text(message.content)
                     .font(.system(size: 15 * textScale, weight: .medium, design: conversationFont.design))
                     .foregroundStyle(StudioTheme.ink)
@@ -194,6 +211,7 @@ private struct MessageView: View {
 }
 
 private struct AssistantMessageView: View {
+    @Environment(\.studioStyle) private var style
     @Environment(\.conversationTextScale) private var textScale
     @ObservedObject var message: ChatMessage
     @State private var citedSource: DocumentExcerpt?
@@ -201,15 +219,18 @@ private struct AssistantMessageView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 0) {
             VStack(alignment: .leading, spacing: 13) {
-                HStack(spacing: 7) {
-                    MonogramMark(size: 15)
-                    Text("MLXL3")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(StudioTheme.secondary)
-                    if message.isStreaming {
-                        StreamingIndicator()
+                // Graphite: the answer speaks for itself, no mark and name above each reply.
+                if !style.isGraphite {
+                    HStack(spacing: 7) {
+                        MonogramMark(size: 15)
+                        Text("MLXL3")
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundStyle(StudioTheme.secondary)
+                        if message.isStreaming {
+                            StreamingIndicator()
+                        }
+                        Spacer(minLength: 8)
                     }
-                    Spacer(minLength: 8)
                 }
 
                 if message.parts.isEmpty && message.isStreaming {
@@ -241,6 +262,10 @@ private struct AssistantMessageView: View {
                     }
                 }
 
+                // Graphite has no header to carry the live dot: it follows the text instead.
+                if style.isGraphite && message.isStreaming && !message.parts.isEmpty {
+                    StreamingIndicator().padding(.leading, 2)
+                }
                 if let error = message.error {
                     Label(error, systemImage: "exclamationmark.circle.fill")
                         .font(.system(size: 11, weight: .medium))
@@ -271,6 +296,7 @@ private struct AssistantMessageView: View {
 }
 
 private struct PrefillActivityRow: View {
+    @Environment(\.studioStyle) private var style
     let part: AssistantPart
     let live: Bool
 
@@ -298,14 +324,15 @@ private struct PrefillActivityRow: View {
                 let elapsed = part.elapsed ?? date.timeIntervalSince(part.startedAt ?? date)
                 Text("\(max(0, Int(elapsed))) s").monospacedDigit()
             }
-            .font(.system(size: 11))
-            .foregroundStyle(StudioTheme.secondary)
-            .padding(.vertical, 4)
+            .font(.system(size: style.isGraphite ? 11.5 : 11))
+            .foregroundStyle(style.isGraphite ? StudioTheme.quiet : StudioTheme.secondary)
+            .padding(.vertical, style.isGraphite ? 2 : 4)
             .accessibilityElement(children: .combine)
     }
 }
 
 private struct MCPToolActivityRow: View {
+    @Environment(\.studioStyle) private var style
     @Environment(\.conversationTextScale) private var textScale
     let activity: ToolActivity
     @State private var expanded = false
@@ -319,8 +346,8 @@ private struct MCPToolActivityRow: View {
             if let arguments = activity.arguments, !arguments.isEmpty {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(activity.toolName == "javascript" ? L("Code exécuté", "Code run") : L("Arguments", "Arguments"))
-                        .font(.system(size: 8, weight: .bold, design: .rounded))
-                        .tracking(0.65)
+                        .font(style.isGraphite ? .system(size: 11, weight: .medium) : .system(size: 8, weight: .bold, design: .rounded))
+                        .tracking(style.isGraphite ? 0 : 0.65)
                         .foregroundStyle(StudioTheme.quiet)
                     if fullArguments {
                         ScrollView([.vertical, .horizontal]) {
@@ -374,6 +401,26 @@ private struct MCPToolActivityRow: View {
                 .padding(.top, 8)
             }
         } label: {
+            if style.isGraphite {
+                HStack(spacing: 8) {
+                    stateIcon
+                    VStack(alignment: .leading, spacing: 1) {
+                        Text(activity.toolName == "invalid_tool_call" ? L("Appel d’outil illisible", "Unreadable tool call") : activity.toolName)
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(StudioTheme.ink)
+                            .lineLimit(1)
+                        if let server = activity.serverName {
+                            Text("MCP · \(server)")
+                                .font(.system(size: 11))
+                                .foregroundStyle(StudioTheme.quiet)
+                        }
+                    }
+                    Spacer()
+                    Text(stateLabel)
+                        .font(.system(size: 11))
+                        .foregroundStyle(stateColor)
+                }
+            } else {
             HStack(spacing: 8) {
                 stateIcon
                 VStack(alignment: .leading, spacing: 1) {
@@ -393,14 +440,16 @@ private struct MCPToolActivityRow: View {
                     .tracking(0.5)
                     .foregroundStyle(stateColor)
             }
+            }
         }
         .tint(StudioTheme.contrast.opacity(0.42))
         .padding(.horizontal, 12)
-        .padding(.vertical, 9)
-        .background(StudioTheme.contrast.opacity(0.025), in: RoundedRectangle(cornerRadius: 11))
+        .padding(.vertical, style.isGraphite ? 8 : 9)
+        .background(StudioTheme.contrast.opacity(style.isGraphite ? 0.04 : 0.025),
+                    in: RoundedRectangle(cornerRadius: style.isGraphite ? 10 : 11, style: style.isGraphite ? .continuous : .circular))
         .overlay {
-            RoundedRectangle(cornerRadius: 11)
-                .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.6)
+            RoundedRectangle(cornerRadius: style.isGraphite ? 10 : 11, style: style.isGraphite ? .continuous : .circular)
+                .stroke(style.isGraphite ? StudioTheme.edge : StudioTheme.contrast.opacity(0.07), lineWidth: style.isGraphite ? 0.5 : 0.6)
         }
     }
 
@@ -411,24 +460,33 @@ private struct MCPToolActivityRow: View {
                 .controlSize(.mini)
                 .tint(StudioTheme.accent)
         } else {
-            Image(systemName: activity.state == .complete ? "checkmark.circle.fill" : "xmark.circle.fill")
-                .font(.system(size: 11, weight: .semibold))
+            Image(systemName: style.isGraphite ? (activity.state == .complete ? "checkmark" : "xmark")
+                  : (activity.state == .complete ? "checkmark.circle.fill" : "xmark.circle.fill"))
+                .font(.system(size: style.isGraphite ? 10 : 11, weight: .semibold))
+                .frame(width: style.isGraphite ? 14 : nil)
                 .foregroundStyle(stateColor)
         }
     }
 
     private var stateLabel: String {
+        if style.isGraphite {
+            switch activity.state {
+            case .running: return L("En cours", "Running")
+            case .complete: return L("Terminé", "Done")
+            case .failed: return L("Erreur", "Error")
+            }
+        }
         switch activity.state {
-        case .running: L("EXÉCUTION", "RUNNING")
-        case .complete: L("TERMINÉ", "DONE")
-        case .failed: L("ERREUR", "ERROR")
+        case .running: return L("EXÉCUTION", "RUNNING")
+        case .complete: return L("TERMINÉ", "DONE")
+        case .failed: return L("ERREUR", "ERROR")
         }
     }
 
     private var stateColor: Color {
         activity.state == .failed
-            ? Color(red: 1, green: 0.48, blue: 0.50)
-            : StudioTheme.accent.opacity(0.82)
+            ? (style.isGraphite ? Color(red: 0.93, green: 0.45, blue: 0.42) : Color(red: 1, green: 0.48, blue: 0.50))
+            : (style.isGraphite ? StudioTheme.quiet : StudioTheme.accent.opacity(0.82))
     }
 }
 
@@ -438,7 +496,7 @@ private struct StreamingIndicator: View {
 
     var body: some View {
         Circle()
-            .fill(StudioTheme.accent)
+            .fill(StudioTheme.live)
             .frame(width: 5, height: 5)
             // Scope the endless animation to opacity/scale. A view-wide
             // `.animation(_:value:)` started from `onAppear` also captured the
@@ -545,6 +603,7 @@ private struct ThinkingBlock: View, Equatable {
 }
 
 private struct ThinkingTextChunk: View, Equatable {
+    @Environment(\.studioStyle) private var style
     let source: String
     let streaming: Bool
     let textScale: CGFloat
@@ -555,9 +614,11 @@ private struct ThinkingTextChunk: View, Equatable {
 
     var body: some View {
         SmoothTokenText(content: Text(source), source: source, streaming: streaming)
-            .font(.system(size: 11.5 * textScale, weight: .regular, design: .monospaced))
-            .foregroundStyle(StudioTheme.secondary)
-            .lineSpacing(3 * textScale)
+            // Graphite: proportional type, de-emphasised; mono belongs to code.
+            .font(style.isGraphite ? .system(size: 13 * textScale, weight: .regular)
+                  : .system(size: 11.5 * textScale, weight: .regular, design: .monospaced))
+            .foregroundStyle(style.isGraphite ? StudioTheme.contrast.opacity(0.62) : StudioTheme.secondary)
+            .lineSpacing((style.isGraphite ? 4 : 3) * textScale)
             .textSelection(.enabled)
             .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -609,11 +670,28 @@ private struct StatsRow: View {
 }
 
 private struct MetricChip: View {
+    @Environment(\.studioStyle) private var style
     let icon: String
     let value: String
     let label: String
 
     var body: some View {
+        if style.isGraphite {
+            // Numbers, not an icon per chip.
+            HStack(spacing: 5) {
+                Text(value).foregroundStyle(StudioTheme.secondary)
+                Text(label).foregroundStyle(StudioTheme.quiet)
+            }
+            .font(.system(size: 11))
+            .frame(height: 22)
+            .monospacedDigit()
+            .accessibilityElement(children: .combine)
+        } else {
+            chip
+        }
+    }
+
+    private var chip: some View {
         HStack(spacing: 5) {
             Image(systemName: icon)
                 .font(.system(size: 8, weight: .semibold))
@@ -703,6 +781,7 @@ struct ChatAttachmentView: View {
 }
 
 struct ComposerView: View {
+    @Environment(\.studioStyle) private var style
     @Environment(\.conversationReadingWidth) private var readingWidth
     @EnvironmentObject private var studio: StudioModel
     @FocusState private var focused: Bool
@@ -795,19 +874,23 @@ struct ComposerView: View {
             focused = true
         }
         .background {
-            // Two shadows: a tight contact shadow and a wide ambient lift.
+            // Two shadows: a tight contact shadow and a wide ambient lift (softer in Graphite).
+            let graphite = style.isGraphite
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .fill(StudioTheme.composer)
-                .shadow(color: .black.opacity(0.08), radius: 2, y: 1)
-                .shadow(color: .black.opacity(focused ? 0.16 : 0.11), radius: focused ? 22 : 16, y: focused ? 10 : 7)
+                .shadow(color: .black.opacity(graphite ? 0.06 : 0.08), radius: graphite ? 1 : 2, y: 1)
+                .shadow(color: .black.opacity(focused ? (graphite ? 0.12 : 0.16) : (graphite ? 0.08 : 0.11)),
+                        radius: focused ? (graphite ? 18 : 22) : (graphite ? 14 : 16), y: focused ? (graphite ? 8 : 10) : (graphite ? 6 : 7))
         }
         .overlay {
+            // Graphite keeps the focus ring neutral: the accent is not decoration.
             RoundedRectangle(cornerRadius: 18, style: .continuous)
                 .strokeBorder(
                     dropTargeted ? AnyShapeStyle(studio.accentColor)
+                        : style.isGraphite ? AnyShapeStyle(StudioTheme.contrast.opacity(focused ? 0.18 : 0.10))
                         : focused ? AnyShapeStyle(studio.accentColor.opacity(0.45))
                         : AnyShapeStyle(StudioTheme.contrast.opacity(0.12)),
-                    lineWidth: dropTargeted ? 2 : 1)
+                    lineWidth: dropTargeted ? 2 : style.isGraphite ? 0.5 : 1)
                 .allowsHitTesting(false)
         }
         .animation(.easeOut(duration: 0.18), value: focused)

@@ -76,7 +76,7 @@ struct CodeFullscreenView: View {
             mode("Code", icon: "chevron.left.forwardslash.chevron.right", preview: false)
             mode(L("Aperçu", "Preview"), icon: "play", preview: true)
           }
-          .padding(3).background(Color.white.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
+          .padding(3).background(StudioTheme.contrast.opacity(0.04), in: RoundedRectangle(cornerRadius: 8))
         }
         Button(action: onClose) {
           Label(L("Quitter le plein écran", "Exit full screen"),
@@ -89,7 +89,7 @@ struct CodeFullscreenView: View {
         .help(L("Quitter le plein écran (Échap)", "Exit full screen (Esc)"))
       }
       .padding(.horizontal, 18).frame(height: 52)
-      .background(Color.white.opacity(0.025))
+      .background(StudioTheme.contrast.opacity(0.025))
       Rectangle().fill(StudioTheme.edge).frame(height: 1)
       if showingPreview && canPreview {
         InlineHTMLPreview(source: source, workspace: workspace, file: file)
@@ -109,7 +109,7 @@ struct CodeFullscreenView: View {
         .font(.system(size: 10, weight: .medium))
         .padding(.horizontal, 9).frame(height: 26)
         .foregroundStyle(showingPreview == preview ? StudioTheme.ink : StudioTheme.quiet)
-        .background(showingPreview == preview ? Color.white.opacity(0.085) : .clear,
+        .background(showingPreview == preview ? StudioTheme.contrast.opacity(0.085) : .clear,
                     in: RoundedRectangle(cornerRadius: 6))
     }
     .buttonStyle(.plain)
@@ -136,7 +136,7 @@ extension StudioModel {
         onClose: { presenter.close() }
       )
       .environmentObject(self)
-      .studioAppearance(theme, accent: accent, customAccent: customAccentColor),
+      .studioAppearance(self),
       onClose: onClose)
   }
 }

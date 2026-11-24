@@ -1,0 +1,60 @@
+{
+ "engine": "/private/tmp/claude-501/-Users-justin--claude-spares-spare-txJc1Q/dbdc1dba-1b15-4fa7-9d91-860179ac5205/scratchpad/release/engine-extract/mlxl3",
+ "model": "Inkling-2-Mini-EXL3-3.33bpw-a3d2f7a6",
+ "checks": {
+  "tool": {
+   "answer": "Your project has **3 files**.",
+   "calls": [
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "return list().length"
+     }
+    }
+   ],
+   "results": [
+    {
+     "error": false,
+     "text": "Result:\n3"
+    }
+   ],
+   "stop_reason": "eos",
+   "dspark_blocks": null,
+   "tokens": 244
+  },
+  "dspark_on": {
+   "answer": "",
+   "calls": [],
+   "results": [],
+   "stop_reason": "max_tokens",
+   "dspark_blocks": 57,
+   "tokens": 96
+  },
+  "dspark_absent": {
+   "answer": "",
+   "calls": [],
+   "results": [],
+   "stop_reason": "max_tokens",
+   "dspark_blocks": null,
+   "tokens": 96
+  },
+  "dspark_off": {
+   "answer": "",
+   "calls": [],
+   "results": [],
+   "stop_reason": "max_tokens",
+   "dspark_blocks": null,
+   "tokens": 96
+  }
+ },
+ "passed": true,
+ "ready": {
+  "runtime_commit": "e117e02e8f7b",
+  "runtime_version": "2.0.31",
+  "tool_rounds_supported": true,
+  "mcp_call_timeout_supported": true,
+  "dspark_supported": true
+ },
+ "tool_ok": true,
+ "dspark_ok": true
+}

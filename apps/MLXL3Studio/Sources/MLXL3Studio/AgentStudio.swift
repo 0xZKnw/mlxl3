@@ -188,7 +188,7 @@ struct AgentStudioView: View {
     VStack(alignment: .leading, spacing: 0) {
       StudioSidebarHeader(title: "Agent Studio")
       HStack {
-        Text(L("EXPLORATEUR", "EXPLORER")).font(.system(size: 9, weight: .medium)).tracking(1.4)
+        StudioCaption(french: "Explorateur", english: "Explorer", size: 9, colored: false)
         Spacer()
         Text("\(model.paths.count)").font(.system(size: 10, design: .monospaced))
       }.foregroundStyle(StudioTheme.quiet).padding(.horizontal, 18).frame(height: 47).fixedSize(
@@ -454,7 +454,7 @@ struct AgentStudioView: View {
   private var history: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 24) {
-        Text(L("Versions du projet", "Project versions")).font(.system(size: 25, design: .serif))
+        Text(L("Versions du projet", "Project versions")).font(StudioTheme.display(25))
         ForEach(model.versions) { value in
           Button {
             navigate {
@@ -489,7 +489,7 @@ struct AgentStudioView: View {
         if let actions = studio.currentConversation?.messages.flatMap(\.toolActivities),
           !actions.isEmpty
         {
-          Text(L("Actions de l’agent", "Agent actions")).font(.system(size: 22, design: .serif))
+          Text(L("Actions de l’agent", "Agent actions")).font(StudioTheme.display(22))
             .padding(.top, 8)
           ForEach(actions) { action in
             VStack(alignment: .leading, spacing: 7) {
@@ -561,8 +561,8 @@ struct AgentStudioView: View {
       ).font(.system(size: 11))
       Text(
         L(
-          "Les commandes lisent le Mac sauf les secrets (clés, trousseaux, navigateurs, fichiers .env) et n’écrivent que dans la copie. Désactiver l’écriture bloque aussi leurs écritures.",
-          "Commands read the Mac except secrets (keys, keychains, browsers, .env files) and write only to the copy. Disabling writes also blocks their writes.")
+          "Les commandes lisent tout le Mac, y compris les clés et fichiers d’apps, et n’écrivent que dans la copie et /tmp. Désactiver l’écriture bloque aussi leurs écritures dans la copie.",
+          "Commands read the whole Mac, keys and app files included, and write only to the copy and /tmp. Disabling writes also blocks their writes to the copy.")
       ).font(.system(size: 10)).foregroundStyle(StudioTheme.quiet)
       Divider()
       permission(L("Internet", "Internet"), key: \.internet)
@@ -618,7 +618,7 @@ struct AgentStudioView: View {
     VStack(spacing: 13) {
       Image(systemName: icon).font(.system(size: 25, weight: .light)).foregroundStyle(
         StudioTheme.quiet)
-      Text(title).font(.system(size: 22, design: .serif))
+      Text(title).font(StudioTheme.display(22))
       Text(description).font(.system(size: 11)).foregroundStyle(StudioTheme.quiet)
         .multilineTextAlignment(.center).frame(maxWidth: 340)
     }.padding(30).frame(maxWidth: .infinity, maxHeight: .infinity)

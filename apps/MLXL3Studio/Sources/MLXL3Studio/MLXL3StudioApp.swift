@@ -60,7 +60,9 @@ struct MLXL3StudioApp: App {
                 } else { StudioView() }
             }
                 .environmentObject(studio)
-                .studioAppearance(studio.theme, accent: studio.accent, customAccent: studio.customAccentColor)
+                .studioAppearance(studio)
+                // Tokens resolve the style when drawn: rebuild the window on a style change.
+                .id(studio.style)
                 .onAppear {
                     if !isPreview {
                         studio.start()
@@ -81,6 +83,23 @@ struct MLXL3StudioApp: App {
             CommandGroup(replacing: .appSettings) {
                 Button(L("Réglages…", "Settings…")) { studio.openAppSettings() }
                     .keyboardShortcut(",", modifiers: .command)
+            }
+        }
+
+        Window(L("Générer une image", "Generate an image"), id: "image-generation") {
+            if Image21Hardware.available {
+                ImageGenerationView()
+            } else {
+                Text(Image21Hardware.requirement).padding()
+            }
+        }
+        .defaultSize(width: 680, height: 670)
+        .defaultLaunchBehavior(.suppressed)
+        .commandsReplaced {
+            CommandGroup(after: .windowList) {
+                if Image21Hardware.available {
+                    WindowVisibilityToggle(windowID: "image-generation")
+                }
             }
         }
 

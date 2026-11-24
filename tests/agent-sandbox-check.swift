@@ -55,7 +55,7 @@ struct AgentSandboxCheck {
     var classicOffline = classic
     classicOffline.internet = false
     let classicPrompt = { (commands: String) in
-      "You are a local coding agent. Use list_files and read_file to explore the project, write_file to edit it, and run to execute commands and verify your changes. Only enabled tools are available. You work on an isolated copy; originals are changed only after user review. Commands run in a macOS sandbox: they read any file except secrets, write only to the copy and $TMPDIR, \(commands) Use relative paths. Never claim to have executed a command unless its tool result confirms it. Explain failures and limits honestly."
+      "You are a local coding agent. Use list_files and read_file to explore the project, write_file to edit it, and run to execute commands and verify your changes. Only enabled tools are available. You work on an isolated copy; originals are changed only after user review. Commands run in a macOS sandbox: they read any file, write only to the copy, $TMPDIR and /tmp, \(commands) Use relative paths. Never claim to have executed a command unless its tool result confirms it. Explain failures and limits honestly."
     }
     check(
       AgentSandbox.instructions(for: classic)
@@ -261,6 +261,9 @@ struct AgentSandboxCheck {
     check(
       !jsPrompt.contains("30 seconds") && jsPrompt.contains("limits the tool description gives")
         && jsPrompt.contains("give the final answer"), "JavaScript prompt limits: \(jsPrompt)")
+    // AGENT-2026-11-23-VITESSE: the concise rule (V2) was withdrawn on the user's decision; the
+    // prompt stays the one measured as arm A.
+    check(!jsPrompt.contains("Write no text before or between calls."), "JavaScript prompt keeps its full answers: \(jsPrompt)")
     check(
       AgentJavaScript.toolDescription(all).contains("Limits per call: 10 s")
         && AgentJavaScript.toolDescription(all).contains("Each call starts fresh.")
@@ -314,8 +317,12 @@ struct AgentSandboxCheck {
     check(killedKeep.isError && killedKeep.text.contains("`state` keeps its value from before this call."), "killed call: \(killedKeep.text)")
     check(try kept("return state.n").text == "Result:\n3", "killed call did not save state")
     check(try kept("state.s = 'é 👩‍💻'; return 1").text == "Result:\n1" && (try kept("return state.s === 'é 👩‍💻'")).text == "Result:\ntrue", "Unicode state")
-    let peek = try kept("return run('cat ../studio/js-state.json; cat \(stateFile.path)').output")
-    check(!peek.text.contains("\"n\":3") && !peek.text.contains("\"n\": 3"), "state file out of the sandbox's reach: \(peek.text)")
+    // Commands may read the state file (the whole disk is readable) but never change it.
+    let tamper = try kept("return run('printf x > \(stateFile.path); printf x > ../studio/js-state.json').output")
+    let afterTamper = try kept("return state.n")
+    check(
+      tamper.text.contains("Operation not permitted") && afterTamper.text == "Result:\n3",
+      "state file out of the sandbox's write reach: \(tamper.text)")
     try Data("not json".utf8).write(to: stateFile)
     let corrupt = try kept("return Object.keys(state).length")
     check(corrupt.text == "warning: the saved state could not be read; `state` starts empty\nResult:\n0", "corrupt state: \(corrupt.text)")
@@ -388,8 +395,14 @@ struct AgentSandboxCheck {
     }
     let outside = try js("return [read(\(jsonString("../" + secret.lastPathComponent)))]")
     check(outside.isError && !outside.text.contains("PRIVATE"), "relative escape read")
+    // Commands read outside the project (DeepSeek Harness's sandbox) but never write there.
     let absolute = try js("return run('cat \(secret.path)')")
-    check(absolute.text.contains(#""status": 1"#) && !absolute.text.contains("PRIVATE"), "absolute read through run")
+    check(absolute.text.contains(#""status": 0"#) && absolute.text.contains("PRIVATE-CONTENT"), "absolute read through run: \(absolute.text)")
+    let absoluteWrite = try js("return run('printf x > \(secret.path)')")
+    check(
+      absoluteWrite.text.contains("Operation not permitted")
+        && (try? String(contentsOf: secret, encoding: .utf8)) == "PRIVATE-CONTENT-DO-NOT-LEAK",
+      "absolute write through run: \(absoluteWrite.text)")
     check(try js("write('.git/config', 'x')").isError, ".git refused")
 
     // Permissions are enforced by the host, not only by hiding functions.
@@ -758,6 +771,58 @@ struct AgentSandboxCheck {
   /// The robust single-tool API (AGENT-2026-11-23-HARNESS-SOLIDE): numbered views, edits that
   /// tolerate what small models get wrong and say how to fix the rest, atomic multi-edits,
   /// clean command output, programs sent as a function, and loop notes. Literal oracles.
+  /// P4 (AGENT-2026-11-24-DSH-PISTES, DeepSeek Harness's spill): a cut `run` output is kept
+  /// whole in `.mlxl3-scratch/outputs/`, named in the marker, readable with `view`/`search`,
+  /// left out of `list()`; a short output writes nothing; a planted link is never followed;
+  /// the 16 newest files stay.
+  static func checkSpill(root: URL, check: (Bool, String) -> Void) throws {
+    var permissions = AgentPermissions()
+    permissions.harness = .javascript
+    permissions.internet = false
+    permissions.commandSeconds = 10
+    let kernel = try AgentJavaScript.Kernel(root: root)
+    defer { kernel.shutdown() }
+    func js(_ code: String) -> String {
+      (try? kernel.run(code: code, permissions: permissions, settings: .init(wall: 15)).text) ?? "<threw>"
+    }
+    let folder = root.appendingPathComponent(AgentSandbox.Spill.folder)
+    try? FileManager.default.removeItem(at: root.appendingPathComponent(".mlxl3-scratch"))
+    func files() -> [String] {
+      ((try? FileManager.default.contentsOfDirectory(atPath: folder.path)) ?? []).sorted()
+    }
+    // Short: nothing written.
+    check(js("run('seq 1 100').status") == "Result:\n0" && files().isEmpty, "short output spilled: \(files())")
+    // Long (≈ 109 KB): the marker names the file, which holds every byte.
+    let expected = (1...20_000).map(String.init).joined(separator: "\n") + "\n"
+    let long = js("$.r = run('seq 1 20000'); return $.r.output.match(/all of it is in (\\S+):/)[1]")
+    let spilled = files()
+    check(spilled.count == 1 && long == "Result:\n\(AgentSandbox.Spill.folder)/\(spilled[0])", "spill path: \(long) \(spilled)")
+    let whole = (try? String(contentsOf: folder.appendingPathComponent(spilled.first ?? "-"), encoding: .utf8)) ?? ""
+    check(whole == expected, "spilled bytes: \(whole.utf8.count) of \(expected.utf8.count)")
+    let path = String(long.dropFirst("Result:\n".count))
+    let found = js("search('^10000$', \(jsonString(path))).map(m => m.line)")
+    check(found == "Result:\n[\n  10000\n]", "search in the spilled output: \(found)")
+    let viewed = js("view(\(jsonString(path)), 9999, 2)")
+    check(viewed.contains("9999| 9999") && viewed.contains("10000| 10000"), "view of the spilled output: \(viewed)")
+    check(!js("list()").contains(AgentSandbox.Spill.folder), "list() shows spilled outputs")
+    // Between the shown size and the in-memory limit (40 KB): still kept whole.
+    let middle = js("run('head -c 40000 /dev/zero | tr \"\\\\0\" x').output.includes('all of it is in')")
+    check(middle == "Result:\ntrue" && files().count == 2, "mid-size spill: \(middle) \(files())")
+    // Only the 16 newest stay.
+    for _ in 0..<16 { _ = js("run('seq 1 20000').status") }
+    check(files().count == AgentSandbox.Spill.kept, "kept spills: \(files().count)")
+    // A link planted in place of the folder is not followed: nothing is written through it.
+    let outside = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-spill-\(UUID())")
+    try FileManager.default.createDirectory(at: outside, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: outside) }
+    try FileManager.default.removeItem(at: folder)
+    try FileManager.default.createSymbolicLink(at: folder, withDestinationURL: outside)
+    let planted = js("run('seq 1 20000').output.includes('bytes of output omitted ...]')")
+    let leaked = (try? FileManager.default.contentsOfDirectory(atPath: outside.path)) ?? []
+    check(planted == "Result:\ntrue" && leaked.isEmpty, "spill followed a planted link: \(planted) \(leaked)")
+    try? FileManager.default.removeItem(at: root.appendingPathComponent(".mlxl3-scratch"))
+  }
+
   static func checkHarness(root: URL, check: (Bool, String) -> Void) throws {
     var permissions = AgentPermissions()
     permissions.harness = .javascript
@@ -868,62 +933,57 @@ struct AgentSandboxCheck {
     check(failing.note(code: "d()", outcome: same) == nil && failing.note(code: "e()", outcome: boom("")) == nil, "a success resets the error streak")
   }
 
-  /// The open sandbox (user decision 2026-11-23): commands read the disk except secrets and
-  /// the copy's own folder, write only to the copy and their home, and reach the network only
-  /// with Internet on. Secrets live in a throwaway home passed as `userHome`, never the real one.
+  /// The sandbox of DeepSeek Harness (user decision 2026-11-24, AGENT-2026-11-24-DSH-PISTES):
+  /// commands read the whole disk, secrets included, write only to the copy, their home and
+  /// /tmp (no link, rename or removal reaches outside), reach the network only with Internet
+  /// on, and use Unix sockets, Mach services and signals freely.
   static func checkOpenSandbox(
     root: URL, check: (Bool, String) -> Void
   ) throws {
-    let user = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-home-\(UUID())")
+    let outside = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-outside-\(UUID())")
       .resolvingSymlinksInPath()
-    defer { try? FileManager.default.removeItem(at: user) }
+    defer { try? FileManager.default.removeItem(at: outside) }
+    check(!outside.path.hasPrefix("/private/tmp/"), "the outside folder must not be a writable root: \(outside.path)")
     let files: [(String, String)] = [
-      ("Documents/notes.txt", "NOTES-READABLE"), ("Library/Developer/sdk.txt", "SDK-READABLE"),
-      ("proj/.env.local", "SECRET-ENV"), ("proj/.env", "SECRET-ENV"), (".ssh/id_ed25519", "SECRET-SSH"),
-      ("Library/Keychains/login.keychain-db", "SECRET-KEYCHAIN"),
-      ("Library/Application Support/Google/Chrome/Default/Cookies", "SECRET-BROWSER"),
-      ("Library/Application Support/io.mlxl3.desktop/conversations.json", "SECRET-CHAT"),
-      (".config/gh/hosts.yml", "SECRET-GH"), (".aws/credentials", "SECRET-AWS"),
-      (".zsh_history", "SECRET-HISTORY"), (".claude.json", "SECRET-AGENT"),
+      ("notes.txt", "NOTES"), (".ssh/id_ed25519", "KEY"),
+      ("Library/Application Support/io.mlxl3.desktop/conversations.json", "CHAT"), ("proj/.env", "ENV"),
     ]
     for (path, text) in files {
-      let file = user.appendingPathComponent(path)
+      let file = outside.appendingPathComponent(path)
       try FileManager.default.createDirectory(at: file.deletingLastPathComponent(), withIntermediateDirectories: true)
       try Data(text.utf8).write(to: file)
     }
     func quote(_ value: String) -> String { "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'" }
+    func at(_ path: String) -> String { quote(outside.path + "/" + path) }
     func run(_ command: String, network: Bool = false) throws -> AgentSandbox.Result {
-      try AgentSandbox.execute(root: root, command: command, seconds: 10, network: network, userHome: user.path)
+      try AgentSandbox.execute(root: root, command: command, seconds: 10, network: network)
     }
-    // Reads: ordinary files and Library's developer folders, never a secret, by any path.
-    let readable = try run("cat \(quote(user.path + "/Documents/notes.txt")) \(quote(user.path + "/Library/Developer/sdk.txt")) /usr/share/dict/words | head -c 40")
-    check(readable.status == 0 && readable.output.hasPrefix("NOTES-READABLESDK-READABLE"), "reads outside the copy: \(readable.output)")
-    for (path, text) in files where text.hasPrefix("SECRET") {
-      let full = quote(user.path + "/" + path)
-      let read = try run("cat \(full)")
-      let around = try run("cat \"$(dirname \(full))\"/* \"$(dirname \(full))\"/.[!.]*; ls -a \"$(dirname \(full))\"")
-      check(
-        read.status != 0 && read.output.contains("Operation not permitted") && !read.output.contains("SECRET")
-          && !around.output.contains("SECRET"), "secret readable: \(path): \(read.output) \(around.output)")
+    // Reads: every file, keys and app data included, as in DeepSeek Harness.
+    let readable = try run(files.map { "cat \(at($0.0))" }.joined(separator: "; "))
+    check(readable.status == 0 && readable.output == "NOTESKEYCHATENV", "reads outside the copy: \(readable.output)")
+    // Writes outside: creating, appending, removing, renaming, writing through a symbolic or
+    // a hard link are all refused by the kernel.
+    let attempts = try run(
+      "printf x > \(at("new.txt")); printf x >> \(at("notes.txt")); rm -f \(at(".ssh/id_ed25519")); mv \(at("proj/.env")) moved; ln -s \(at("notes.txt")) soft; printf y > soft; ln \(at("notes.txt")) hard; printf z > hard; rm -f soft hard")
+    var unchanged = true
+    for (path, text) in files {
+      unchanged = unchanged && (try? String(contentsOf: outside.appendingPathComponent(path), encoding: .utf8)) == text
     }
-    let aliases = try run(
-      "ln -s \(quote(user.path + "/.ssh/id_ed25519")) key-link; cat key-link; ln \(quote(user.path + "/.ssh/id_ed25519")) key-hard; cat key-hard; cp \(quote(user.path + "/.aws/credentials")) copied; cat copied")
     check(
-      !aliases.output.contains("SECRET") && !FileManager.default.fileExists(atPath: root.appendingPathComponent("key-hard").path)
-        && !FileManager.default.fileExists(atPath: root.appendingPathComponent("copied").path),
-      "secret reached through a link or copy: \(aliases.output)")
-    try? FileManager.default.removeItem(at: root.appendingPathComponent("key-link"))
-    // The copy's own `.env` stays readable: it is the project.
-    let local = try run("printf LOCAL-ENV > .env; cat .env; rm .env")
-    check(local.output == "LOCAL-ENV", "the copy's .env: \(local.output)")
-    let outsideWrite = try run("printf x > \(quote(user.path + "/Documents/new.txt")); printf x >> \(quote(user.path + "/Documents/notes.txt"))")
-    let notes = try String(contentsOf: user.appendingPathComponent("Documents/notes.txt"), encoding: .utf8)
-    check(
-      outsideWrite.status != 0 && !FileManager.default.fileExists(atPath: user.appendingPathComponent("Documents/new.txt").path)
-        && notes == "NOTES-READABLE",
-      "write outside the copy: \(outsideWrite.output)")
+      unchanged && !FileManager.default.fileExists(atPath: outside.appendingPathComponent("new.txt").path)
+        && !FileManager.default.fileExists(atPath: root.appendingPathComponent("moved").path)
+        && attempts.output.components(separatedBy: "Operation not permitted").count - 1 >= 5,
+      "write outside the copy: \(attempts.output)")
+    // Writes inside: the copy and its own hard links, /tmp, the standard streams.
+    let inside = try run(
+      "printf in > a.txt; ln a.txt b.txt && cat b.txt; t=/tmp/mlxl3-agent-$$; printf tmp > \"$t\" && cat \"$t\" && rm \"$t\"; echo err > /dev/stderr; rm a.txt b.txt")
+    check(inside.status == 0 && inside.output == "intmperr\n", "writes inside the roots: \(inside.output)")
+    // Mach services (cfprefsd through `defaults`) and new sessions are no longer refused.
+    let system = try run(
+      "/usr/bin/defaults read -g >/dev/null && echo MACH; /usr/bin/python3 -c 'import os; os.setsid(); print(\"SESSION\")' 2>&1 | tail -1")
+    check(system.output == "MACH\nSESSION\n", "Mach services and setsid: \(system.output)")
     // Network: a local TCP listener (no Internet needed) and a Unix socket outside the copy,
-    // like ssh-agent's. TCP only with the setting; the outside socket never.
+    // like ssh-agent's. TCP only with the setting; Unix sockets always.
     let tcp = socket(AF_INET, SOCK_STREAM, 0)
     let unixSocket = socket(AF_UNIX, SOCK_STREAM, 0)
     let socketPath = "/private/tmp/mlxl3-agent-\(getpid()).sock"
@@ -957,32 +1017,15 @@ struct AgentSandboxCheck {
     let offline = try run(connect)
     let online = try run(connect, network: true)
     check(
-      offline.output == "tcp Operation not permitted\nunix Operation not permitted\nOWN\n"
-        && online.output == "TCP\nunix Operation not permitted\nOWN\n",
-      "network follows the setting, outside sockets never: offline \(offline.output) online \(online.output)")
-    let offlineProfile = try AgentSandbox.profile(root: root, userHome: user.path)
-    let onlineProfile = try AgentSandbox.profile(root: root, network: true, userHome: user.path)
+      offline.output == "tcp Operation not permitted\nUNIX\nOWN\n"
+        && online.output == "TCP\nUNIX\nOWN\n",
+      "IP network follows the setting, Unix sockets always: offline \(offline.output) online \(online.output)")
+    let offlineProfile = try AgentSandbox.profile(root: root)
+    let onlineProfile = try AgentSandbox.profile(root: root, network: true)
     check(
-      !offlineProfile.contains("(remote ip") && onlineProfile.contains("(remote ip \"*:*\")")
-        && !onlineProfile.contains("(allow network-outbound)") && !onlineProfile.contains("(allow network*)"),
-      "network rules only with the setting, IP only")
-    for home in ["relative", "/", "/Users/a\"b", "/Users/a\\b", "/Users/^x", "/Users/a\nb"] {
-      do {
-        _ = try AgentSandbox.profile(root: root, userHome: home)
-        check(false, "unsafe home accepted: \(home)")
-      } catch { check(true, "") }
-    }
-    // A home whose name has regular-expression characters: its `.env` files still match.
-    let odd = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3 home (1).x+[y]{2}$|?*-\(UUID())")
-      .resolvingSymlinksInPath()
-    defer { try? FileManager.default.removeItem(at: odd) }
-    try FileManager.default.createDirectory(at: odd.appendingPathComponent("p"), withIntermediateDirectories: true)
-    try Data("SECRET-ENV".utf8).write(to: odd.appendingPathComponent("p/.env"))
-    try Data("PLAIN".utf8).write(to: odd.appendingPathComponent("p/env.txt"))
-    let oddRead = try AgentSandbox.execute(
-      root: root, command: "cat \(quote(odd.path + "/p/env.txt")); cat \(quote(odd.path + "/p/.env"))", seconds: 5,
-      userHome: odd.path)
-    check(oddRead.output.hasPrefix("PLAIN") && !oddRead.output.contains("SECRET"), "escaped home pattern: \(oddRead.output)")
+      offlineProfile.contains("(allow default)") && offlineProfile.contains("(deny network-outbound (remote ip \"*:*\"))")
+        && onlineProfile.contains("(allow default)") && !onlineProfile.contains("network"),
+      "network rules only without the setting, IP only")
     // Real Internet, on demand only: HTTPS, git clone and pip from a command.
     guard ProcessInfo.processInfo.environment["MLXL3_NETWORK_TESTS"] == "1" else {
       print("Live command network checks not run (set MLXL3_NETWORK_TESTS=1)")
@@ -991,7 +1034,7 @@ struct AgentSandboxCheck {
     let live = try AgentSandbox.execute(
       root: root,
       command: "curl -sS -o /dev/null -w 'curl %{http_code}\\n' https://raw.githubusercontent.com/octocat/Hello-World/master/README && git clone -q --depth 1 https://github.com/octocat/Hello-World.git .mlxl3-scratch/hw && cat .mlxl3-scratch/hw/README; rm -rf .mlxl3-scratch",
-      seconds: 30, network: true, userHome: user.path)
+      seconds: 30, network: true)
     check(live.output.hasPrefix("curl 200\nHello World!"), "live HTTPS and git clone: \(live.output)")
     let pipProbe = Process()
     pipProbe.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
@@ -1003,7 +1046,7 @@ struct AgentSandboxCheck {
     if pipProbe.terminationStatus == 0 {
       let pip = try AgentSandbox.execute(
         root: root, command: "pip3 download -q --no-deps -d .mlxl3-scratch six==1.16.0 2>&1 | grep -v WARNING | grep -v upgrade; ls .mlxl3-scratch; rm -rf .mlxl3-scratch",
-        seconds: 30, network: true, userHome: user.path)
+        seconds: 30, network: true)
       check(pip.output.contains("six-1.16.0-py2.py3-none-any.whl"), "live pip download: \(pip.output)")
     }
   }
@@ -1178,9 +1221,10 @@ struct AgentSandboxCheck {
     check(
       success.status == 0 && !success.interrupted && success.output == "hello",
       "real sandbox must execute and round-trip a nonempty file: \(success)")
+    // Reading outside the copy is allowed (DeepSeek Harness's sandbox); writing is not.
     let read = try run("cat \(quote(secret.path))")
     check(
-      read.status != 0 && !read.output.contains("PRIVATE-CONTENT"), "absolute read escaped sandbox")
+      read.status == 0 && read.output == "PRIVATE-CONTENT-DO-NOT-LEAK", "absolute read refused: \(read)")
     let write = try run("printf changed > \(quote(secret.path))")
     let hardlink = try run("ln \(quote(secret.path)) hardlink; cat hardlink")
     check(
@@ -1193,9 +1237,11 @@ struct AgentSandboxCheck {
       "absolute write escaped sandbox")
     try FileManager.default.createSymbolicLink(
       at: root.appendingPathComponent("escape"), withDestinationURL: secret)
-    let symlink = try run("cat escape; printf changed > escape")
+    let symlink = try run("printf changed > escape")
     check(
-      symlink.status != 0 && !symlink.output.contains("PRIVATE-CONTENT"), "symlink escaped sandbox")
+      symlink.status != 0
+        && (try? String(contentsOf: secret, encoding: .utf8)) == "PRIVATE-CONTENT-DO-NOT-LEAK",
+      "write through a symlink escaped sandbox")
     // A direct connect, local and public, refused by Seatbelt itself (EPERM). The previous
     // check read curl's message, which passed because curl could not read its TLS config.
     let network = try run(
@@ -1204,9 +1250,10 @@ struct AgentSandboxCheck {
       network.output == "127.0.0.1:9: Operation not permitted\n1.1.1.1:80: Operation not permitted\n",
       "network should be refused by Seatbelt: \(network.output)")
     try checkOpenSandbox(root: root, check: { check($0, $1) })
-    let inherited = try run("/bin/sh -c \(quote("cat " + quote(secret.path)))")
+    let inherited = try run("/bin/sh -c \(quote("printf changed > " + quote(secret.path)))")
     check(
-      inherited.status != 0 && !inherited.output.contains("PRIVATE-CONTENT"),
+      inherited.status != 0
+        && (try? String(contentsOf: secret, encoding: .utf8)) == "PRIVATE-CONTENT-DO-NOT-LEAK",
       "child process escaped sandbox")
     let environment = try run("/usr/bin/env")
     let canonicalRoot = try AgentSandbox.canonicalRoot(root)
@@ -1276,12 +1323,14 @@ struct AgentSandboxCheck {
       ).trimmingCharacters(in: .whitespacesAndNewlines))!
     usleep(100_000)
     check(kill(pid, 0) != 0, "background child survived cleanup")
+    // New sessions are allowed (DeepSeek Harness's sandbox): the supervisor still stops a
+    // child that left the process group through its working directory (`strays`, below).
     let sessions = try run(
-      "/usr/bin/perl -MPOSIX -e 'my $a=POSIX::setsid(); my $b=POSIX::setpgid(0,0); print \"$a \", (defined($b) ? $b : -1), \"\\n\"'"
+      "/usr/bin/perl -MPOSIX -e 'my $p = fork(); if ($p == 0) { print POSIX::setsid() > 0 ? \"SESSION\\n\" : \"REFUSED $!\\n\"; exit 0 } waitpid($p, 0)'"
     )
     check(
-      sessions.status == 0 && sessions.output == "-1 -1\n",
-      "descendants can escape the process group: \(sessions)")
+      sessions.status == 0 && sessions.output == "SESSION\n",
+      "setsid refused: \(sessions)")
     // A stopped process is identified by pid and start time: a reused pid is never stopped.
     let bystander = Process()
     bystander.executableURL = URL(fileURLWithPath: "/bin/sleep")
@@ -1318,11 +1367,13 @@ struct AgentSandboxCheck {
     } catch { count += 1 }
     let profile = try AgentSandbox.profile(root: root)
     check(
-      profile.contains("(deny default)") && !profile.contains("(remote ip"),
-      "policy is not deny-default")
+      profile.contains("(allow default)") && profile.contains("(deny file-write*)")
+        && profile.contains("(deny network-outbound (remote ip \"*:*\"))"),
+      "policy is not DeepSeek Harness's write-confined profile: \(profile)")
     try checkJavaScript(temporary: temporary, secret: secret, count: &count)
     try checkHarness(root: root, check: { check($0, $1) })
     try checkKernel(root: root, check: { check($0, $1) })
+    try checkSpill(root: root, check: { check($0, $1) })
     try checkNetwork(temporary: temporary, count: &count)
     print(
       "Agent sandbox checks passed: \(count), real commands, file/network/child isolation, environment, limits, process cleanup and invalid input; JavaScript harness API, errors, isolation, permissions and limits"

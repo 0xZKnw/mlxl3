@@ -45,7 +45,7 @@ struct ModelSelectionMenu: View {
                 HStack(spacing: 7) {
                     StatusDot(state: studio.engineState)
                     Text(studio.selectedModelName ?? L("Choisir un modèle", "Choose a model"))
-                        .font(.system(size: 11, weight: .medium))
+                        .font(.system(size: StudioTheme.style.isGraphite ? 12.5 : 11, weight: .medium))
                         .lineLimit(1).truncationMode(.middle)
                     Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
                         .foregroundStyle(StudioTheme.quiet)
@@ -74,8 +74,9 @@ struct ModelSelectionMenu: View {
             }
         }
         .foregroundStyle(StudioTheme.ink)
-        .padding(4)
-        .premiumGlass(radius: 100, materialOpacity: 0.76)
+        .padding(StudioTheme.style.isGraphite ? 0 : 4)
+        // Graphite: no glass pill on a plain canvas.
+        .background { if !StudioTheme.style.isGraphite { Color.clear.premiumGlass(radius: 100, materialOpacity: 0.76) } }
     }
 }
 
@@ -114,7 +115,7 @@ struct ModelManagerView: View {
                 VStack(alignment: .leading, spacing: 6) {
                     Text(L("Stockage local", "Local storage")).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                     Text(ByteCountFormatter.string(fromByteCount: studio.models.reduce(0) { $0 + $1.sizeBytes }, countStyle: .file))
-                        .font(.system(size: 27, weight: .regular, design: .serif))
+                        .font(StudioTheme.display(27))
                     Text(L("\(studio.models.count) modèles enregistrés", "\(studio.models.count) registered models"))
                         .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                 }.padding(.horizontal, 22).padding(.bottom, 24)
@@ -241,7 +242,7 @@ struct ModelManagerView: View {
                                     .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                                 }
                                 Spacer()
-                                Text(model.size).font(.system(size: 18, weight: .regular, design: .serif))
+                                Text(model.size).font(StudioTheme.display(18))
                             }
                             HStack(spacing: 10) {
                                 if studio.isDecisionModel(model) {
@@ -392,8 +393,7 @@ private struct HubBrowserView: View {
 
     private var recommendedCards: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text(L("RECOMMANDÉS", "RECOMMENDED"))
-                .font(.system(size: 12, weight: .medium)).tracking(1.4).foregroundStyle(StudioTheme.quiet)
+            StudioCaption(french: "Recommandés", english: "Recommended")
             ForEach(ModelLibrary.recommendedFamilies) { family in
               VStack(alignment: .leading, spacing: 10) {
                 Text(family.id).font(.system(size: 14, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
@@ -411,7 +411,7 @@ private struct HubBrowserView: View {
                                     StudioTheme.quiet)
                             }
                             Spacer(minLength: 6)
-                            Text(model.title).font(.system(size: 25, weight: .regular, design: .serif))
+                            Text(model.title).font(StudioTheme.display(25))
                             Text(model.parameters).font(.system(size: 13, weight: .medium))
                             Text(model.quantization).font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
                             HStack {
@@ -443,13 +443,11 @@ private struct HubBrowserView: View {
                     .system(size: 12)
                 ).foregroundStyle(StudioTheme.quiet)
             }
-            Text(detail.id).font(.system(size: 23, weight: .regular, design: .serif)).lineLimit(2).textSelection(
+            Text(detail.id).font(StudioTheme.display(23)).lineLimit(2).textSelection(
                 .enabled)
             HStack(alignment: .top, spacing: 14) {
                 VStack(alignment: .leading, spacing: 6) {
-                    Text(L("VERSION", "VERSION")).font(
-                        .system(size: 12, weight: .medium)
-                    ).tracking(1)
+                    StudioCaption(french: "Version", english: "Version", size: 12, tracking: 1, colored: false)
                     Picker(
                         L("Révision ou branche", "Revision or branch"),
                         selection: Binding(get: { detail.revision }, set: { library.open(detail.id, revision: $0) })
@@ -477,7 +475,7 @@ private struct HubBrowserView: View {
                 VStack(alignment: .trailing, spacing: 6) {
                     if let variant = library.selectedVariant {
                         Text(ByteCountFormatter.string(fromByteCount: variant.sizeBytes, countStyle: .file)).font(
-                            .system(size: 24, weight: .regular, design: .serif))
+                            StudioTheme.display(24))
                         Text(L("à télécharger", "to download")).font(.system(size: 12)).foregroundStyle(
                             StudioTheme.quiet)
                     }
@@ -521,7 +519,7 @@ private struct HubBrowserView: View {
                 )
                 .font(.caption).foregroundStyle(.orange)
             }
-            Text(L("FICHE DU MODÈLE", "MODEL CARD")).font(.system(size: 12, weight: .medium)).tracking(1.4)
+            StudioCaption(french: "Fiche du modèle", english: "Model card", colored: false)
                 .foregroundStyle(StudioTheme.quiet)
             ModelCardView(
                 source: detail.readme.isEmpty ? L("Aucun README disponible.", "No README available.") : detail.readme,
