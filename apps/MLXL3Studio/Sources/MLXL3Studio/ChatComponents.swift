@@ -1135,20 +1135,30 @@ private struct ReasoningMenu: View {
     let support: ReasoningSupport
     let level: ReasoningEffort
 
+    private var currentLabel: String {
+        if studio.effectiveReasoningChoice == nil { return L("Réflexion auto", "Auto thinking") }
+        return support.toggleOnly && level == .max ? support.title(for: level) : level.label
+    }
+
     var body: some View {
         Menu {
             Picker(L("Raisonnement", "Reasoning"), selection: Binding(
-                get: { level }, set: { studio.setReasoningLevel($0) })) {
-                ForEach(support.levels) { option in
+                get: { studio.effectiveReasoningChoice }, set: { choice in
+                    if let choice { studio.setReasoningLevel(choice) } else { studio.resetReasoningLevel() }
+                })) {
+                Text(L("Par défaut du modèle", "Model default")).tag(nil as ReasoningEffort?)
+                ForEach(studio.reasoningLevels) { option in
                     Label {
-                        Text(option.title)
-                        Text(option == support.defaultLevel
-                             ? L("\(option.detail) · par défaut", "\(option.detail) · default")
-                             : option.detail)
+                        if studio.boundedReasoningAvailable, let budget = option.budget {
+                            Text(L("\(option.title) · budget de \(budget) tokens",
+                                   "\(option.title) · \(budget)-token budget"))
+                        } else {
+                            Text(support.title(for: option))
+                        }
                     } icon: {
                         Image(systemName: option.symbol)
                     }
-                    .tag(option)
+                    .tag(Optional(option))
                 }
             }
             .pickerStyle(.inline)
@@ -1156,7 +1166,7 @@ private struct ReasoningMenu: View {
             HStack(spacing: 6) {
                 Image(systemName: level.symbol)
                     .foregroundStyle(level == .none ? StudioTheme.quiet : studio.accentColor)
-                Text(level.label)
+                Text(currentLabel)
             }
             .font(.system(size: 12, weight: .medium))
             .padding(.horizontal, 9)
@@ -1169,7 +1179,7 @@ private struct ReasoningMenu: View {
         .disabled(studio.isGenerating)
         .accessibilityIdentifier("composer.reasoning")
         .accessibilityLabel(L("Raisonnement", "Reasoning"))
-        .accessibilityValue(level.label)
+        .accessibilityValue(currentLabel)
         .help(L("Profondeur de raisonnement du modèle", "Model reasoning depth"))
     }
 }

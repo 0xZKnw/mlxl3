@@ -31,14 +31,14 @@ enum ReasoningEffort: String, CaseIterable, Codable, Identifiable, Sendable {
     }
   }
 
-  var detail: String {
+  /// Maximum generated thinking tokens per step when the model supports a bounded chat.
+  var budget: Int? {
     switch self {
-    case .none: L("Répond directement", "Answers directly")
-    case .low: L("Réflexion brève", "Brief thinking")
-    case .medium: L("Équilibré", "Balanced")
-    case .high: L("Réflexion approfondie", "Thorough thinking")
-    case .xhigh: L("Vérifie ses hypothèses", "Checks its assumptions")
-    case .max: L("Le plus long et le plus précis", "Longest and most careful")
+    case .none, .max: nil
+    case .low: 256
+    case .medium: 1_024
+    case .high: 4_096
+    case .xhigh: 8_192
     }
   }
 
@@ -54,23 +54,62 @@ enum ReasoningEffort: String, CaseIterable, Codable, Identifiable, Sendable {
   }
 }
 
-/// Reasoning levels a model's chat template accepts, read from the template itself so a new
-/// model needs no list: a level is offered when the template names it, `none` when it can
-/// turn thinking off.
+/// The model template controls the native levels. A compatible chat engine can
+/// additionally distinguish levels with a thinking-token budget.
 struct ReasoningSupport: Equatable, Sendable {
   let levels: [ReasoningEffort]
   let defaultLevel: ReasoningEffort
 
+  var toggleOnly = false
+  // Some templates assign two names to one native effort. An explicit chat budget
+  // can distinguish them, while the native-only picker needs one representative.
+  var nativeAliases: [ReasoningEffort: ReasoningEffort] = [:]
+
+  func choices(bounded: Bool) -> [ReasoningEffort] {
+    if toggleOnly && bounded { return [.none, .low, .medium, .high, .max] }
+    return bounded ? levels : levels.filter { nativeAliases[$0] == nil }
+  }
+
+  func title(for level: ReasoningEffort) -> String {
+    if toggleOnly && level == .max { return L("Réflexion activée", "Thinking on") }
+    return level.title
+  }
+
   static func detect(template: String) -> ReasoningSupport? {
-    guard template.contains("reasoning_effort") else { return nil }
+    guard template.contains("reasoning_effort") else {
+      // The Qwen switch emits an already closed thinking block when disabled.
+      guard template.contains("<think>"), template.contains("</think>"),
+            template.range(of: #"enable_thinking\s+is\s+defined\s+and\s+enable_thinking\s+is\s+false"#,
+                           options: .regularExpression) != nil else { return nil }
+      return ReasoningSupport(levels: [.none, .max], defaultLevel: .max, toggleOnly: true)
+    }
     func named(_ value: String) -> Bool {
       template.contains("'\(value)'") || template.contains("\"\(value)\"")
     }
-    var levels = ReasoningEffort.allCases.filter { $0 != .none && named($0.rawValue) }
+    // A template may normalize an alias before checking its list of supported levels.
+    let accepted = template.firstMatch(of: /\b\w*reasoning_effort\s+not\s+in\s*[\[(]([^\])]+)[\])]/)?.1
+    var levels = ReasoningEffort.allCases.filter { level in
+      guard level != .none else { return false }
+      guard let accepted else { return named(level.rawValue) }
+      return accepted.contains("'\(level.rawValue)'") || accepted.contains("\"\(level.rawValue)\"")
+    }
     guard !levels.isEmpty else { return nil }
     if named("none") || template.contains("enable_thinking") { levels.insert(.none, at: 0) }
     guard levels.count >= 2 else { return nil }
-    return ReasoningSupport(levels: levels, defaultLevel: defaultLevel(in: template, levels: levels))
+    let fallback = defaultLevel(in: template, levels: levels)
+    var aliases: [ReasoningEffort: ReasoningEffort] = [:]
+    var numericLevels: [Double: [ReasoningEffort]] = [:]
+    for match in template.matches(of: /['"](low|medium|high|xhigh|max)['"]\s*:\s*([0-9]+(?:\.[0-9]+)?)/) {
+      if let level = ReasoningEffort(rawValue: String(match.1)), let value = Double(match.2) {
+        numericLevels[value, default: []].append(level)
+      }
+    }
+    for group in numericLevels.values where group.count > 1 {
+      // Keep the default, or the highest supported name, for the unbounded selector.
+      guard let representative = group.contains(fallback) ? fallback : levels.last(where: group.contains) else { continue }
+      for alias in group where alias != representative { aliases[alias] = representative }
+    }
+    return ReasoningSupport(levels: levels, defaultLevel: fallback, nativeAliases: aliases)
   }
 
   /// `reasoning_effort|default('xhigh')` (Qwen3.8) or a numeric fallback mapped through the
@@ -96,7 +135,8 @@ struct ReasoningSupport: Equatable, Sendable {
   static func detect(modelPath: String) -> ReasoningSupport? {
     let folder = URL(fileURLWithPath: modelPath, isDirectory: true)
     let jinja = folder.appendingPathComponent("chat_template.jinja")
-    if let data = try? Data(contentsOf: jinja), data.count <= 2_000_000 {
+    if FileManager.default.fileExists(atPath: jinja.path) {
+      guard let data = try? Data(contentsOf: jinja, options: .mappedIfSafe), data.count <= 2_000_000 else { return nil }
       return detect(template: String(decoding: data, as: UTF8.self))
     }
     let config = folder.appendingPathComponent("tokenizer_config.json")
@@ -104,10 +144,6 @@ struct ReasoningSupport: Equatable, Sendable {
       let object = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
     else { return nil }
     if let template = object["chat_template"] as? String { return detect(template: template) }
-    if let templates = object["chat_template"] as? [[String: Any]] {
-      let text = templates.compactMap { $0["template"] as? String }.joined(separator: "\n")
-      return detect(template: text)
-    }
     return nil
   }
 }

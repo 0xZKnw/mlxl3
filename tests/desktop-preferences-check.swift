@@ -4,7 +4,10 @@ import SwiftUI
 extension StudioModel {
     fileprivate var fixtureRunning: Bool { bridge.isRunning }
     /// Stands for an engine whose ready event announced `reasoning_effort_supported`.
-    fileprivate func fixtureReasoningEngine(_ supported: Bool) { engineReasoningSupported = supported }
+    fileprivate func fixtureReasoningEngine(_ supported: Bool, budget: Bool = false) {
+        engineReasoningSupported = supported
+        engineReasoningBudgetSupported = budget
+    }
 }
 
 @main struct DesktopPreferencesCheck {
@@ -469,7 +472,7 @@ extension StudioModel {
             return value
         }
         let thinker = reasoningStudio()
-        check(thinker.reasoningSupport == ReasoningSupport(levels: ReasoningEffort.allCases, defaultLevel: .high),
+        check(thinker.reasoningSupport == ReasoningSupport(levels: ReasoningEffort.allCases, defaultLevel: .high, nativeAliases: [.xhigh: .max]),
               "Inkling reasoning levels read from the model folder")
         check(!thinker.reasoningControlAvailable && thinker.requestReasoningEffort == nil,
               "No selector and no field for an engine without reasoning support")
@@ -481,6 +484,30 @@ extension StudioModel {
         let reopened = reasoningStudio()
         reopened.fixtureReasoningEngine(true)
         check(reopened.reasoningLevel == .low, "The reasoning level is kept per model")
+        check(reopened.requestReasoningBudget == nil && !reopened.reasoningLevels.contains(.xhigh),
+              "The legacy engine offers one name for Inkling's shared 0.99 native effort")
+        reopened.fixtureReasoningEngine(true, budget: true)
+        for (choice, expected) in [(ReasoningEffort.low, 256), (.medium, 1024), (.high, 4096), (.xhigh, 8192)] {
+            reopened.setReasoningLevel(choice)
+            check(reopened.requestReasoningEffort == choice.rawValue && reopened.requestReasoningBudget == expected,
+                  "Explicit \(choice) gets its own chat budget, including the default native effort")
+        }
+        reopened.setReasoningLevel(.max)
+        check(reopened.requestReasoningBudget == nil && reopened.requestReasoningEffort == "max", "Max stays uncapped")
+        reopened.setReasoningLevel(.low)
+        reopened.responseSchema = "{}"
+        check(reopened.requestReasoningBudget == nil, "Structured output never advertises a hard thinking limit")
+        reopened.responseSchema = ""
+        reopened.resetReasoningLevel()
+        check(reopened.requestReasoningBudget == nil && reopened.requestReasoningEffort == nil
+                && reasoningStudio().reasoningChoice == nil, "Model default clears both fields and stored override")
+        let toggle = ReasoningSupport.detect(template: "{% if enable_thinking is defined and enable_thinking is false %}<think></think>{% else %}<think>{% endif %}")
+        check(toggle?.choices(bounded: false) == [.none, .max] && toggle?.choices(bounded: true) == [.none, .low, .medium, .high, .max],
+              "A Qwen on/off template offers bounded levels only when the engine can enforce them")
+        let alias = "if resolved_reasoning_effort == 'high', set to 'xhigh'; "
+            + "if resolved_reasoning_effort not in ('xhigh', 'medium', 'low'); enable_thinking"
+        check(ReasoningSupport.detect(template: alias)?.levels == [.none, .low, .medium, .xhigh],
+              "Qwen3.8's high alias does not create a duplicate native level")
         let composer = NSHostingView(rootView: ComposerView().environmentObject(reopened)
             .frame(width: 720).padding(24).background(StudioTheme.canvas).preferredColorScheme(.dark))
         composer.frame = NSRect(x: 0, y: 0, width: 768, height: 150)

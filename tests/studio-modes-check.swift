@@ -199,6 +199,26 @@ extension StudioModel {
       chatRequest["max_tokens"] as? Int == -1 && chatRequest["tool_rounds"] == nil
         && chatRequest["reasoning_budget"] == nil,
       "Chat keeps its request without Agent budgets")
+    check(looping.reasoningLevels == [.none, .low, .medium, .high, .max], "The ready event enables bounded Chat choices")
+    looping.setReasoningLevel(.low)
+    looping.draft = "Short reasoning"
+    looping.send()
+    try await wait { !looping.isGenerating }
+    let lowRequest = try JSONSerialization.jsonObject(with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(lowRequest["reasoning_effort"] as? String == "low" && lowRequest["reasoning_budget"] as? Int == 256
+            && lowRequest["max_tokens"] as? Int == -1, "Low caps thinking while preserving room for a full answer")
+    looping.selectMode(.agent)
+    try await wait { !looping.mcpUpdating && looping.engineState.isReady }
+    check(looping.reasoningLevels == [.none, .max], "A toggle-only Agent offers only real template choices")
+    looping.draft = "Agent after low chat"
+    looping.send()
+    try await wait { !looping.isGenerating }
+    let agentRequest = try JSONSerialization.jsonObject(with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(agentRequest["reasoning_effort"] == nil && agentRequest["reasoning_budget"] == nil,
+          "A budget-only chat choice does not silently cap Agent steps")
+    looping.selectMode(.chat)
+    try await wait { !looping.mcpUpdating && looping.engineState.isReady }
+    check(looping.effectiveReasoningChoice == .low, "Returning to Chat restores the selected budget")
     looping.stopServices()
     await looping.bridge.stopAndWait()
     return count
@@ -231,8 +251,12 @@ extension StudioModel {
       }
       preconditionFailure("Mode fixture timed out at line \(line): mode=\(studio.selectedMode), engine=\(studio.engineState), MCP updating=\(studio.mcpUpdating), tools=\(studio.mcpToolCount), server=\(studio.localServer.log), error=\(studio.featureError ?? "none")")
     }
+    let modelFolder = root.appendingPathComponent("model")
+    try FileManager.default.createDirectory(at: modelFolder, withIntermediateDirectories: true)
+    try "{% if enable_thinking is defined and enable_thinking is false %}<think></think>{% else %}<think>{% endif %}"
+      .write(to: modelFolder.appendingPathComponent("chat_template.jinja"), atomically: true, encoding: .utf8)
     let model = LocalModel(
-      name: "modes", path: "/tmp/fixture-model", modelType: "fixture", format: "EXL3", bits: 2.5,
+      name: "modes", path: modelFolder.path, modelType: "fixture", format: "EXL3", bits: 2.5,
       sizeBytes: 100, modules: 1, addedAt: "", size: "100 B")
     studio.models = [model]
     studio.selectModel(model.name)

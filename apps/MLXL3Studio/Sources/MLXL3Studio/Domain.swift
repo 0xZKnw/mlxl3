@@ -199,6 +199,7 @@ struct BridgeEvent: Decodable {
     var imagesSupported: Bool? = nil
     /// Engines that pass a request's `reasoning_effort` to the chat template.
     var reasoningEffortSupported: Bool? = nil
+    var reasoningBudgetSupported: Bool? = nil
     /// Engines that accept `tool_rounds` and a per-server MCP `callTimeoutSeconds`.
     var toolRoundsSupported: Bool? = nil
     var mcpCallTimeoutSupported: Bool? = nil
@@ -269,6 +270,7 @@ struct BridgeEvent: Decodable {
         case workspaceFeatures = "workspace_features"
         case imagesSupported = "images_supported"
         case reasoningEffortSupported = "reasoning_effort_supported"
+        case reasoningBudgetSupported = "reasoning_budget_supported"
         case toolRoundsSupported = "tool_rounds_supported"
         case mcpCallTimeoutSupported = "mcp_call_timeout_supported"
         case agentLoopSupported = "agent_loop_supported"

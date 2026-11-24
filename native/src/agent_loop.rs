@@ -44,30 +44,74 @@ pub fn reasoning_budget(requested: Option<usize>) -> Result<Option<usize>> {
 
 /// The budget a step gets: at most half of the room left, so that after a forced end of
 /// thinking the model still has room to act.
-pub fn step_reasoning_budget(budget: usize, available: usize) -> usize {
-    budget.min(available / 2).max(1)
+pub fn step_reasoning_budget(budget: usize, output_slots: usize) -> Option<usize> {
+    (output_slots >= 2).then(|| budget.min(output_slots / 2))
 }
 
-/// Words written for the model when its thinking reaches the budget (also shown as thinking):
-/// the early stop of Qwen's thinking budget ("Considering the limited time by the user, I have
-/// to give the solution based on the thinking directly now."), turned toward an action.
-pub const FORCED_CLOSE_NOTE: &str = "\n\nConsidering the limited time, I have to act now based on my thinking so far: take the next concrete step, then adjust from its result.\n";
+#[cfg(kani)]
+#[kani::proof]
+fn reasoning_cut_reserves_answer_tokens() {
+    let budget: usize = kani::any();
+    let slots: usize = kani::any();
+    if let Some(limit) = step_reasoning_budget(budget, slots) {
+        assert!(limit <= budget);
+        assert!(limit <= slots - limit);
+        assert!(limit == budget || limit == slots / 2);
+        kani::cover!(limit == budget && limit < slots / 2);
+        kani::cover!(slots == 2 && limit == 1);
+    } else {
+        assert!(slots < 2);
+        kani::cover!(slots == 1);
+    }
 
-/// Text that ends a thinking block cut by its budget, in the model's own voice, followed
-/// by the marker that closes this family's block (from `ThinkingSplitter::thinking_close`).
-/// After Inkling 2's `<|end_message|>` the next message is opened so the model writes an
-/// answer or a call instead of a second thinking message.
-pub fn forced_close(close: &str) -> String {
-    close_thinking(close, FORCED_CLOSE_NOTE)
+    let thought: usize = kani::any();
+    let separator: usize = kani::any();
+    let output_left: usize = kani::any();
+    let cut = cut_thinking_now(thought, budget, slots, separator, output_left);
+    if cut {
+        assert!(slots > separator && output_left > 0);
+        assert!(thought >= budget || slots - separator == 1);
+        kani::cover!(thought < budget && slots == 3 && separator == 2);
+    } else if output_left > 0 && slots > separator {
+        assert!(thought < budget && slots - separator > 1);
+        kani::cover!(separator == 2 && slots == 4);
+    }
 }
 
-/// `note` then the marker closing this family's thinking block (see [`forced_close`]).
-pub fn close_thinking(close: &str, note: &str) -> String {
+/// A cut resumes the same assistant message. The model gets a private transition
+/// in its own channel format; only text it actually generates is streamed.
+pub fn reasoning_continuation(close: &str, summary: bool, tools: bool, compact: bool) -> String {
+    let note = if compact {
+        ""
+    } else if summary {
+        SUMMARY_CLOSE_NOTE
+    } else if tools {
+        "\n\nConsidering the limited time, I have to act now based on my thinking so far: take the next concrete step, then adjust from its result.\n"
+    } else {
+        "\n\nConsidering the limited time, I have to give my final answer in the requested format now.\n"
+    };
     match close {
+        "<|end_message|>" if summary || !tools => {
+            format!("{note}<|end_message|><|message_model|><|content_text|>")
+        }
         "<|end_message|>" => format!("{note}<|end_message|><|message_model|>"),
         "</think>" => format!("{note}</think>\n\n"),
         other => format!("{note}{other}"),
     }
+}
+
+/// Keep a context slot for at least one sampled answer token in the next round.
+/// An injected separator consumes context but is not part of the output quota.
+pub fn cut_thinking_now(
+    thought: usize,
+    limit: usize,
+    context_left: usize,
+    separator: usize,
+    output_left: usize,
+) -> bool {
+    output_left > 0
+        && context_left > separator
+        && (thought >= limit || context_left - separator == 1)
 }
 
 /// What the model reads after a step ended with nothing: no visible text and no call.
@@ -522,17 +566,31 @@ mod tests {
     }
 
     #[test]
-    fn close_thinking_carries_its_note_before_each_family_marker() {
-        assert_eq!(close_thinking("</think>", "N"), "N</think>\n\n");
+    fn continuation_uses_the_right_channel_and_can_fit_a_short_context() {
         assert_eq!(
-            close_thinking("<|end_message|>", "N"),
-            "N<|end_message|><|message_model|>"
+            reasoning_continuation("</think>", false, false, true),
+            "</think>\n\n"
         );
-        assert_eq!(close_thinking("<channel|>", "N"), "N<channel|>");
         assert_eq!(
-            forced_close("</think>"),
-            close_thinking("</think>", FORCED_CLOSE_NOTE)
+            reasoning_continuation("<channel|>", false, true, true),
+            "<channel|>"
         );
+        assert_eq!(
+            reasoning_continuation("<|end_message|>", false, false, true),
+            "<|end_message|><|message_model|><|content_text|>"
+        );
+        assert_eq!(
+            reasoning_continuation("<|end_message|>", false, true, true),
+            "<|end_message|><|message_model|>"
+        );
+        assert!(
+            reasoning_continuation("<|end_message|>", true, true, false)
+                .ends_with("<|message_model|><|content_text|>")
+        );
+        assert!(cut_thinking_now(1, 2, 3, 2, 3));
+        assert!(!cut_thinking_now(1, 2, 4, 2, 3));
+        assert!(!cut_thinking_now(2, 2, 2, 2, 2));
+        assert!(!cut_thinking_now(2, 2, 3, 2, 0));
     }
 
     #[test]
@@ -543,21 +601,20 @@ mod tests {
         assert!(reasoning_budget(Some(255)).is_err());
         assert!(reasoning_budget(Some(131_073)).is_err());
         assert!(reasoning_budget(Some(0)).is_err());
-        assert_eq!(step_reasoning_budget(8_192, 100_000), 8_192);
-        assert_eq!(step_reasoning_budget(8_192, 6_000), 3_000);
-        assert_eq!(step_reasoning_budget(8_192, 1), 1);
-        assert_eq!(step_reasoning_budget(8_192, 0), 1);
+        assert_eq!(step_reasoning_budget(8_192, 100_000), Some(8_192));
+        assert_eq!(step_reasoning_budget(8_192, 6_000), Some(3_000));
+        assert_eq!(step_reasoning_budget(8_192, 1), None);
+        assert_eq!(step_reasoning_budget(8_192, 0), None);
     }
 
     #[test]
     fn forced_close_ends_with_each_family_marker() {
-        let qwen = forced_close("</think>");
+        let qwen = reasoning_continuation("</think>", false, true, false);
         assert!(qwen.starts_with("\n\nConsidering the limited time, I have to act now"));
         assert!(qwen.ends_with("adjust from its result.\n</think>\n\n"));
-        assert!(forced_close("<channel|>").ends_with("result.\n<channel|>"));
-        assert!(
-            forced_close("<|end_message|>").ends_with("result.\n<|end_message|><|message_model|>")
-        );
+        let chat = reasoning_continuation("</think>", false, false, false);
+        assert!(chat.contains("final answer in the requested format"));
+        assert!(chat.ends_with("</think>\n\n"));
         // the note itself never contains a marker
         let note = qwen.trim_end_matches("</think>\n\n");
         assert!(!note.contains('<') && !note.contains('>'));

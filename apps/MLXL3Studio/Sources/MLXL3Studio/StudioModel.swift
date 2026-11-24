@@ -143,6 +143,7 @@ final class StudioModel: ObservableObject {
     @Published private(set) var reasoningChoice: ReasoningEffort?
     /// The running engine passes `reasoning_effort` to the template (reported at ready).
     @Published private(set) var engineReasoningSupported = false
+    @Published private(set) var engineReasoningBudgetSupported = false
     /// Older engines only: output tokens of one Agent turn, all tool rounds and reasoning
     /// included. A long task ran out of it mid-work (AGENT-2026-11-23-BOUCLE).
     static let agentTokenBudget = 32_768
@@ -693,23 +694,45 @@ final class StudioModel: ObservableObject {
     /// The reasoning selector shows only when both the model and the engine support it.
     var reasoningControlAvailable: Bool { engineReasoningSupported && reasoningSupport != nil }
 
-    /// Level the next request uses: the saved choice when this model supports it, else its default.
-    var reasoningLevel: ReasoningEffort? {
-        guard let support = reasoningSupport else { return nil }
-        return reasoningChoice.flatMap { support.levels.contains($0) ? $0 : nil } ?? support.defaultLevel
+    var boundedReasoningAvailable: Bool {
+        engineReasoningBudgetSupported && selectedMode == .chat
+            && responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
-    /// Sent only when it differs from the template default, so default prompts stay identical.
+    var reasoningLevels: [ReasoningEffort] {
+        reasoningSupport?.choices(bounded: boundedReasoningAvailable) ?? []
+    }
+
+    var effectiveReasoningChoice: ReasoningEffort? {
+        guard let choice = reasoningChoice, let support = reasoningSupport else { return nil }
+        if reasoningLevels.contains(choice) { return choice }
+        if let level = support.nativeAliases[choice], reasoningLevels.contains(level) { return level }
+        // A saved budgeted chat level becomes ordinary thinking on a switch-only template.
+        return nil
+    }
+
+    var reasoningLevel: ReasoningEffort? { effectiveReasoningChoice ?? reasoningSupport?.defaultLevel }
+
     var requestReasoningEffort: String? {
-        guard reasoningControlAvailable, let support = reasoningSupport, let level = reasoningLevel,
-              level != support.defaultLevel else { return nil }
-        return level.rawValue
+        guard reasoningControlAvailable, let choice = effectiveReasoningChoice else { return nil }
+        return choice.rawValue
+    }
+
+    var requestReasoningBudget: Int? {
+        guard reasoningControlAvailable, boundedReasoningAvailable else { return nil }
+        return effectiveReasoningChoice?.budget
     }
 
     func setReasoningLevel(_ level: ReasoningEffort) {
-        guard let model = selectedModel, reasoningSupport?.levels.contains(level) == true else { return }
+        guard let model = selectedModel, reasoningLevels.contains(level) else { return }
         reasoningChoice = level
         preferences.set(level.rawValue, forKey: "studio.reasoning.\(model.path)")
+    }
+
+    func resetReasoningLevel() {
+        guard let model = selectedModel else { return }
+        reasoningChoice = nil
+        preferences.removeObject(forKey: "studio.reasoning.\(model.path)")
     }
 
     private func restoreReasoningPreference() {
@@ -1443,7 +1466,8 @@ final class StudioModel: ObservableObject {
                     responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema,
                     reasoningEffort: requestReasoningEffort,
                     toolRounds: selectedMode == .agent
-                        ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil
+                        ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil,
+                    reasoningBudget: requestReasoningBudget
                 )
             )
         } catch {
@@ -2214,6 +2238,7 @@ final class StudioModel: ObservableObject {
         restoreMTPPreference()
         restoreReasoningPreference()
         engineReasoningSupported = false
+        engineReasoningBudgetSupported = false
         mtpHeadPath = selectedModel.flatMap { preferences.string(forKey: "studio.mtpHead.\($0.path)") }
             ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
         mtpError = nil
@@ -2332,6 +2357,7 @@ final class StudioModel: ObservableObject {
         case "ready":
             memorySaverSupported = event.memorySaverSupported == true
             engineReasoningSupported = event.reasoningEffortSupported == true
+            engineReasoningBudgetSupported = event.reasoningBudgetSupported == true
             let longCalls = event.mcpCallTimeoutSupported == true && event.toolRoundsSupported == true
             let rewriteAgentRegistry = longCalls != engineLongToolCalls
             engineLongToolCalls = longCalls

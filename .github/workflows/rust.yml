@@ -80,7 +80,7 @@ jobs:
       matrix:
         os: [ubuntu-latest, macos-26]
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 35
+    timeout-minutes: ${{ matrix.os == 'macos-26' && 40 || 35 }}
     steps:
       - uses: actions/checkout@v4
       # build.rs watches .git/packed-refs, which actions/checkout does not
@@ -474,6 +474,16 @@ jobs:
           for test_name in "${compatibility_tests[@]}"; do
             cargo test --locked --lib --features mlx,chat "$test_name" -- --exact --test-threads=1 | tee build/ci/compatibility-test.log
             python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed; 0 ignored;" in Path("build/ci/compatibility-test.log").read_text()'
+          done
+      - name: Check reasoning effort on both chat bridges
+        if: matrix.os == 'macos-26'
+        shell: bash
+        run: |
+          export MLXL3_MLX_ROOT="$(python -c 'import importlib.util; print(next(iter(importlib.util.find_spec("mlx").submodule_search_locations)))')"
+          for backend in mlx direct-metal; do
+            output="$(cargo test --locked --no-default-features --features "$backend,chat" --bin mlxl3-rs bridge_reasoning_effort_is_optional_validated_and_scoped -- --exact)"
+            printf '%s\n' "$output"
+            [[ "$output" == *"1 passed; 0 failed; 0 ignored;"* ]]
           done
       - name: Reject malformed expert codec routes without GPU work
         if: matrix.os == 'macos-26'

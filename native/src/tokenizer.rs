@@ -406,6 +406,17 @@ impl ChatTokenizer {
         self.control_tokens.get(&id).map(String::as_str)
     }
 
+    /// The streaming splitter can close only thinking channels declared by this tokenizer.
+    pub fn supports_reasoning_budget(&self) -> bool {
+        let has = |name| self.control_tokens.values().any(|marker| marker == name);
+        (has("<think>") && has("</think>"))
+            || ((has("<|channel>") || has("<|channel>thought")) && has("<channel|>"))
+            || (has("<|content_thinking|>")
+                && has("<|end_message|>")
+                && has("<|message_model|>")
+                && has("<|content_text|>"))
+    }
+
     pub fn eos_ids(&self) -> &[u32] {
         &self.eos_ids
     }
@@ -751,6 +762,35 @@ print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads
     }
 
     #[test]
+    fn inkling_budget_requires_a_declared_answer_channel() -> Result<()> {
+        let root = fixture("{{ messages[0].content }}");
+        let path = root.path().join("tokenizer.json");
+        let mut file: Value = serde_json::from_slice(&fs::read(&path)?)?;
+        for (index, marker) in [
+            "<|content_thinking|>",
+            "<|end_message|>",
+            "<|message_model|>",
+            "<|content_text|>",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let id = 5 + index;
+            file["model"]["vocab"][marker] = json!(id);
+            file["added_tokens"].as_array_mut().unwrap().push(json!({
+                "id":id, "content":marker, "special":true, "single_word":false,
+                "lstrip":false, "rstrip":false, "normalized":false
+            }));
+            fs::write(&path, file.to_string())?;
+            assert_eq!(
+                ChatTokenizer::load(root.path())?.supports_reasoning_budget(),
+                index == 3
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
     fn actual_tokenizer_distinguishes_literal_and_declared_marker_ids() {
         use crate::streaming::{Channel, ThinkingSplitter};
         // Qwen3 declares these added delimiters with special:false: the flag
@@ -766,6 +806,7 @@ print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads
             fs::write(&path, json.to_string()).unwrap();
             let plain = ChatTokenizer::load(root.path()).unwrap();
             assert_eq!(plain.control_marker(4), None);
+            assert!(!plain.supports_reasoning_budget());
             for (content, id) in [("<think>", 4), ("</think>", 8)] {
                 json["added_tokens"].as_array_mut().unwrap().push(json!({
                     "id":id,"content":content,"special":special,"single_word":false,
@@ -780,6 +821,7 @@ print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads
                 "special={special}"
             );
             assert_eq!(tokenizer.control_marker(8), Some("</think>"));
+            assert!(tokenizer.supports_reasoning_budget());
             assert_eq!(tokenizer.decode(&[5, 6, 7]).unwrap(), "<think>");
             let mut decoder = tokenizer.tokenizer().decode_stream(false);
             let mut splitter = ThinkingSplitter::new("");

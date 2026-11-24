@@ -94,6 +94,8 @@ elif command == "bridge":
         runtime_commit="fixture",
         runtime_profile="release",
         mlx_version="0.32.2",
+        reasoning_effort_supported=True,
+        reasoning_budget_supported=True,
         # AGENT-2026-11-23-BOUCLE: a newer engine when the test leaves this marker file
         agent_loop_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
     )
