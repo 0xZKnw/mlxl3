@@ -246,6 +246,10 @@ extension StudioModel {
   // A local midnight after the 25-hour change in New York exercises both civil-day boundaries.
   @MainActor static func checkLabUsage(root: URL, prefs: UserDefaults,
     check: (Bool, String) -> Void) throws {
+    let shares = [0, 0.00003, 0.001, 0.2856, 0.999, 0.9999, 1]
+    check(shares.map { LabWorkspaceView.formattedShare($0, locale: Locale(identifier: "en_US")) }
+      == ["0%", "< 0.1%", "0.1%", "28.6%", "99.9%", "> 99.9%", "100%"],
+      "Small and nearly complete portions stay distinguishable from exactly zero and one")
     let iso = ISO8601DateFormatter()
     var calendar = Calendar(identifier: .gregorian)
     calendar.timeZone = TimeZone(identifier: "America/New_York")!
@@ -277,6 +281,35 @@ extension StudioModel {
     check(stats(.allTime).models.map(\.model) == ["B", "A", "C"]
       && stats(.allTime).models.map(\.totals.totalTokens) == [30, 22, 18]
       && stats(.allTime).totals.generations == 6, "All-time totals group by model and deduplicate measurement IDs")
+    check(LabUsagePeriod.allCases.map { stats($0).activeDays } == [1, 3, 5, 6],
+      "Count days with recorded usage once, including calendar boundaries")
+    check(LabUsagePeriod.allCases.map { stats($0).previousPeriodTokens } == [16, 8, 18, nil],
+      "Compare with the preceding disjoint day, week or month across the fall clock change")
+    let peak = stats(.sevenDays).busiestDay
+    check(peak?.tokens == 16 && peak?.date == iso.date(from: "2026-11-02T00:00:00Z")
+      && peak?.formatted(locale: Locale(identifier: "en_US")) == "Nov 2, 2026",
+      "Two equal peaks choose the most recent civil day and its localized date label")
+    let multiModel = sample("C", seventh.date, 6, 7)
+    let combined = LabUsageLedger(samples: [older, a, b, seventh, multiModel], calendar: calendar)
+      .summary(for: .allTime, now: now, calendar: calendar)
+    check(combined.activeDays == 4 && combined.busiestDay?.tokens == 19
+      && combined.busiestDay?.date == iso.date(from: "2026-10-27T00:00:00Z"),
+      "Activity and the largest daily volume group different models by civil date")
+    let empty = LabUsageLedger().summary(for: .today, now: now, calendar: calendar)
+    let yesterdayOnly = LabUsageLedger(samples: [b], calendar: calendar)
+      .summary(for: .today, now: now, calendar: calendar)
+    check(empty.activeDays == 0 && empty.busiestDay == nil && empty.previousPeriodTokens == nil
+      && yesterdayOnly.activeDays == 0 && yesterdayOnly.busiestDay == nil && yesterdayOnly.previousPeriodTokens == 16,
+      "Empty periods have no peak, and an available comparison does not require current activity")
+    let previousWeekStart = iso.date(from: "2026-10-20T04:00:00Z")!
+    let previousMonthStart = iso.date(from: "2026-09-04T04:00:00Z")!
+    let boundarySamples = [sample("A", previousWeekStart.addingTimeInterval(-1), 4, 1),
+      sample("A", previousWeekStart, 8, 1), sample("B", previousMonthStart.addingTimeInterval(-1), 16, 1),
+      sample("B", previousMonthStart, 32, 1)]
+    let boundaries = LabUsageLedger(samples: boundarySamples, calendar: calendar)
+    check(boundaries.summary(for: .sevenDays, now: now, calendar: calendar).previousPeriodTokens == 9
+      && boundaries.summary(for: .thirtyDays, now: now, calendar: calendar).previousPeriodTokens == 33,
+      "Previous periods include their first local midnight and exclude the preceding second")
     let tie = LabUsageLedger(samples: [b, a], calendar: calendar).summary(for: .allTime)
     check(tie.models.map(\.model) == ["A", "B"], "Equal usage has a deterministic model ordering")
     let future = sample("A", iso.date(from: "2026-11-03T05:00:00Z")!, 1, 1)
@@ -297,6 +330,12 @@ extension StudioModel {
     let huge = sample("A", now, .max, 1)
     check(LabUsageLedger(samples: [huge, a]).summary(for: .allTime).totals.totalTokens == .max,
       "Corrupt or extreme counters cannot wrap token totals")
+
+    let extremeActivity = LabUsageLedger(samples: [sample("A", b.date, .max, 1),
+      sample("B", b.date, 1, 1), huge, a], calendar: calendar)
+    check(extremeActivity.summary(for: .allTime).busiestDay?.tokens == .max
+      && extremeActivity.summary(for: .today, now: now, calendar: calendar).previousPeriodTokens == .max,
+      "Extreme daily and comparison totals saturate instead of wrapping")
 
     let invalid = [0.0, -2, .infinity, -.infinity, .nan].map { sample("A", now, 2, 3, decode: $0) }
     let noInterval = [sample("A", now, 3, 0, decode: 200), sample("A", now, 4, 1, decode: 300)]
@@ -358,6 +397,9 @@ extension StudioModel {
       && recovered.totals.generations == 1006 && recovered.models[1].totals.decode == nil
       && recovered.models[0].totals.decode == LabDecodeUsage(average: 3, maximum: 3, count: 2),
       "Backfilling a token-only ledger preserves every historical total and uses only available, unique rates")
+    check(recovered.activeDays == 2 && recovered.busiestDay?.tokens == 5005
+      && recovered.busiestDay?.date == Date(timeIntervalSince1970: Double(day) * 86_400),
+      "Archived daily usage contributes without any retained individual generation details")
     check(filled.persistNow(), "Backfilled rates save atomically with existing usage")
     let again = StudioModel(conversationFileURL: oldFile, isPreview: true, preferences: prefs)
     check(again.labUsage.summary(for: .allTime).totals == recovered.totals,
@@ -553,6 +595,7 @@ extension StudioModel {
       decode: LabDecodeUsage(average: 30, maximum: 30, count: 1)),
       "Agent completion uses actual prompt and generated counts")
     try checkLabUsage(root: root, prefs: prefs) { result, message in check(result, message) }
+    checkLabResponseMeasurements { check($0, $1) }
     let messageID = studio.currentConversation!.messages.last!.id
     try await wait { !studio.agentStudioBusy }
     check(
@@ -788,22 +831,24 @@ extension StudioModesCheck {
   @MainActor static func checkLabPeriodControl(root: URL, prefs: UserDefaults,
     check: (Bool, String) -> Void) async throws {
     let now = Date()
-    func row(_ model: String, _ daysAgo: Int, _ input: Int, _ output: Int, _ decode: Double) -> LabSample {
-      LabSample(date: Calendar.current.date(byAdding: .day, value: -daysAgo, to: now)!,
+    func row(_ model: String, _ daysAgo: Int, _ input: Int, _ output: Int, _ decode: Double,
+             firstToken: Double? = nil) -> LabSample {
+      var stats = GenerationStats(ttftSeconds: 1, prefillTps: 5, decodeTps: decode, promptTokens: input,
+        generatedTokens: output, peakMemoryGB: nil, modelSizeGB: nil, cachedPromptTokens: nil, evaluatedPromptTokens: nil)
+      stats.endToEndTTFTSeconds = firstToken
+      return LabSample(date: Calendar.current.date(byAdding: .day, value: -daysAgo, to: now)!,
         model: model, modelPath: "", bits: nil, mode: "chat", runtime: "", system: "", hardware: "",
-        context: 4096, temperature: 0, topK: 1, mtp: false, dflash: false,
-        stats: GenerationStats(ttftSeconds: 1, prefillTps: 5, decodeTps: decode, promptTokens: input,
-          generatedTokens: output, peakMemoryGB: nil, modelSizeGB: nil,
-          cachedPromptTokens: nil, evaluatedPromptTokens: nil))
+        context: 4096, temperature: 0, topK: 1, mtp: false, dflash: false, stats: stats)
     }
     let active = UUID()
     let chats = [ConversationSnapshot(id: UUID(), title: "Another chat", messages: [], createdAt: now),
                  ConversationSnapshot(id: active, title: "Active chat", messages: [], createdAt: now)]
     var snapshot = WorkspaceSnapshot(selectedConversationID: active, selectedModelName: nil, conversations: chats,
       temperature: 0, topK: 1, repetitionPenalty: 1, systemPrompt: "")
-    snapshot.labSamples = [row("Atlas", 0, 100, 29, 26.5), row("Birch", 0, 70, 15, 42.5),
-                           row("Birch", 14, 192, 10, 67.5), row("Atlas", 60, 316, 35, 92.5),
-                           row("Cedar", 60, 10, 0, 0)]
+    snapshot.labSamples = [row("Atlas", 0, 100, 29, 26.5, firstToken: 2),
+                           row("Birch", 0, 70, 15, 42.5, firstToken: 6),
+                           row("Birch", 14, 192, 10, 67.5, firstToken: 9),
+                           row("Atlas", 45, 316, 35, 92.5), row("Cedar", 45, 10, 0, 0)]
     let file = root.appendingPathComponent("lab-period-switch.json")
     try ConversationStore.write(snapshot, to: file)
     let fixture = StudioModel(conversationFileURL: file, isPreview: true, preferences: prefs)
@@ -812,7 +857,7 @@ extension StudioModesCheck {
     defer { fixture.setLanguage(previousLanguage) }
     fixture.draft = "Continue this draft after checking usage"
     fixture.selectMode(.lab)
-    let host = NSHostingView(rootView: StudioView().environmentObject(fixture)
+    var host = NSHostingView(rootView: StudioView().environmentObject(fixture)
       .defaultAppStorage(prefs).preferredColorScheme(.light))
     let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 1160, height: 660),
                           styleMask: .borderless, backing: .buffered, defer: false)
@@ -876,6 +921,10 @@ extension StudioModesCheck {
       }) else {
         preconditionFailure("Missing Lab sidebar action '\(word)', read \(sidebar.map(\.text))")
       }
+      click(item)
+    }
+
+    func click(_ item: Cell) {
       // Vision and window event coordinates both have their origin at the bottom left.
       let point = NSPoint(x: item.box.midX * host.bounds.width, y: item.box.midY * host.bounds.height)
       func event(_ type: NSEvent.EventType) -> NSEvent {
@@ -907,7 +956,17 @@ extension StudioModesCheck {
             "Expected \(tokens) tokens, then rates \(average) and \(maximum) for \(model), read \(numbers)")
       return cells
     }
-    try await expectDisplayed("416", model: "Birch", tokens: "287", average: "55.0", maximum: "67.5")
+    func expectText(_ text: String, in cells: [Cell]) {
+      let words = cells.map { $0.text.lowercased() }.joined(separator: " ")
+      check(words.contains(text.lowercased()), "Expected '\(text)' in rendered Lab, read \(cells.map(\.text))")
+    }
+    let month = try await expectDisplayed("416", model: "Birch", tokens: "287", average: "55.0", maximum: "67.5")
+    expectText("18 tokens", in: month)
+    check(month.contains { $0.text.range(of: #"(?i)\b6\s*s\b"#, options: .regularExpression) != nil },
+      "Expected 6 s for the 30-day median first text, read \(month.map(\.text))")
+    expectText("2 active days", in: month)
+    expectText("214 tokens", in: month)
+    expectText("361 tokens", in: month)
     let periods = [(L("Aujourd’hui", "Today"), "214", "Birch", "85", "42.5", "42.5"),
                    (L("Depuis le début", "All time"), "777", "Atlas", "480", "59.5", "92.5")]
     for (title, total, model, tokens, average, maximum) in periods {
@@ -916,7 +975,18 @@ extension StudioModesCheck {
       }
       picker.selectedSegment = segment
       check(picker.sendAction(picker.action, to: picker.target), "Lab period action reaches its target")
-      try await expectDisplayed(total, model: model, tokens: tokens, average: average, maximum: maximum)
+      let result = try await expectDisplayed(total, model: model, tokens: tokens, average: average, maximum: maximum)
+      if title == "Today" {
+        expectText("22 tokens", in: result)
+        check(result.contains { $0.text.range(of: #"(?i)\b4\s*s\b"#, options: .regularExpression) != nil },
+          "Expected 4 s for today's median first text, read \(result.map(\.text))")
+        expectText("1 active day", in: result)
+      } else {
+        expectText("361 tokens", in: result)
+        expectText("3 active days", in: result)
+        check(!result.contains { $0.text.localizedCaseInsensitiveContains("previous") },
+          "All-time usage has no preceding period")
+      }
     }
     window.setContentSize(NSSize(width: 820, height: 660))
     let compact = try await expectDisplayed("777", model: "Atlas", tokens: "480", average: "59.5", maximum: "92.5")
@@ -924,7 +994,7 @@ extension StudioModesCheck {
     clickSidebar("Generations", in: compact)
     let history = try await displayedCells()
     check(history.contains { $0.text.contains("Export") } && history.contains { $0.text.contains("92.5") },
-      "Generations exposes its export action and the measured decode rate from 60 days ago")
+      "Generations exposes its export action and the measured decode rate from 45 days ago")
     // "This" uniquely identifies this sidebar entry and avoids OCR's Latin/Cyrillic Mac homoglyphs.
     clickSidebar("This", in: history)
     let hardware = try await displayedCells()
@@ -951,5 +1021,72 @@ extension StudioModesCheck {
     check(fixture.selectedMode == .chat && fixture.selectedConversationID == active
       && fixture.draft == "Continue this draft after checking usage",
       "Reselecting the previous mode also restores the original chat and draft")
+
+    // A historic generation still belongs to All time when the selected period is empty.
+    snapshot.labSamples = [row("Earlier", 90, 80, 7, 19, firstToken: 8)]
+    let earlierFile = root.appendingPathComponent("lab-historic-only.json")
+    try ConversationStore.write(snapshot, to: earlierFile)
+    let earlier = StudioModel(conversationFileURL: earlierFile, isPreview: true, preferences: prefs)
+    earlier.selectMode(.lab)
+    host = NSHostingView(rootView: StudioView().environmentObject(earlier)
+      .defaultAppStorage(prefs).preferredColorScheme(.light))
+    window.contentView = host
+    let empty = try await displayedCells()
+    // Vision occasionally reads a small zero as an uppercase O.
+    check(empty.contains { $0.text.range(of: #"(?i)\b[0o] generations\b"#, options: .regularExpression) != nil },
+      "Empty period shows zero generations, read \(empty.map(\.text))")
+    expectText("No generations recorded in this period", in: empty)
+    guard let otherPeriod = empty.first(where: { $0.text.localizedCaseInsensitiveContains("Show all time") }) else {
+      preconditionFailure("Expected an action to view the archived usage, read \(empty.map(\.text))")
+    }
+    click(otherPeriod)
+    let historic = try await displayedCells()
+    check(historic.contains { $0.text == "87" } && historic.contains { $0.text == "Earlier" },
+      "Show all time opens the recorded history from an empty period")
+
+
+  }
+}
+
+extension StudioModesCheck {
+  static func checkLabResponseMeasurements(check: (Bool, String) -> Void) {
+    var utc = Calendar(identifier: .gregorian)
+    utc.timeZone = TimeZone(secondsFromGMT: 0)!
+    let now = Date(timeIntervalSince1970: 100 * 86_400)
+    func sample(_ endToEnd: Double?, daysAgo: Int = 0, model: String = "Lab") -> LabSample {
+      var stats = GenerationStats(ttftSeconds: 0.01, prefillTps: 260, decodeTps: 40,
+        promptTokens: 5, generatedTokens: 1, peakMemoryGB: nil, modelSizeGB: nil,
+        cachedPromptTokens: nil, evaluatedPromptTokens: nil)
+      stats.endToEndTTFTSeconds = endToEnd
+      return LabSample(date: now.addingTimeInterval(-Double(daysAgo) * 86_400),
+        model: model, modelPath: "", bits: nil, mode: "chat", runtime: "", system: "",
+        hardware: "", context: 8192, temperature: 0, topK: 1, mtp: false, dflash: false, stats: stats)
+    }
+    func summary(_ samples: [LabSample], _ period: LabUsagePeriod = .today) -> LabResponseMeasurements {
+      LabResponseMeasurements(samples: samples, period: period, now: now, calendar: utc)
+    }
+
+    let fast = sample(0.25)
+    let rows = [sample(7), fast, sample(1.5), fast, sample(nil), sample(.infinity), sample(.nan),
+                sample(0), sample(-2), sample(20, model: ""), sample(5, daysAgo: 6), sample(22, daysAgo: 7)]
+    let today = summary(rows)
+    check(today.medianFirstTokenSeconds == 1.5 && today.measuredCount == 3 && today.retainedCount == 8,
+      "First-text median uses one finite, positive end-to-end measurement per valid turn and counts missing coverage")
+    let week = summary(rows, .sevenDays)
+    check(week.medianFirstTokenSeconds == 3.25 && week.measuredCount == 4 && week.retainedCount == 9,
+      "An even-sized sample uses the midpoint and the seven-day window includes day six but excludes day seven")
+    let onlyEngine = summary([sample(nil)])
+    check(onlyEngine.medianFirstTokenSeconds == nil && onlyEngine.measuredCount == 0 && onlyEngine.retainedCount == 1,
+      "A valid engine first-token time does not supply an end-to-end measurement")
+    var moved = fast
+    moved.localDay = 99
+    let noneToday = summary([moved])
+    check(noneToday.medianFirstTokenSeconds == nil && noneToday.retainedCount == 0
+      && summary([moved], .allTime).medianFirstTokenSeconds == 0.25,
+      "First-text samples use the recorded civil day even if the time zone changes")
+    let huge = Double.greatestFiniteMagnitude, tiny = Double.leastNonzeroMagnitude
+    check(summary([sample(huge), sample(huge)]).medianFirstTokenSeconds == huge
+      && summary([sample(tiny), sample(2 * tiny)]).medianFirstTokenSeconds == 2 * tiny,
+      "The midpoint stays finite for huge delays and preserves subnormal precision for tiny delays")
   }
 }

@@ -117,7 +117,10 @@ Desktop passes the key to the engine through a private pipe.
 
 Open **Lab** from the sidebar’s **…** menu or with **⌘5**. **Usage** shows
 input and output tokens for Chat and Agent over today, 7 days, 30 days or all
-recorded time. Models are ordered by tokens used. Average and maximum tok/s
+recorded time. The overview compares token volumes with the preceding period
+when records exist and shows active days, the busiest day and average output
+tokens per generation. The median time to first text uses retained generations
+with an end-to-end measurement. Models are ordered by tokens used. Average and maximum tok/s
 refer to decode speed. Each generation with a measured decode interval counts
 once toward the average.
 

@@ -12,7 +12,7 @@ enum LabUsagePeriod: String, CaseIterable, Identifiable {
         return Int(exactly: floor(localSeconds / 86_400))
     }
 
-    fileprivate func days(at now: Date, calendar: Calendar) -> ClosedRange<Int>? {
+    fileprivate func days(endingOn last: Int) -> ClosedRange<Int> {
         let previousDays: Int
         switch self {
         case .allTime: return Int.min...Int.max
@@ -20,9 +20,13 @@ enum LabUsagePeriod: String, CaseIterable, Identifiable {
         case .sevenDays: previousDays = 6
         case .thirtyDays: previousDays = 29
         }
-        guard let today = Self.day(now, calendar: calendar) else { return nil }
-        let (first, overflow) = today.subtractingReportingOverflow(previousDays)
-        return (overflow ? Int.min : first)...today
+        let (first, overflow) = last.subtractingReportingOverflow(previousDays)
+        return (overflow ? Int.min : first)...last
+    }
+
+    fileprivate func days(at now: Date, calendar: Calendar) -> ClosedRange<Int>? {
+        if self == .allTime { return Int.min...Int.max }
+        return Self.day(now, calendar: calendar).map { days(endingOn: $0) }
     }
 
     func contains(_ sample: LabSample, now: Date = .now, calendar: Calendar = .current) -> Bool {
@@ -98,9 +102,28 @@ struct LabModelUsage: Identifiable {
     var id: String { model }
 }
 
+struct LabUsageDay {
+    // A ledger key is a civil date, even if Studio is later opened in another time zone.
+    // Represent it at UTC midnight and keep that zone when formatting the label.
+    let date: Date
+    let tokens: Int
+
+    fileprivate init(day: Int, tokens: Int) {
+        self.date = Date(timeIntervalSince1970: Double(day) * 86_400)
+        self.tokens = tokens
+    }
+
+    func formatted(locale: Locale) -> String {
+        date.formatted(Date.FormatStyle(date: .abbreviated, time: .omitted, locale: locale, timeZone: .gmt))
+    }
+}
+
 struct LabUsageSummary {
     let totals: LabUsageTotals
     let models: [LabModelUsage]
+    let activeDays: Int
+    let busiestDay: LabUsageDay?
+    let previousPeriodTokens: Int?
 }
 
 /// Daily counts live in the same atomic snapshot as the recent, detailed measurements.
@@ -116,6 +139,8 @@ struct LabUsageLedger: Codable, Sendable {
             record(sample, calendar: calendar)
         }
     }
+
+    var hasActivity: Bool { days.values.contains { !$0.isEmpty } }
 
     var valid: Bool {
         days.values.allSatisfy { models in
@@ -162,11 +187,27 @@ struct LabUsageLedger: Codable, Sendable {
     func summary(for period: LabUsagePeriod, now: Date = .now, calendar: Calendar = .current) -> LabUsageSummary {
         var total = LabUsageTotals()
         var models: [String: LabUsageTotals] = [:]
+        var activeDays = 0
+        var busiest: (tokens: Int, day: Int)?
+        var previousPeriodTokens: Int?
         if let range = period.days(at: now, calendar: calendar) {
-            for (day, buckets) in days where range.contains(day) {
-                for (model, counts) in buckets {
-                    models[model, default: LabUsageTotals()].add(counts)
-                    total.add(counts)
+            let previous = period != .allTime && range.lowerBound > Int.min
+                ? period.days(endingOn: range.lowerBound - 1) : nil
+            for (day, buckets) in days where !buckets.isEmpty {
+                if range.contains(day) {
+                    var tokens = 0
+                    for (model, counts) in buckets {
+                        models[model, default: LabUsageTotals()].add(counts)
+                        total.add(counts)
+                        tokens = LabUsageTotals.sum(tokens, counts.totalTokens)
+                    }
+                    activeDays += 1
+                    // For the same usage prefer the most recent day, regardless of dictionary order.
+                    if busiest.map({ (tokens, day) > $0 }) ?? true { busiest = (tokens, day) }
+                } else if previous?.contains(day) == true {
+                    for counts in buckets.values {
+                        previousPeriodTokens = LabUsageTotals.sum(previousPeriodTokens ?? 0, counts.totalTokens)
+                    }
                 }
             }
         }
@@ -174,6 +215,8 @@ struct LabUsageLedger: Codable, Sendable {
             if $0.totals.totalTokens == $1.totals.totalTokens { return $0.model < $1.model }
             return $0.totals.totalTokens > $1.totals.totalTokens
         }
-        return LabUsageSummary(totals: total, models: rows)
+        return LabUsageSummary(totals: total, models: rows, activeDays: activeDays,
+                               busiestDay: busiest.map { LabUsageDay(day: $0.day, tokens: $0.tokens) },
+                               previousPeriodTokens: previousPeriodTokens)
     }
 }
