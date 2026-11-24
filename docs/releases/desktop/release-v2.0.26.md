@@ -54,11 +54,29 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings �
 
 ## Verification and limits
 
-<!-- DMG_CHECKS -->
+- **Desktop suite** (`scripts/check-desktop.sh`, macOS 26.5 SDK), run on the redesign before it was rebased onto the Images page:
+  - every Swift unit passed, including `Desktop experience checks passed: 3212 assertions`;
+  - the updated sidebar check clicks the real controls in an offscreen window: new conversation across the whole button, the search field (which must not create a conversation), the Server and Chat rows, the Models row and the Settings gear. It also opens every page the "…" and project menus offer;
+  - the run stopped at `scripts/check-studios.sh`, whose Python step needs `pytest`, which this Mac's `python3` lacks. Those quantization tests and the Studios, Agent sandbox and Studio workspace checks after them were **not run**.
+- **After the rebase** onto `main` with the Images page: the app builds, and the sidebar was rendered again with the UI preview. The suite was not run again.
+- **Rendering:** the sidebar was captured with the UI preview fixtures in Graphite dark, Graphite light (French) and Aurora ASCII, plus Agent mode with the composer icons.
+- **This DMG:**
+  - `hdiutil verify` valid, `codesign --deep --strict` passed;
+  - version 2.0.26 / build 79, arm64, built with the macOS 26.5 SDK;
+  - `build-info` has commit `0cc4028de` with no tracked changes;
+  - the bundled engine reports 2.0.31 (`engine-v2.0.31`, commit `e117e02e8f7b`), and its five runtime files are identical to the published engine archive.
+- **Not verified:**
+  - hover states and the "…", project and footer menus driven by hand (they are native menus; their actions are checked in code);
+  - clicking the Image row (it sets the same page flag as the Window menu item from [#191](https://github.com/0xZKnw/mlxl3/pull/191));
+  - VoiceOver navigation of the new rows;
+  - the app driven by hand on a real model.
 
 ## Source and download
 
-<!-- DOWNLOADS -->
+- Source: [`0cc4028de`](https://github.com/0xZKnw/mlxl3/commit/0cc4028de2dd4d407ed092a4c5ba904086f88e41) (tag `v2.0.26`).
+- `MLXL3-Desktop-v2.0.26-b79-Apple-Silicon.dmg`: 252,652,555 bytes, SHA-256 `722643aea412f87a5dbbf34fc35fa1d593431e503837d008c745c8e2a341be2d`.
+- `MLXL3-Desktop-v2.0.26-b79-Apple-Silicon.dmg.sha256`: 110 bytes.
+- Bundled engine: MLXL3 engine 2.0.31, the same files as [`engine-v2.0.31`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.31).
 
 ## Acknowledgements
 
