@@ -14,7 +14,33 @@ pub struct Message {
 
 /// Levels the bridge accepts as `reasoning_effort` (`none` turns thinking off). Each
 /// template supports its own subset: Inkling 2 all of them, Qwen3.8 none/low/medium/xhigh.
-pub const REASONING_EFFORTS: [&str; 6] = ["none", "low", "medium", "high", "xhigh", "max"];
+pub const REASONING_EFFORTS: [&str; 7] =
+    ["none", "minimal", "low", "medium", "high", "xhigh", "max"];
+
+pub fn accepts_reasoning_effort(level: &str) -> bool {
+    REASONING_EFFORTS.contains(&level)
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(12)]
+fn native_effort_names_match_advertised_protocol() {
+    let bytes: [u8; 8] = kani::any();
+    let len: usize = kani::any();
+    kani::assume(len <= bytes.len());
+    if let Ok(level) = std::str::from_utf8(&bytes[..len]) {
+        let accepted = accepts_reasoning_effort(level);
+        assert_eq!(
+            accepted,
+            matches!(
+                level,
+                "none" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max"
+            )
+        );
+        kani::cover!(accepted && level == "minimal");
+        kani::cover!(!accepted && len == 8);
+    }
+}
 
 pub struct ChatTokenizer {
     tokenizer: Tokenizer,
@@ -317,7 +343,7 @@ impl ChatTokenizer {
             None => self.render_values_options(messages, tools, None, None),
             Some(level) => {
                 ensure!(
-                    REASONING_EFFORTS.contains(&level),
+                    accepts_reasoning_effort(level),
                     "unsupported reasoning effort {level:?}"
                 );
                 if level == "none" {
@@ -691,6 +717,36 @@ print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads
         Ok(())
     }
 
+    #[test]
+    #[ignore = "requires MLXL3_INKLING_MODEL (an Inkling 2 checkpoint folder); no GPU"]
+    fn inkling_renders_each_native_effort_once() -> Result<()> {
+        let path = std::env::var("MLXL3_INKLING_MODEL").context("MLXL3_INKLING_MODEL")?;
+        let tokenizer = ChatTokenizer::load(Path::new(&path))?;
+        let messages =
+            json!([{"role":"user", "content":"What is 37 times 24? Reply with only the integer."}]);
+        for (effort, expected) in [
+            (None, "0.9"),
+            (Some("none"), "0"),
+            (Some("minimal"), "0.1"),
+            (Some("low"), "0.2"),
+            (Some("medium"), "0.7"),
+            (Some("high"), "0.9"),
+            (Some("xhigh"), "0.99"),
+            (Some("max"), "0.99"),
+        ] {
+            let prompt = tokenizer.render_values_with_effort(&messages, None, effort)?;
+            let header = format!(
+                "<|message_system|><|content_text|>Thinking effort level: {expected}<|end_message|>"
+            );
+            assert!(
+                prompt.starts_with(&header),
+                "unexpected header for {effort:?}"
+            );
+            assert_eq!(prompt.matches("Thinking effort level:").count(), 1);
+        }
+        Ok(())
+    }
+
     /// The real Inkling 2 template with the engine's tool loop messages: tools declared, the
     /// call rendered in its native format from parsed arguments, the result under its name.
     #[test]
@@ -812,13 +868,13 @@ print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads
         let render = |effort| tokenizer.render_values_with_effort(&messages, None, effort);
         assert_eq!(render(None).unwrap(), "True||unset|hi", "template default");
         assert_eq!(render(Some("none")).unwrap(), "False|False|0.0|hi");
-        for level in ["low", "medium", "high", "xhigh", "max"] {
+        for level in ["minimal", "low", "medium", "high", "xhigh", "max"] {
             assert_eq!(
                 render(Some(level)).unwrap(),
                 format!("False|True|{level}|hi")
             );
         }
-        for invalid in ["", "minimal", "HIGH", "0.5", "ultra"] {
+        for invalid in ["", "minimum", "HIGH", "0.5", "ultra"] {
             assert!(render(Some(invalid)).is_err(), "{invalid:?}");
         }
     }

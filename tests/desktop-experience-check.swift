@@ -555,42 +555,66 @@ extension DesktopExperienceCheck {
             }
             try await Task.sleep(for: .milliseconds(100))
         }
-        // The compact sidebar puts search and the new-conversation button on one
-        // row (232-point sidebar): the button answers, the search field does not.
+        // Sidebar (232 points, 780-point window): new conversation sits in the window-control
+        // row (y 14-44) like the workspace toolbar, the search field below it (y 52-82).
         let beforeSearch = studio.conversations.count
-        try await click(90, 193)
+        try await click(90, 67)
         precondition(studio.conversations.count == beforeSearch,
                      "Clicking the sidebar search field must not create a conversation")
-        for x in [CGFloat(196), 207, 218] {
+        for x in [CGFloat(197), 209, 221] {
             let count = studio.conversations.count
-            try await click(x, 193)
+            try await click(x, 29)
             precondition(studio.conversations.count == count + 1,
-                         "New conversation must respond across the whole compact sidebar button")
+                         "New conversation must respond across the whole sidebar button")
         }
         studio.draft = "Brouillon conservé"
         try await click(1195, 33)
         precondition(studio.showInspector && studio.draft == "Brouillon conservé")
         try await click(1188, 52)
         precondition(!studio.showInspector && studio.draft == "Brouillon conservé")
-        // Footer icon row (232-point sidebar, 780-point window): each icon opens its own page.
+        // Mode rows: 28 points each from y 92 (Chat), one point apart; the whole row answers.
+        try await click(200, 193)
+        precondition(studio.selectedMode == .server, "The Server row did not open Server")
+        try await click(40, 106)
+        precondition(studio.selectedMode == .chat, "The Chat row did not return to Chat")
+        // Footer (y 740-770): the labelled Models row and the Settings gear open their pages.
         let footer: [(CGFloat, String, () -> Bool, () -> Void)] = [
-            (36, "Projects", { studio.showWorkspace }, { studio.showWorkspace = false }),
-            (89, "MCP", { studio.showMCPManager }, { studio.showMCPManager = false }),
-            (143, "Models", { studio.showModelManager }, { studio.showModelManager = false }),
-            (196, "Settings", { studio.showAppSettings }, { studio.showAppSettings = false }),
+            (60, "Models", { studio.showModelManager }, { studio.showModelManager = false }),
+            (209, "Settings", { studio.showAppSettings }, { studio.showAppSettings = false }),
         ]
         for (x, name, isOpen, close) in footer {
             precondition(!studio.showWorkspace && !studio.showMCPManager && !studio.showModelManager && !studio.showAppSettings,
                          "A management page was already open before the \(name) footer click")
-            try await click(x, 752)
-            precondition(isOpen(), "The \(name) footer icon did not open its page")
+            try await click(x, 755)
+            precondition(isOpen(), "The \(name) footer control did not open its page")
             precondition([studio.showWorkspace, studio.showMCPManager, studio.showModelManager, studio.showAppSettings]
-                .filter { $0 }.count == 1, "The \(name) footer icon opened more than one page")
+                .filter { $0 }.count == 1, "The \(name) footer control opened more than one page")
             close()
             // Let the 0.2 s page fade-out finish; the fading page still owns the clicks.
             try await Task.sleep(for: .milliseconds(450))
         }
-        print("Workspace controls passed: compact new conversation button, search row, footer icon row, inspector close and retained draft")
+        // The footer "…" and project menus are native menus (not clickable offscreen); their
+        // items call SidebarDestination.open, checked here page by page.
+        SidebarDestination.lab.open(studio)
+        precondition(studio.selectedMode == .lab && !studio.showWorkspace && !studio.showMCPManager
+                     && !studio.showModelManager && !studio.showAppSettings, "The Lab menu item must open Lab and no page")
+        studio.selectMode(.chat)
+        precondition(studio.selectedMode == .chat, "Could not return to Chat after Lab")
+        let pages: [(SidebarDestination, () -> Bool)] = [
+            (.models, { studio.showModelManager }), (.projects, { studio.showWorkspace }),
+            (.mcp, { studio.showMCPManager }), (.settings, { studio.showAppSettings }),
+        ]
+        precondition(Set([SidebarDestination.lab] + pages.map(\.0)) == Set(SidebarDestination.allCases)
+                     && pages.count + 1 == SidebarDestination.allCases.count, "A sidebar destination is not checked")
+        for (destination, isOpen) in pages {
+            destination.open(studio)
+            precondition(isOpen() && [studio.showWorkspace, studio.showMCPManager, studio.showModelManager, studio.showAppSettings]
+                .filter { $0 }.count == 1, "\(destination) must open exactly its own page")
+            studio.showWorkspace = false; studio.showMCPManager = false
+            studio.showModelManager = false; studio.showAppSettings = false
+        }
+        try await Task.sleep(for: .milliseconds(450))
+        print("Workspace controls passed: sidebar new conversation button, search row, mode rows, labelled footer, every footer destination, inspector close and retained draft")
     }
 }
 

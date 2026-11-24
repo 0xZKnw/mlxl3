@@ -143,6 +143,7 @@ final class StudioModel: ObservableObject {
     @Published private(set) var reasoningChoice: ReasoningEffort?
     /// The running engine passes `reasoning_effort` to the template (reported at ready).
     @Published private(set) var engineReasoningSupported = false
+    @Published private(set) var engineReasoningLevels = ReasoningEffort.legacyLevels
     /// Older engines only: output tokens of one Agent turn, all tool rounds and reasoning
     /// included. A long task ran out of it mid-work (AGENT-2026-11-23-BOUCLE).
     static let agentTokenBudget = 32_768
@@ -691,25 +692,37 @@ final class StudioModel: ObservableObject {
     }
 
     /// The reasoning selector shows only when both the model and the engine support it.
-    var reasoningControlAvailable: Bool { engineReasoningSupported && reasoningSupport != nil }
+    var reasoningControlAvailable: Bool { engineReasoningSupported && !reasoningLevels.isEmpty }
 
-    /// Level the next request uses: the saved choice when this model supports it, else its default.
-    var reasoningLevel: ReasoningEffort? {
-        guard let support = reasoningSupport else { return nil }
-        return reasoningChoice.flatMap { support.levels.contains($0) ? $0 : nil } ?? support.defaultLevel
+    var reasoningLevels: [ReasoningEffort] {
+        reasoningSupport?.choices(acceptedByEngine: engineReasoningLevels) ?? []
     }
 
-    /// Sent only when it differs from the template default, so default prompts stay identical.
+    var effectiveReasoningChoice: ReasoningEffort? {
+        guard let choice = reasoningChoice, let support = reasoningSupport else { return nil }
+        if reasoningLevels.contains(choice) { return choice }
+        if let level = support.nativeAliases[choice], reasoningLevels.contains(level) { return level }
+        // Obsolete budget-only preferences revert to the template default.
+        return nil
+    }
+
+    var reasoningLevel: ReasoningEffort? { effectiveReasoningChoice ?? reasoningSupport?.defaultLevel }
+
     var requestReasoningEffort: String? {
-        guard reasoningControlAvailable, let support = reasoningSupport, let level = reasoningLevel,
-              level != support.defaultLevel else { return nil }
-        return level.rawValue
+        guard reasoningControlAvailable, let choice = effectiveReasoningChoice else { return nil }
+        return choice.rawValue
     }
 
     func setReasoningLevel(_ level: ReasoningEffort) {
-        guard let model = selectedModel, reasoningSupport?.levels.contains(level) == true else { return }
+        guard let model = selectedModel, reasoningLevels.contains(level) else { return }
         reasoningChoice = level
         preferences.set(level.rawValue, forKey: "studio.reasoning.\(model.path)")
+    }
+
+    func resetReasoningLevel() {
+        guard let model = selectedModel else { return }
+        reasoningChoice = nil
+        preferences.removeObject(forKey: "studio.reasoning.\(model.path)")
     }
 
     private func restoreReasoningPreference() {
@@ -2214,6 +2227,7 @@ final class StudioModel: ObservableObject {
         restoreMTPPreference()
         restoreReasoningPreference()
         engineReasoningSupported = false
+        engineReasoningLevels = ReasoningEffort.legacyLevels
         mtpHeadPath = selectedModel.flatMap { preferences.string(forKey: "studio.mtpHead.\($0.path)") }
             ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
         mtpError = nil
@@ -2332,6 +2346,8 @@ final class StudioModel: ObservableObject {
         case "ready":
             memorySaverSupported = event.memorySaverSupported == true
             engineReasoningSupported = event.reasoningEffortSupported == true
+            engineReasoningLevels = event.reasoningEffortLevels.map { Set($0.compactMap(ReasoningEffort.init(rawValue:))) }
+                ?? ReasoningEffort.legacyLevels
             let longCalls = event.mcpCallTimeoutSupported == true && event.toolRoundsSupported == true
             let rewriteAgentRegistry = longCalls != engineLongToolCalls
             engineLongToolCalls = longCalls

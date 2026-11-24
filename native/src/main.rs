@@ -2872,15 +2872,21 @@ fn report_prefill_progress(done: usize, total: usize) -> Result<()> {
 }
 
 /// Sets the reasoning level for one request; dropping it restores the template default.
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 struct ReasoningRequest;
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 impl ReasoningRequest {
     fn set(effort: Option<String>) -> Result<Self> {
         if let Some(level) = &effort {
             anyhow::ensure!(
-                mlxl3_native::tokenizer::REASONING_EFFORTS.contains(&level.as_str()),
+                mlxl3_native::tokenizer::accepts_reasoning_effort(level),
                 "unsupported reasoning effort {level:?}"
             );
         }
@@ -2889,14 +2895,21 @@ impl ReasoningRequest {
     }
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 impl Drop for ReasoningRequest {
     fn drop(&mut self) {
         REASONING_REQUESTED.with(|cell| *cell.borrow_mut() = None);
     }
 }
 
-#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    test,
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 #[test]
 fn bridge_reasoning_effort_is_optional_validated_and_scoped() -> Result<()> {
     let current = || REASONING_REQUESTED.with(|cell| cell.borrow().clone());
@@ -2906,8 +2919,11 @@ fn bridge_reasoning_effort_is_optional_validated_and_scoped() -> Result<()> {
         "older apps keep the template default"
     );
     for level in mlxl3_native::tokenizer::REASONING_EFFORTS {
-        let request: BridgeRequest =
-            serde_json::from_value(json!({"type":"generate", "reasoning_effort":level}))?;
+        let request: BridgeRequest = serde_json::from_value(
+            json!({"type":"generate", "reasoning_effort":level, "max_tokens":-1}),
+        )?;
+        assert!(request.reasoning_budget.is_none());
+        assert_eq!(request.max_tokens, -1);
         {
             let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;
             assert_eq!(current().as_deref(), Some(level));
@@ -4204,8 +4220,8 @@ struct RoundOutput {
     token_hash: String,
     /// The generated token ids (a forced end of thinking continues from them).
     generated: Vec<u32>,
-    /// The round stopped at its reasoning budget; holds the marker closing that block.
-    reasoning_cut: Option<&'static str>,
+    /// The round stopped at its reasoning budget; holds the exact text to resume the model.
+    reasoning_cut: Option<String>,
 }
 
 #[cfg(all(
@@ -4659,7 +4675,7 @@ fn bridge_generate_round(
         usize::try_from(max_tokens)?.min(available)
     };
     let reasoning_limit = reasoning_budget
-        .map(|limit| mlxl3_native::agent_loop::step_reasoning_budget(limit, available));
+        .and_then(|limit| mlxl3_native::agent_loop::step_reasoning_budget(limit, budget));
     let _prefill_progress = PrefillProgress::set(request_id);
     #[cfg(feature = "mlx")]
     if let NativeChatModel::Flash(target) = &mut *model
@@ -4931,6 +4947,11 @@ fn bridge_generate_round(
     }
     let mut thinking_tokens = 0usize;
     let mut reasoning_cut = None;
+    let mut closing_plan: Option<(&str, String, usize)> = None;
+    let summarizing = buffer_output
+        && messages
+            .last()
+            .is_some_and(|message| message["content"] == mlxl3_native::agent_loop::SUMMARY_REQUEST);
     // The prompt says which call format the model will use: Inkling 2 declares its tools
     // in a `tool_declare` system message, and may write text before a call.
     let inkling_tools = rendered.contains("<|message_system|>tool_declare<|content_xml|>");
@@ -5027,10 +5048,36 @@ fn bridge_generate_round(
                 }
             }
         }
-        if let Some(close) = splitter.thinking_close() {
+        if let (Some(limit), Some(marker)) = (reasoning_limit, splitter.thinking_close()) {
             thinking_tokens += 1;
-            if reasoning_limit.is_some_and(|limit| thinking_tokens >= limit) {
-                reasoning_cut = Some(close);
+            let context_left = available - generated.len();
+            if closing_plan.as_ref().is_none_or(|plan| plan.0 != marker) {
+                let continuation = |compact| {
+                    mlxl3_native::agent_loop::reasoning_continuation(
+                        marker,
+                        summarizing,
+                        !tools.is_empty(),
+                        compact,
+                    )
+                };
+                let mut text = continuation(false);
+                let mut size = tokenizer.encode(&text)?.len();
+                if context_left.saturating_sub(limit.saturating_sub(thinking_tokens)) <= size {
+                    text = continuation(true);
+                    size = tokenizer.encode(&text)?.len();
+                }
+                closing_plan = Some((marker, text, size));
+            }
+            if let Some((_, text, size)) = &closing_plan
+                && mlxl3_native::agent_loop::cut_thinking_now(
+                    thinking_tokens,
+                    limit,
+                    context_left,
+                    *size,
+                    budget - generated.len(),
+                )
+            {
+                reasoning_cut = Some(text.clone());
                 break;
             }
         }
@@ -5993,6 +6040,7 @@ fn native_bridge(
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "images_supported":model.supports_images(),
         "reasoning_effort_supported":true,
+        "reasoning_effort_levels":mlxl3_native::tokenizer::REASONING_EFFORTS,
         // Agent mode: `tool_rounds` per request, and `callTimeoutSeconds` per MCP server;
         // AGENT-2026-11-23-BOUCLE: `reasoning_budget`, 512 rounds, pruning, repeated-call stop.
         "tool_rounds_supported":true, "mcp_call_timeout_supported":true,

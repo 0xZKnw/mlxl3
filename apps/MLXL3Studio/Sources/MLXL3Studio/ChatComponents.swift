@@ -1128,27 +1128,27 @@ private struct ComposerPasteMonitor: NSViewRepresentable {
 }
 
 
-/// Reasoning depth of models whose chat template accepts `reasoning_effort` (Inkling 2,
-/// Qwen3.8…): only the levels that template names, kept per model.
+/// The model’s native thinking switch or effort levels.
 private struct ReasoningMenu: View {
     @EnvironmentObject private var studio: StudioModel
     let support: ReasoningSupport
     let level: ReasoningEffort
 
+    private var currentLabel: String {
+        if studio.effectiveReasoningChoice == nil { return L("Réflexion auto", "Auto thinking") }
+        return support.title(for: level, inComposer: true)
+    }
+
     var body: some View {
         Menu {
             Picker(L("Raisonnement", "Reasoning"), selection: Binding(
-                get: { level }, set: { studio.setReasoningLevel($0) })) {
-                ForEach(support.levels) { option in
-                    Label {
-                        Text(option.title)
-                        Text(option == support.defaultLevel
-                             ? L("\(option.detail) · par défaut", "\(option.detail) · default")
-                             : option.detail)
-                    } icon: {
-                        Image(systemName: option.symbol)
-                    }
-                    .tag(option)
+                get: { studio.effectiveReasoningChoice }, set: { choice in
+                    if let choice { studio.setReasoningLevel(choice) } else { studio.resetReasoningLevel() }
+                })) {
+                Text(L("Par défaut du modèle", "Model default")).tag(nil as ReasoningEffort?)
+                ForEach(studio.reasoningLevels) { option in
+                    Label(support.title(for: option), systemImage: option.symbol)
+                    .tag(Optional(option))
                 }
             }
             .pickerStyle(.inline)
@@ -1156,7 +1156,7 @@ private struct ReasoningMenu: View {
             HStack(spacing: 6) {
                 Image(systemName: level.symbol)
                     .foregroundStyle(level == .none ? StudioTheme.quiet : studio.accentColor)
-                Text(level.label)
+                Text(currentLabel)
             }
             .font(.system(size: 12, weight: .medium))
             .padding(.horizontal, 9)
@@ -1169,8 +1169,44 @@ private struct ReasoningMenu: View {
         .disabled(studio.isGenerating)
         .accessibilityIdentifier("composer.reasoning")
         .accessibilityLabel(L("Raisonnement", "Reasoning"))
-        .accessibilityValue(level.label)
+        .accessibilityValue(currentLabel)
         .help(L("Profondeur de raisonnement du modèle", "Model reasoning depth"))
+    }
+}
+
+/// Agent: the task's folder and its Internet switch as icons beside Tools, in the
+/// composer itself rather than in a second bar under it.
+private struct ComposerAgentControls: View {
+    @EnvironmentObject private var studio: StudioModel
+
+    var body: some View {
+        let internet = studio.agentPermissions.internet
+        HStack(spacing: 2) {
+            Button(action: studio.openAgentWorkspace) {
+                Image(systemName: "folder")
+                    .foregroundStyle(StudioTheme.secondary)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(WorkspaceControlStyle())
+            .help(L("Ouvrir le dossier de la tâche dans le Finder", "Open the task’s folder in Finder"))
+            .accessibilityLabel(L("Dossier de la tâche", "Task folder"))
+
+            Button { studio.setAgentInternet(!internet) } label: {
+                Image(systemName: internet ? "globe" : "network.slash")
+                    .foregroundStyle(internet ? StudioTheme.ink : StudioTheme.quiet)
+                    .frame(width: 28, height: 28)
+            }
+            .buttonStyle(WorkspaceControlStyle(selected: internet))
+            .disabled(studio.isGenerating || studio.agentStudioBusy)
+            .help(internet
+                ? L("Internet activé pour cette tâche : commandes (pip, npm, git clone), fetch et recherche web. Cliquer pour le couper.",
+                    "Internet is on for this task: commands (pip, npm, git clone), fetch and web search. Click to turn it off.")
+                : L("Internet coupé pour cette tâche. Cliquer pour l’activer.", "Internet is off for this task. Click to turn it on."))
+            .accessibilityLabel("Internet")
+            .accessibilityValue(internet ? L("activé", "on") : L("coupé", "off"))
+            .accessibilityIdentifier("agent.composer.internet")
+        }
+        .font(.system(size: 13))
     }
 }
 
@@ -1214,6 +1250,9 @@ private struct ComposerFooterView: View {
                 if studio.reasoningControlAvailable, let support = studio.reasoningSupport,
                    let level = studio.reasoningLevel {
                     ReasoningMenu(support: support, level: level)
+                }
+                if studio.selectedMode == .agent {
+                    ComposerAgentControls()
                 }
                 if studio.mcpUpdating {
                     ProgressView().controlSize(.mini).help(L("Connexion MCP…", "Connecting MCP…"))

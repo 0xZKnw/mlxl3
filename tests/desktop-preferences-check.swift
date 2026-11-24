@@ -4,7 +4,10 @@ import SwiftUI
 extension StudioModel {
     fileprivate var fixtureRunning: Bool { bridge.isRunning }
     /// Stands for an engine whose ready event announced `reasoning_effort_supported`.
-    fileprivate func fixtureReasoningEngine(_ supported: Bool) { engineReasoningSupported = supported }
+    fileprivate func fixtureReasoningEngine(_ supported: Bool, levels: Set<ReasoningEffort> = ReasoningEffort.legacyLevels) {
+        engineReasoningSupported = supported
+        engineReasoningLevels = levels
+    }
 }
 
 @main struct DesktopPreferencesCheck {
@@ -469,7 +472,7 @@ extension StudioModel {
             return value
         }
         let thinker = reasoningStudio()
-        check(thinker.reasoningSupport == ReasoningSupport(levels: ReasoningEffort.allCases, defaultLevel: .high),
+        check(thinker.reasoningSupport == ReasoningSupport(levels: ReasoningEffort.allCases, defaultLevel: .high, noneIsZeroEffort: true, nativeAliases: [.xhigh: .max]),
               "Inkling reasoning levels read from the model folder")
         check(!thinker.reasoningControlAvailable && thinker.requestReasoningEffort == nil,
               "No selector and no field for an engine without reasoning support")
@@ -481,6 +484,57 @@ extension StudioModel {
         let reopened = reasoningStudio()
         reopened.fixtureReasoningEngine(true)
         check(reopened.reasoningLevel == .low, "The reasoning level is kept per model")
+        check(reopened.reasoningLevels == [.none, .low, .medium, .high, .max],
+              "A legacy engine offers only the historical, distinct native levels")
+        let native: [ReasoningEffort] = [.none, .minimal, .low, .medium, .high, .max]
+        reopened.fixtureReasoningEngine(true, levels: Set(ReasoningEffort.allCases))
+        check(reopened.reasoningLevels == native, "Inkling supports Minimal and one representative for 0.99")
+        for level in native {
+            reopened.setReasoningLevel(level)
+            check(reopened.requestReasoningEffort == level.rawValue, "The native choice is sent, including the explicit default")
+        }
+        let key = "studio.reasoning." + reasoningModel.path
+        preferences.set("xhigh", forKey: key)
+        let aliasStudio = reasoningStudio()
+        aliasStudio.fixtureReasoningEngine(true)
+        check(aliasStudio.effectiveReasoningChoice == .max && aliasStudio.requestReasoningEffort == "max",
+              "Existing Inkling XHigh preferences map to the equivalent native Max")
+        reopened.setReasoningLevel(.minimal)
+        reopened.fixtureReasoningEngine(true)
+        check(reopened.requestReasoningEffort == nil, "Older engines use the model default for unsupported Minimal")
+        reopened.fixtureReasoningEngine(true, levels: Set(ReasoningEffort.allCases))
+        check(reopened.requestReasoningEffort == "minimal", "A compatible engine restores the saved Minimal choice")
+        reopened.responseSchema = "{}"
+        check(reopened.requestReasoningEffort == "minimal", "Structured output uses the same native effort")
+        reopened.responseSchema = ""
+        reopened.resetReasoningLevel()
+        check(reopened.requestReasoningEffort == nil && reasoningStudio().reasoningChoice == nil,
+              "Model default clears the stored override and omits the field")
+        let toggleTemplate = "{% if enable_thinking is defined and enable_thinking is false %}<think></think>{% else %}<think>{% endif %}"
+        let toggle = ReasoningSupport.detect(template: toggleTemplate)
+        check(toggle?.choices(acceptedByEngine: Set(ReasoningEffort.allCases)) == [.none, .max],
+              "A native switch has only Off and On")
+        for inComposer in [false, true] {
+            check(thinker.reasoningSupport?.title(for: .none, inComposer: inComposer) == L("Effort nul", "Zero effort"),
+                  "Inkling's zero effort allows thinking, in the menu and the composer")
+            check(toggle?.title(for: .none, inComposer: inComposer) == L("Sans réflexion", "No thinking"),
+                  "The Qwen thinking switch retains its Off label")
+        }
+        let alias = "if resolved_reasoning_effort == 'high', set to 'xhigh'; "
+            + "if resolved_reasoning_effort not in ('xhigh', 'medium', 'low'); enable_thinking"
+        check(ReasoningSupport.detect(template: alias)?.levels == [.none, .low, .medium, .xhigh],
+              "Qwen3.8's high alias does not create a duplicate native level")
+        check(ReasoningSupport.detect(template: "{{ reasoning_effort }} Tool priorities: 'high', 'low'.") == nil,
+              "Unrelated strings do not invent reasoning levels")
+        try toggleTemplate.write(to: reasoningFolder.appendingPathComponent("chat_template.jinja"), atomically: true, encoding: .utf8)
+        for stale in ["low", "medium", "high", "unrecognized"] {
+            preferences.set(stale, forKey: key)
+            let restored = reasoningStudio()
+            restored.fixtureReasoningEngine(true, levels: Set(ReasoningEffort.allCases))
+            check(restored.requestReasoningEffort == nil && restored.effectiveReasoningChoice == nil
+                    && restored.reasoningLevels == [.none, .max],
+                  "Old unsupported levels go back to the model default")
+        }
         let composer = NSHostingView(rootView: ComposerView().environmentObject(reopened)
             .frame(width: 720).padding(24).background(StudioTheme.canvas).preferredColorScheme(.dark))
         composer.frame = NSRect(x: 0, y: 0, width: 768, height: 150)
