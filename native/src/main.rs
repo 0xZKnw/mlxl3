@@ -2358,6 +2358,20 @@ impl NativeChatModel {
         Ok((self.forward_many(tokens)?, None))
     }
 
+    /// Flash has no reusable chat checkpoint at intermediate span boundaries.
+    fn advance_flash_prompt(
+        &mut self,
+        chunk: &[u32],
+        total: usize,
+        end: usize,
+        cancelled: &AtomicBool,
+    ) -> Result<bool> {
+        let Self::Flash(target) = self else {
+            return Ok(false);
+        };
+        target.advance_chat_prompt(chunk, total, end, cancelled)
+    }
+
     fn prefill_chunk_size(&self) -> usize {
         match self {
             Self::Gemma4(_) | Self::Lfm3(_) => 256,
@@ -3337,6 +3351,14 @@ fn prefill_round(
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
             bail!("generation cancelled");
+        }
+        if draft.is_none()
+            && end < tokens.len()
+            && model.advance_flash_prompt(chunk, tokens.len(), end, cancelled)?
+        {
+            #[cfg(test)]
+            tests::FLASH_ADVANCED_ENDS.with_borrow_mut(|ends| ends.push(end));
+            continue;
         }
         logits = Some(
             if let Some((session, weights)) = dflash.as_mut().zip(draft) {
@@ -6567,6 +6589,17 @@ fn native_chat(
             let (chunk, group) = (model.prefill_chunk_size(), model.prefill_group()?);
             let mut start = 0;
             while let Some(end) = model.prefill_span_end(start, tokens.len(), chunk, group) {
+                if end < tokens.len()
+                    && model.advance_flash_prompt(
+                        &tokens[start..end],
+                        tokens.len(),
+                        end,
+                        &AtomicBool::new(false),
+                    )?
+                {
+                    start = end;
+                    continue;
+                }
                 last = Some(model.forward_span(&tokens[start..end], false)?.0);
                 model.eval_state()?;
                 start = end;
@@ -6684,6 +6717,59 @@ fn native_chat(
 #[cfg(all(test, feature = "mlx", feature = "chat"))]
 mod tests {
     use super::*;
+
+    thread_local! {
+        pub(super) static FLASH_ADVANCED_ENDS: std::cell::RefCell<Vec<usize>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU and MLXL3_FLASH_MODEL; run once per prefill configuration"]
+    fn flash_prefill_round_matches_scalar_continuation() -> Result<()> {
+        use mlxl3_native::array::{Array, Dtype};
+        let finite_logits = |a: Array| -> Result<Vec<u8>> {
+            let values = a.astype(Dtype::Float32)?.to_f32()?;
+            anyhow::ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
+            a.to_bytes()
+        };
+        let enabled = |key| std::env::var(key).as_deref() == Ok("1");
+        let expected_ends: Vec<usize> = if enabled("MLXL3_FLASH_PREFILL_EXPERT4")
+            && enabled("MLXL3_FLASH_PREFILL_SERIAL_TAIL")
+        {
+            (8..=208).step_by(8).collect()
+        } else if enabled("MLXL3_FLASH_PREFILL_EXPERT4") || enabled("MLXL3_FLASH_PROMPT_FINAL_HEAD")
+        {
+            (8..=256).step_by(8).collect()
+        } else {
+            vec![]
+        };
+        let tokens: Vec<_> = (0..257).map(|i| 18 + (i * 193) % 8000).collect();
+        let mut model =
+            NativeChatModel::load(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        anyhow::ensure!(matches!(model, NativeChatModel::Flash(_)));
+        let mut last = None;
+        for &token in &tokens {
+            last = Some(model.forward(token)?);
+        }
+        let expected_last = finite_logits(last.context("missing scalar logits")?)?;
+        let expected_next = finite_logits(model.forward(28)?)?;
+        FLASH_ADVANCED_ENDS.with_borrow_mut(Vec::clear);
+        let mut cache = None;
+        let (logits, draft, cached) = prefill_round(
+            &mut model,
+            &tokens,
+            &[],
+            None,
+            &mut cache,
+            "flash-review",
+            true,
+            &AtomicBool::new(false),
+        )?;
+        anyhow::ensure!(draft.is_none() && cached == 0 && cache.is_none());
+        anyhow::ensure!(finite_logits(logits)? == expected_last);
+        anyhow::ensure!(finite_logits(model.forward(28)?)? == expected_next);
+        FLASH_ADVANCED_ENDS.with_borrow(|actual| assert_eq!(actual, &expected_ends));
+        Ok(())
+    }
 
     /// DSPARK-INK2M-P10c: sampled rows on the 8-bit target take the measured costs; greedy rows, the FP16
     /// target and `p4c` the P4c linear costs; any other policy name is refused.
