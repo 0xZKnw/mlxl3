@@ -717,6 +717,36 @@ print(json.dumps(t.apply_chat_template(json.loads(sys.argv[2]), tools=json.loads
         Ok(())
     }
 
+    #[test]
+    #[ignore = "requires MLXL3_INKLING_MODEL (an Inkling 2 checkpoint folder); no GPU"]
+    fn inkling_renders_each_native_effort_once() -> Result<()> {
+        let path = std::env::var("MLXL3_INKLING_MODEL").context("MLXL3_INKLING_MODEL")?;
+        let tokenizer = ChatTokenizer::load(Path::new(&path))?;
+        let messages =
+            json!([{"role":"user", "content":"What is 37 times 24? Reply with only the integer."}]);
+        for (effort, expected) in [
+            (None, "0.9"),
+            (Some("none"), "0"),
+            (Some("minimal"), "0.1"),
+            (Some("low"), "0.2"),
+            (Some("medium"), "0.7"),
+            (Some("high"), "0.9"),
+            (Some("xhigh"), "0.99"),
+            (Some("max"), "0.99"),
+        ] {
+            let prompt = tokenizer.render_values_with_effort(&messages, None, effort)?;
+            let header = format!(
+                "<|message_system|><|content_text|>Thinking effort level: {expected}<|end_message|>"
+            );
+            assert!(
+                prompt.starts_with(&header),
+                "unexpected header for {effort:?}"
+            );
+            assert_eq!(prompt.matches("Thinking effort level:").count(), 1);
+        }
+        Ok(())
+    }
+
     /// The real Inkling 2 template with the engine's tool loop messages: tools declared, the
     /// call rendered in its native format from parsed arguments, the result under its name.
     #[test]

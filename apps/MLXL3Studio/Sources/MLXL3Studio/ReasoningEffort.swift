@@ -2,7 +2,7 @@ import Foundation
 import SwiftUI
 
 /// Reasoning levels the engine passes to the chat template as `reasoning_effort`
-/// (`none` turns thinking off). Each template supports its own subset.
+/// Each model template defines the meaning of its supported levels.
 enum ReasoningEffort: String, CaseIterable, Codable, Identifiable, Sendable {
   case none, minimal, low, medium, high, xhigh, max
 
@@ -54,6 +54,7 @@ struct ReasoningSupport: Equatable, Sendable {
   let defaultLevel: ReasoningEffort
 
   var toggleOnly = false
+  var noneIsZeroEffort = false
   // Some templates assign two names to the same native effort.
   var nativeAliases: [ReasoningEffort: ReasoningEffort] = [:]
 
@@ -64,9 +65,10 @@ struct ReasoningSupport: Equatable, Sendable {
     }
   }
 
-  func title(for level: ReasoningEffort) -> String {
+  func title(for level: ReasoningEffort, inComposer: Bool = false) -> String {
+    if noneIsZeroEffort && level == .none { return L("Effort nul", "Zero effort") }
     if toggleOnly && level == .max { return L("Réflexion activée", "Thinking on") }
-    return level.title
+    return inComposer ? level.label : level.title
   }
 
   static func detect(template: String) -> ReasoningSupport? {
@@ -108,7 +110,8 @@ struct ReasoningSupport: Equatable, Sendable {
       guard let representative = group.contains(fallback) ? fallback : levels.last(where: group.contains) else { continue }
       for alias in group where alias != representative { aliases[alias] = representative }
     }
-    return ReasoningSupport(levels: levels, defaultLevel: fallback, nativeAliases: aliases)
+    return ReasoningSupport(levels: levels, defaultLevel: fallback,
+                            noneIsZeroEffort: numericLevels[0]?.contains(.none) == true, nativeAliases: aliases)
   }
 
   /// `reasoning_effort|default('xhigh')` (Qwen3.8) or a numeric fallback mapped through the

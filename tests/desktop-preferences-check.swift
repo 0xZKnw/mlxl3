@@ -472,7 +472,7 @@ extension StudioModel {
             return value
         }
         let thinker = reasoningStudio()
-        check(thinker.reasoningSupport == ReasoningSupport(levels: ReasoningEffort.allCases, defaultLevel: .high, nativeAliases: [.xhigh: .max]),
+        check(thinker.reasoningSupport == ReasoningSupport(levels: ReasoningEffort.allCases, defaultLevel: .high, noneIsZeroEffort: true, nativeAliases: [.xhigh: .max]),
               "Inkling reasoning levels read from the model folder")
         check(!thinker.reasoningControlAvailable && thinker.requestReasoningEffort == nil,
               "No selector and no field for an engine without reasoning support")
@@ -514,6 +514,12 @@ extension StudioModel {
         let toggle = ReasoningSupport.detect(template: toggleTemplate)
         check(toggle?.choices(acceptedByEngine: Set(ReasoningEffort.allCases)) == [.none, .max],
               "A native switch has only Off and On")
+        for inComposer in [false, true] {
+            check(thinker.reasoningSupport?.title(for: .none, inComposer: inComposer) == L("Effort nul", "Zero effort"),
+                  "Inkling's zero effort allows thinking, in the menu and the composer")
+            check(toggle?.title(for: .none, inComposer: inComposer) == L("Sans réflexion", "No thinking"),
+                  "The Qwen thinking switch retains its Off label")
+        }
         let alias = "if resolved_reasoning_effort == 'high', set to 'xhigh'; "
             + "if resolved_reasoning_effort not in ('xhigh', 'medium', 'low'); enable_thinking"
         check(ReasoningSupport.detect(template: alias)?.levels == [.none, .low, .medium, .xhigh],

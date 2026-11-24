@@ -1136,7 +1136,7 @@ private struct ReasoningMenu: View {
 
     private var currentLabel: String {
         if studio.effectiveReasoningChoice == nil { return L("Réflexion auto", "Auto thinking") }
-        return support.toggleOnly && level == .max ? support.title(for: level) : level.label
+        return support.title(for: level, inComposer: true)
     }
 
     var body: some View {

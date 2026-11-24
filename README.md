@@ -85,7 +85,7 @@ A managed engine that fails before startup can fall back to the bundled runtime.
 ### Chat
 
 - Stream answers and separate reasoning with Markdown, tables, syntax-colored code and rendered math.
-- Choose a reasoning level next to **Tools**. Studio remembers a separate choice for each model. **Model default** uses the original chat template. Qwen3.6 offers thinking on or off, Qwen3.8 Flash Next offers Off, Low, Medium and Extra high, and Inkling 2 Mini supports Off, Minimal, Low, Medium, High and Max. Each setting uses the model’s native instruction. The model decides when to finish thinking and when to end its reply, within the available context.
+- Choose a reasoning level next to **Tools**. Studio remembers a separate choice for each model. **Model default** uses the original chat template. Qwen3.6 offers thinking on or off, Qwen3.8 Flash Next offers Off, Low, Medium and Extra high, and Inkling 2 Mini supports Zero effort, Minimal, Low, Medium, High and Max. At zero effort, Inkling can still emit thinking tokens. Each setting uses the model’s native instruction. The model decides when to finish thinking and when to end its reply, within the available context.
 - Edit, regenerate or branch messages. Pin and search saved conversations, then export them.
 - Attach text documents and PDFs with extracted text, source excerpts and page references. Scanned PDFs require prior text extraction.
 - Send PNG, JPEG or WebP images with **LFM3-VL** using the picker, drag and drop or Command-V. Saved history retains image bytes after the original is removed.
