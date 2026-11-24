@@ -3049,9 +3049,9 @@ extension StudioModel {
         let prefix = draft
         Task { [weak self] in
             guard let self else { return }
-            await voice.start(locale: voiceLocale) { [weak self] text in
+            await voice.start(locale: voiceLocale, draft: prefix) { [weak self] text in
                 guard let self, self.selectedConversationID == conversation, !self.isGenerating else { return }
-                self.draft = prefix + (prefix.isEmpty ? "" : " ") + text
+                self.draft = text
             }
         }
     }
