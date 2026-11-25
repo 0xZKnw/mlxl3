@@ -303,6 +303,7 @@ import SwiftUI
             window.close()
         }
         progress("done")
+        try await ModelStorageInterfaceCheck.run()
         print("Desktop experience checks passed: \(checks) assertions; pin/history migration, width/draft, per-model MTP OFF/ON/reload/startup/failure/Flash integrated head")
     }
 }

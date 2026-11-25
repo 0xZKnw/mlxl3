@@ -253,7 +253,7 @@ struct QuantizationStudioView: View {
   @State private var validate = false
 
   private var blocked: Bool {
-    quantizer.converting || studio.isGenerating || studio.localServer.active
+    quantizer.converting || studio.isGenerating || studio.labComparison.isRunning || studio.localServer.active
       || studio.agentStudioBusy
       || expert && validate && quantizer.settings.validation.isEmpty
   }
@@ -564,6 +564,7 @@ struct QuantizationStudioView: View {
   }
 
   private func start() {
+    guard !studio.labComparison.isRunning else { return }
     if !expert {
       quantizer.settings = QuantizationSettings()
       quantizer.settings.bits = preset

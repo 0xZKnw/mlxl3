@@ -236,6 +236,7 @@ queue_rest() {
     queue_compile agent-sandbox -O "${app_sources}/AgentSandbox.swift" "${app_sources}/AgentJavaScript.swift" "${app_sources}/AgentNetwork.swift" \
         tests/agent-sandbox-check.swift -o "${test_dir}/agent-sandbox-check"
     queue_studio_model_check studio-modes StudioModesCombined.swift tests/studio-modes-check.swift
+    queue_app_check model-storage tests/model-storage-check.swift
     queue_app_check decision tests/decision-studio-check.swift
     queue_studio_model_check idle-unload ModelIdleUnloadCombined.swift tests/model-idle-unload-check.swift -warnings-as-errors
     queue_studio_model_check unload-control ModelUnloadControlCombined.swift tests/model-unload-control-check.swift -warnings-as-errors
@@ -244,7 +245,7 @@ queue_rest() {
 
 queue_after_preferences() {
     queue_studio_model_check sampling SpeculativeSamplingCombined.swift tests/speculative-sampling-check.swift -warnings-as-errors
-    queue_studio_model_check experience DesktopExperienceCombined.swift tests/desktop-experience-check.swift -warnings-as-errors
+    queue_studio_model_check experience DesktopExperienceCombined.swift tests/desktop-experience-check.swift tests/model-storage-ui-check.swift -warnings-as-errors
     queue_studio_model_check text-size ResponseTextSizeCombined.swift tests/response-text-size-check.swift -warnings-as-errors
     queue_studio_model_check mtp-layout MTPPanelLayoutCombined.swift tests/mtp-panel-layout-check.swift -warnings-as-errors
     queue_studio_model_check runtime-contract RuntimeContractCombined.swift tests/issue163-runtime-contract-check.swift -warnings-as-errors
@@ -355,6 +356,8 @@ run_rest() {
     await_compile studio-modes
     fixture_timeout=180 run_fixture_check "${test_dir}/studio-modes-check" "$PWD/tests/fake-mode-engine.py" | tee "${test_dir}/studio-modes.log"
     grep -q "^Studio modes checks passed:" "${test_dir}/studio-modes.log"
+    await_compile model-storage
+    run_fixture_check "${test_dir}/model-storage-check"
     # Decision mode: drafts, discovery, decide-bridge lifecycle and decide-serve launch on a fake engine.
     await_compile decision
     "${test_dir}/decision-check" "$PWD/tests/fake-decision-engine.py"

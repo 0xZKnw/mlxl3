@@ -59,6 +59,7 @@ struct ImageHistoryInterfaceCheck {
             }
             ocr.setComputeDevice(cpu, for: stage)
         }
+        var frame = 0
         func words() async throws -> [Word] {
             try await Task.sleep(for: .milliseconds(180))
             host.layoutSubtreeIfNeeded()
@@ -67,6 +68,13 @@ struct ImageHistoryInterfaceCheck {
             }
             host.cacheDisplay(in: host.bounds, to: bitmap)
             guard let image = bitmap.cgImage else { throw HistoryUIError(message: "Empty workspace bitmap") }
+            // MLXL3_IMAGE_HISTORY_SNAPSHOT_DIR keeps every frame the check read, for a visual review.
+            if let folder = ProcessInfo.processInfo.environment["MLXL3_IMAGE_HISTORY_SNAPSHOT_DIR"] {
+                frame += 1
+                try fileManager.createDirectory(atPath: folder, withIntermediateDirectories: true)
+                try bitmap.representation(using: .png, properties: [:])?.write(
+                    to: URL(fileURLWithPath: folder).appendingPathComponent("image-history-\(frame).png"))
+            }
             try VNImageRequestHandler(cgImage: image).perform([ocr])
             return (ocr.results ?? []).compactMap { item in
                 item.topCandidates(1).first.map { ($0.string.lowercased(), item.boundingBox) }

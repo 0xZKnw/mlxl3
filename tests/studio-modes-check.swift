@@ -13,6 +13,114 @@ extension StudioModel {
     handle(try JSONDecoder().decode(BridgeEvent.self, from: JSONSerialization.data(withJSONObject: event)))
   }
 
+  static func checkComparison(root: URL, prefs: UserDefaults) async throws -> Int {
+    let localRoot = root.appendingPathComponent("comparison")
+    try FileManager.default.createDirectory(at: localRoot, withIntermediateDirectories: true)
+    let first = LocalModel(name: "compare-test-a", path: localRoot.appendingPathComponent("a").path,
+      modelType: "qwen3_5", format: "EXL3", bits: 4, sizeBytes: 100, modules: 1, addedAt: "", size: "100 B")
+    func entry(_ name: String, _ path: String, _ type: String) -> LocalModel {
+      LocalModel(name: name, path: path, modelType: type, format: "EXL3", bits: 4,
+        sizeBytes: 100, modules: 1, addedAt: "", size: "100 B")
+    }
+    let second = entry("compare-test-b", localRoot.appendingPathComponent("b").path, "lfm3")
+    for path in [first.path, second.path] { try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true) }
+    let alias = localRoot.appendingPathComponent("alias")
+    try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: first.path)
+    let studio = StudioModel(conversationFileURL: localRoot.appendingPathComponent("history"), preferences: prefs)
+    defer { studio.stopServices() }
+    let comparison = studio.labComparison
+    var checks = 0
+    func check(_ value: @autoclosure () -> Bool, _ message: String) { precondition(value(), message); checks += 1 }
+    func wait(line: UInt = #line, _ predicate: @MainActor () -> Bool) async throws {
+      for _ in 0..<400 {
+        if predicate() { return }
+        try await Task.sleep(for: .milliseconds(25))
+      }
+      preconditionFailure("Comparison fixture timed out at line \(line)")
+    }
+    studio.models = [first, entry("mirror", alias.path, first.modelType), second, entry("image", localRoot.path, "qwen_image"),
+      entry("unplugged", localRoot.appendingPathComponent("missing").path, first.modelType)]
+    check(studio.comparisonModels.map(\.name) == [first.name, second.name], "Exclude missing paths, duplicate physical paths and non-text models")
+    check(LabComparison.validPrompt(String(repeating: "ü", count: 32_768))
+      && !LabComparison.validPrompt(String(repeating: "ü", count: 32_769))
+      && !LabComparison.validPrompt("  \n  "), "Prompt byte limit accepts exact boundary and rejects whitespace")
+    studio.selectModel(first.name)
+    try await wait { studio.engineState.isReady }
+    studio.draft = "unchanged draft"
+    let id = studio.selectedConversationID
+    let count = studio.currentConversation!.messages.count
+    studio.selectMode(.lab)
+    studio.startLabComparison(left: first.name, right: first.name, prompt: "same", budget: 12)
+    check(comparison.runs.isEmpty && !comparison.isRunning, "Refuse to compare one model with itself")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "same", budget: 4097)
+    check(comparison.runs.isEmpty && !comparison.isRunning, "Invalid budget launches nothing")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "identical ☕ prompt", budget: 128)
+    studio.startLabComparison(left: second.name, right: first.name, prompt: "overwrite", budget: 1)
+    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    check(comparison.prompt == "identical ☕ prompt" && comparison.budget == 128, "Running comparison freezes its inputs")
+    check(comparison.runs.map(\.model) == [first, second] && comparison.runs.allSatisfy { $0.phase == .complete },
+          "Both original arms finish, in order, across the exclusive engine lock")
+    let requests = try String(contentsOf: root.appendingPathComponent("compare-requests.jsonl"), encoding: .utf8)
+      .split(separator: "\n").map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
+    check(requests.count == 2 && requests.allSatisfy { $0["registry"] is NSNull }, "Two ordinary model runs without an agent registry")
+    var identifiers = Set<String>()
+    for (run, row) in zip(comparison.runs, requests) {
+      let payload = row["request"] as! [String: Any]
+      let parsed = try JSONSerialization.jsonObject(with: Data(run.answer.utf8)) as! [String: Any]
+      check(row["model"] as? String == run.model.name && parsed["request_id"] as? String == payload["request_id"] as? String,
+        "Displayed answer came from its own engine and request")
+      check((payload["messages"] as? [[String: String]]) == [["role": "user", "content": "identical ☕ prompt"]]
+        && payload["max_tokens"] as? Int == 128 && payload["temperature"] as? Int == 0
+        && payload["mcp_enabled"] as? Bool == false && payload["dspark"] as? Bool == false,
+        "Same prompt, budget, sampling, empty context and tools disabled")
+      identifiers.insert(payload["conversation_id"] as! String)
+      check(run.firstTextSeconds != nil && run.firstTextSeconds! >= 0 && run.elapsedSeconds! >= run.firstTextSeconds!
+        && run.decodeTps == 30 && run.generatedTokens == 6, "Answer clock and engine-only decode measurements")
+    }
+    check(identifiers.count == 2 && studio.draft == "unchanged draft" && studio.selectedConversationID == id
+      && studio.currentConversation!.messages.count == count && studio.labSamples.isEmpty
+      && studio.labUsage.summary(for: .allTime).models.isEmpty, "Lab preserves the draft, conversation and usage")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-errors", budget: 1)
+    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    let a = comparison.runs[0], b = comparison.runs[1]
+    check(a.phase == .complete && a.error == nil && a.hitTokenLimit && a.answer.isEmpty && a.firstTextSeconds == nil
+      && a.generatedTokens == 1 && a.decodeTps == nil && !a.isThinking,
+      "A normal limit before a visible answer preserves its counters without inventing a decode interval or an answer")
+    check(b.phase == .complete && b.answer == "B's fallback answer" && b.firstTextSeconds == b.elapsedSeconds
+      && b.decodeTps == nil && b.generatedTokens == nil, "A real fallback answer is timed at completion; missing counters stay missing")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-empty", budget: 8)
+    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error != nil && $0.firstTextSeconds == nil },
+      "Unexpected empty responses are reported as failures")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-malformed", budget: 1)
+    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error != nil }, "Malformed frames fail each arm explicitly")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "hang-ignore", budget: 32)
+    try await wait { comparison.runs.first?.isThinking == true }
+    check(comparison.runs.first?.answer.isEmpty == true && comparison.runs.first?.firstTextSeconds == nil,
+      "Reasoning can be indicated live without appearing in the visible answer or starting its clock")
+    studio.leaveLab()
+    try await wait { !comparison.isRunning && studio.selectedMode == .chat && studio.engineState.isReady }
+    check(comparison.runs.allSatisfy { $0.phase == .cancelled } && studio.draft == "unchanged draft"
+      && studio.selectedModelName == first.name && studio.selectedConversationID == id, "Leaving Lab cancels both arms and restores the resident chat")
+    let timeout = LabComparison(idleTimeout: .milliseconds(350))
+    studio.ejectModel()
+    await studio.bridge.stopAndWait()
+    timeout.start(first, second, prompt: "hang-cooperative", budget: 32) {}
+    try await wait { !timeout.isRunning }
+    check(timeout.runs.allSatisfy { $0.phase == .failed && $0.error != nil && $0.firstTextSeconds == nil },
+      "Silent or thinking-only workers time out and relinquish the exclusive lock")
+    // JSON escaping makes this legal maximum-size prompt substantially larger than a pipe buffer.
+    let large = String(repeating: "\u{001B}", count: 65_536)
+    timeout.start(entry("compare-test-no-reader-a", first.path, first.modelType),
+      entry("compare-test-no-reader-b", second.path, second.modelType), prompt: large, budget: 1) {}
+    try await wait { timeout.runs.first?.phase == .generating }
+    try await wait { !timeout.isRunning }
+    check(timeout.runs.allSatisfy { $0.phase == .failed && $0.error != nil && $0.firstTextSeconds == nil },
+      "A ready process that never reads a large request cannot block the UI or its timeout")
+    return checks
+  }
+
   static func checkAgentGuards(root: URL, prefs: UserDefaults, model: LocalModel) async throws
     -> Int
   {
@@ -625,6 +733,7 @@ extension StudioModel {
       inputTokens: 12, outputTokens: 6, generations: 1, cachedInputTokens: nil,
       decode: LabDecodeUsage(average: 30, maximum: 30, count: 1)),
       "Agent completion uses actual prompt and generated counts")
+    count += try await StudioModel.checkComparison(root: root, prefs: prefs)
     try checkLabUsage(root: root, prefs: prefs) { result, message in check(result, message) }
     checkLabResponseMeasurements { check($0, $1) }
     let messageID = studio.currentConversation!.messages.last!.id
@@ -911,6 +1020,7 @@ extension StudioModesCheck {
     // SwiftUI text is drawn into the hosting view. Reading that view's own bitmap
     // exercises the displayed value without Screen Recording or Accessibility access.
     typealias Cell = (text: String, box: CGRect)
+    var labFrame = 0
     func displayedCells() async throws -> [Cell] {
       try await Task.sleep(for: .milliseconds(120))
       host.layoutSubtreeIfNeeded()
@@ -919,6 +1029,13 @@ extension StudioModesCheck {
       }
       host.cacheDisplay(in: host.bounds, to: bitmap)
       guard let image = bitmap.cgImage else { preconditionFailure("No Lab pixels") }
+      // MLXL3_LAB_SNAPSHOT_DIR keeps every frame the check read, for a visual review.
+      if let folder = ProcessInfo.processInfo.environment["MLXL3_LAB_SNAPSHOT_DIR"] {
+        labFrame += 1
+        try FileManager.default.createDirectory(atPath: folder, withIntermediateDirectories: true)
+        try bitmap.representation(using: .png, properties: [:])?.write(
+          to: URL(fileURLWithPath: folder).appendingPathComponent("lab-\(labFrame).png"))
+      }
       let read = VNRecognizeTextRequest()
       read.recognitionLevel = .accurate
       read.usesLanguageCorrection = false
@@ -1026,8 +1143,43 @@ extension StudioModesCheck {
     let history = try await displayedCells()
     check(history.contains { $0.text.contains("Export") } && history.contains { $0.text.contains("92.5") },
       "Generations exposes its export action and the measured decode rate from 45 days ago")
+    clickSidebar("Compare", in: history)
+    let emptyComparison = try await displayedCells()
+    expectText("Two text models are required", in: emptyComparison)
+    expectText("Open Models", in: emptyComparison)
+    func textModel(_ name: String) throws -> LocalModel {
+      try FileManager.default.createDirectory(at: root.appendingPathComponent(name), withIntermediateDirectories: true)
+      return LocalModel(name: name, path: root.appendingPathComponent(name).path, modelType: "qwen3_5",
+        format: "EXL3", bits: 4, sizeBytes: 1024, modules: 1, addedAt: "", size: "1 KiB")
+    }
+    fixture.models = try [textModel("Atlas"), textModel("Birch")]
+    let setup = try await displayedCells()
+    expectText("Atlas", in: setup)
+    expectText("Birch", in: setup)
+    expectText("Shared prompt", in: setup)
+    guard let example = setup.first(where: { $0.text.localizedCaseInsensitiveContains("Try an example") }) else {
+      preconditionFailure("Missing example prompt in comparison form")
+    }
+    click(example)
+    let withExample = try await displayedCells()
+    expectText("the Moon", in: withExample)
+    guard let start = withExample.first(where: {
+      $0.box.midX * host.bounds.width > fixture.sidebarWidth.points &&
+        $0.text.lowercased().split(whereSeparator: { !$0.isLetter }).last == "compare"
+    }) else { preconditionFailure("Missing comparison start button") }
+    click(start)
+    for _ in 0..<200 {
+      if fixture.labComparison.runs.count == 2 && !fixture.labComparison.isRunning { break }
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    check(fixture.labComparison.runs.count == 2 && fixture.labComparison.runs.allSatisfy {
+      $0.phase == .complete && !$0.answer.isEmpty && $0.generatedTokens == 6
+    }, "The visible start button submits a real comparison across both fixture engines")
+    let answers = try await displayedCells()
+    expectText("First text", in: answers)
+    expectText("Decode", in: answers)
     // "This" uniquely identifies this sidebar entry and avoids OCR's Latin/Cyrillic Mac homoglyphs.
-    clickSidebar("This", in: history)
+    clickSidebar("This", in: answers)
     let hardware = try await displayedCells()
     check(hardware.contains { $0.text.contains("CPU cores") } && hardware.contains { $0.text.contains("Unified memory") },
       "This Mac shows processor and memory details")
