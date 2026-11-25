@@ -128,8 +128,99 @@ fn queued_guidance_never_overrides_stop_or_starts_a_tool() {
     kani::cover!(action == ToolBoundary::Continue);
 }
 
-/// Keep the same tool failures the UI saw. The parser's private repair notes are not
-/// user messages. A note can also carry the summary of earlier, compacted exchanges.
+/// This turn's exchanges as the client stores them (`turn_context`): only assistant and
+/// tool messages. Keep the same tool failures the UI saw. The parser's private repair notes
+/// are not user messages. A note can also carry the summary of earlier, compacted exchanges.
+fn turn_history(transcript: &[Value]) -> Vec<Value> {
+    let mut history = Vec::new();
+    for message in transcript {
+        if message["role"] == "user" {
+            history.pop(); // the preceding malformed assistant call
+            history.push(json!({
+                "role":"assistant", "content":"", "tool_calls":[{"type":"function",
+                    "function":{"name":"invalid_tool_call", "arguments":{}}}]
+            }));
+            history.push(json!({
+                "role":"tool", "name":"invalid_tool_call", "content":message["content"]
+            }));
+        } else {
+            history.push(message.clone());
+        }
+    }
+    history
+}
+
+/// Carried by the error of a turn that stopped (Stop, an engine error) after tools had run:
+/// the exchanges that were finished, so the client can give them back to the model in the
+/// next turn instead of an answer with no trace of its calls. Displays as the error itself.
+#[derive(Debug)]
+pub struct Interrupted {
+    /// Same form as [`TurnEnd::turn_context`].
+    pub turn_context: String,
+    message: String,
+}
+
+impl std::fmt::Display for Interrupted {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.write_str(&self.message)
+    }
+}
+
+/// The finished exchanges of the turn `error` stopped, when tools had run.
+pub fn interrupted_context(error: &anyhow::Error) -> Option<&str> {
+    error
+        .downcast_ref::<Interrupted>()
+        .map(|interrupted| interrupted.turn_context.as_str())
+}
+
+/// The bridge's event for a turn that returned `error`: `cancelled` after a Stop, `error`
+/// otherwise, with the turn's finished exchanges as `turn_context` when tools had run.
+pub fn failure_event(request_id: &str, cancelled: bool, error: &anyhow::Error) -> Value {
+    let mut event = if cancelled {
+        json!({"type":"cancelled", "request_id":request_id})
+    } else {
+        json!({"type":"error", "request_id":request_id, "message":error.to_string()})
+    };
+    if let Some(turn_context) = interrupted_context(error) {
+        event["turn_context"] = json!(turn_context);
+    }
+    event
+}
+
+/// What an interrupted turn leaves for the next one: every call that got its result, in
+/// order, closed by an empty assistant message (as a paused turn is). A call that was written
+/// but has no result is dropped, so no template ever sees a call without its answer. None
+/// when no tool result exists: the client then keeps the visible text, as before.
+fn interrupted_history(transcript: &[Value]) -> Option<String> {
+    let mut history = turn_history(transcript);
+    if let Some(last) = history
+        .iter()
+        .rposition(|message| message.get("tool_calls").is_some())
+    {
+        let results = history.len() - last - 1;
+        let calls = history[last]["tool_calls"].as_array_mut()?;
+        calls.truncate(results);
+        if calls.is_empty() {
+            let text = history[last]["content"].as_str().unwrap_or_default();
+            if text.trim().is_empty() {
+                history.truncate(last);
+            } else {
+                history[last] = json!({"role":"assistant", "content":text});
+            }
+        }
+    }
+    if !history.iter().any(|message| message["role"] == "tool") {
+        return None;
+    }
+    if history
+        .last()
+        .is_some_and(|message| message["role"] == "tool")
+    {
+        history.push(json!({"role":"assistant", "content":""}));
+    }
+    serde_json::to_string(&history).ok()
+}
+
 fn yielded_turn(
     host: &mut dyn Host,
     transcript: &[Value],
@@ -138,21 +229,7 @@ fn yielded_turn(
     rounds: usize,
 ) -> Result<TurnEnd> {
     host.forget_prompt_cache();
-    let mut history = Vec::new();
-    for message in transcript {
-        if message["role"] == "user" {
-            history.pop(); // the preceding malformed assistant call
-            history.push(std::borrow::Cow::Owned(json!({
-                "role":"assistant", "content":"", "tool_calls":[{"type":"function",
-                    "function":{"name":"invalid_tool_call", "arguments":{}}}]
-            })));
-            history.push(std::borrow::Cow::Owned(json!({
-                "role":"tool", "name":"invalid_tool_call", "content":message["content"]
-            })));
-        } else {
-            history.push(std::borrow::Cow::Borrowed(message));
-        }
-    }
+    let history = turn_history(transcript);
     Ok(TurnEnd {
         raw: answer.clone(),
         assistant: answer,
@@ -165,10 +242,37 @@ fn yielded_turn(
     })
 }
 
-/// Runs one turn on `dialogue` with `tools` offered to the model.
+/// Runs one turn on `dialogue` with `tools` offered to the model. An error raised after tool
+/// results carries them ([`interrupted_context`]).
 pub fn run_turn(
     host: &mut dyn Host,
     mut dialogue: Vec<Value>,
+    tools: &[Value],
+    turn: &Turn<'_>,
+) -> Result<TurnEnd> {
+    run_steps(host, &mut dialogue, tools, turn).map_err(|error| {
+        // JSON output has no tools: its user messages are validation retries, not call notes.
+        let transcript = if turn.schema.is_some() {
+            &[]
+        } else {
+            dialogue.get(turn.original_length..).unwrap_or_default()
+        };
+        match interrupted_history(transcript) {
+            Some(turn_context) => {
+                let message = error.to_string();
+                error.context(Interrupted {
+                    turn_context,
+                    message,
+                })
+            }
+            None => error,
+        }
+    })
+}
+
+fn run_steps(
+    host: &mut dyn Host,
+    dialogue: &mut Vec<Value>,
     tools: &[Value],
     turn: &Turn<'_>,
 ) -> Result<TurnEnd> {
@@ -220,11 +324,10 @@ pub fn run_turn(
             && prunable
             && prompt_estimate.is_none_or(|tokens| tokens * 100 > context_limit * 60)
         {
-            let used = host.prompt_tokens(&dialogue, tools)?;
-            let pruned =
-                agent_loop::prune_context(&mut dialogue, used, context_limit, &mut |text| {
-                    Ok(host.encode(text)?.len())
-                })?;
+            let used = host.prompt_tokens(dialogue, tools)?;
+            let pruned = agent_loop::prune_context(dialogue, used, context_limit, &mut |text| {
+                Ok(host.encode(text)?.len())
+            })?;
             if !pruned.is_empty() {
                 host.emit(json!({
                     "type":"generation_status", "request_id":request_id, "phase":"prefill",
@@ -238,7 +341,7 @@ pub fn run_turn(
             let left = used.saturating_sub(pruned.freed);
             if left * 100 > context_limit * agent_loop::COMPACT_TRIGGER_PERCENT
                 && compaction_allowed(compaction_failed_at, dialogue.len())
-                && !compact(host, &mut dialogue, tools, turn, &mut generated_total, left)?
+                && !compact(host, dialogue, tools, turn, &mut generated_total, left)?
             {
                 compaction_failed_at = Some(dialogue.len());
             }
@@ -260,7 +363,7 @@ pub fn run_turn(
                 "Generation token budget exhausted"
             })?;
         let output = host.generate(StepRequest {
-            dialogue: &dialogue,
+            dialogue,
             tools,
             max_tokens: round_max_tokens,
             continuation: &continuation,
@@ -330,12 +433,10 @@ pub fn run_turn(
         if context_full && !tools.is_empty() && !context_retry {
             // B4: a step cut by the end of the context runs once more after old tool exchanges
             // made room (its partial output is dropped).
-            let pruned = agent_loop::prune_context(
-                &mut dialogue,
-                context_limit,
-                context_limit,
-                &mut |text| Ok(host.encode(text)?.len()),
-            )?;
+            let pruned =
+                agent_loop::prune_context(dialogue, context_limit, context_limit, &mut |text| {
+                    Ok(host.encode(text)?.len())
+                })?;
             if !pruned.is_empty() {
                 context_retry = true;
                 prompt_estimate = None;
@@ -352,7 +453,7 @@ pub fn run_turn(
             if compaction_allowed(compaction_failed_at, dialogue.len()) {
                 if compact(
                     host,
-                    &mut dialogue,
+                    dialogue,
                     tools,
                     turn,
                     &mut generated_total,
@@ -722,6 +823,8 @@ mod tests {
         cancelled: AtomicBool,
         /// Cancel once this many tools ran.
         cancel_after: Option<usize>,
+        /// The step with this number (from 1) fails in the engine instead of generating.
+        fail_step: Option<usize>,
         yield_after: Option<usize>,
         resets: usize,
         forgets: usize,
@@ -742,6 +845,7 @@ mod tests {
                 calls: Vec::new(),
                 cancelled: AtomicBool::new(false),
                 cancel_after: None,
+                fail_step: None,
                 yield_after: None,
                 resets: 0,
                 forgets: 0,
@@ -778,6 +882,9 @@ mod tests {
                 reasoning_budget: request.reasoning_budget,
                 buffered: request.buffered,
             });
+            if self.fail_step == Some(self.requests.len()) {
+                bail!("Metal device lost");
+            }
             let summary = request.buffered
                 && request
                     .dialogue
@@ -1332,6 +1439,196 @@ mod tests {
         assert_eq!((host.calls.len(), host.resets), (1, 1));
     }
 
+    /// What `validated_bridge_messages` and every chat template need from a stored turn: only
+    /// assistant and tool messages, each call followed by its result, an assistant message last.
+    fn well_formed(history: &[Value]) {
+        let mut owed = 0usize;
+        for message in history {
+            match message["role"].as_str() {
+                Some("assistant") => {
+                    assert_eq!(owed, 0, "a call has no result: {history:?}");
+                    owed = message["tool_calls"].as_array().map_or(0, Vec::len);
+                    assert!(
+                        message.get("tool_calls").is_none() || owed > 0,
+                        "an empty call list: {history:?}"
+                    );
+                }
+                Some("tool") => {
+                    assert!(owed > 0, "a result without its call: {history:?}");
+                    owed -= 1;
+                }
+                other => panic!("role {other:?} in a stored turn"),
+            }
+        }
+        assert_eq!(owed, 0, "the last call has no result: {history:?}");
+        assert_eq!(history.last().unwrap()["role"], "assistant");
+    }
+
+    fn interrupted(error: &anyhow::Error) -> Option<Vec<Value>> {
+        let history: Vec<Value> = serde_json::from_str(interrupted_context(error)?).unwrap();
+        well_formed(&history);
+        Some(history)
+    }
+
+    #[test]
+    fn a_turn_stopped_between_calls_keeps_the_calls_that_finished() {
+        let two = format!(
+            "<tool_call>{}</tool_call><tool_call>{}</tool_call>",
+            json!({"name":"javascript", "arguments":{"code":"1"}}),
+            json!({"name":"javascript", "arguments":{"code":"2"}})
+        );
+        let mut step = call("");
+        step.answer = "I run both.".into();
+        step.tool_text = two;
+        let mut host = ScriptHost::new(vec![call("0"), step]);
+        host.cancel_after = Some(2);
+        let error = run_turn(&mut host, dialogue(), &tools(), &turn(100_000, 8)).unwrap_err();
+        // The client still reads the same error.
+        assert_eq!(error.to_string(), "generation cancelled");
+        assert_eq!((host.calls.len(), host.resets), (2, 1));
+        let event = failure_event("r1", true, &error);
+        assert_eq!(event["type"], "cancelled");
+        assert_eq!(event["turn_context"].as_str(), interrupted_context(&error));
+        assert!(event.get("message").is_none());
+        let call = |code: &str| json!({"type":"function", "function":{"name":"javascript", "arguments":{"code":code}}});
+        assert_eq!(
+            interrupted(&error).unwrap(),
+            [
+                json!({"role":"assistant", "content":"", "tool_calls":[call("0")]}),
+                json!({"role":"tool", "name":"javascript", "content":"ran 0"}),
+                // the second call of this message never ran: it is not in the history
+                json!({"role":"assistant", "content":"I run both.", "tool_calls":[call("1")]}),
+                json!({"role":"tool", "name":"javascript", "content":"ran 1"}),
+                json!({"role":"assistant", "content":""}),
+            ]
+        );
+    }
+
+    #[test]
+    fn an_engine_error_after_tool_results_keeps_them() {
+        let mut host = ScriptHost::new(vec![call("a"), call("b")]);
+        host.fail_step = Some(3);
+        let error = run_turn(&mut host, dialogue(), &tools(), &turn(100_000, 8)).unwrap_err();
+        assert_eq!(error.to_string(), "Metal device lost");
+        let event = failure_event("r1", false, &error);
+        assert_eq!(
+            (&event["type"], &event["message"]),
+            (&json!("error"), &json!("Metal device lost"))
+        );
+        assert_eq!(event["turn_context"].as_str(), interrupted_context(&error));
+        let history = interrupted(&error).unwrap();
+        assert_eq!(history.len(), 5);
+        assert_eq!(history[1]["content"], "ran a");
+        assert_eq!(history[3]["content"], "ran b");
+        assert_eq!(history[4], json!({"role":"assistant", "content":""}));
+        // The next turn is given exactly these messages after the user's request.
+        let mut next = dialogue();
+        next.extend(history);
+        next.push(json!({"role":"user", "content":"continue"}));
+        let mut resumed = ScriptHost::new(vec![answer("Done.")]);
+        let mut settings = turn(100_000, 8);
+        settings.original_length = next.len();
+        run_turn(&mut resumed, next.clone(), &tools(), &settings).unwrap();
+        assert_eq!(resumed.requests[0].dialogue, next);
+    }
+
+    #[test]
+    fn a_turn_stopped_before_any_result_carries_no_history() {
+        // Stop during the first step, an engine failure in it, and Stop before the first call.
+        let mut failing = ScriptHost::new(vec![]);
+        failing.fail_step = Some(1);
+        let error = run_turn(&mut failing, dialogue(), &tools(), &turn(100_000, 8)).unwrap_err();
+        assert_eq!(error.to_string(), "Metal device lost");
+        assert!(interrupted_context(&error).is_none());
+        let mut step = call("write");
+        step.answer = "Writing the file.".into();
+        let mut stopped = ScriptHost::new(vec![step]);
+        stopped.cancelled.store(true, Ordering::Relaxed);
+        let error = run_turn(&mut stopped, dialogue(), &tools(), &turn(100_000, 8)).unwrap_err();
+        assert_eq!(error.to_string(), "generation cancelled");
+        assert!(stopped.calls.is_empty());
+        assert!(interrupted_context(&error).is_none());
+        // Without tool results the events are exactly the ones older clients know.
+        assert_eq!(
+            failure_event("r1", true, &error),
+            json!({"type":"cancelled", "request_id":"r1"})
+        );
+        assert_eq!(
+            failure_event("r1", false, &error),
+            json!({"type":"error", "request_id":"r1", "message":"generation cancelled"})
+        );
+    }
+
+    #[test]
+    fn an_unreadable_call_before_the_stop_is_stored_as_the_ui_showed_it() {
+        let mut broken = call("");
+        broken.tool_text = "<tool_call>{\"name\":".into();
+        let mut host = ScriptHost::new(vec![call("a"), broken]);
+        host.fail_step = Some(3);
+        let error = run_turn(&mut host, dialogue(), &tools(), &turn(100_000, 8)).unwrap_err();
+        let history = interrupted(&error).unwrap();
+        assert_eq!(history.len(), 5);
+        assert_eq!(
+            history[2]["tool_calls"][0]["function"]["name"],
+            "invalid_tool_call"
+        );
+        assert_eq!(history[3]["name"], "invalid_tool_call");
+        assert!(
+            history[3]["content"]
+                .as_str()
+                .unwrap()
+                .contains("could not be read")
+        );
+    }
+
+    #[test]
+    fn an_interrupted_history_never_holds_a_call_without_its_result() {
+        // Every shape the loop can be stopped in: `before` finished exchanges, then a message
+        // with `calls` calls of which `results` got a result, with or without text.
+        let call = |index: usize| json!({"type":"function", "function":{"name":"javascript", "arguments":{"code":index.to_string()}}});
+        let result = |index: usize| json!({"role":"tool", "name":"javascript", "content":format!("ran {index}")});
+        for before in 0..3 {
+            for calls in 0..4 {
+                for results in 0..=calls {
+                    for text in ["", "Next."] {
+                        let mut transcript = Vec::new();
+                        for index in 0..before {
+                            transcript.push(json!({"role":"assistant", "content":"", "tool_calls":[call(index)]}));
+                            transcript.push(result(index));
+                        }
+                        transcript.push(json!({
+                            "role":"assistant", "content":text,
+                            "tool_calls":(0..calls).map(|index| call(10 + index)).collect::<Vec<_>>()
+                        }));
+                        transcript.extend((0..results).map(|index| result(10 + index)));
+                        let stored = interrupted_history(&transcript);
+                        let finished = before + results;
+                        assert_eq!(stored.is_some(), finished > 0, "{before} {calls} {results}");
+                        let Some(stored) = stored else { continue };
+                        let history: Vec<Value> = serde_json::from_str(&stored).unwrap();
+                        well_formed(&history);
+                        let kept: Vec<_> = history
+                            .iter()
+                            .filter(|message| message["role"] == "tool")
+                            .map(|message| message["content"].as_str().unwrap().to_owned())
+                            .collect();
+                        let expected: Vec<_> = (0..before)
+                            .chain((0..results).map(|index| 10 + index))
+                            .map(|index| format!("ran {index}"))
+                            .collect();
+                        assert_eq!(kept, expected, "every finished result, in order");
+                        // Text written before calls that never ran is kept as plain text.
+                        let texts = history.iter().filter(|m| m["content"] == "Next.").count();
+                        assert_eq!(texts, usize::from(!text.is_empty()));
+                    }
+                }
+            }
+        }
+        // A turn without tools (JSON retries) and an empty one carry nothing.
+        assert!(interrupted_history(&[]).is_none());
+        assert!(interrupted_history(&[json!({"role":"assistant", "content":"nope"})]).is_none());
+    }
+
     #[test]
     fn invalid_json_is_retried_twice_then_fails() -> Result<()> {
         let schema = Schema::parse(r#"{"type":"object","required":["a"]}"#)?;
@@ -1351,6 +1648,8 @@ mod tests {
                 .to_string()
                 .starts_with("JSON validation failed after 3 attempts")
         );
+        // The validation retries of a JSON answer are not tool history.
+        assert!(interrupted_context(&error).is_none());
         Ok(())
     }
 

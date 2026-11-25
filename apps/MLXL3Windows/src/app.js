@@ -30,8 +30,6 @@ const LAB_KEY = "mlxl3.lab.v1";
 const EMPTY_PROMPT = "Analyse les fichiers joints."; // Mac: sent to the model in both UI languages
 const IMAGE_LIMIT = { count: 8, bytes: 8 * 1024 * 1024 };
 const AGENT_MAX_TOKENS = 4096;
-const AGENT_TOTAL_MS = 600_000;
-const AGENT_SILENT_MS = 120_000;
 const HUB_PAGE = 60;
 const HUB_MAX = 200;
 
@@ -73,7 +71,6 @@ let mcpBusy = false;
 let mcpCatalog = []; // tool names from the last connection or test
 let mcpEditing = null; // name of the server in the editor, "" for a new one
 let agentInfo = null; // workspace of the current Agent task
-let agentTimers = null;
 let serverStatus = null;
 let serverKey = "";
 let serverBusy = false;
@@ -1290,7 +1287,6 @@ async function sendPrompt(prompt, previous = null) {
     setSession(abortTurn(session, requestId, message(e)));
     return false;
   }
-  if (agent) startAgentWatch(requestId);
   return true;
 }
 
@@ -1932,33 +1928,6 @@ async function reviewAgentChanges() {
   });
 }
 
-function stopAgentWatch() {
-  if (!agentTimers) return;
-  clearTimeout(agentTimers.total);
-  clearTimeout(agentTimers.silent);
-  agentTimers = null;
-}
-
-/** Mac Agent watchdogs: 10 minutes per turn and 2 minutes without any engine event. */
-function startAgentWatch(requestId) {
-  stopAgentWatch();
-  const cancel = (key) => {
-    stopAgentWatch();
-    if (session.active !== requestId) return;
-    invoke("cancel", { requestId }).catch(fail);
-    toast(t(key), 7000);
-  };
-  agentTimers = { requestId, cancel, total: setTimeout(() => cancel("agentTimeout"), AGENT_TOTAL_MS), silent: setTimeout(() => cancel("agentSilent"), AGENT_SILENT_MS) };
-}
-
-function touchAgentWatch() {
-  if (!agentTimers) return;
-  if (session.active !== agentTimers.requestId) { stopAgentWatch(); return; }
-  clearTimeout(agentTimers.silent);
-  const { cancel } = agentTimers;
-  agentTimers.silent = setTimeout(() => cancel("agentSilent"), AGENT_SILENT_MS);
-}
-
 // ---------- Server (OpenAI-compatible endpoint on the loaded model) ----------
 
 let serverAccess = "local";
@@ -2411,7 +2380,6 @@ async function subscribe() {
     const finished = payload.event?.type === "done" && payload.event.request_id === session.active;
     const agentTurn = conversationMode === "agent";
     setSession(applyEngineEvent(session, payload.epoch, payload.event));
-    touchAgentWatch();
     if (finished) {
       recordLab(payload.event);
       if (agentTurn && payload.event.stop_reason === "max_tokens") toast(t("agentLimit"), 7000);

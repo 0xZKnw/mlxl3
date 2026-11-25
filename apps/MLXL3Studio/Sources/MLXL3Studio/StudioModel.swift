@@ -281,21 +281,21 @@ final class StudioModel: ObservableObject {
                 if queuedAgentGuidance != nil { queuedAgentGuidance = nil }
             }
             if activeRequestID == nil {
-                generationWatchdog?.cancel(); generationWatchdog = nil
                 cancellationFallback?.cancel(); cancellationFallback = nil
                 cancellationReason = nil
-                generationStartedAt = nil; generationLastActivity = nil
+                generationStartedAt = nil
             }
         }
     }
     private var attachedFolderCache: (id: UUID, url: URL?)?
     @Published var agentStudioBusy = false
     @Published var studioDocument: StudioDocument?
-    private var generationWatchdog: Task<Void, Never>?
     private var cancellationFallback: Task<Void, Never>?
     private var cancellationReason: String?
+    /// Set while an Agent turn runs. The app has no time limit on a turn, total or silent
+    /// (a long context can be read for many minutes without an event): only Stop, the end
+    /// of the turn or the end of the engine process finish it.
     private var generationStartedAt: ContinuousClock.Instant?
-    private var generationLastActivity: ContinuousClock.Instant?
     private var activeResponseID: UUID?
     private var readyInfo: (model: String, modules: Int, residentGB: Double)?
     private let preferences: UserDefaults
@@ -1528,17 +1528,7 @@ final class StudioModel: ObservableObject {
         cancelledGenerationID = nil
         activeResponseID = assistant.id
         activeMessageReference = assistant
-        if selectedMode == .agent {
-            generationStartedAt = .now
-            generationLastActivity = .now
-            generationWatchdog = Task { [weak self] in
-                while !Task.isCancelled {
-                    try? await Task.sleep(for: .seconds(1))
-                    guard !Task.isCancelled, let self else { return }
-                    self.checkAgentGenerationDeadline(at: .now)
-                }
-            }
-        }
+        if selectedMode == .agent { generationStartedAt = .now }
         labConfiguration = nil
         if let model = selectedModel {
             let mode = selectedMode.rawValue, runtime = runtimeIdentity ?? "unknown"
@@ -1644,18 +1634,6 @@ final class StudioModel: ObservableObject {
         activeRequestID = nil; activeResponseID = nil
         ejectModel()
         schedulePersistence()
-    }
-
-    private func checkAgentGenerationDeadline(at now: ContinuousClock.Instant) {
-        guard activeRequestID != nil, cancellationFallback == nil,
-              let start = generationStartedAt, let last = generationLastActivity else { return }
-        // No total limit (it stopped long tasks at 10 minutes): the user can stop at any time,
-        // and only five silent minutes stop an answer. The engine reports a prefill once, at its
-        // start, so a long context can stay silent for a few minutes without being stalled.
-        _ = start
-        if now - last >= .seconds(300) {
-            requestGenerationStop(L("L’agent ne répond plus depuis 5 minutes. La réponse partielle est conservée.", "Agent has not responded for 5 minutes. Partial output was kept."))
-        }
     }
 
     func reloadMCPServers() {
@@ -2472,13 +2450,11 @@ final class StudioModel: ObservableObject {
     }
 
     private func handle(_ event: BridgeEvent) {
-        if let activeRequestID, event.requestID == activeRequestID {
-            generationLastActivity = .now
-            if !activeEngineAcknowledged, generationStartedAt != nil,
-               ["generation_status", "delta", "tool_start", "tool_result"].contains(event.type) {
-                activeEngineAcknowledged = true
-                requestAgentYieldIfReady()
-            }
+        if let activeRequestID, event.requestID == activeRequestID,
+           !activeEngineAcknowledged, generationStartedAt != nil,
+           ["generation_status", "delta", "tool_start", "tool_result"].contains(event.type) {
+            activeEngineAcknowledged = true
+            requestAgentYieldIfReady()
         }
         if dflashConfigurationPending && event.type == "error" && (event.requestID == nil || event.requestID == "") {
             dflashDownloadError = event.message ?? L("La configuration DFlash a échoué.", "DFlash configuration failed.")
@@ -2704,6 +2680,7 @@ final class StudioModel: ObservableObject {
         case "cancelled":
             guard event.requestID == activeRequestID else { return }
             labConfiguration = nil
+            keepInterruptedTurn(event)
             activeMessage()?.fail(cancellationReason ?? L("Génération arrêtée", "Generation stopped"))
             finishAgentTurn()
             activeRequestID = nil
@@ -2712,10 +2689,20 @@ final class StudioModel: ObservableObject {
             restoreReadyState()
         case "error":
             guard event.requestID == nil || event.requestID == activeRequestID else { return }
+            keepInterruptedTurn(event)
             failActiveTurn(event.message ?? L("Erreur inconnue du moteur", "Unknown engine error"))
         default:
             break
         }
+    }
+
+    /// A turn stopped after tools ran (Stop, an engine error) reports the calls that had
+    /// finished. Kept on the interrupted answer, they go back to the model with the next
+    /// message: it still knows which files it wrote and what its commands returned.
+    private func keepInterruptedTurn(_ event: BridgeEvent) {
+        guard let request = activeRequestID, event.requestID == request,
+              let history = event.turnContext, !history.isEmpty else { return }
+        activeMessage()?.turnContext = history
     }
 
     private func restoreReadyState() {
@@ -3168,7 +3155,6 @@ extension StudioModel {
         modelLoadID = UUID()
         modelLoadTask?.cancel(); modelLoadTask = nil
         quantizer.cancel()
-        generationWatchdog?.cancel(); generationWatchdog = nil
         cancellationFallback?.cancel(); cancellationFallback = nil
         modeTransition?.cancel(); modeTransition = nil
         localServer.stop()
