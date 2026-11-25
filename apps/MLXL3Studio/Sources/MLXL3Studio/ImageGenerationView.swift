@@ -1,11 +1,34 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
+
+@MainActor
+func presentImageSavePanel(filename: String, directory: URL? = nil, export: @escaping (URL) async throws -> Void) {
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [.png]
+    panel.canCreateDirectories = true
+    panel.nameFieldStringValue = filename
+    if let directory { panel.directoryURL = directory }
+    guard panel.runModal() == .OK, let destination = panel.url else { return }
+    Task {
+        do { try await export(destination) }
+        catch { NSAlert(error: error).runModal() }
+    }
+}
+
+private extension ImageGeneration {
+    // Swift 6.3.3 crashes when it emits the isolated method adapter for
+    // Binding(get:set:). A writable key path keeps the same guarded selection.
+    var pickerVariant: Image21Variant {
+        get { variant }
+        set { selectVariant(newValue) }
+    }
+}
 
 struct ImageGenerationView: View {
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var engine: ImageGeneration
     let close: () -> Void
-    @AppStorage("image21ModelDirectory") private var modelPath = ""
     @State private var previewImage: NSImage?
     @State private var showsHistory = false
     @State private var selectedImage: URL?
@@ -53,7 +76,8 @@ struct ImageGenerationView: View {
         .foregroundStyle(StudioTheme.ink)
         .background { StudioAurora(animated: false).background(StudioTheme.canvas) }
         .onExitCommand(perform: goBack)
-        .task(id: engine.result) { previewImage = engine.result.flatMap(NSImage.init(contentsOf:)) }
+        .task(id: engine.variant) { await engine.refreshModelDirectory() }
+        .task(id: engine.result?.id) { previewImage = engine.result.flatMap { NSImage(data: $0.png) } }
     }
 
     private func navigation(_ title: String, icon: String, history: Bool) -> some View {
@@ -74,22 +98,89 @@ struct ImageGenerationView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Modèle", "Model")).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
             Text("Qwen-Image-2.1").font(.system(size: 14, weight: .semibold))
-            Text(modelPath.isEmpty ? L("Choisis le dossier EXL3 pour commencer.", "Choose the EXL3 folder to start.")
-                 : URL(fileURLWithPath: modelPath).lastPathComponent)
-                .font(.system(size: 12)).foregroundStyle(modelPath.isEmpty ? StudioTheme.warning : StudioTheme.secondary)
-                .lineLimit(2).truncationMode(.middle).help(modelPath)
-            Button {
-                let panel = NSOpenPanel()
-                panel.canChooseFiles = false
-                panel.canChooseDirectories = true
-                if panel.runModal() == .OK, let url = panel.url { modelPath = url.path }
-            } label: {
-                Label(modelPath.isEmpty ? L("Choisir le dossier…", "Choose folder…") : L("Changer de dossier…", "Change folder…"),
-                      systemImage: "folder")
+            Picker(L("Version du modèle", "Model variant"), selection: $engine.pickerVariant) {
+                Text("Turbo").tag(Image21Variant.turbo)
+                Text("Base").tag(Image21Variant.base)
             }
-            .buttonStyle(.studio(modelPath.isEmpty ? .primary : .secondary)).disabled(engine.running)
-            .accessibilityIdentifier("images.model")
+            .pickerStyle(.segmented).labelsHidden().disabled(engine.running || engine.isDownloading)
+            .accessibilityIdentifier("images.variant")
+            Text(engine.variant == .turbo
+                 ? L("Recommandé pour générer rapidement, en 8 étapes.", "Recommended for fast generation in 8 steps.")
+                 : L("De 2 à 50 étapes pour ajuster le rendu ou recréer une image Base.",
+                     "Choose 2 to 50 steps to adjust the result or recreate a Base image."))
+                .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+            modelInstallation
+            if let error = engine.folderError {
+                Text(error).font(.caption).foregroundStyle(StudioTheme.warning)
+            }
+            if !engine.isDownloading && engine.modelAvailability != .checking {
+                Button {
+                    let panel = NSOpenPanel()
+                    panel.canChooseFiles = false
+                    panel.canChooseDirectories = true
+                    if panel.runModal() == .OK, let url = panel.url {
+                        Task { await engine.selectModelDirectory(url) }
+                    }
+                } label: {
+                    Label(L("Choisir un dossier local…", "Choose a local folder…"), systemImage: "folder")
+                        .font(.system(size: 12))
+                }
+                .buttonStyle(.plain).foregroundStyle(StudioTheme.secondary)
+                .disabled(engine.running).accessibilityIdentifier("images.model")
+            }
         }
+    }
+
+    @ViewBuilder private var modelInstallation: some View {
+        switch engine.modelAvailability {
+        case .checking:
+            Text(L("Recherche sur ce Mac…", "Checking this Mac…")).font(.caption).foregroundStyle(StudioTheme.secondary)
+        case let .installed(url):
+            Label(L("Installé sur ce Mac", "Installed on this Mac"), systemImage: "checkmark.circle.fill")
+                .font(.system(size: 12, weight: .medium)).foregroundStyle(StudioTheme.success)
+                .help(url.path).accessibilityIdentifier("images.installed")
+        case let .downloading(completed, total):
+            VStack(alignment: .leading, spacing: 5) {
+                HStack {
+                    Text(L("Téléchargement", "Downloading"))
+                    Spacer()
+                    Button(L("Annuler", "Cancel"), action: engine.cancelModelDownload)
+                        .buttonStyle(.plain).foregroundStyle(StudioTheme.accent)
+                        .accessibilityIdentifier("images.cancelDownload")
+                }
+                ProgressView(value: Double(completed), total: Double(max(1, total))).tint(StudioTheme.accent)
+                if total > 0 {
+                    Text(Self.storage(completed) + " / " + Self.storage(total)).monospacedDigit()
+                }
+            }
+            .font(.caption).foregroundStyle(StudioTheme.secondary)
+        case let .missing(bytes):
+            downloadButton(L("Télécharger", "Download"), bytes: bytes)
+        case let .paused(bytes):
+            downloadButton(L("Reprendre", "Resume"), bytes: bytes)
+        case let .failed(message, bytes):
+            Text(message).font(.caption).foregroundStyle(StudioTheme.warning).textSelection(.enabled)
+            downloadButton(L("Réessayer", "Retry"), bytes: bytes)
+        }
+    }
+
+    private static func storage(_ bytes: Int64) -> String {
+        if bytes < 1_000_000 { return bytes.formatted() + L(" o", " B") }
+        if bytes < 1_000_000_000 {
+            return (Double(bytes) / 1_000_000).formatted(.number.precision(.fractionLength(1))) + L(" Mo", " MB")
+        }
+        let value = (Double(bytes) / 1_000_000_000).formatted(.number.precision(.fractionLength(2)))
+        return value + L(" Go", " GB")
+    }
+
+    private func downloadButton(_ title: String, bytes: Int64) -> some View {
+        Button(action: engine.downloadModel) {
+            Label(bytes > 0 ? title + " · " + Self.storage(bytes) : title, systemImage: "arrow.down.circle")
+        }
+        .buttonStyle(.studio(.primary)).disabled(engine.running)
+        .accessibilityLabel(title + " " + engine.variant.title)
+        .accessibilityIdentifier("images.download")
     }
 
     private var settings: some View {
@@ -101,10 +192,12 @@ struct ImageGenerationView: View {
                 ForEach([512, 768, 1024], id: \.self) { Text(String($0)).tag($0) }
             }
             .pickerStyle(.segmented).labelsHidden()
-            Stepper(value: $engine.steps, in: 2...50) {
-                Text(L("\(engine.steps) étapes", "\(engine.steps) steps")).font(.system(size: 12.5)).monospacedDigit()
+            if engine.variant == .base {
+                Stepper(value: $engine.baseSteps, in: 2...50) {
+                    Text(L("\(engine.steps) étapes", "\(engine.steps) steps")).font(.system(size: 12.5)).monospacedDigit()
+                }
+                .padding(.vertical, 4)
             }
-            .padding(.vertical, 4)
             Text(L("Graine", "Seed")).font(.system(size: 12.5))
             HStack(spacing: 6) {
                 TextField(L("Graine", "Seed"), value: $engine.seed, format: .number.grouping(.never))
@@ -121,13 +214,21 @@ struct ImageGenerationView: View {
         VStack(spacing: 10) {
             HStack {
                 Text(engine.running ? L("Génération en cours", "Generating")
-                     : engine.result == nil ? L("Exemple du modèle", "Model example") : L("Image générée", "Generated image"))
+                     : engine.result == nil ? L("Exemple du modèle Base", "Base model example") : L("Image générée", "Generated image"))
                     .font(.system(size: 12.5, weight: .medium)).foregroundStyle(StudioTheme.secondary)
                 Spacer()
-                if let url = engine.result {
+                if !engine.running, let url = engine.result?.savedURL {
                     Button { NSWorkspace.shared.activateFileViewerSelecting([url]) } label: {
                         Label(L("Afficher le PNG", "Show PNG"), systemImage: "folder")
                     }.buttonStyle(.studio(.secondary, height: 26))
+                } else if !engine.running, let output = engine.result {
+                    Button {
+                        presentImageSavePanel(filename: "Image-\(output.seed).png", export: output.export)
+                    } label: {
+                        Label(L("Enregistrer…", "Save…"), systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.studio(.secondary, height: 26))
+                    .accessibilityIdentifier("images.savePNG")
                 }
             }
             ZStack {
@@ -166,21 +267,23 @@ struct ImageGenerationView: View {
                 Text(engine.status).font(.system(size: 12.5)).foregroundStyle(StudioTheme.secondary)
             }
             HStack(spacing: 12) {
-                Text(L("Premier lancement : environ 5 Go à télécharger.", "First use downloads about 5 GB."))
+                Text(L("Environ 5 Go de composants partagés au premier lancement.", "First use downloads about 5 GB of shared components."))
                     .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                 Spacer()
                 if engine.running {
-                    Button(L("Annuler", "Cancel"), action: engine.cancel).buttonStyle(.studio)
+                    Button(L("Annuler", "Cancel"), action: engine.cancel)
+                        .buttonStyle(.studio).disabled(engine.finalizing)
                 } else {
                     Button {
-                        engine.start(model: URL(fileURLWithPath: modelPath), prompt: engine.prompt,
+                        guard let model = engine.modelDirectory else { return }
+                        engine.start(model: model, prompt: engine.prompt,
                                      size: engine.size, steps: engine.steps, seed: engine.seed)
                     } label: {
                         Label(L("Générer", "Generate"), systemImage: "wand.and.stars")
                     }
                     .buttonStyle(.studio(.primary)).keyboardShortcut(.return, modifiers: .command)
                     .help(L("Générer · ⌘↩", "Generate · ⌘↩"))
-                    .disabled(modelPath.isEmpty || engine.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(engine.modelDirectory == nil || engine.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("images.generate")
                 }
             }

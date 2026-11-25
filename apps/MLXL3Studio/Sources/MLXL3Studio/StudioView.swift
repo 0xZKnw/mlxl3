@@ -20,7 +20,7 @@ struct StudioView: View {
                         .modifier(StudioSidebarSurface())
                 }
                 if studio.selectedMode == .lab {
-                    LabWorkspaceView(onBack: studio.leaveLab)
+                    LabWorkspaceView(imageGeneration: studio.imageGeneration, onBack: studio.leaveLab)
                 } else {
                     ChatWorkspaceView(sidebarVisible: $sidebarVisible)
                 }

@@ -22,6 +22,7 @@ jobs:
         run: |
           bundle="$RUNNER_TEMP/Studio Resources/Image21"
           sh scripts/copy-image21-resources.sh "$bundle"
+          cmp apps/MLXL3Studio/Resources/Image21/image-models.json "$bundle/image-models.json"
           cmp docs/images/studio-image21-m5.png "$bundle/studio-image21-m5.png"
           cmp apps/MLXL3Studio/Resources/Image21/render.py "$bundle/render.py"
           for shader in _qmm_tensor_kernel.metal _qmm_tensor_window_kernel.metal; do
@@ -67,10 +68,20 @@ jobs:
       MLXL3_SKIP_METAL_CHECK: '1'
     steps:
       - uses: actions/checkout@v4
-      - name: Check image generation and persistent image history
+      - name: Check image downloads, installed models, generation and history
         run: |
           source_dir=apps/MLXL3Studio/Sources/MLXL3Studio
-          MACOSX_DEPLOYMENT_TARGET=26.0 swiftc -swift-version 6 -parse-as-library -warnings-as-errors "$source_dir/Localization.swift" "$source_dir/GeneratedImageHistory.swift" "$source_dir/ImageGeneration.swift" tests/image-generation-check.swift -o "$RUNNER_TEMP/image-generation-check"
+          export MACOSX_DEPLOYMENT_TARGET=26.0
+          flags=(-swift-version 6 -parse-as-library -warnings-as-errors)
+          model_sources=("$source_dir/Localization.swift" "$source_dir/GeneratedImageHistory.swift" "$source_dir/ImageModelDownload.swift" "$source_dir/ImageModelCatalog.swift")
+          usage_sources=("$source_dir/LabUsagePeriod.swift" "$source_dir/ImageGenerationUsage.swift")
+          swiftc "${flags[@]}" "$source_dir/Localization.swift" "$source_dir/GeneratedImageHistory.swift" "${usage_sources[@]}" tests/image-generation-usage-check.swift -o "$RUNNER_TEMP/image-generation-usage-check"
+          "$RUNNER_TEMP/image-generation-usage-check"
+          swiftc "${flags[@]}" "$source_dir/Localization.swift" "$source_dir/ImageModelDownload.swift" tests/image-model-download-check.swift -o "$RUNNER_TEMP/image-model-download-check"
+          "$RUNNER_TEMP/image-model-download-check"
+          swiftc "${flags[@]}" "${model_sources[@]}" tests/image-model-catalog-check.swift -o "$RUNNER_TEMP/image-model-catalog-check"
+          "$RUNNER_TEMP/image-model-catalog-check" apps/MLXL3Studio/Resources/Image21/image-models.json
+          swiftc "${flags[@]}" "${model_sources[@]}" "${usage_sources[@]}" "$source_dir/ImageGeneration.swift" tests/image-model-fixtures.swift tests/image-generation-check.swift -o "$RUNNER_TEMP/image-generation-check"
           "$RUNNER_TEMP/image-generation-check"
       - run: scripts/check-desktop.sh --preferences-only
 

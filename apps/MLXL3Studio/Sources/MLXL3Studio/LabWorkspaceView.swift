@@ -12,12 +12,13 @@ private extension LabUsagePeriod {
 }
 
 private enum LabPage: String, CaseIterable, Identifiable {
-    case usage, compare, generations, hardware
+    case usage, images, compare, generations, hardware
     var id: Self { self }
 
     var title: String {
         switch self {
         case .usage: L("Utilisation", "Usage")
+        case .images: L("Images", "Images")
         case .compare: L("Comparer", "Compare")
         case .generations: L("Générations", "Generations")
         case .hardware: L("Ce Mac", "This Mac")
@@ -25,11 +26,18 @@ private enum LabPage: String, CaseIterable, Identifiable {
     }
 
     /// The page's own heading; the sidebar keeps the short name.
-    var heading: String { self == .compare ? L("Comparer les modèles", "Compare models") : title }
+    var heading: String {
+        switch self {
+        case .images: L("Images générées", "Generated images")
+        case .compare: L("Comparer les modèles", "Compare models")
+        default: title
+        }
+    }
 
     var detail: String {
         switch self {
         case .usage: L("Tokens, débit et modèles utilisés sur ce Mac.", "Tokens, speed and models used on this Mac.")
+        case .images: "Qwen-Image-2.1"
         case .compare: L("Le même prompt sur deux modèles, l’un après l’autre.", "The same prompt on two models, one after the other.")
         case .generations: L("Le détail mesuré de chaque réponse récente.", "The measured detail of each recent reply.")
         case .hardware: L("Le matériel, les logiciels et la mémoire en ce moment.", "Hardware, software and memory right now.")
@@ -39,6 +47,7 @@ private enum LabPage: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .usage: "chart.bar"
+        case .images: "photo.on.rectangle"
         case .compare: "rectangle.split.2x1"
         case .generations: "clock"
         case .hardware: "desktopcomputer"
@@ -56,6 +65,7 @@ struct LabWorkspaceView: View {
         : .usage
     @State private var period = LabUsagePeriod.thirtyDays
     @State private var comparisonDraft = LabComparisonDraft()
+    let imageGeneration: ImageGeneration
     let onBack: () -> Void
 
     var body: some View {
@@ -83,6 +93,8 @@ struct LabWorkspaceView: View {
                                       responses: LabResponseMeasurements(samples: studio.labSamples, period: period, now: time.date),
                                       width: width)
                             }
+                        case .images:
+                            LabImageUsageView(engine: imageGeneration)
                         case .compare:
                             LabComparisonView(comparison: studio.labComparison, draft: $comparisonDraft, width: width)
                         case .generations:

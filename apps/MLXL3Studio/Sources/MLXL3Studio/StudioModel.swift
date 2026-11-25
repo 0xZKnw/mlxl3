@@ -65,7 +65,7 @@ final class StudioModel: ObservableObject {
     private var documentSearchTicket: UUID?
     private weak var activeMessageReference: ChatMessage?
     @Published var selectedProjectID: UUID?
-    let imageGeneration = ImageGeneration()
+    let imageGeneration: ImageGeneration
     @Published var showImages = false
     @Published var showWorkspace = false
     @Published var showMCPManager = false
@@ -322,6 +322,10 @@ final class StudioModel: ObservableObject {
         self.updateManager = updateManager
         self.isPreview = isPreview
         self.preferences = preferences
+        let imageHistory = isPreview
+            ? conversationFileURL.deletingLastPathComponent().appendingPathComponent("Preview Images", isDirectory: true)
+            : GeneratedImageHistory.defaultDirectory
+        self.imageGeneration = ImageGeneration(historyDirectory: imageHistory, preferences: preferences)
         self.idleUnloadNow = idleUnloadNow
         self.notificationClient = notificationClient
         self.applicationIsActive = applicationIsActive
