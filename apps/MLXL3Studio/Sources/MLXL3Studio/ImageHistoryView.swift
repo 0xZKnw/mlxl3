@@ -39,8 +39,8 @@ struct ImageHistoryView: View {
 
     @ViewBuilder private func library(width: CGFloat) -> some View {
         StudioPageHeader(title: L("Historique des images", "Image history"),
-                         detail: L("Les images générées sur ce Mac, les plus récentes d’abord.",
-                                   "Pictures generated on this Mac, newest first.")) {
+                         detail: L("Les images enregistrées sur ce Mac, les plus récentes d’abord.",
+                                   "Pictures saved on this Mac, newest first.")) {
             StudioIconButton(icon: "arrow.clockwise", label: L("Actualiser l’historique", "Refresh history")) { refreshID += 1 }
                 .disabled(engine.isLoadingHistory)
                 .accessibilityIdentifier("images.history.refresh")
@@ -54,8 +54,8 @@ struct ImageHistoryView: View {
                 }
             } else if engine.historyError == nil {
                 StudioEmptyState(icon: "photo.on.rectangle", title: L("Aucune image générée", "No images yet"),
-                                 detail: L("Les images que vous générez apparaîtront ici avec leurs réglages.",
-                                           "The pictures you generate will appear here with their settings.")) {
+                                 detail: L("Activez l’enregistrement automatique dans Réglages → Confidentialité pour retrouver vos prochaines images ici.",
+                                           "Turn on automatic saving in Settings → Privacy to keep new images here.")) {
                     Button(L("Créer une image", "Create an image"), action: openGenerator).buttonStyle(.studio(.primary))
                 }
                 .studioCard(padding: 0)
@@ -92,7 +92,16 @@ struct ImageHistoryView: View {
             Label(L("Liste des images", "All images"), systemImage: "chevron.left")
         }
         .buttonStyle(.studio(.quiet, height: 26)).accessibilityIdentifier("images.history.back")
-        StudioPageHeader(title: L("Image générée", "Generated image"), detail: date(item))
+        StudioPageHeader(title: L("Image générée", "Generated image"), detail: date(item)) {
+            Button {
+                let filename = item.seed.map { "Image-\($0).png" } ?? item.fileURL.lastPathComponent
+                presentImageSavePanel(filename: filename, directory: .downloadsDirectory, export: item.export)
+            } label: {
+                Label(L("Télécharger le PNG", "Download PNG"), systemImage: "arrow.down.to.line")
+            }
+            .buttonStyle(.studio(.primary))
+            .accessibilityIdentifier("images.history.download")
+        }
         let wide = width >= 640
         let infoWidth = min(width * 0.34, 285)
         let artworkWidth = wide ? width - infoWidth - 24 : width
@@ -142,7 +151,7 @@ struct ImageHistoryView: View {
                     } label: {
                         Label(L("Réutiliser les réglages", "Reuse settings"), systemImage: "arrow.counterclockwise")
                     }
-                    .buttonStyle(.studio(.primary)).disabled(engine.running || engine.isDownloading)
+                    .buttonStyle(.studio).disabled(engine.running || engine.isDownloading)
                     .accessibilityIdentifier("images.history.reuse")
                 }
                 Button { NSWorkspace.shared.activateFileViewerSelecting([item.fileURL]) } label: {

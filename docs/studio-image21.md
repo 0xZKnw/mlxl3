@@ -17,8 +17,10 @@ returns to the previous screen. You can reopen Images to resume your draft, foll
 active generation or return to your latest preview. **Cancel** stops an active generation.
 By default the preview stays in memory. Choose **Save…** to keep a PNG in a folder
 of your choice. To keep every new image and its settings in Studio’s history, enable
-**Settings → Privacy → Automatically save generated images**. **Show PNG** reveals
-a saved history image in Finder. The seed can be reused.
+**Settings → Privacy → Automatically save generated images**. Open an image in
+**History** and choose **Download PNG** beside its title to export the original PNG.
+The save dialog starts in Downloads and lets you choose another folder. **Show PNG**
+reveals the history copy in Finder. The seed can be reused.
 Open **Lab → Images** to see Base and Turbo generation counts for the last 30 days
 and all time. Successful previews count even when automatic saving is off. When
 older images have no record of the model used, the Lab shows how many could not

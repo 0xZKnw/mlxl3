@@ -111,8 +111,9 @@ Use **Save…** in the preview to keep a PNG. Enable **Settings → Privacy →
 Automatically save generated images** to keep new images in **Image → History**
 on this Mac, newest first. Select a thumbnail to see the image, its prompt,
 the model, the resolution, the step count and the seed. Older PNGs from Studio
-also appear. **Reuse settings** copies a saved prompt, size, step count and seed
-into the generator for another run. [View a saved generation on an M5](docs/images/studio-image-history.png).
+also appear. **Download PNG** saves a copy in the folder you choose. **Reuse settings**
+copies the prompt, size, step count and seed into the generator for another run.
+[View a saved generation on an M5](docs/images/studio-image-detail-download-fr.jpg).
 
 ### Agent
 
@@ -155,7 +156,7 @@ once toward the average.
 
 **Images** shows completed Base and Turbo generations for the last 30 days and
 all time, including unsaved previews. On upgrade, Studio counts existing history
-entries that identify the model variant.
+entries that identify the model variant. [See the image counters in Lab](docs/images/studio-lab-image-counts-fr.jpg).
 
 In **Compare**, choose two installed text models, enter a shared prompt and set
 an output limit. Studio runs one model at a time and shows the answers together

@@ -21,6 +21,22 @@ struct GeneratedImageRecord: Identifiable, Equatable, Sendable {
     let steps: Int?
     let seed: UInt32?
 
+    func export(to destination: URL) async throws {
+        try await Task.detached(priority: .userInitiated) {
+            let source = try fileURL.resourceValues(forKeys: [.isRegularFileKey, .isSymbolicLinkKey, .fileResourceIdentifierKey])
+            guard source.isRegularFile == true, source.isSymbolicLink != true else {
+                throw CocoaError(.fileReadUnknown)
+            }
+            let target = destination.resolvingSymlinksInPath()
+            if target == fileURL.resolvingSymlinksInPath() { return }
+            if let sourceID = source.fileResourceIdentifier,
+               let targetID = try? target.resourceValues(forKeys: [.fileResourceIdentifierKey]).fileResourceIdentifier,
+               sourceID.isEqual(targetID) { return }
+            let png = try Data(contentsOf: fileURL, options: .mappedIfSafe)
+            try png.write(to: destination, options: .atomic)
+        }.value
+    }
+
     static func newestFirst(_ lhs: Self, _ rhs: Self) -> Bool {
         if lhs.createdAt != rhs.createdAt { return lhs.createdAt > rhs.createdAt }
         return lhs.fileURL.lastPathComponent < rhs.fileURL.lastPathComponent

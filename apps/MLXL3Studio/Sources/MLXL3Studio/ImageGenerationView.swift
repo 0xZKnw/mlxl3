@@ -2,6 +2,29 @@ import AppKit
 import SwiftUI
 import UniformTypeIdentifiers
 
+@MainActor
+func presentImageSavePanel(filename: String, directory: URL? = nil, export: @escaping (URL) async throws -> Void) {
+    let panel = NSSavePanel()
+    panel.allowedContentTypes = [.png]
+    panel.canCreateDirectories = true
+    panel.nameFieldStringValue = filename
+    if let directory { panel.directoryURL = directory }
+    guard panel.runModal() == .OK, let destination = panel.url else { return }
+    Task {
+        do { try await export(destination) }
+        catch { NSAlert(error: error).runModal() }
+    }
+}
+
+private extension ImageGeneration {
+    // Swift 6.3.3 crashes when it emits the isolated method adapter for
+    // Binding(get:set:). A writable key path keeps the same guarded selection.
+    var pickerVariant: Image21Variant {
+        get { variant }
+        set { selectVariant(newValue) }
+    }
+}
+
 struct ImageGenerationView: View {
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var engine: ImageGeneration
@@ -75,8 +98,7 @@ struct ImageGenerationView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Modèle", "Model")).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
             Text("Qwen-Image-2.1").font(.system(size: 14, weight: .semibold))
-            Picker(L("Version du modèle", "Model variant"),
-                   selection: Binding(get: { engine.variant }, set: engine.selectVariant)) {
+            Picker(L("Version du modèle", "Model variant"), selection: $engine.pickerVariant) {
                 Text("Turbo").tag(Image21Variant.turbo)
                 Text("Base").tag(Image21Variant.base)
             }
@@ -200,7 +222,9 @@ struct ImageGenerationView: View {
                         Label(L("Afficher le PNG", "Show PNG"), systemImage: "folder")
                     }.buttonStyle(.studio(.secondary, height: 26))
                 } else if !engine.running, let output = engine.result {
-                    Button { save(output) } label: {
+                    Button {
+                        presentImageSavePanel(filename: "Image-\(output.seed).png", export: output.export)
+                    } label: {
                         Label(L("Enregistrer…", "Save…"), systemImage: "square.and.arrow.down")
                     }
                     .buttonStyle(.studio(.secondary, height: 26))
@@ -228,18 +252,6 @@ struct ImageGenerationView: View {
             .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(StudioTheme.edge.opacity(0.7), lineWidth: 0.5) }
         }
         .frame(maxHeight: .infinity)
-    }
-
-    private func save(_ output: GeneratedImageOutput) {
-        let panel = NSSavePanel()
-        panel.allowedContentTypes = [.png]
-        panel.canCreateDirectories = true
-        panel.nameFieldStringValue = "Image-\(output.seed).png"
-        guard panel.runModal() == .OK, let destination = panel.url else { return }
-        Task {
-            do { try await output.export(to: destination) }
-            catch { NSAlert(error: error).runModal() }
-        }
     }
 
     private var composer: some View {

@@ -263,8 +263,9 @@ struct ImageGenerationCheck {
 
         let legacy = images.appendingPathComponent("Image-4294967295-22C1B2AC-D794-445B-BF0A-10AE664773D0.png")
         let unknown = images.appendingPathComponent("renamed.png")
+        let renamedPNG = try Data(contentsOf: repo.appendingPathComponent("tests/fixtures/image-input/red.png"))
         try sample.write(to: legacy)
-        try sample.write(to: unknown)
+        try renamedPNG.write(to: unknown)
         try fm.createSymbolicLink(at: images.appendingPathComponent("shortcut.png"), withDestinationURL: first.fileURL)
         try Data("bad png".utf8).write(to: images.appendingPathComponent("damaged.png"))
         try sample.write(to: images.appendingPathComponent(".incomplete.png"))
@@ -288,7 +289,34 @@ struct ImageGenerationCheck {
         check(incomplete.prompt == nil && incomplete.seed == 0 && incomplete.steps == nil)
         check(reopened.history.contains(first), "One corrupt entry must not hide the valid entry")
         check(zip(reopened.history, reopened.history.dropFirst()).allSatisfy { $0.createdAt >= $1.createdAt })
+        let download = root.appendingPathComponent("download.png")
+        let originalID = try fm.attributesOfItem(atPath: first.fileURL.path)[.systemFileNumber] as? NSNumber
+        let originalSettings = try Data(contentsOf: firstInfo)
+        let countsBeforeExport = try reopened.usageStore.summary()
+        for (record, expected) in [(first, sample), (old, sample), (renamed, renamedPNG)] {
+            try Data("previous destination".utf8).write(to: download)
+            try await record.export(to: download)
+            let copy = try Data(contentsOf: download)
+            check(copy == expected, "Download must preserve the original PNG bytes, including legacy images")
+        }
+        let sameFile = root.appendingPathComponent("linked.png")
+        try fm.linkItem(at: first.fileURL, to: sameFile)
+        for destination in [first.fileURL, sameFile] {
+            try await first.export(to: destination)
+            let fileNumber = try fm.attributesOfItem(atPath: destination.path)[.systemFileNumber] as? NSNumber
+            check(originalID != nil && originalID == fileNumber, "An export onto its source must preserve the file identity")
+        }
+        let settingsAfterExport = try Data(contentsOf: firstInfo)
+        let countsAfterExport = try reopened.usageStore.summary()
+        check(settingsAfterExport == originalSettings && countsAfterExport == countsBeforeExport)
         try fm.removeItem(at: first.fileURL)
+        do {
+            try await first.export(to: download)
+            preconditionFailure("A missing source must report an export error")
+        } catch {
+            let surviving = try Data(contentsOf: download)
+            check(surviving == renamedPNG, "A failed download must preserve an existing destination")
+        }
         await reopened.refreshHistory()
         check(reopened.history.count == 4 && !reopened.history.contains(first), "Missing PNGs are not gallery entries")
         let blocked = ImageGeneration(historyDirectory: unknown)
