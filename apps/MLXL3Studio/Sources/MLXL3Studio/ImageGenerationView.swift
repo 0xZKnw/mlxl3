@@ -1,5 +1,6 @@
 import AppKit
 import SwiftUI
+import UniformTypeIdentifiers
 
 struct ImageGenerationView: View {
     @EnvironmentObject private var studio: StudioModel
@@ -53,7 +54,7 @@ struct ImageGenerationView: View {
         .background { StudioAurora(animated: false).background(StudioTheme.canvas) }
         .onExitCommand(perform: goBack)
         .task(id: engine.variant) { await engine.refreshModelDirectory() }
-        .task(id: engine.result) { previewImage = engine.result.flatMap(NSImage.init(contentsOf:)) }
+        .task(id: engine.result?.id) { previewImage = engine.result.flatMap { NSImage(data: $0.png) } }
     }
 
     private func navigation(_ title: String, icon: String, history: Bool) -> some View {
@@ -194,10 +195,16 @@ struct ImageGenerationView: View {
                      : engine.result == nil ? L("Exemple du modèle Base", "Base model example") : L("Image générée", "Generated image"))
                     .font(.system(size: 12.5, weight: .medium)).foregroundStyle(StudioTheme.secondary)
                 Spacer()
-                if let url = engine.result {
+                if !engine.running, let url = engine.result?.savedURL {
                     Button { NSWorkspace.shared.activateFileViewerSelecting([url]) } label: {
                         Label(L("Afficher le PNG", "Show PNG"), systemImage: "folder")
                     }.buttonStyle(.studio(.secondary, height: 26))
+                } else if !engine.running, let output = engine.result {
+                    Button { save(output) } label: {
+                        Label(L("Enregistrer…", "Save…"), systemImage: "square.and.arrow.down")
+                    }
+                    .buttonStyle(.studio(.secondary, height: 26))
+                    .accessibilityIdentifier("images.savePNG")
                 }
             }
             ZStack {
@@ -223,6 +230,18 @@ struct ImageGenerationView: View {
         .frame(maxHeight: .infinity)
     }
 
+    private func save(_ output: GeneratedImageOutput) {
+        let panel = NSSavePanel()
+        panel.allowedContentTypes = [.png]
+        panel.canCreateDirectories = true
+        panel.nameFieldStringValue = "Image-\(output.seed).png"
+        guard panel.runModal() == .OK, let destination = panel.url else { return }
+        Task {
+            do { try await output.export(to: destination) }
+            catch { NSAlert(error: error).runModal() }
+        }
+    }
+
     private var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
             TextField(L("Décris l’image à générer…", "Describe the image to generate…"),
@@ -240,7 +259,8 @@ struct ImageGenerationView: View {
                     .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                 Spacer()
                 if engine.running {
-                    Button(L("Annuler", "Cancel"), action: engine.cancel).buttonStyle(.studio)
+                    Button(L("Annuler", "Cancel"), action: engine.cancel)
+                        .buttonStyle(.studio).disabled(engine.finalizing)
                 } else {
                     Button {
                         guard let model = engine.modelDirectory else { return }

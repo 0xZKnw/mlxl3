@@ -322,7 +322,10 @@ final class StudioModel: ObservableObject {
         self.updateManager = updateManager
         self.isPreview = isPreview
         self.preferences = preferences
-        self.imageGeneration = ImageGeneration(preferences: preferences)
+        let imageHistory = isPreview
+            ? conversationFileURL.deletingLastPathComponent().appendingPathComponent("Preview Images", isDirectory: true)
+            : GeneratedImageHistory.defaultDirectory
+        self.imageGeneration = ImageGeneration(historyDirectory: imageHistory, preferences: preferences)
         self.idleUnloadNow = idleUnloadNow
         self.notificationClient = notificationClient
         self.applicationIsActive = applicationIsActive

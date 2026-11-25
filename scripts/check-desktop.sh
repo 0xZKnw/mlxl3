@@ -263,7 +263,7 @@ queue_after_preferences() {
     queue_app_check model-card tests/model-card-check.swift
     queue_app_check file-import tests/file-import-check.swift
     queue_app_check image-input tests/image-input-check.swift
-    queue_app_check image-history-ui tests/image-history-ui-check.swift tests/image-model-fixtures.swift
+    queue_app_check image-history-ui tests/image-history-ui-check.swift tests/image-model-fixtures.swift tests/image-saving-settings-check.swift
     queue_app_check workspace-features tests/workspace-features-check.swift
     combine RecommendedModelsCombined.swift "${app_sources}/ModelManager.swift" tests/recommended-models-ui-check.swift
     queue_compile recommendations "${(@)sources:#*/ModelManager.swift}" "${math_objects[@]}" \

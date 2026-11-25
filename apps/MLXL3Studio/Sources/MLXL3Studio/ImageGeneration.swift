@@ -28,8 +28,22 @@ enum ImageModelAvailability: Equatable {
     case failed(String, Int64)
 }
 
+struct GeneratedImageOutput: Sendable {
+    let id: UUID
+    let png: Data
+    let savedURL: URL?
+    let seed: UInt32
+
+    func export(to destination: URL) async throws {
+        try await Task.detached(priority: .userInitiated) {
+            try png.write(to: destination, options: .atomic)
+        }.value
+    }
+}
+
 @MainActor
 final class ImageGeneration: ObservableObject {
+    static let autoSavePreferenceKey = "image21AutoSaveGeneratedImages"
     typealias Transfer = @Sendable ([ImageModelDownloadFile], URL, @escaping @Sendable (Int64, Int64) async -> Void) async throws -> Void
 
     @Published var prompt = ""
@@ -49,13 +63,16 @@ final class ImageGeneration: ObservableObject {
     }
     @Published var seed = UInt32.random(in: 0...UInt32.max)
     @Published private(set) var running = false
+    @Published private(set) var finalizing = false
     @Published private(set) var status = ""
-    @Published private(set) var result: URL?
+    @Published private(set) var result: GeneratedImageOutput?
     @Published private(set) var error: String?
     @Published private(set) var history: [GeneratedImageRecord] = []
     @Published private(set) var isLoadingHistory = false
     @Published private(set) var historyError: String?
     private let historyStore: GeneratedImageHistory
+    let usageStore: ImageGenerationUsage
+    @Published private(set) var usageRevision = 0
     private var historyRevision = 0
     private var historyReadID: UUID?
     private var task: Task<Void, Never>?
@@ -77,6 +94,7 @@ final class ImageGeneration: ObservableObject {
          }) {
         self.supported = supported
         self.historyStore = GeneratedImageHistory(directory: historyDirectory)
+        self.usageStore = ImageGenerationUsage(historyDirectory: historyDirectory)
         self.worker = worker
         self.preferences = preferences
         self.catalog = catalog
@@ -219,12 +237,14 @@ final class ImageGeneration: ObservableObject {
     func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32) {
         guard !running, !isDownloading else { return }
         let variant = self.variant
+        let autoSave = preferences.bool(forKey: Self.autoSavePreferenceKey)
         running = true
-        result = nil
+        // An unsuccessful retry should not discard the only copy of an unsaved image.
+        if result?.savedURL != nil { result = nil }
         error = nil
         status = L("Préparation du moteur…", "Preparing the engine…")
         task = Task {
-            defer { running = false; task = nil; process = nil }
+            defer { finalizing = false; running = false; task = nil; process = nil }
             do {
                 guard supported else { throw failure(Image21Hardware.requirement) }
                 guard variant.stepRange.contains(steps) else {
@@ -267,12 +287,42 @@ final class ImageGeneration: ObservableObject {
                                "--size", String(size), "--steps", String(steps), "--seed", String(seed), "--output", png.path],
                               log: log, stdout: log, timeout: 3600, steps: steps)
                 try Task.checkCancellation()
-                let record = try historyStore.save(png: png, prompt: prompt, modelName: model.lastPathComponent,
-                                                   variant: variant, size: size, steps: steps, seed: seed)
-                historyRevision += 1
-                let position = history.firstIndex { GeneratedImageRecord.newestFirst(record, $0) } ?? history.endIndex
-                history.insert(record, at: position)
-                result = record.fileURL
+                let verified = try await Task.detached(priority: .userInitiated) { [historyStore] in
+                    try historyStore.validatedPNG(at: png, size: size)
+                }.value
+                try Task.checkCancellation()
+                // Once accepted, count the completed render even if publishing its PNG fails.
+                finalizing = true
+                status = L("Finalisation de l’image…", "Finishing the image…")
+                let id = UUID()
+                let createdAt = Date.now
+                let (record, counted, warnings) = await Task.detached(priority: .userInitiated) { [historyStore, usageStore] in
+                    var record: GeneratedImageRecord?
+                    var warnings: [String] = []
+                    if autoSave {
+                        do {
+                            record = try historyStore.save(verifiedPNG: verified, prompt: prompt, modelName: model.lastPathComponent,
+                                                           variant: variant, steps: steps, seed: seed, id: id, createdAt: createdAt)
+                        } catch {
+                            warnings.append(L("L’enregistrement automatique a échoué.", "Automatic saving failed.") + " " + error.localizedDescription)
+                        }
+                    }
+                    do {
+                        try usageStore.record(id: id, variant: variant, at: createdAt)
+                        return (record, true, warnings)
+                    } catch {
+                        warnings.append(L("Le compteur d’images n’a pas été mis à jour.", "The image count could not be updated.") + " " + error.localizedDescription)
+                        return (record, false, warnings)
+                    }
+                }.value
+                if let record {
+                    historyRevision += 1
+                    let position = history.firstIndex { GeneratedImageRecord.newestFirst(record, $0) } ?? history.endIndex
+                    history.insert(record, at: position)
+                }
+                if counted || record != nil { usageRevision += 1 }
+                result = GeneratedImageOutput(id: id, png: verified.data, savedURL: record?.fileURL, seed: seed)
+                if !warnings.isEmpty { self.error = warnings.joined(separator: "\n") }
                 status = ""
             } catch is CancellationError {
                 status = L("Génération annulée.", "Generation cancelled.")
@@ -284,6 +334,7 @@ final class ImageGeneration: ObservableObject {
     }
 
     func cancel() {
+        guard !finalizing else { return }
         task?.cancel()
         if let process, process.isRunning { process.terminate() }
     }

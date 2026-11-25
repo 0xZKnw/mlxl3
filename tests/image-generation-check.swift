@@ -102,45 +102,14 @@ struct ImageGenerationCheck {
         let sample = try Data(contentsOf: repo.appendingPathComponent("docs/images/studio-image21-m5.png"))
         try sample.write(to: model.appendingPathComponent("sample.png"))
 
-        // Exercise the production process launch, acknowledgement, validation and save path
-        // without requiring a physical M5, a model download, or the user's real library.
-        let uv = root.appendingPathComponent("fixture-uv")
-        let renderer = root.appendingPathComponent("fixture-renderer")
-        try Data("""
-            #!/bin/sh
-            printf '%s\\n' "${MLXL3_TEST_PYTHON:-/usr/bin/python3}"
-            """.utf8).write(to: uv)
-        try Data("""
-            import argparse
-            from pathlib import Path
-            import shutil
-            import time
-            parser = argparse.ArgumentParser()
-            for key in ("model", "output"):
-                parser.add_argument("--" + key, required=True, type=Path)
-            for key in ("variant", "prompt", "size", "steps", "seed"):
-                parser.add_argument("--" + key, required=True)
-            args = parser.parse_args()
-            (args.model / "last-prompt").write_text(args.prompt, encoding="utf-8")
-            (args.model / "last-variant").write_text(args.variant + ":" + args.steps)
-            if args.prompt == "corrupt":
-                args.output.write_bytes(b"bad PNG")
-            elif args.prompt == "pause":
-                (args.model / "started").touch()
-                time.sleep(20)
-            else:
-                shutil.copyfile(args.model / "sample.png", args.output)
-            """.utf8).write(to: renderer)
-        for path in [uv, renderer] {
-            try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path.path)
-        }
+        let worker = try StudioImageFixtures.worker(in: root)
         let suite = "mlxl3.turbo-test.\(UUID().uuidString)"
         let prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
         prefs.set(model.path, forKey: "image21ModelDirectory")
         prefs.set("base", forKey: "image21Variant")
         let turbo = fixtures.catalog.destination(for: .turbo)
-        let engine = ImageGeneration(supported: true, historyDirectory: images, worker: (uv, renderer),
+        let engine = ImageGeneration(supported: true, historyDirectory: images, worker: worker,
                                      preferences: prefs, catalog: fixtures.catalog)
         func wait(_ predicate: @MainActor () -> Bool) async throws {
             for _ in 0..<500 {
@@ -154,13 +123,36 @@ struct ImageGenerationCheck {
         check(engine.variant == .base && engine.modelDirectory?.path == model.path && engine.steps == 40)
         check(engine.history.isEmpty && !engine.isLoadingHistory && engine.historyError == nil)
         check(!fm.fileExists(atPath: images.path), "Opening an empty gallery must not create files")
+        engine.start(model: model, prompt: "preview", size: 512, steps: 2, seed: 12)
+        // A changed preference applies to the next render.
+        prefs.set(true, forKey: ImageGeneration.autoSavePreferenceKey)
+        try await wait { !engine.running }
+        guard let preview = engine.result else { preconditionFailure(engine.error ?? "Missing preview") }
+        check(preview.png == sample && preview.seed == 12 && preview.savedURL == nil && engine.error == nil,
+              "A render with default settings must return an exact in-memory preview")
+        let scratch = try String(contentsOf: model.appendingPathComponent("last-output"), encoding: .utf8)
+        check(!fm.fileExists(atPath: URL(fileURLWithPath: scratch).deletingLastPathComponent().path))
+        check(engine.history.isEmpty && !fm.fileExists(atPath: images.path))
+        let export = root.appendingPathComponent("exported.png")
+        for _ in 0..<2 { try await preview.export(to: export) }
+        let exported = try Data(contentsOf: export)
+        check(exported == sample && !fm.fileExists(atPath: images.path))
+        do {
+            try await preview.export(to: root.appendingPathComponent("absent/fails.png"))
+            preconditionFailure("A failed export must be reported")
+        } catch { check(engine.result?.id == preview.id) }
+        engine.start(model: model, prompt: "corrupt", size: 512, steps: 2, seed: 0)
+        try await wait { !engine.running }
+        check(engine.error != nil && engine.result?.id == preview.id, "A failed retry must preserve the unsaved preview")
+        let previewCounts = try engine.usageStore.summary()
+        check(previewCounts.base.allTime == 1 && previewCounts.turbo.allTime == 0 && engine.usageRevision == 1)
         let prompt = "Lune 🌙, lignes ‘bleues’.\nDeuxième ligne."
         engine.start(model: model, prompt: prompt, size: 512, steps: 2, seed: 0)
         engine.prompt = "a changed draft"
         engine.seed = 10
         try await wait { !engine.running }
         guard let first = engine.history.first else { preconditionFailure(engine.error ?? "Missing history") }
-        check(engine.result == first.fileURL && first.prompt == prompt && first.steps == 2 && first.seed == 0)
+        check(engine.result?.savedURL == first.fileURL && first.prompt == prompt && first.steps == 2 && first.seed == 0)
         check(first.modelName == "Qwen-Image-fixture" && first.variant == .base && first.width == 512 && first.height == 512)
         let baseArgs = try String(contentsOf: model.appendingPathComponent("last-variant"), encoding: .utf8)
         check(baseArgs == "base:2", "Base reaches the worker with the selected steps")
@@ -226,10 +218,28 @@ struct ImageGenerationCheck {
         check(restored.variant == .turbo && restored.modelDirectory == flat && restored.steps == 8)
         await restored.refreshHistory()
         check(restored.history.first == fast && restored.history.count == 3)
+        let restoredCounts = try restored.usageStore.summary()
+        check(restoredCounts == ImageUsageSummary(base: .init(last30Days: 3, allTime: 3),
+                                                  turbo: .init(last30Days: 1, allTime: 1)) && engine.usageRevision == 4,
+              "Relaunch counts validated renders once across failed, cancelled and repeated operations")
         engine.selectVariant(.base)
         await engine.refreshModelDirectory()
         check(engine.steps == 31 && engine.modelDirectory?.path == model.path, "Switching back must restore Base settings")
         let store = GeneratedImageHistory(directory: images)
+        do {
+            _ = try store.validatedPNG(at: root.appendingPathComponent("missing.png"), size: 512)
+            preconditionFailure("A worker with no output must report an unreadable image")
+        } catch { check(error.localizedDescription == "The engine returned an unreadable image.") }
+        let duplicate = root.appendingPathComponent("duplicate.png")
+        try sample.write(to: duplicate)
+        do {
+            _ = try store.save(png: duplicate, prompt: "changed", modelName: "Other",
+                               size: 512, steps: 2, seed: first.seed!, id: GeneratedImageHistory.filenameIdentity(first.fileURL)!.id)
+            preconditionFailure("Duplicate publication overwrote a previous render")
+        } catch {
+            let records = try store.records()
+            check(records.contains(first), "A repeated publication must preserve the original settings and image")
+        }
         do {
             _ = try store.save(png: turbo.appendingPathComponent("sample.png"), prompt: "invalid", modelName: "Turbo",
                                variant: .turbo, size: 512, steps: 9, seed: 0)
@@ -284,7 +294,18 @@ struct ImageGenerationCheck {
         let blocked = ImageGeneration(historyDirectory: unknown)
         await blocked.refreshHistory()
         check(!blocked.isLoadingHistory && blocked.history.isEmpty && blocked.historyError != nil)
-        print("Image history: \(assertions) assertions, real subprocess save/cancel/failure, exact PNG, reopen, legacy names, sorting, missing/corrupt metadata and isolated files checked")
+        let inaccessibleGallery = root.appendingPathComponent("unavailable-gallery")
+        try Data().write(to: inaccessibleGallery)
+        let recovery = ImageGeneration(supported: true, historyDirectory: inaccessibleGallery, worker: worker,
+                                       preferences: prefs, catalog: fixtures.catalog)
+        recovery.start(model: model, prompt: "save failure", size: 512, steps: 2, seed: 23)
+        try await wait { !recovery.running }
+        check(recovery.error?.hasPrefix("Automatic saving failed.") == true && recovery.history.isEmpty)
+        check(recovery.result?.savedURL == nil && recovery.result?.png == sample)
+        try fm.removeItem(at: inaccessibleGallery)
+        let recoveryCounts = try recovery.usageStore.summary()
+        check(recoveryCounts.base.allTime == 1 && recovery.usageRevision == 1)
+        print("Image history and usage: \(assertions) assertions, worker cleanup, unsaved preview, explicit export, automatic save, exact PNG, cancellation, failure, relaunch and legacy records checked")
     }
 
     @MainActor static func main() async throws {

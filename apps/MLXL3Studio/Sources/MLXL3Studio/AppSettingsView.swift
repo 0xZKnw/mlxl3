@@ -50,6 +50,8 @@ struct AppSettingsView: View {
     private var selection: SettingsPage { studio.appSettingsPage }
     @AppStorage(QwenRuntimeProfile.preferenceKey) private var requestedQwenProfile = "reference"
 
+    @AppStorage(ImageGeneration.autoSavePreferenceKey) private var autoSaveGeneratedImages = false
+
     var body: some View {
         HStack(spacing: 0) {
             StudioPageSidebar(title: L("Réglages", "Settings"), onBack: { studio.showAppSettings = false }) {
@@ -262,6 +264,12 @@ struct AppSettingsView: View {
                                icon: "internaldrive") {
                         StudioStatusPill(text: L("Local", "Local"), color: StudioTheme.success)
                     }
+                    SettingToggleRow(
+                        title: L("Enregistrer automatiquement les images", "Automatically save generated images"),
+                        detail: L("Ajoute chaque nouvelle image à l’historique sur ce Mac. Vous pouvez aussi enregistrer une image depuis son aperçu.",
+                                  "Add each new image to history on this Mac. You can also save an image from its preview."),
+                        isOn: $autoSaveGeneratedImages
+                    )
                 }
                 SettingSection(
                     title: L("Accès au réseau", "Network access"), icon: "network",

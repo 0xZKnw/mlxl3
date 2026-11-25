@@ -74,11 +74,14 @@ jobs:
           export MACOSX_DEPLOYMENT_TARGET=26.0
           flags=(-swift-version 6 -parse-as-library -warnings-as-errors)
           model_sources=("$source_dir/Localization.swift" "$source_dir/GeneratedImageHistory.swift" "$source_dir/ImageModelDownload.swift" "$source_dir/ImageModelCatalog.swift")
+          usage_sources=("$source_dir/LabUsagePeriod.swift" "$source_dir/ImageGenerationUsage.swift")
+          swiftc "${flags[@]}" "$source_dir/Localization.swift" "$source_dir/GeneratedImageHistory.swift" "${usage_sources[@]}" tests/image-generation-usage-check.swift -o "$RUNNER_TEMP/image-generation-usage-check"
+          "$RUNNER_TEMP/image-generation-usage-check"
           swiftc "${flags[@]}" "$source_dir/Localization.swift" "$source_dir/ImageModelDownload.swift" tests/image-model-download-check.swift -o "$RUNNER_TEMP/image-model-download-check"
           "$RUNNER_TEMP/image-model-download-check"
           swiftc "${flags[@]}" "${model_sources[@]}" tests/image-model-catalog-check.swift -o "$RUNNER_TEMP/image-model-catalog-check"
           "$RUNNER_TEMP/image-model-catalog-check" apps/MLXL3Studio/Resources/Image21/image-models.json
-          swiftc "${flags[@]}" "${model_sources[@]}" "$source_dir/ImageGeneration.swift" tests/image-model-fixtures.swift tests/image-generation-check.swift -o "$RUNNER_TEMP/image-generation-check"
+          swiftc "${flags[@]}" "${model_sources[@]}" "${usage_sources[@]}" "$source_dir/ImageGeneration.swift" tests/image-model-fixtures.swift tests/image-generation-check.swift -o "$RUNNER_TEMP/image-generation-check"
           "$RUNNER_TEMP/image-generation-check"
       - run: scripts/check-desktop.sh --preferences-only
 

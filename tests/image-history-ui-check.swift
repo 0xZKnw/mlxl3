@@ -38,13 +38,14 @@ struct ImageHistoryInterfaceCheck {
         studio.setLanguage(.en)
         studio.setStyle(.graphite)
         let fixtures = try StudioImageFixtures(root: temporary)
-        let engine = ImageGeneration(supported: true, historyDirectory: images, preferences: preferences,
+        let engine = ImageGeneration(supported: true, historyDirectory: images,
+                                     worker: try StudioImageFixtures.worker(in: temporary), preferences: preferences,
                                      catalog: fixtures.catalog, download: { files, destination, progress in
             await progress(1, files.reduce(0) { $0 + $1.size })
             try StudioImageFixtures.publish(files, at: destination)
         })
-        let host = NSHostingView(rootView: ImageGenerationView(engine: engine, close: {}).environmentObject(studio)
-            .defaultAppStorage(preferences).preferredColorScheme(.dark))
+        let host = NSHostingView(rootView: AnyView(ImageGenerationView(engine: engine, close: {}).environmentObject(studio)
+            .defaultAppStorage(preferences).preferredColorScheme(.dark)))
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1120, height: 760),
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -179,6 +180,89 @@ struct ImageHistoryInterfaceCheck {
               && !engine.running && fileManager.fileExists(atPath: fast.fileURL.path) else {
             throw HistoryUIError(message: "Reusing Turbo must select its eight-step generator")
         }
-        print("Image history interface passed: empty library, image and prompt, saved settings, compact navigation, reuse without generation")
+        // One recent image of each variant already exists in the fixture's gallery.
+        let now = Date()
+        let old = Calendar.current.date(byAdding: .day, value: -40, to: now)!
+        for (variant, recent) in [(Image21Variant.base, 11), (.turbo, 35)] {
+            for _ in 0..<recent { try engine.usageStore.record(id: UUID(), variant: variant, at: now) }
+            for _ in 0..<12 { try engine.usageStore.record(id: UUID(), variant: variant, at: old) }
+        }
+        func expectImageCounts(_ counts: [Int], for variant: Image21Variant, in cells: [Word]) throws {
+            guard let label = cells.first(where: { $0.text == variant.rawValue }) else {
+                throw HistoryUIError(message: "Missing \(variant.title) in the Lab")
+            }
+            let row = cells.filter { $0.box.minX > label.box.midX && abs($0.box.midY - label.box.midY) < 0.016 }
+                .sorted { $0.box.minX < $1.box.minX }
+            let numbers = row.flatMap { $0.text.split(whereSeparator: { !$0.isNumber }).compactMap { Int($0) } }
+            guard numbers == counts else {
+                throw HistoryUIError(message: "Expected \(variant.title) \(counts), found \(numbers) in \(cells.map(\.text))")
+            }
+        }
+        func showLab() {
+            host.rootView = AnyView(LabWorkspaceView(imageGeneration: engine, onBack: {})
+                .background { StudioAurora(busy: false, animated: false, fullHeight: true).background(StudioTheme.canvas) }
+                .id(studio.language).environmentObject(studio).environment(\.locale, Locale(identifier: studio.language.rawValue))
+                .defaultAppStorage(preferences).preferredColorScheme(.dark))
+        }
+        showLab()
+        try click("images", in: await words())
+        let lab = try await words()
+        try expect(["generated images", "last 30 days", "all time", "one image in your history is unknown"], in: lab)
+        try expectImageCounts([12, 24], for: .base, in: lab)
+        try expectImageCounts([36, 48], for: .turbo, in: lab)
+
+        // Keep Lab open while the production controller completes another image.
+        let turboFolder = fixtures.catalog.destination(for: .turbo)
+        try fileManager.copyItem(at: example, to: turboFolder.appendingPathComponent("sample.png"))
+        engine.start(model: turboFolder, prompt: "Usage check", size: 512, steps: 8, seed: 19)
+        let finished = ContinuousClock.now.advanced(by: .seconds(12))
+        while engine.running && ContinuousClock.now < finished { try await Task.sleep(for: .milliseconds(40)) }
+        guard !engine.running && engine.error == nil else {
+            engine.cancel()
+            throw HistoryUIError(message: "Lab test generation failed: \(engine.error ?? "timeout")")
+        }
+        try expectImageCounts([37, 49], for: .turbo, in: await words())
+        studio.setLanguage(.fr)
+        ocr.recognitionLanguages = ["fr-FR"]
+        showLab()
+        try click("images", in: await words())
+        let french = try await words(snapshot: "studio-lab-images-fr.png")
+        try expect(["images générées", "30 derniers jours", "depuis le début", "inconnu pour une image"], in: french)
+        try expectImageCounts([12, 24], for: .base, in: french)
+        try expectImageCounts([37, 49], for: .turbo, in: french)
+        let unavailable = temporary.appendingPathComponent("unavailable")
+        try Data().write(to: unavailable)
+        let fresh = ImageGeneration(supported: false, historyDirectory: unavailable.appendingPathComponent("Images"),
+                                    preferences: preferences, catalog: fixtures.catalog)
+        func showFreshLab(_ id: String) {
+            host.rootView = AnyView(LabImageUsageView(engine: fresh).padding(24)
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                .background(StudioTheme.canvas).id(id).preferredColorScheme(.dark))
+            window.setContentSize(.init(width: 820, height: 700))
+        }
+        showFreshLab("unavailable")
+        let errorPage = try await words()
+        try expect(["indisponibles", "réessayer"], in: errorPage)
+        try fileManager.removeItem(at: unavailable)
+        try click("réessayer", in: errorPage)
+        let empty = try await words()
+        try expectImageCounts([0, 0], for: .base, in: empty)
+        try expectImageCounts([0, 0], for: .turbo, in: empty)
+        for _ in 0..<12 { try fresh.usageStore.record(id: UUID(), variant: .turbo) }
+        let missingHistory = unavailable.appendingPathComponent("Images")
+        try Data().write(to: missingHistory)
+        showFreshLab("partial")
+        let partial = try await words()
+        try expect(["inaccessible", "réessayer"], in: partial)
+        try expectImageCounts([12, 12], for: .turbo, in: partial)
+        try fileManager.removeItem(at: missingHistory)
+        try click("réessayer", in: partial)
+        let recovered = try await words()
+        guard !recovered.contains(where: { $0.text.contains("inaccessible") }) else {
+            throw HistoryUIError(message: "Retry did not refresh the recovered gallery")
+        }
+        try expectImageCounts([12, 12], for: .turbo, in: recovered)
+        try await checkImageSaveSettings(studio: studio, window: window, preferences: preferences)
+        print("Image history interface passed: image library, reuse, Lab counts in both periods and live refresh, saving preference")
     }
 }

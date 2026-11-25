@@ -53,10 +53,15 @@ struct GeneratedImageHistory: Sendable {
         directory.appendingPathComponent("." + image.lastPathComponent + ".json")
     }
 
-    private func dimensions(of file: URL, verifyingSize size: Int? = nil) -> (width: Int, height: Int)? {
+    private func dimensions(of file: URL) -> (width: Int, height: Int)? {
         let options = [kCGImageSourceShouldCache: false] as CFDictionary
-        guard let source = CGImageSourceCreateWithURL(file as CFURL, options),
-              CGImageSourceGetType(source) == UTType.png.identifier as CFString,
+        guard let source = CGImageSourceCreateWithURL(file as CFURL, options) else { return nil }
+        return dimensions(of: source, verifyingSize: nil)
+    }
+
+    private func dimensions(of source: CGImageSource, verifyingSize size: Int?) -> (width: Int, height: Int)? {
+        let options = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard CGImageSourceGetType(source) == UTType.png.identifier as CFString,
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, options) as? [CFString: Any],
               let width = properties[kCGImagePropertyPixelWidth] as? Int, width > 0,
               let height = properties[kCGImagePropertyPixelHeight] as? Int, height > 0 else { return nil }
@@ -69,28 +74,50 @@ struct GeneratedImageHistory: Sendable {
         return (width, height)
     }
 
+    struct VerifiedPNG: Sendable {
+        let data: Data
+        fileprivate let file: URL
+        fileprivate let size: Int
+    }
+
+    func validatedPNG(at url: URL, size: Int) throws -> VerifiedPNG {
+        guard let data = try? Data(contentsOf: url),
+              let source = CGImageSourceCreateWithData(data as CFData, nil),
+              dimensions(of: source, verifyingSize: size) != nil else {
+            throw NSError(domain: "MLXL3.ImageGeneration", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: L("Le moteur a produit une image illisible.", "The engine returned an unreadable image.")])
+        }
+        return VerifiedPNG(data: data, file: url, size: size)
+    }
+
     func save(png: URL, prompt: String, modelName: String, variant: Image21Variant = .base,
-              size: Int, steps: Int, seed: UInt32) throws -> GeneratedImageRecord {
+              size: Int, steps: Int, seed: UInt32, id: UUID = UUID(), createdAt: Date = .now) throws -> GeneratedImageRecord {
+        try save(verifiedPNG: validatedPNG(at: png, size: size), prompt: prompt, modelName: modelName,
+                 variant: variant, steps: steps, seed: seed, id: id, createdAt: createdAt)
+    }
+
+    func save(verifiedPNG: VerifiedPNG, prompt: String, modelName: String, variant: Image21Variant,
+              steps: Int, seed: UInt32, id: UUID, createdAt: Date) throws -> GeneratedImageRecord {
         guard variant.stepRange.contains(steps) else {
             throw NSError(domain: "MLXL3.ImageGeneration", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: L("Nombre d’étapes incompatible avec le modèle.",
                                                                   "Step count is incompatible with the model.")])
         }
-        guard dimensions(of: png, verifyingSize: size) != nil else {
-            throw NSError(domain: "MLXL3.ImageGeneration", code: 1,
-                          userInfo: [NSLocalizedDescriptionKey: L("Le moteur a produit une image illisible.", "The engine returned an unreadable image.")])
-        }
         let fm = FileManager.default
         try fm.createDirectory(at: directory, withIntermediateDirectories: true)
-        let filename = "Image-\(seed)-\(UUID().uuidString).png"
+        let filename = "Image-\(seed)-\(id.uuidString).png"
         let image = directory.appendingPathComponent(filename)
-        let metadata = Metadata(version: 2, filename: filename, createdAt: Date(), prompt: prompt,
-                                modelName: modelName, variant: variant, size: size, steps: steps, seed: seed)
+        let metadata = Metadata(version: 2, filename: filename, createdAt: createdAt, prompt: prompt,
+                                modelName: modelName, variant: variant, size: verifiedPNG.size, steps: steps, seed: seed)
         let settings = sidecar(for: image)
         // Stage on the destination volume. Readers see the complete PNG only after
         // its settings have been written, even when the worker's temporary volume differs.
         let staged = directory.appendingPathComponent("." + filename + ".partial")
-        try fm.moveItem(at: png, to: staged)
+        try fm.moveItem(at: verifiedPNG.file, to: staged)
+        guard !fm.fileExists(atPath: image.path), !fm.fileExists(atPath: settings.path) else {
+            try? fm.removeItem(at: staged)
+            throw CocoaError(.fileWriteFileExists)
+        }
         do {
             try JSONEncoder().encode(metadata).write(to: settings, options: .atomic)
             try fm.moveItem(at: staged, to: image)
@@ -116,17 +143,17 @@ struct GeneratedImageHistory: Sendable {
         return metadata
     }
 
-    private func filenameSeed(_ url: URL) -> UInt32? {
+    static func filenameIdentity(_ url: URL) -> (seed: UInt32, id: UUID)? {
         // Studio's original filenames were Image-<UInt32>-<UUID>.png.
         let stem = url.deletingPathExtension().lastPathComponent
         let parts = stem.split(separator: "-", maxSplits: 2, omittingEmptySubsequences: false)
         guard parts.count == 3, parts[0] == "Image",
               let seed = UInt32(parts[1]), String(seed) == parts[1],
-              UUID(uuidString: String(parts[2])) != nil else { return nil }
-        return seed
+              let id = UUID(uuidString: String(parts[2])) else { return nil }
+        return (seed, id)
     }
 
-    func records() throws -> [GeneratedImageRecord] {
+    func records(excluding knownIDs: Set<UUID> = []) throws -> [GeneratedImageRecord] {
         let keys: Set<URLResourceKey> = [.isRegularFileKey, .isSymbolicLinkKey, .creationDateKey, .contentModificationDateKey]
         let files: [URL]
         do {
@@ -138,10 +165,12 @@ struct GeneratedImageHistory: Sendable {
         var records: [GeneratedImageRecord] = []
         for file in files {
             try Task.checkCancellation()
+            let identity = Self.filenameIdentity(file)
+            if let identity, knownIDs.contains(identity.id) { continue }
             guard file.pathExtension.lowercased() == "png",
                   let info = try? file.resourceValues(forKeys: keys), info.isRegularFile == true, info.isSymbolicLink != true,
                   let pixels = dimensions(of: file) else { continue }
-            let seed = filenameSeed(file)
+            let seed = identity?.seed
             // Directory enumeration can expand /var to /private/var. Keep the URL
             // rooted in the library so selection survives saving, refreshing and relaunching.
             let image = directory.appendingPathComponent(file.lastPathComponent)
