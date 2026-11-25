@@ -92,6 +92,15 @@ extension StudioModel {
     try await wait { !comparison.isRunning && studio.engineState.isReady }
     check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error != nil && $0.firstTextSeconds == nil },
       "Unexpected empty responses are reported as failures")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-context", budget: 32)
+    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    check(comparison.runs.allSatisfy {
+      $0.phase == .complete && $0.error == nil && $0.answer == "Text before the context filled" && $0.firstTextSeconds != nil
+    }, "A full context preserves both streamed and completion-only answers exactly once")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-context-empty", budget: 32)
+    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    check(comparison.runs.allSatisfy { $0.phase == .failed && $0.answer.isEmpty && $0.error != nil },
+      "A full context before any visible text reports the failure")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-malformed", budget: 1)
     try await wait { !comparison.isRunning && studio.engineState.isReady }
     check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error != nil }, "Malformed frames fail each arm explicitly")

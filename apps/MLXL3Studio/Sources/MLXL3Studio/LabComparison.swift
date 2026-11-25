@@ -18,6 +18,7 @@ final class LabComparison: ObservableObject {
         var generatedTokens: Int?
         var error: String?
         var hitTokenLimit = false
+        var hitContextLimit = false
         var isThinking = false
     }
 
@@ -143,12 +144,11 @@ final class LabComparison: ObservableObject {
                 case "complete":
                     runs[index].elapsedSeconds = seconds
                     runs[index].hitTokenLimit = event.stopReason == "max_tokens"
+                    runs[index].hitContextLimit = event.stopReason == "context_full" ||
+                        (event.stopReason == nil && event.contextFull == true)
                     if let stats = event.stats {
                         runs[index].decodeTps = LabDecodeUsage.measurement(stats)?.average
                         runs[index].generatedTokens = stats.generatedTokens >= 0 ? stats.generatedTokens : nil
-                    }
-                    if event.contextFull == true {
-                        throw MLXL3BridgeError.commandFailed(L("Le contexte du modèle est plein.", "The model’s context is full."))
                     }
                     if runs[index].firstTextSeconds == nil, let answer = event.assistantContext,
                        !answer.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -157,6 +157,11 @@ final class LabComparison: ObservableObject {
                     }
                     if runs[index].firstTextSeconds == nil {
                         runs[index].answer = ""
+                        if event.contextFull == true || runs[index].hitContextLimit {
+                            throw MLXL3BridgeError.commandFailed(
+                                L("Le contexte du modèle est plein. Essaie un prompt plus court.",
+                                  "The model’s context is full. Try a shorter prompt."))
+                        }
                         guard runs[index].hitTokenLimit else {
                             throw MLXL3BridgeError.commandFailed(
                                 L("Le modèle n’a produit aucune réponse visible.", "The model returned no visible answer."))

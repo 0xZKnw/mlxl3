@@ -23,25 +23,27 @@ struct ImageGenerationCheck {
         let renderer = root.appendingPathComponent("fixture-renderer")
         try Data("""
             #!/bin/sh
-            printf '%s\\n' "$(dirname "$0")/fixture-renderer"
+            printf '%s\\n' "${MLXL3_TEST_PYTHON:-/usr/bin/python3}"
             """.utf8).write(to: uv)
         try Data("""
-            #!/bin/sh
-            set -eu
-            shift 3
-            while [ "$#" -gt 0 ]; do
-                case "$1" in
-                    --model) folder=$2 ;;
-                    --prompt) prompt=$2 ;;
-                    --output) png=$2 ;;
-                esac
-                shift 2
-            done
-            case "$prompt" in
-                corrupt) printf 'bad PNG' > "$png" ;;
-                pause) touch "$folder/started"; exec /bin/sleep 20 ;;
-                *) cp "$folder/sample.png" "$png" ;;
-            esac
+            import argparse
+            from pathlib import Path
+            import shutil
+            import time
+            parser = argparse.ArgumentParser()
+            for key in ("model", "output"):
+                parser.add_argument("--" + key, required=True, type=Path)
+            for key in ("prompt", "size", "steps", "seed"):
+                parser.add_argument("--" + key, required=True)
+            args = parser.parse_args()
+            (args.model / "last-prompt").write_text(args.prompt, encoding="utf-8")
+            if args.prompt == "corrupt":
+                args.output.write_bytes(b"bad PNG")
+            elif args.prompt == "pause":
+                (args.model / "started").touch()
+                time.sleep(20)
+            else:
+                shutil.copyfile(args.model / "sample.png", args.output)
             """.utf8).write(to: renderer)
         for path in [uv, renderer] {
             try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path.path)
@@ -67,11 +69,13 @@ struct ImageGenerationCheck {
         check(first.modelName == "Qwen-Image-fixture" && first.width == 512 && first.height == 512)
         let published = try Data(contentsOf: first.fileURL)
         check(published == sample, "The worker's PNG must survive publication byte-for-byte")
-        engine.start(model: model, prompt: "second image", size: 512, steps: 50, seed: 0)
+        engine.start(model: model, prompt: "--seed", size: 512, steps: 50, seed: 0)
         try await wait { !engine.running }
+        let received = try String(contentsOf: model.appendingPathComponent("last-prompt"), encoding: .utf8)
+        check(engine.error == nil && received == "--seed", "Image prompts that look like options reach the worker verbatim")
         guard let second = engine.history.first else { preconditionFailure() }
         check(engine.history == [second, first] && second.id != first.id)
-        check(second.prompt == "second image" && second.steps == 50 && second.createdAt >= first.createdAt)
+        check(second.prompt == "--seed" && second.steps == 50 && second.createdAt >= first.createdAt)
 
         let reopened = ImageGeneration(supported: false, historyDirectory: images)
         await reopened.refreshHistory()
