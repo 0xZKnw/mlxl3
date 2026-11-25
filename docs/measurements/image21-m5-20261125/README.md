@@ -9,7 +9,7 @@ On one 24 GiB M5, the 512 × 512 Studio worker took **101.21 seconds** to genera
 | 3 | Baseline | 108.31 | 2.55 | 15.344 | 4.613 |
 | 4 | Optimized | 102.20 | 2.40 | 5.987 | 4.235 |
 
-The two adjacent comparisons saved 6.84 and 6.11 seconds. These figures describe a single Mac, prompt, seed and resolution. Each generation ran in a fresh process with the model and auxiliary files already local. Measurements include loading, denoising, VAE decode and PNG writing. Memory columns use decimal GB from macOS `/usr/bin/time -l`. The machine was on AC power and temperature was uncontrolled. Absolute timings varied across successive experiments.
+The two adjacent comparisons saved 6.84 and 6.11 seconds. These figures describe a single Mac, prompt, seed and resolution. Each generation ran in a fresh process with the model and auxiliary files already local. Measurements include loading, denoising, VAE decode and PNG writing. Memory columns use decimal GB from macOS `/usr/bin/time -l`. The four runs used battery power (65% at the start, 62% at the end). Temperature was uncontrolled. Absolute timings varied across successive experiments.
 
 ## What changed
 
