@@ -107,10 +107,15 @@ struct LabUsageDay {
     // Represent it at UTC midnight and keep that zone when formatting the label.
     let date: Date
     let tokens: Int
+    /// The split of `tokens`; zero for a summary's busiest day, which only reports the total.
+    let inputTokens: Int
+    let outputTokens: Int
 
-    fileprivate init(day: Int, tokens: Int) {
+    fileprivate init(day: Int, tokens: Int, inputTokens: Int = 0, outputTokens: Int = 0) {
         self.date = Date(timeIntervalSince1970: Double(day) * 86_400)
         self.tokens = tokens
+        self.inputTokens = inputTokens
+        self.outputTokens = outputTokens
     }
 
     func formatted(locale: Locale) -> String {
@@ -182,6 +187,28 @@ struct LabUsageLedger: Codable, Sendable {
         let tokens = LabUsageTotals(inputTokens: input, outputTokens: output, generations: 1,
                                    cachedInputTokens: cacheCount, decode: LabDecodeUsage.measurement(stats))
         days[day, default: [:]][sample.model, default: LabUsageTotals()].add(tokens)
+    }
+
+    /// One entry per civil day of the period, oldest first, days without activity included,
+    /// so a chart keeps a regular time axis. All time starts at the first active day and
+    /// keeps at most the latest `limit` days. Empty when nothing was recorded by `now`.
+    func daily(for period: LabUsagePeriod, now: Date = .now, calendar: Calendar = .current,
+               limit: Int = 90) -> [LabUsageDay] {
+        guard limit > 0, let today = LabUsagePeriod.day(now, calendar: calendar) else { return [] }
+        let active = days.filter { !$0.value.isEmpty && $0.key <= today }.keys
+        guard let earliest = active.min() else { return [] }
+        let (capped, overflow) = today.subtractingReportingOverflow(limit - 1)
+        let oldest = overflow ? Int.min : capped
+        let first = period == .allTime ? max(earliest, oldest) : max(period.days(endingOn: today).lowerBound, oldest)
+        guard first <= today else { return [] }
+        return (first...today).map { day in
+            var input = 0, output = 0
+            for counts in (days[day] ?? [:]).values {
+                input = LabUsageTotals.sum(input, counts.inputTokens)
+                output = LabUsageTotals.sum(output, counts.outputTokens)
+            }
+            return LabUsageDay(day: day, tokens: LabUsageTotals.sum(input, output), inputTokens: input, outputTokens: output)
+        }
     }
 
     func summary(for period: LabUsagePeriod, now: Date = .now, calendar: Calendar = .current) -> LabUsageSummary {

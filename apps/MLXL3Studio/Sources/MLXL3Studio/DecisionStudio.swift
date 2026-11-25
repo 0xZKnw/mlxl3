@@ -943,20 +943,15 @@ struct DecisionWorkspaceView: View {
   @AppStorage("decision.tab") private var tab = "playground"
 
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 18) {
-        HStack(alignment: .center, spacing: 16) {
-          VStack(alignment: .leading, spacing: 4) {
-            Text(L("Décision", "Decision")).font(StudioTheme.display(30))
-            Text(
-              L(
-                "Réponses typées et calibrées en une passe, sans texte généré.",
-                "Typed, calibrated answers in one pass, with no generated text.")
-            ).font(.system(size: 13)).foregroundStyle(StudioTheme.secondary)
-          }
-          Spacer()
+    StudioPageColumn(maxWidth: 900, spacing: 18, top: 20) {
+        StudioPageHeader(
+          title: L("Décision", "Decision"),
+          detail: L(
+            "Réponses typées et calibrées en une passe, sans texte généré.",
+            "Typed, calibrated answers in one pass, with no generated text.")
+        ) {
           if !decision.models.isEmpty {
-            Picker("", selection: $tab) {
+            Picker(L("Vue", "View"), selection: $tab) {
               Text("Playground").tag("playground")
               Text("Server").tag("server")
             }
@@ -975,11 +970,9 @@ struct DecisionWorkspaceView: View {
           }
         }
         if let error = decision.error {
-          Text(error).font(.callout).foregroundStyle(.red).textSelection(.enabled)
+          StudioNotice(kind: .error, text: error)
             .accessibilityIdentifier("decision.error")
         }
-      }
-      .padding(36).frame(maxWidth: 900, alignment: .leading).frame(maxWidth: .infinity)
     }
     .onAppear { decision.refresh(registered: studio.models) }
     .onChange(of: studio.models) { decision.refresh(registered: studio.models) }
@@ -992,38 +985,44 @@ private struct DecisionEmptyView: View {
   @ObservedObject var decision: DecisionStudio
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 16) {
-      Text(L("Aucun modèle de décision", "No decision model yet")).font(.system(size: 17, weight: .semibold))
-      Text(
-        L(
-          "Téléchargez d1 depuis les modèles recommandés : il apparaîtra ici, prêt à charger.",
-          "Download d1 from the recommended models: it will show up here, ready to load.")
-      ).foregroundStyle(StudioTheme.secondary)
+    VStack(alignment: .leading, spacing: 14) {
+      VStack(alignment: .leading, spacing: 4) {
+        Text(L("Aucun modèle de décision", "No decision model yet")).font(.system(size: 15, weight: .semibold))
+        Text(
+          L(
+            "Téléchargez d1 depuis les modèles recommandés : il apparaîtra ici, prêt à charger.",
+            "Download d1 from the recommended models: it will show up here, ready to load.")
+        ).font(.system(size: 12.5)).foregroundStyle(StudioTheme.secondary)
+      }
       HStack(spacing: 12) {
         ForEach(ModelLibrary.decisionModels) { model in
           Button { studio.openRecommendedModel(model) } label: {
-            VStack(alignment: .leading, spacing: 6) {
-              Image(systemName: model.symbol).font(.system(size: 20, weight: .light)).foregroundStyle(StudioTheme.accent)
-              Text(model.title).font(StudioTheme.display(20))
-              Text(model.parameters).font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
-              Label(L("Télécharger", "Download"), systemImage: "arrow.down.circle").font(.system(size: 12, weight: .medium))
-                .padding(.top, 4)
+            HStack(alignment: .center, spacing: 12) {
+              Image(systemName: model.symbol).font(.system(size: 17, weight: .light)).foregroundStyle(StudioTheme.ink)
+                .frame(width: 38, height: 38)
+                .background(StudioTheme.contrast.opacity(0.055), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+              VStack(alignment: .leading, spacing: 3) {
+                Text(model.title).font(.system(size: 14, weight: .semibold))
+                Text(model.parameters).font(.system(size: 12)).foregroundStyle(StudioTheme.secondary).lineLimit(1)
+              }
+              Spacer(minLength: 8)
+              Image(systemName: "arrow.down.circle").font(.system(size: 15)).foregroundStyle(StudioTheme.secondary)
+                .accessibilityLabel(L("Télécharger", "Download"))
             }
-            .padding(16).frame(width: 210, alignment: .leading)
-            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 14))
-            .overlay { RoundedRectangle(cornerRadius: 14).stroke(StudioTheme.edge, lineWidth: 0.5) }
+            .padding(12).frame(maxWidth: 300, alignment: .leading)
+            .background(StudioTheme.contrast.opacity(0.03), in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(StudioTheme.edge, lineWidth: 0.5) }
           }
-          .buttonStyle(StudioControlStyle(cornerRadius: 14)).help(model.id)
+          .buttonStyle(StudioControlStyle(cornerRadius: 12)).help(L("Télécharger ", "Download ") + model.id)
           .accessibilityIdentifier("decision.download." + model.title)
         }
       }
       Button(L("Ou ajouter un dossier EXL3 déjà sur ce Mac…", "Or add an EXL3 folder already on this Mac…")) {
         DecisionModelBar.chooseFolder(decision: decision, registered: studio.models)
       }
-      .buttonStyle(.link).font(.system(size: 12))
+      .buttonStyle(.studio(.quiet, height: 26))
     }
-    .padding(22).frame(maxWidth: .infinity, alignment: .leading)
-    .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 16))
+    .studioCard(padding: 18, radius: 13)
   }
 }
 
@@ -1087,12 +1086,12 @@ private struct DecisionModelBar: View {
           ProgressView().controlSize(.small)
           Text(L("Chargement…", "Loading…")).font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
         case .ready:
-          Label(L("Chargé", "Loaded"), systemImage: "checkmark.circle.fill").font(.system(size: 12))
-            .foregroundStyle(StudioTheme.secondary)
-          Button { decision.unload() } label: { Image(systemName: "eject").frame(width: 28, height: 28) }
-            .buttonStyle(RoundGlassButtonStyle()).disabled(decision.running)
-            .help(L("Décharger le modèle et libérer la mémoire", "Unload the model and free memory"))
-            .accessibilityIdentifier("decision.unload")
+          StudioStatusPill(text: L("Chargé", "Loaded"), color: StudioTheme.success)
+          StudioIconButton(icon: "eject", label: L("Décharger le modèle et libérer la mémoire", "Unload the model and free memory")) {
+            decision.unload()
+          }
+          .disabled(decision.running)
+          .accessibilityIdentifier("decision.unload")
         case .idle, .failed:
           if !decision.server.active {
             DecisionButton(title: L("Charger", "Load"), icon: "arrow.down.circle") { decision.loadSelected() }
@@ -1103,7 +1102,7 @@ private struct DecisionModelBar: View {
         Spacer()
       }
       if case let .failed(message) = decision.state {
-        Text(message).font(.caption).foregroundStyle(.red).textSelection(.enabled).lineLimit(6)
+        StudioNotice(kind: .error, text: message)
       }
     }
   }
@@ -1123,6 +1122,7 @@ private struct DecisionPlaygroundView: View {
           }
         }
         .menuStyle(.borderlessButton).fixedSize().font(.system(size: 12))
+        .foregroundStyle(StudioTheme.secondary)
       } content: {
         ZStack(alignment: .topLeading) {
           TextEditor(text: $decision.draft.state)
@@ -1136,11 +1136,12 @@ private struct DecisionPlaygroundView: View {
                 "Texte ou JSON sur lequel décider (facultatif avec une image ou un son)",
                 "Text or JSON to decide about (optional with a picture or a sound)")
             )
-            .foregroundStyle(StudioTheme.quiet).padding(.horizontal, 5).allowsHitTesting(false)
+            .font(.system(size: 13)).foregroundStyle(StudioTheme.quiet).padding(.horizontal, 5).allowsHitTesting(false)
           }
         }
         .padding(8)
-        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
+        .background(StudioTheme.contrast.opacity(0.045), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 10, style: .continuous).strokeBorder(StudioTheme.edge, lineWidth: 0.5).allowsHitTesting(false) }
         .onChange(of: decision.draft.state) { decision.draft.stateIsJSON = DecisionDraft.looksLikeJSON(decision.draft.state) }
         mediaRow
       }
@@ -1163,7 +1164,9 @@ private struct DecisionPlaygroundView: View {
         }
         if decision.draft.questions.isEmpty {
           Text(L("Ajoutez une question pour commencer.", "Add a question to start."))
-            .font(.callout).foregroundStyle(StudioTheme.quiet)
+            .font(.system(size: 12.5)).foregroundStyle(StudioTheme.quiet)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .studioCard(padding: 14, radius: 10)
         }
       }
       HStack(spacing: 12) {
@@ -1171,10 +1174,8 @@ private struct DecisionPlaygroundView: View {
           decision.run()
         } label: {
           Label(L("Décider", "Decide"), systemImage: "play.fill")
-            .font(.system(size: 13, weight: .semibold))
-            .padding(.horizontal, 18).frame(height: 34)
         }
-        .buttonStyle(PrimaryGlassButtonStyle())
+        .buttonStyle(.studio(.primary, height: 34))
         .disabled(decision.running || decision.selectedPath == nil || decision.server.active)
         .keyboardShortcut(.return, modifiers: .command)
         .accessibilityIdentifier("decision.run")
@@ -1203,7 +1204,7 @@ private struct DecisionPlaygroundView: View {
   ) -> some View {
     VStack(alignment: .leading, spacing: 10) {
       HStack {
-        StudioCaption(french: title, english: title, tracking: 1.2)
+        StudioSectionTitle(title: title)
         Spacer()
         accessory()
       }
@@ -1221,16 +1222,19 @@ private struct DecisionPlaygroundView: View {
           } else {
             Image(systemName: "waveform").frame(width: 26, height: 26)
           }
-          Text(item.label).font(.caption).lineLimit(1).frame(maxWidth: 120, alignment: .leading)
-          Button { decision.draft.media.removeAll { $0.id == item.id } } label: { Image(systemName: "xmark") }
-            .buttonStyle(.borderless).help(L("Retirer", "Remove"))
+          Text(item.label).font(.system(size: 12)).lineLimit(1).frame(maxWidth: 120, alignment: .leading)
+          Button { decision.draft.media.removeAll { $0.id == item.id } } label: {
+            Image(systemName: "xmark").font(.system(size: 9, weight: .semibold)).frame(width: 18, height: 18)
+          }
+          .buttonStyle(StudioRowStyle(radius: 5)).help(L("Retirer", "Remove"))
+          .accessibilityLabel(L("Retirer ", "Remove ") + item.label)
         }
-        .padding(5).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
+        .padding(5).background(StudioTheme.contrast.opacity(0.055), in: RoundedRectangle(cornerRadius: 8, style: .continuous))
       }
       Button { importingFor = nil; importing = true } label: {
-        Label(L("Image ou son", "Picture or sound"), systemImage: "paperclip").font(.system(size: 12))
+        Label(L("Image ou son", "Picture or sound"), systemImage: "paperclip")
       }
-      .buttonStyle(.borderless)
+      .buttonStyle(.studio(.quiet, height: 26))
       .help(L("PNG, JPEG, WebP… ou un clip audio de 5 min au plus (pas de vidéo). Glisser-déposer aussi.",
               "PNG, JPEG, WebP… or an audio clip up to 5 min (no video). Drag and drop works too."))
       .accessibilityIdentifier("decision.attach")
@@ -1238,12 +1242,14 @@ private struct DecisionPlaygroundView: View {
         Label(
           decision.recordingTarget == DecisionStudio.stateTarget ? L("Arrêter", "Stop") : L("Enregistrer", "Record"),
           systemImage: decision.recordingTarget == DecisionStudio.stateTarget ? "stop.circle.fill" : "mic"
-        ).font(.system(size: 12))
+        )
       }
-      .buttonStyle(.borderless)
+      .buttonStyle(.studio(.quiet, height: 26))
       Spacer()
       if decision.draft.stateIsJSON {
-        Text("JSON").font(.system(size: 11, weight: .medium)).tracking(1).foregroundStyle(StudioTheme.quiet)
+        Text("JSON").font(.system(size: 11, weight: .semibold)).foregroundStyle(StudioTheme.quiet)
+          .padding(.horizontal, 6).frame(height: 20)
+          .background(StudioTheme.contrast.opacity(0.07), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
           .help(L("L’état est lu comme du JSON.", "The state is read as JSON."))
       }
     }
@@ -1275,8 +1281,8 @@ private struct DecisionQuestionEditor: View {
           ForEach(DecisionQuestionKind.allCases) { Text($0.title).tag($0) }
         }.labelsHidden().fixedSize()
         if let spoken = question.spokenPath {
-          Label(URL(fileURLWithPath: spoken).lastPathComponent, systemImage: "waveform").font(.callout).lineLimit(1)
-          Button(L("Écrire", "Type")) { question.spokenPath = nil }.buttonStyle(.borderless)
+          Label(URL(fileURLWithPath: spoken).lastPathComponent, systemImage: "waveform").font(.system(size: 12.5)).lineLimit(1)
+          Button(L("Écrire", "Type")) { question.spokenPath = nil }.buttonStyle(.studio(.quiet, height: 26))
           Spacer()
         } else {
           TextField(
@@ -1293,14 +1299,12 @@ private struct DecisionQuestionEditor: View {
         }
         .menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
         .help(L("Poser la question à voix haute (d1-Omni)", "Ask the question aloud (d1-Omni)"))
-        Button(action: remove) { Image(systemName: "xmark") }.buttonStyle(.borderless)
-          .help(L("Supprimer la question", "Delete the question"))
+        StudioIconButton(icon: "xmark", label: L("Supprimer la question", "Delete the question"), action: remove)
       }
       details
     }
-    .textFieldStyle(.roundedBorder)
-    .padding(10)
-    .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
+    .textFieldStyle(StudioTextFieldStyle())
+    .studioCard(padding: 10, radius: 10)
   }
 
   @ViewBuilder private var details: some View {
@@ -1318,16 +1322,17 @@ private struct DecisionQuestionEditor: View {
             if question.kind != .score {
               TextField(L("description (facultatif)", "description (optional)"), text: $option.detail)
             }
-            Button { question.options.removeAll { $0.id == option.id } } label: { Image(systemName: "minus.circle") }
-              .buttonStyle(.borderless)
+            StudioIconButton(icon: "minus.circle", label: L("Retirer", "Remove")) {
+              question.options.removeAll { $0.id == option.id }
+            }
           }
         }
         Button {
           question.options.append(DecisionOption(name: ""))
         } label: {
           Label(question.kind == .score ? L("Niveau (du plus bas au plus haut)", "Level (lowest first)") : L("Option", "Option"),
-                systemImage: "plus").font(.system(size: 12))
-        }.buttonStyle(.borderless)
+                systemImage: "plus")
+        }.buttonStyle(.studio(.quiet, height: 26))
       }
     case .number:
       TextField(L("Unité (facultatif)", "Unit (optional)"), text: $question.unit).frame(width: 200)
@@ -1357,12 +1362,16 @@ private struct DecisionResultsView: View {
   }
 
   var body: some View {
-    GroupBox(L("Réponses", "Answers")) {
-      VStack(alignment: .leading, spacing: 14) {
+    VStack(alignment: .leading, spacing: 9) {
+      HStack(alignment: .firstTextBaseline) {
+        StudioSectionTitle(title: L("Réponses", "Answers"))
+        Spacer()
         Text(
           "\(outcome.inputTokens) " + L("tokens lus · 0 généré · ", "tokens read · 0 generated · ")
             + String(format: "%.0f ms", outcome.elapsedMilliseconds)
-        ).font(.caption).foregroundStyle(StudioTheme.quiet).accessibilityIdentifier("decision.usage")
+        ).font(.system(size: 12)).monospacedDigit().foregroundStyle(StudioTheme.quiet).accessibilityIdentifier("decision.usage")
+      }
+      VStack(alignment: .leading, spacing: 14) {
         ForEach(outcome.order, id: \.self) { name in
           if let answer = outcome.answers[name] as? [String: Any] {
             DecisionAnswerRow(name: name, answer: answer, state: draft.stateIsJSON ? nil : draft.state)
@@ -1391,10 +1400,11 @@ private struct DecisionResultsView: View {
           }
         }
         DisclosureGroup(L("JSON brut", "Raw JSON"), isExpanded: $showRaw) {
-          Text(outcome.raw).font(.caption.monospaced()).textSelection(.enabled)
-            .frame(maxWidth: .infinity, alignment: .leading)
+          Text(outcome.raw).font(.system(size: 11.5, design: .monospaced)).textSelection(.enabled)
+            .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
         }
-      }.padding(6)
+        .font(.system(size: 12.5, weight: .medium)).foregroundStyle(StudioTheme.secondary)
+      }.studioCard(padding: 16)
     }
   }
 }
@@ -1406,15 +1416,18 @@ private struct DecisionAnswerRow: View {
 
   private func bar(_ label: String, _ value: Double, strong: Bool) -> some View {
     HStack(spacing: 8) {
-      Text(label).font(.callout).frame(width: 150, alignment: .leading).lineLimit(1)
+      Text(label).font(.system(size: 12.5, weight: strong ? .medium : .regular))
+        .foregroundStyle(strong ? StudioTheme.ink : StudioTheme.secondary)
+        .frame(width: 150, alignment: .leading).lineLimit(1)
       GeometryReader { geometry in
         ZStack(alignment: .leading) {
-          RoundedRectangle(cornerRadius: 3).fill(StudioTheme.panel)
-          RoundedRectangle(cornerRadius: 3).fill(StudioTheme.accent.opacity(strong ? 0.85 : 0.35))
+          Capsule().fill(StudioTheme.contrast.opacity(0.07))
+          Capsule().fill(StudioTheme.accent.opacity(strong ? 0.85 : 0.35))
             .frame(width: max(2, geometry.size.width * min(max(value, 0), 1)))
         }
-      }.frame(height: 10)
-      Text(String(format: "%.1f %%", value * 100)).font(.caption.monospacedDigit()).frame(width: 64, alignment: .trailing)
+      }.frame(height: 8)
+      Text(String(format: "%.1f %%", value * 100)).font(.system(size: 12)).monospacedDigit()
+        .foregroundStyle(strong ? StudioTheme.ink : StudioTheme.secondary).frame(width: 64, alignment: .trailing)
     }
   }
 
@@ -1431,8 +1444,8 @@ private struct DecisionAnswerRow: View {
   var body: some View {
     VStack(alignment: .leading, spacing: 6) {
       HStack(spacing: 8) {
-        Text(name).font(.system(.body, design: .monospaced).weight(.semibold))
-        Text(headline).foregroundStyle(StudioTheme.ink)
+        Text(name).font(.system(size: 12.5, weight: .semibold, design: .monospaced)).foregroundStyle(StudioTheme.secondary)
+        Text(headline).font(.system(size: 14, weight: .semibold)).foregroundStyle(StudioTheme.ink)
       }
       switch answer["type"] as? String {
       case "noul":
@@ -1517,44 +1530,63 @@ private struct DecisionServerView: View {
   private var validPort: Int? { Int(port).flatMap { (1024...65535).contains($0) ? $0 : nil } }
 
   var body: some View {
-    VStack(alignment: .leading, spacing: 16) {
-      GroupBox {
-        VStack(alignment: .leading, spacing: 14) {
-          Text(L("API HTTP locale : POST /v1/decide", "Local HTTP API: POST /v1/decide")).font(.headline)
+    VStack(alignment: .leading, spacing: 18) {
+      SettingSection(
+        title: L("API HTTP locale : POST /v1/decide", "Local HTTP API: POST /v1/decide"), icon: "server.rack",
+        footer: L(
+          "Le serveur charge le modèle de décision à la place du Playground et du modèle de chat. Les médias y passent en data: URL (pas de chemins locaux).",
+          "The server loads the decision model in place of the Playground and the chat model. Media travel as data: URLs (no local paths).")
+      ) {
+        SettingRow(title: L("État", "Status")) {
+          StudioStatusPill(
+            text: server.running
+              ? L("En ligne", "Online") : server.busy ? L("Chargement / arrêt…", "Loading / stopping…") : L("Arrêté", "Stopped"),
+            color: server.running ? StudioTheme.success : StudioTheme.quiet, busy: server.busy && !server.running)
+        }
+        SettingRow(
+          title: L("Accès", "Access"),
+          detail: network ? L("Accessible sur le réseau avec la clé API. HTTP n’est pas chiffré.", "Accessible on your network with the API key. HTTP is not encrypted.")
+            : L("Uniquement depuis ce Mac.", "From this Mac only.")
+        ) {
           Picker(L("Accès", "Access"), selection: $network) {
             Text(L("Ce Mac", "This Mac")).tag(false)
             Text(L("Réseau local", "Local network")).tag(true)
-          }.pickerStyle(.segmented).disabled(server.active).frame(maxWidth: 360)
-          HStack {
-            Text(L("Port local", "Local port"))
-            TextField("8100", text: $port).frame(width: 90).disabled(server.active).textFieldStyle(.roundedBorder)
-            Spacer()
-            if server.busy { ProgressView().controlSize(.small) }
-            Button(server.active ? L("Arrêter", "Stop") : L("Démarrer", "Start")) {
-              if server.active { server.stop() } else { decision.startServer(port: validPort ?? 0, network: network) }
-            }
-            .disabled(!server.active && (decision.selectedPath == nil || validPort == nil))
-            .accessibilityIdentifier("decision.server.toggle")
-          }
-          Text(
-            server.running
-              ? L("En ligne", "Online") : server.busy ? L("Chargement / arrêt…", "Loading / stopping…") : L("Arrêté", "Stopped")
-          ).foregroundStyle(StudioTheme.secondary)
-          Text(
-            L(
-              "Le serveur charge le modèle de décision à la place du Playground et du modèle de chat. Les médias y passent en data: URL (pas de chemins locaux).",
-              "The server loads the decision model in place of the Playground and the chat model. Media travel as data: URLs (no local paths).")
-          ).font(.caption).foregroundStyle(StudioTheme.quiet)
-        }.padding(10)
+          }.pickerStyle(.segmented).labelsHidden().fixedSize().disabled(server.active)
+        }
+        SettingRow(title: L("Port local", "Local port"), detail: "1024–65535") {
+          TextField("8100", text: $port).studioField(monospaced: true).frame(width: 90).disabled(server.active)
+            .accessibilityLabel(L("Port local", "Local port"))
+        }
+      }
+      HStack(spacing: 12) {
+        Button {
+          if server.active { server.stop() } else { decision.startServer(port: validPort ?? 0, network: network) }
+        } label: {
+          Label(
+            server.active ? L("Arrêter", "Stop") : L("Démarrer", "Start"),
+            systemImage: server.active ? "stop.fill" : "play.fill")
+        }
+        .buttonStyle(.studio(server.active ? .secondary : .primary, height: 34))
+        .disabled(!server.active && (decision.selectedPath == nil || validPort == nil))
+        .accessibilityIdentifier("decision.server.toggle")
+        if server.busy { ProgressView().controlSize(.small) }
+        Spacer(minLength: 0)
       }
       if let port = server.port, server.running {
         let base = "http://127.0.0.1:\(port)"
-        VStack(alignment: .leading, spacing: 10) {
-          Text(base + "/v1/decide").font(.system(.body, design: .monospaced)).textSelection(.enabled)
-          HStack {
-            Button(L("Copier l’URL", "Copy URL")) { copy(base + "/v1/decide") }
-            if let key = server.apiKey {
-              Button(L("Copier la clé API", "Copy API key")) { copy(key) }
+        SettingSection(
+          title: L("Connexion", "Connection"), icon: "link",
+          footer: network
+            ? L("Depuis un autre appareil, remplacez 127.0.0.1 par l’adresse réseau de ce Mac.", "From another device, replace 127.0.0.1 with this Mac’s network address.")
+            : nil
+        ) {
+          StudioCopyField(label: "URL", value: base + "/v1/decide")
+          if let key = server.apiKey {
+            StudioCopyField(label: L("Clé API", "API key"), value: key, secret: true)
+            SettingRow(
+              title: L("Requête curl", "curl request"),
+              detail: L("Avec l’entrée et les questions du Playground.", "With the Playground’s input and questions.")
+            ) {
               Button(L("Copier une requête curl", "Copy a curl request")) {
                 do {
                   let body = try decision.serverBody()
@@ -1563,25 +1595,32 @@ private struct DecisionServerView: View {
                   copy("curl -s -H 'Authorization: Bearer \(key)' -H 'Content-Type: application/json' --data-binary @'\(file.path)' \(base)/v1/decide")
                 } catch { decision.error = error.localizedDescription }
               }
+              .buttonStyle(.studio)
             }
           }
-          Text("GET /health · GET /v1/models · GET /v1/capabilities · POST /v1/decide").font(.caption.monospaced())
-          Text(
-            L(
-              "Corps : {\"state\": …, \"questions\": {nom: question}, \"media\": [{\"type\": \"image\"|\"audio\", \"url\": \"data:…\"}]}. Une nouvelle clé est générée à chaque démarrage.",
-              "Body: {\"state\": …, \"questions\": {name: question}, \"media\": [{\"type\": \"image\"|\"audio\", \"url\": \"data:…\"}]}. A new key is generated at each start.")
-          ).font(.caption).foregroundStyle(StudioTheme.quiet).textSelection(.enabled)
-          if network {
-            Text(L("Depuis un autre appareil, remplacez 127.0.0.1 par l’adresse réseau de ce Mac.", "From another device, replace 127.0.0.1 with this Mac’s network address."))
-              .font(.caption).foregroundStyle(StudioTheme.quiet)
+          VStack(alignment: .leading, spacing: 6) {
+            Text("GET /health · GET /v1/models · GET /v1/capabilities · POST /v1/decide")
+              .font(.system(size: 11.5, design: .monospaced)).foregroundStyle(StudioTheme.secondary)
+              .textSelection(.enabled)
+            Text(
+              L(
+                "Corps : {\"state\": …, \"questions\": {nom: question}, \"media\": [{\"type\": \"image\"|\"audio\", \"url\": \"data:…\"}]}. Une nouvelle clé est générée à chaque démarrage.",
+                "Body: {\"state\": …, \"questions\": {name: question}, \"media\": [{\"type\": \"image\"|\"audio\", \"url\": \"data:…\"}]}. A new key is generated at each start.")
+            ).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet).textSelection(.enabled)
+              .fixedSize(horizontal: false, vertical: true)
           }
         }
       }
-      if let error = server.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
+      if let error = server.error { StudioNotice(kind: .error, text: error) }
       if !server.log.isEmpty {
         DisclosureGroup(L("Journal du serveur", "Server log")) {
-          Text(server.log).font(.caption.monospaced()).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+          ScrollView {
+            Text(server.log).font(.system(size: 11.5, design: .monospaced)).textSelection(.enabled)
+              .frame(maxWidth: .infinity, alignment: .leading)
+          }
+          .frame(maxHeight: 220).studioCard(padding: 12).padding(.top, 8)
         }
+        .font(.system(size: 12.5, weight: .medium)).foregroundStyle(StudioTheme.secondary)
       }
     }
   }

@@ -252,92 +252,120 @@ struct QuantizationStudioView: View {
   @State private var exclusions = ""
   @State private var validate = false
 
+  private var blocked: Bool {
+    quantizer.converting || studio.isGenerating || studio.localServer.active
+      || studio.agentStudioBusy
+      || expert && validate && quantizer.settings.validation.isEmpty
+  }
+
   var body: some View {
     ScrollView {
       VStack(alignment: .leading, spacing: 20) {
-        StudioPanelHeader(title: "Quantization Studio", detail: L("Safetensors → EXL3, sur ce Mac.", "Safetensors → EXL3, on this Mac."))
-        HStack {
-          TextField(
-            L("Dossier local ou lien Hugging Face", "Local folder or Hugging Face URL"),
-            text: $quantizer.input
-          ).textFieldStyle(.roundedBorder).onSubmit { quantizer.inspect() }
-          Button(L("Dossier…", "Folder…"), systemImage: "folder") { chooseSource() }
-          Button(L("Vérifier", "Inspect")) { quantizer.inspect() }.disabled(quantizer.input.isEmpty)
-        }.disabled(quantizer.inspecting || quantizer.converting)
+        StudioPageHeader(title: "Quantization Studio", detail: L("Safetensors → EXL3, sur ce Mac.", "Safetensors → EXL3, on this Mac."))
+        VStack(alignment: .leading, spacing: 9) {
+          StudioSectionTitle(title: L("Source", "Source"), icon: "shippingbox")
+          HStack(spacing: 8) {
+            TextField(
+              L("Dossier local ou lien Hugging Face", "Local folder or Hugging Face URL"),
+              text: $quantizer.input
+            ).studioField(monospaced: true).onSubmit { quantizer.inspect() }
+            Button { chooseSource() } label: { Label(L("Dossier…", "Folder…"), systemImage: "folder") }
+              .buttonStyle(.studio)
+            Button(L("Vérifier", "Inspect")) { quantizer.inspect() }
+              .buttonStyle(.studio(.primary)).disabled(quantizer.input.isEmpty)
+          }.disabled(quantizer.inspecting || quantizer.converting)
+        }
         if quantizer.inspecting {
-          HStack {
-            ProgressView(
-              L(
-                "Lecture de la configuration et des en-têtes…", "Reading configuration and headers…"
-              ))
-            Button(L("Annuler", "Cancel")) { quantizer.cancel() }
+          HStack(spacing: 10) {
+            ProgressView().controlSize(.small)
+            Text(L("Lecture de la configuration et des en-têtes…", "Reading configuration and headers…"))
+              .font(.system(size: 12.5)).foregroundStyle(StudioTheme.secondary)
+            Spacer()
+            Button(L("Annuler", "Cancel")) { quantizer.cancel() }.buttonStyle(.studio)
           }
+          .studioCard(padding: 12, radius: 10)
         }
         if let source = quantizer.source {
           VStack(alignment: .leading, spacing: 9) {
-            Text(source.modelType.uppercased()).font(.headline)
-            compatibility(
-              L("Architecture du moteur", "Engine architecture"),
-              available: source.inferenceSupported)
-            compatibility(
-              L("Conversion EXL3", "EXL3 conversion"), available: source.conversionSupported)
-            Text(source.reason).font(.caption).foregroundStyle(
-              source.conversionSupported ? StudioTheme.secondary : .orange)
+            HStack(spacing: 8) {
+              Text(source.modelType.uppercased()).font(.system(size: 14, weight: .semibold))
+              Spacer()
+              Text(ByteCountFormatter.string(fromByteCount: source.sourceBytes, countStyle: .file))
+                .font(.system(size: 13, weight: .medium)).monospacedDigit().foregroundStyle(StudioTheme.secondary)
+            }
+            HStack(spacing: 8) {
+              compatibility(
+                L("Architecture du moteur", "Engine architecture"),
+                available: source.inferenceSupported)
+              compatibility(
+                L("Conversion EXL3", "EXL3 conversion"), available: source.conversionSupported)
+            }
+            Text(source.reason).font(.system(size: 12)).foregroundStyle(
+              source.conversionSupported ? StudioTheme.secondary : StudioTheme.warning)
+              .fixedSize(horizontal: false, vertical: true)
             Text(
-              ByteCountFormatter.string(fromByteCount: source.sourceBytes, countStyle: .file)
-                + " · "
-                + (source.headerChecked
-                  ? L("En-têtes vérifiés", "Headers verified")
-                  : L(
-                    "En-têtes vérifiés après téléchargement, avant conversion",
-                    "Headers checked after download, before conversion"))
-            ).font(.caption).foregroundStyle(StudioTheme.quiet)
+              source.headerChecked
+                ? L("En-têtes vérifiés", "Headers verified")
+                : L(
+                  "En-têtes vérifiés après téléchargement, avant conversion",
+                  "Headers checked after download, before conversion")
+            ).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
             Text(
               source.revision == "local"
                 ? source.source : source.source + " @ " + source.revision.prefix(12)
-            ).font(.system(size: 10, design: .monospaced)).textSelection(.enabled)
-          }.padding(15).frame(maxWidth: .infinity, alignment: .leading).background(
-            StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
+            ).font(.system(size: 11.5, design: .monospaced)).foregroundStyle(StudioTheme.secondary).textSelection(.enabled)
+              .lineLimit(2).truncationMode(.middle)
+          }.studioCard(padding: 15)
           if source.conversionSupported {
-            Picker(L("Mode", "Mode"), selection: $expert) {
-              Text("Simple").tag(false)
-              Text("Expert").tag(true)
-            }.pickerStyle(.segmented)
-            Group {
-              if !expert {
-                Picker(L("Objectif", "Target"), selection: $preset) {
-                  Text("3 bpw").tag(3.0)
-                  Text("4 bpw").tag(4.0)
-                  Text("6 bpw").tag(6.0)
-                }.onChange(of: preset) { _, value in quantizer.settings.bits = value }
-                Text(
-                  L(
-                    "Les embeddings et autres tenseurs non quantifiés s’ajoutent aux poids EXL3. La calibration utilise du texte WikiText-2 inclus. Aucun réglage ne garantit à lui seul la qualité ou la RAM nécessaire.",
-                    "Embeddings and other plain tensors add to the EXL3 weights. Calibration uses the included WikiText-2 excerpt. A setting alone does not guarantee quality or RAM usage."
-                  )
-                ).font(.caption).foregroundStyle(StudioTheme.quiet)
-              } else {
-                expertSettings(source)
+            VStack(alignment: .leading, spacing: 12) {
+              HStack {
+                StudioSectionTitle(title: L("Réglages", "Settings"), icon: "slider.horizontal.3")
+                Spacer()
+                Picker(L("Mode", "Mode"), selection: $expert) {
+                  Text("Simple").tag(false)
+                  Text("Expert").tag(true)
+                }.pickerStyle(.segmented).labelsHidden().fixedSize()
               }
-            }.disabled(quantizer.converting)
-            HStack {
-              Button(L("Quantifier…", "Quantize…"), systemImage: "slider.horizontal.3") { start() }
-                .buttonStyle(.borderedProminent).disabled(
-                  quantizer.converting || studio.isGenerating || studio.localServer.active
-                    || studio.agentStudioBusy
-                    || expert && validate && quantizer.settings.validation.isEmpty)
+              Group {
+                if !expert {
+                  SettingRow(
+                    title: L("Objectif", "Target"),
+                    detail: L(
+                      "Les embeddings et autres tenseurs non quantifiés s’ajoutent aux poids EXL3. La calibration utilise du texte WikiText-2 inclus. Aucun réglage ne garantit à lui seul la qualité ou la RAM nécessaire.",
+                      "Embeddings and other plain tensors add to the EXL3 weights. Calibration uses the included WikiText-2 excerpt. A setting alone does not guarantee quality or RAM usage."
+                    )
+                  ) {
+                    Picker(L("Objectif", "Target"), selection: $preset) {
+                      Text("3 bpw").tag(3.0)
+                      Text("4 bpw").tag(4.0)
+                      Text("6 bpw").tag(6.0)
+                    }.pickerStyle(.segmented).labelsHidden().fixedSize()
+                      .onChange(of: preset) { _, value in quantizer.settings.bits = value }
+                  }
+                } else {
+                  expertSettings(source)
+                }
+              }
+              .disabled(quantizer.converting)
+              .studioCard(padding: 15)
+            }
+            HStack(spacing: 8) {
+              Button { start() } label: {
+                Label(L("Quantifier…", "Quantize…"), systemImage: "slider.horizontal.3")
+              }
+              .buttonStyle(.studio(.primary, height: 34)).disabled(blocked)
               if quantizer.converting {
                 Button(L("Arrêter", "Stop"), role: .destructive) { quantizer.cancel() }
+                  .buttonStyle(.studio(.destructive, height: 34))
               }
               Spacer()
               if let output = quantizer.output {
                 Button(L("Ajouter à la bibliothèque", "Add to library")) {
                   studio.addQuantizedModel(output)
                 }
-                Button {
+                .buttonStyle(.studio)
+                StudioIconButton(icon: "folder", label: L("Afficher dans Finder", "Show in Finder")) {
                   NSWorkspace.shared.activateFileViewerSelecting([output])
-                } label: {
-                  Image(systemName: "folder")
                 }
               }
             }
@@ -346,57 +374,59 @@ struct QuantizationStudioView: View {
         if !quantizer.phase.isEmpty {
           VStack(alignment: .leading, spacing: 8) {
             if let progress = quantizer.progress {
-              ProgressView(value: progress)
+              ProgressView(value: progress).tint(studio.accentColor)
             } else if quantizer.converting {
               ProgressView().controlSize(.small)
             }
-            Text(quantizer.phase).font(.caption).textSelection(.enabled)
+            Text(quantizer.phase).font(.system(size: 12.5)).textSelection(.enabled)
             if let quality = quantizer.quality {
-              Text(quality).font(.system(size: 11, design: .monospaced))
+              Text(quality).font(.system(size: 11.5, design: .monospaced)).textSelection(.enabled)
               Text(
                 L(
                   "Validation limitée à une fenêtre indépendante de 256 tokens maximum.",
                   "Validation covers one independent window of at most 256 tokens.")
-              ).font(.caption).foregroundStyle(StudioTheme.quiet)
+              ).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
             }
           }
+          .studioCard(padding: 14, radius: 10)
         }
         if let error = quantizer.error {
-          Text(error).foregroundStyle(.orange).font(.caption).textSelection(.enabled)
+          StudioNotice(kind: .warning, text: error)
         }
         if !quantizer.logs.isEmpty {
           DisclosureGroup(L("Journal de conversion", "Conversion log")) {
             ScrollView {
-              Text(quantizer.logs).font(.system(size: 10, design: .monospaced)).textSelection(
+              Text(quantizer.logs).font(.system(size: 11, design: .monospaced)).textSelection(
                 .enabled
               ).frame(maxWidth: .infinity, alignment: .leading)
-            }.frame(height: 170)
+            }.frame(height: 170).studioCard(padding: 12, radius: 10).padding(.top, 8)
           }
+          .font(.system(size: 12.5, weight: .medium)).foregroundStyle(StudioTheme.secondary)
         }
         Text(
           L(
             "Les modèles d’inférence sont éjectés avant conversion. Les poids source restent inchangés et la sortie doit être un nouveau dossier. LFM2, LFM2-MoE et Ling natif disposent d’adaptateurs ; les autres architectures peuvent être lisibles par le moteur sans être convertibles ici.",
             "Interactive models are unloaded before conversion. Source weights remain unchanged and output must be a new folder. LFM2, LFM2-MoE and native Ling have adapters; other architectures may run in the engine without being convertible here."
           )
-        ).font(.caption).foregroundStyle(StudioTheme.quiet)
-      }.padding(.horizontal, 28).padding(.vertical, 36)
+        ).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet).fixedSize(horizontal: false, vertical: true)
+      }.padding(.horizontal, 32).padding(.top, 40).padding(.bottom, 36)
     }
+    .font(.system(size: 13))
   }
 
   private func compatibility(_ label: String, available: Bool) -> some View {
-    Label(
-      label + " · "
+    StudioStatusPill(
+      text: label + " · "
         + (available ? L("pris en charge", "supported") : L("non pris en charge", "unsupported")),
-      systemImage: available ? "checkmark.circle" : "minus.circle"
-    ).font(.caption)
+      color: available ? StudioTheme.success : StudioTheme.warning)
   }
 
   private func hint(_ title: String, _ explanation: String) -> some View {
-    HStack {
-      Text(title)
-      Image(systemName: "questionmark.circle").foregroundStyle(StudioTheme.quiet).help(explanation)
+    HStack(spacing: 5) {
+      Text(title).font(.system(size: 12.5, weight: .medium))
+      Image(systemName: "questionmark.circle").font(.system(size: 11)).foregroundStyle(StudioTheme.quiet).help(explanation)
         .accessibilityLabel(explanation)
-    }.font(.caption)
+    }
   }
 
   private func expertSettings(_ source: QuantizationSource) -> some View {
@@ -408,8 +438,9 @@ struct QuantizationStudioView: View {
             "Bits moyens par poids des projections quantifiées, entre 2 et 8. Moins de bits réduit la taille et peut diminuer la qualité. Les tenseurs FP16 sont en plus.",
             "Average bits per quantized projection weight, from 2 to 8. Fewer bits reduces size and can reduce quality. Plain FP16 tensors are additional."
           ))
-        Slider(value: $quantizer.settings.bits, in: 2...8, step: 0.1)
-        Text(String(format: "%.1f", quantizer.settings.bits)).monospacedDigit().frame(width: 32)
+        Slider(value: $quantizer.settings.bits, in: 2...8, step: 0.1).tint(studio.accentColor)
+          .accessibilityLabel("BPW")
+        Text(String(format: "%.1f", quantizer.settings.bits)).font(.system(size: 12.5, weight: .medium)).monospacedDigit().frame(width: 32)
       }
       HStack {
         hint(
@@ -420,6 +451,7 @@ struct QuantizationStudioView: View {
           ))
         Stepper(
           "\(quantizer.settings.rows)", value: $quantizer.settings.rows, in: 32...8192, step: 32)
+        Spacer(minLength: 12)
         hint(
           L("Contexte", "Sequence"),
           L(
@@ -429,6 +461,7 @@ struct QuantizationStudioView: View {
           "\(quantizer.settings.sequence)", value: $quantizer.settings.sequence, in: 32...4096,
           step: 32)
       }
+      .monospacedDigit()
       HStack {
         hint(
           L("Texte de calibration", "Calibration text"),
@@ -439,10 +472,13 @@ struct QuantizationStudioView: View {
         Text(
           quantizer.settings.calibration.isEmpty
             ? "WikiText-2" : URL(fileURLWithPath: quantizer.settings.calibration).lastPathComponent
-        ).font(.caption)
+        ).font(.system(size: 12)).foregroundStyle(StudioTheme.secondary).lineLimit(1).truncationMode(.middle)
+        Spacer(minLength: 8)
         Button(L("Choisir…", "Choose…")) { chooseText(validation: false) }
+          .buttonStyle(.studio(.secondary, height: 26))
         if !quantizer.settings.calibration.isEmpty {
           Button(L("Réinitialiser", "Reset")) { quantizer.settings.calibration = "" }
+            .buttonStyle(.studio(.quiet, height: 26))
         }
       }
       hint(
@@ -451,15 +487,17 @@ struct QuantizationStudioView: View {
           "Préfixes exacts, un par ligne, par exemple model.layers.0. Ces poids restent en FP16 ; les noms sans correspondance sont refusés.",
           "Exact prefixes, one per line, e.g. model.layers.0. These weights remain FP16; unmatched names are refused."
         ))
-      TextField("model.layers.0", text: $exclusions, axis: .vertical).textFieldStyle(.roundedBorder)
+      TextField("model.layers.0", text: $exclusions, axis: .vertical).studioField(monospaced: true)
+        .accessibilityLabel(L("Couches exclues", "Excluded modules"))
       if !source.modules.isEmpty {
         DisclosureGroup(L("Noms des modules", "Module names")) {
           ScrollView {
             Text(source.modules.prefix(1000).joined(separator: "\n")).font(
-              .system(size: 9, design: .monospaced)
-            ).textSelection(.enabled)
-          }.frame(height: 100)
+              .system(size: 11, design: .monospaced)
+            ).textSelection(.enabled).frame(maxWidth: .infinity, alignment: .leading)
+          }.frame(height: 110).padding(.top, 6)
         }
+        .font(.system(size: 12.5)).foregroundStyle(StudioTheme.secondary)
       }
       HStack {
         hint(
@@ -469,7 +507,8 @@ struct QuantizationStudioView: View {
             "Vocabulary projection. Higher precision can help quality at a size cost. A tied head follows the plain FP16 embedding."
           ))
         if source.tiedHead {
-          Text(L("Liée à l’embedding · FP16", "Tied to embedding · FP16")).font(.caption)
+          Text(L("Liée à l’embedding · FP16", "Tied to embedding · FP16")).font(.system(size: 12))
+            .foregroundStyle(StudioTheme.secondary)
         } else {
           Toggle(L("Conserver en FP16", "Keep FP16"), isOn: $quantizer.settings.keepHead)
             .toggleStyle(.checkbox)
@@ -495,9 +534,11 @@ struct QuantizationStudioView: View {
               ? L("Choisir le texte test…", "Choose held-out text…")
               : URL(fileURLWithPath: quantizer.settings.validation).lastPathComponent
           ) { chooseText(validation: true) }
+            .buttonStyle(.studio(.secondary, height: 26))
         }
       }
     }
+    .font(.system(size: 12.5))
   }
 
   private func chooseSource() {

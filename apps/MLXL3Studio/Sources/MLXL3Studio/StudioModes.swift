@@ -238,97 +238,139 @@ struct ServerWorkspaceView: View {
     return Int(context).flatMap { (0...(studio.modelContextLimit ?? Int(Int32.max))).contains($0) ? $0 : nil }
   }
 
+  private var statusText: String {
+    server.running
+      ? (network ? L("En ligne sur le réseau local", "Online on the local network") : L("En ligne sur ce Mac", "Online on this Mac"))
+      : server.busy
+        ? L("Chargement / arrêt…", "Loading / stopping…") : L("Arrêté", "Stopped")
+  }
+
+  private var canStart: Bool {
+    !(studio.isGenerating || studio.selectedModel == nil || validPort == nil || validContext == nil)
+  }
+
   var body: some View {
-    ScrollView {
-      VStack(alignment: .leading, spacing: 22) {
-        Label("Server", systemImage: "server.rack").font(StudioTheme.display(32))
-        Text(
-          L(
-            "API locale compatible OpenAI.",
-            "Local OpenAI-compatible API.")
-        ).foregroundStyle(StudioTheme.secondary)
-        GroupBox {
-          VStack(alignment: .leading, spacing: 16) {
-            LabeledContent(L("Modèle", "Model"), value: studio.selectedModelName ?? "—")
-            LabeledContent(L("Contexte", "Context")) {
-              TextField(L("Réglage du modèle", "Model setting"), text: $context)
-                .textFieldStyle(.roundedBorder).frame(width: 150).disabled(server.active)
-            }
-            Picker(L("Accès", "Access"), selection: $network) {
-              Text(L("Ce Mac", "This Mac")).tag(false)
-              Text(L("Réseau local", "Local network")).tag(true)
-            }.pickerStyle(.segmented).disabled(server.active)
-            if network {
-              Text(L("Accessible sur le réseau avec la clé API. HTTP n’est pas chiffré.", "Accessible on your network with the API key. HTTP is not encrypted."))
-                .font(.caption).foregroundStyle(StudioTheme.quiet)
-            }
-            HStack {
-              Text(L("Port local", "Local port"))
-              TextField("8000", text: $port).frame(width: 90).disabled(server.active)
-              Spacer()
-              if server.busy { ProgressView().controlSize(.small) }
-              Button(server.active ? L("Arrêter", "Stop") : L("Démarrer", "Start")) {
-                if server.active { server.stop() } else {
-                  studio.startServer(port: validPort ?? 0, host: network ? "0.0.0.0" : "127.0.0.1", context: validContext)
-                }
-              }.disabled(!server.active && (studio.isGenerating || studio.selectedModel == nil || validPort == nil || validContext == nil))
-            }
-            if validPort == nil || validContext == nil {
-              Text(L("Vérifiez le port et le contexte du modèle.", "Check the port and model context."))
-                .font(.caption).foregroundStyle(.red)
-            }
-            Text(
-              server.running
-                ? L("En ligne sur ce Mac", "Online on this Mac")
-                : server.busy
-                  ? L("Chargement / arrêt…", "Loading / stopping…") : L("Arrêté", "Stopped"))
-            Text(
-              L(
-                "Le serveur utilise le modèle à la place de Chat et Agent.",
-                "The server uses the model in place of Chat and Agent."
-              )
-            ).font(.caption).foregroundStyle(StudioTheme.quiet)
-          }.padding(12)
+    StudioPageColumn(spacing: 22, top: 20) {
+      StudioPageHeader(
+        title: "Server",
+        detail: L("API locale compatible OpenAI.", "Local OpenAI-compatible API.")
+      ) {
+        StudioStatusPill(
+          text: statusText, color: server.running ? StudioTheme.success : StudioTheme.quiet,
+          busy: server.busy && !server.running)
+      }
+
+      SettingSection(
+        title: L("Configuration", "Configuration"), icon: "slider.horizontal.3",
+        footer: L(
+          "Le serveur utilise le modèle à la place de Chat et Agent.",
+          "The server uses the model in place of Chat and Agent.")
+      ) {
+        SettingRow(
+          title: L("Modèle", "Model"),
+          detail: studio.selectedModel == nil
+            ? L("Choisissez un modèle dans la barre du haut.", "Choose a model in the top bar.") : nil
+        ) {
+          Text(studio.selectedModelName ?? "—").font(.system(size: 13))
+            .foregroundStyle(StudioTheme.secondary).lineLimit(1).truncationMode(.middle)
         }
-        if let port = server.port, server.running {
-          VStack(alignment: .leading, spacing: 12) {
-            Text("http://127.0.0.1:\(port)/v1").font(.system(.body, design: .monospaced))
-              .textSelection(.enabled)
-            Button(L("Copier l’URL", "Copy URL")) {
-              NSPasteboard.general.clearContents()
-              NSPasteboard.general.setString("http://127.0.0.1:\(port)/v1", forType: .string)
-            }
-            if let key = server.apiKey {
-              Button(L("Copier la clé API", "Copy API key")) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString(key, forType: .string)
-              }
-              Button(L("Copier la commande de test", "Copy test command")) {
-                NSPasteboard.general.clearContents()
-                NSPasteboard.general.setString("curl -H 'Authorization: Bearer \(key)' http://127.0.0.1:\(port)/v1/models", forType: .string)
-              }
-              Text(
-                L(
-                  "Une nouvelle clé est générée à chaque démarrage. Ajoutez-la comme Bearer token dans votre application.",
-                  "A new key is generated at each start. Use it as the Bearer token in your application."
-                )
-              ).font(.caption).foregroundStyle(StudioTheme.quiet)
-            }
-            Text("GET /v1/models · POST /v1/chat/completions").font(.caption.monospaced())
-            if network {
-              Text(L("Depuis un autre appareil, remplacez 127.0.0.1 par l’adresse réseau de ce Mac.", "From another device, replace 127.0.0.1 with this Mac’s network address."))
-                .font(.caption).foregroundStyle(StudioTheme.quiet)
-            }
+        SettingRow(
+          title: L("Contexte", "Context"),
+          detail: L("En tokens. Vide : le réglage du modèle.", "In tokens. Empty: the model’s setting.")
+        ) {
+          TextField(L("Réglage du modèle", "Model setting"), text: $context)
+            .studioField(monospaced: true).frame(width: 150).disabled(server.active)
+            .accessibilityLabel(L("Contexte", "Context"))
+        }
+        SettingRow(
+          title: L("Accès", "Access"),
+          detail: network
+            ? L(
+              "Accessible sur le réseau avec la clé API. HTTP n’est pas chiffré.",
+              "Accessible on your network with the API key. HTTP is not encrypted.")
+            : L("Uniquement depuis ce Mac.", "From this Mac only.")
+        ) {
+          Picker(L("Accès", "Access"), selection: $network) {
+            Text(L("Ce Mac", "This Mac")).tag(false)
+            Text(L("Réseau local", "Local network")).tag(true)
+          }.pickerStyle(.segmented).labelsHidden().fixedSize().disabled(server.active)
+        }
+        SettingRow(title: L("Port local", "Local port"), detail: "1024–65535") {
+          TextField("8000", text: $port).studioField(monospaced: true).frame(width: 90)
+            .disabled(server.active)
+            .accessibilityLabel(L("Port local", "Local port"))
+        }
+      }
+
+      if !server.active && (validPort == nil || validContext == nil) {
+        StudioNotice(
+          kind: .error,
+          text: L("Vérifiez le port et le contexte du modèle.", "Check the port and model context."))
+      }
+      if let error = server.error { StudioNotice(kind: .error, text: error) }
+
+      HStack(spacing: 12) {
+        Button {
+          if server.active { server.stop() } else {
+            studio.startServer(
+              port: validPort ?? 0, host: network ? "0.0.0.0" : "127.0.0.1", context: validContext)
+          }
+        } label: {
+          Label(
+            server.active ? L("Arrêter", "Stop") : L("Démarrer", "Start"),
+            systemImage: server.active ? "stop.fill" : "play.fill")
+        }
+        .buttonStyle(.studio(server.active ? .secondary : .primary, height: 34))
+        .disabled(!server.active && !canStart)
+        if server.busy { ProgressView().controlSize(.small) }
+        Spacer(minLength: 0)
+      }
+
+      if let port = server.port, server.running {
+        let url = "http://127.0.0.1:\(port)/v1"
+        SettingSection(
+          title: L("Connexion", "Connection"), icon: "link",
+          footer: network
+            ? L(
+              "Depuis un autre appareil, remplacez 127.0.0.1 par l’adresse réseau de ce Mac.",
+              "From another device, replace 127.0.0.1 with this Mac’s network address.")
+            : nil
+        ) {
+          StudioCopyField(label: L("URL de base", "Base URL"), value: url)
+          if let key = server.apiKey {
+            StudioCopyField(label: L("Clé API", "API key"), value: key, secret: true)
+            StudioCopyField(
+              label: L("Commande de test", "Test command"),
+              value: "curl -H 'Authorization: Bearer \(key)' \(url)/models",
+              shown: "curl -H 'Authorization: Bearer ••••' \(url)/models")
+          }
+          SettingRow(
+            title: L("Points d’accès", "Endpoints"),
+            detail: server.apiKey == nil
+              ? nil
+              : L(
+                "Une nouvelle clé est générée à chaque démarrage. Ajoutez-la comme Bearer token dans votre application.",
+                "A new key is generated at each start. Use it as the Bearer token in your application.")
+          ) {
+            Text("GET /v1/models\nPOST /v1/chat/completions")
+              .font(.system(size: 11.5, design: .monospaced)).foregroundStyle(StudioTheme.secondary)
+              .multilineTextAlignment(.trailing).textSelection(.enabled)
           }
         }
-        if let error = server.error { Text(error).foregroundStyle(.red).textSelection(.enabled) }
-        if !server.log.isEmpty {
-          DisclosureGroup(L("Journal du serveur", "Server log")) {
-            Text(server.log).font(.caption.monospaced()).textSelection(.enabled).frame(
-              maxWidth: .infinity, alignment: .leading)
+      }
+
+      if !server.log.isEmpty {
+        DisclosureGroup(L("Journal du serveur", "Server log")) {
+          ScrollView {
+            Text(server.log).font(.system(size: 11.5, design: .monospaced)).textSelection(.enabled)
+              .frame(maxWidth: .infinity, alignment: .leading)
           }
+          .frame(maxHeight: 220)
+          .studioCard(padding: 12)
+          .padding(.top, 8)
         }
-      }.padding(36).frame(maxWidth: 850, alignment: .leading).frame(maxWidth: .infinity)
+        .font(.system(size: 12.5, weight: .medium)).foregroundStyle(StudioTheme.secondary)
+      }
     }
   }
 }

@@ -4,16 +4,16 @@ struct AppearanceSettings: View {
     @EnvironmentObject private var studio: StudioModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 22) {
             SettingCard(title: L("Style", "Style"), icon: "rectangle.stack") {
                 Text(
                     L(
                         "Chaque style apporte ses couleurs, sa typographie et son fond. L’accent reste modifiable.",
                         "Each style brings its colours, type and background. The accent can still be changed.")
                 )
-                .foregroundStyle(StudioTheme.secondary)
+                .font(.system(size: 12.5)).foregroundStyle(StudioTheme.secondary)
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 150), spacing: 12)], spacing: 12
+                    columns: [GridItem(.adaptive(minimum: 150), spacing: 10)], spacing: 10
                 ) {
                     ForEach(AppStyle.allCases, id: \.self) { style in
                         Button {
@@ -31,19 +31,12 @@ struct AppearanceSettings: View {
                 // A style change rebuilds the window; Agent Studio's open editor must not be rebuilt.
                 .disabled(studio.studioDocument != nil)
                 if studio.studioDocument != nil {
-                    Text(L("Fermez Agent Studio pour changer de style.", "Close Agent Studio to change the style."))
-                        .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
+                    StudioNotice(text: L("Fermez Agent Studio pour changer de style.", "Close Agent Studio to change the style."))
                 }
             }
-            SettingCard(title: L("Thème de l’interface", "Interface theme"), icon: "paintpalette") {
-                Text(
-                    L(
-                        "Le changement s’applique immédiatement à toute l’app.",
-                        "Changes apply immediately throughout the app.")
-                )
-                .foregroundStyle(StudioTheme.secondary)
+            SettingCard(title: L("Thème de l’interface", "Interface theme"), icon: "circle.lefthalf.filled") {
                 LazyVGrid(
-                    columns: [GridItem(.adaptive(minimum: 132), spacing: 12)], spacing: 12
+                    columns: [GridItem(.adaptive(minimum: 132), spacing: 10)], spacing: 10
                 ) {
                     ForEach(AppTheme.allCases, id: \.self) { theme in
                         Button {
@@ -58,91 +51,115 @@ struct AppearanceSettings: View {
                     }
                 }
             }
-            SettingCard(title: L("Couleur d’accent", "Accent color"), icon: "circle.lefthalf.filled") {
-                LazyVGrid(columns: [GridItem(.adaptive(minimum: 88))], spacing: 10) {
-                    ForEach(AppAccent.allCases.filter { $0 != .custom }, id: \.self) { accent in
-                        Button {
-                            studio.setAccent(accent)
-                        } label: {
-                            VStack(spacing: 8) {
-                                Circle().fill(accent.color).frame(width: 25, height: 25)
-                                    .overlay {
-                                        if studio.accent == accent {
-                                            Image(systemName: "checkmark").font(.system(size: 11, weight: .bold))
-                                                .foregroundStyle(StudioTheme.onAccent)
-                                        }
-                                    }
-                                Text(accent.title).font(.system(size: 12))
+            SettingSection(
+                title: L("Couleur d’accent", "Accent color"), icon: "paintpalette",
+                footer: L(
+                    "Appliquée aux sélecteurs, aux interrupteurs et aux contrôles de l’app.",
+                    "Applied to the app’s selectors, switches and controls.")
+            ) {
+                SettingRow(title: L("Accent", "Accent"), detail: studio.accent.title) {
+                    HStack(spacing: 8) {
+                        ForEach(AppAccent.allCases.filter { $0 != .custom }, id: \.self) { accent in
+                            Button {
+                                studio.setAccent(accent)
+                            } label: {
+                                AccentSwatch(color: accent.color, selected: studio.accent == accent)
                             }
-                            .frame(maxWidth: .infinity).padding(.vertical, 10)
-                            .background(
-                                studio.accent == accent ? StudioTheme.panel : .clear,
-                                in: RoundedRectangle(cornerRadius: 9))
+                            .buttonStyle(.plain)
+                            .help(accent.title)
+                            .accessibilityLabel(accent.title)
+                            .accessibilityAddTraits(studio.accent == accent ? .isSelected : [])
                         }
-                        .buttonStyle(StudioControlStyle())
-                        .accessibilityLabel(accent.title)
-                        .accessibilityAddTraits(studio.accent == accent ? .isSelected : [])
                     }
                 }
-                HStack {
+                SettingRow(title: L("Couleur personnalisée", "Custom color"),
+                           detail: studio.accent == .custom ? L("Utilisée comme accent.", "Used as the accent.") : nil) {
                     ColorPicker(L("Couleur personnalisée", "Custom color"), selection: Binding(
                         get: { studio.customAccentColor }, set: { studio.setCustomAccent($0) }
                     ), supportsOpacity: false)
+                    .labelsHidden()
                     if studio.accent != .custom {
                         Button(L("Utiliser", "Use")) { studio.setAccent(.custom) }
+                            .buttonStyle(.studio)
                     } else {
-                        Image(systemName: "checkmark").accessibilityLabel(L("Sélectionnée", "Selected"))
+                        Image(systemName: "checkmark").font(.system(size: 12, weight: .semibold))
+                            .foregroundStyle(StudioTheme.secondary)
+                            .accessibilityLabel(L("Sélectionnée", "Selected"))
                     }
                 }
-                Text(
-                    L(
-                        "Appliquée aux sélecteurs, aux interrupteurs et aux contrôles de l’app.",
-                        "Applied to the app’s selectors, switches and controls.")
-                )
-                .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
             }
             SettingCard(title: L("Lecture & conversations", "Reading & conversations"), icon: "textformat.size") {
                 ConversationDisplaySettings(showsTitle: false)
-                Divider().overlay(StudioTheme.edge)
-                Picker(
-                    L("Espacement des messages", "Message spacing"),
-                    selection: Binding(
-                        get: { studio.conversationDensity }, set: { studio.setConversationDensity($0) }
-                    )
-                ) {
-                    ForEach(ConversationDensity.allCases, id: \.self) { density in
-                        Text(density.title).tag(density)
+            }
+            SettingSection(title: L("Messages", "Messages"), icon: "bubble.left") {
+                SettingRow(title: L("Espacement des messages", "Message spacing")) {
+                    Picker(
+                        L("Espacement des messages", "Message spacing"),
+                        selection: Binding(
+                            get: { studio.conversationDensity }, set: { studio.setConversationDensity($0) }
+                        )
+                    ) {
+                        ForEach(ConversationDensity.allCases, id: \.self) { density in
+                            Text(density.title).tag(density)
+                        }
                     }
+                    .pickerStyle(.menu).labelsHidden().fixedSize()
                 }
-                .pickerStyle(.menu)
-                Picker(L("Police des messages", "Message font"), selection: Binding(
-                    get: { studio.conversationFont }, set: { studio.setConversationFont($0) }
-                )) {
-                    ForEach(ConversationFont.allCases, id: \.self) { font in
-                        Text(font.title).tag(font)
+                SettingRow(title: L("Police des messages", "Message font")) {
+                    Picker(L("Police des messages", "Message font"), selection: Binding(
+                        get: { studio.conversationFont }, set: { studio.setConversationFont($0) }
+                    )) {
+                        ForEach(ConversationFont.allCases, id: \.self) { font in
+                            Text(font.title).tag(font)
+                        }
                     }
+                    .labelsHidden().fixedSize()
                 }
-                Picker(L("Bulles de vos messages", "Your message bubbles"), selection: Binding(
-                    get: { studio.messageBubbleStyle }, set: { studio.setMessageBubbleStyle($0) }
-                )) {
-                    ForEach(MessageBubbleStyle.allCases, id: \.self) { style in
-                        Text(style.title).tag(style)
+                SettingRow(title: L("Bulles de vos messages", "Your message bubbles")) {
+                    Picker(L("Bulles de vos messages", "Your message bubbles"), selection: Binding(
+                        get: { studio.messageBubbleStyle }, set: { studio.setMessageBubbleStyle($0) }
+                    )) {
+                        ForEach(MessageBubbleStyle.allCases, id: \.self) { style in
+                            Text(style.title).tag(style)
+                        }
                     }
+                    .labelsHidden().fixedSize()
                 }
             }
-            SettingCard(title: L("Barre latérale", "Sidebar"), icon: "sidebar.left") {
-                Picker(L("Largeur", "Width"), selection: Binding(
-                    get: { studio.sidebarWidth }, set: { studio.setSidebarWidth($0) }
-                )) {
-                    ForEach(SidebarWidth.allCases, id: \.self) { width in
-                        Text(width.title).tag(width)
+            SettingSection(title: L("Barre latérale", "Sidebar"), icon: "sidebar.left") {
+                SettingRow(title: L("Largeur", "Width")) {
+                    Picker(L("Largeur", "Width"), selection: Binding(
+                        get: { studio.sidebarWidth }, set: { studio.setSidebarWidth($0) }
+                    )) {
+                        ForEach(SidebarWidth.allCases, id: \.self) { width in
+                            Text(width.title).tag(width)
+                        }
                     }
+                    .pickerStyle(.segmented).labelsHidden().fixedSize()
                 }
-                .pickerStyle(.segmented)
             }
             Button(L("Rétablir l’apparence par défaut", "Restore default appearance"), action: studio.resetAppearance)
-                .buttonStyle(GlassPillButtonStyle()).padding(.vertical, 6)
+                .buttonStyle(.studio)
         }
+    }
+}
+
+/// An accent as a disc; the selected one carries a ring of its own colour and a check.
+private struct AccentSwatch: View {
+    let color: Color
+    let selected: Bool
+
+    var body: some View {
+        Circle().fill(color).frame(width: 22, height: 22)
+            .overlay {
+                if selected {
+                    Image(systemName: "checkmark").font(.system(size: 10, weight: .bold))
+                        .foregroundStyle(StudioTheme.onAccent)
+                }
+            }
+            .padding(3)
+            .overlay { Circle().strokeBorder(selected ? color : .clear, lineWidth: 1.5) }
+            .contentShape(Circle())
     }
 }
 
@@ -268,9 +285,10 @@ private struct StylePreview: View {
         .padding(9)
         .frame(maxHeight: .infinity, alignment: .top)
         .overlay(
-            RoundedRectangle(cornerRadius: 12).stroke(
-                selected ? StudioTheme.ink : StudioTheme.edge,
-                lineWidth: selected ? 1.5 : 0.7))
+            RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(
+                selected ? StudioTheme.ink.opacity(0.85) : StudioTheme.edge,
+                lineWidth: selected ? 1.5 : 0.5))
+        .background(StudioTheme.contrast.opacity(selected ? 0.04 : 0), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
         .contentShape(RoundedRectangle(cornerRadius: 12))
     }
 }
@@ -312,8 +330,9 @@ private struct ThemePreview: View {
         }
         .padding(9)
         .overlay(
-            RoundedRectangle(cornerRadius: 12).stroke(
-                selected ? StudioTheme.ink : StudioTheme.edge,
-                lineWidth: selected ? 1.5 : 0.7))
+            RoundedRectangle(cornerRadius: 11, style: .continuous).strokeBorder(
+                selected ? StudioTheme.ink.opacity(0.85) : StudioTheme.edge,
+                lineWidth: selected ? 1.5 : 0.5))
+        .background(StudioTheme.contrast.opacity(selected ? 0.04 : 0), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
     }
 }
