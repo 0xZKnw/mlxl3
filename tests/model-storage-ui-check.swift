@@ -3,13 +3,18 @@ import SwiftUI
 import Vision
 
 @MainActor enum ModelStorageInterfaceCheck {
-    // Vision can omit the space between a value and its unit on a 1x display.
+    // At 1x Vision can join the unit to the number, read a decimal comma, or include the row chevron.
     static func matchesSize(_ displayed: String, expected: String) -> Bool {
-        displayed.filter { !$0.isWhitespace }.lowercased() == expected.filter { !$0.isWhitespace }.lowercased()
+        func compact(_ size: String) -> String {
+            size.lowercased().filter { !$0.isWhitespace }.replacingOccurrences(of: ",", with: ".")
+        }
+        var size = compact(displayed)
+        if size.last == ">" { size.removeLast() }
+        return size == compact(expected)
     }
 
     static func run() async throws {
-        precondition(matchesSize("1.1mb", expected: "1.1 MB"))
+        precondition(matchesSize("1.1mb", expected: "1.1 MB") && matchesSize("1,1 mb >", expected: "1.1 MB"))
         precondition(!matchesSize("11.1 MB", expected: "1.1 MB") && !matchesSize("1.1 KB", expected: "1.1 MB"))
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appendingPathComponent("mlxl3-storage-ui-\(UUID())").resolvingSymlinksInPath()
