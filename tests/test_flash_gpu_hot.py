@@ -1,4 +1,4 @@
-"""Disabled resident masking must preserve every existing shader configuration."""
+"""Compare the 162 historical Flash configurations with resident masking disabled."""
 
 import itertools
 import re
@@ -10,8 +10,37 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
+# Ungrouped routes now inline the route index at the lookup. Fold this spelling
+# only in the original straight-line block, where neither operand changes.
+INLINE_ROUTE = re.compile(
+    r"(uint route = sub / uint\(ROUTING_REPEAT\);\s*"
+    r"uint projection = sub - route \* uint\(ROUTING_REPEAT\);\s*"
+    r"uint source_base =\s*tile_map\[)sub / uint\(ROUTING_REPEAT\)(?=\])"
+)
 
-def test_disabled_gpu_hot_shader_has_identical_preprocessed_tokens():
+
+def shader_tokens(source):
+    return re.findall(r"\w+|[^\s]", INLINE_ROUTE.sub(r"\g<1>route", source))
+
+
+def test_route_comparison_requires_the_same_value_at_lookup():
+    definition = (
+        "uint route = sub / uint(ROUTING_REPEAT);\n"
+        "uint projection = sub - route * uint(ROUTING_REPEAT);\n"
+    )
+    named = "uint source_base = tile_map[route];"
+    inline = "uint source_base = tile_map[sub / uint(ROUTING_REPEAT)];"
+    assert shader_tokens(definition + named) == shader_tokens(definition + inline)
+    for mutation in ["sub += 1u;", "route = 0u;"]:
+        assert shader_tokens(definition + mutation + named) != shader_tokens(
+            definition + mutation + inline
+        )
+    assert shader_tokens(definition + named) != shader_tokens(
+        definition + inline.replace("ROUTING_REPEAT", "OUTPUT_TILES")
+    )
+
+
+def test_disabled_gpu_hot_shader_matches_historical_tokens_after_route_alias_expansion():
     clang = shutil.which("clang")
     if clang is None:
         pytest.skip("clang unavailable; control shader not verified")
@@ -46,5 +75,5 @@ def test_disabled_gpu_hot_shader_has_identical_preprocessed_tokens():
                 timeout=10,
                 check=True,
             )
-            outputs.append(re.findall(r"\w+|[^\s]", result.stdout))
+            outputs.append(shader_tokens(result.stdout))
         assert outputs[0] == outputs[1], flags
