@@ -125,3 +125,27 @@ antérieur et hors du mode Agent : `allowed_tools` y vaut `nil`.
   relance d'étape vide.
 - Absence de plafond d'étapes : nous gardons 256 tours avec une dernière réponse sans outil.
 - Marge de compaction de 65 536 tokens : incompatible avec nos fenêtres.
+
+## Révision 2026-11-25 — appels d'outils : dsh est natif par défaut
+
+Point absent de la première lecture (même commit `4b399c39`). Le tableau ci-dessus compare
+`run_code` à notre outil `javascript`, mais `run_code` n'est pas le mode livré :
+
+- `packages/bundle/base/cordis.patch.yml` active `tool-executor-native` et laisse
+  `tool-executor-ptc` en `disabled: true`. Le mode code est un préréglage
+  (`apps/cli/config/examples/ptc.yml`).
+- Outils de base, à schéma plat : `read(file_path, offset?, limit?)`,
+  `write(file_path, content)`, `edit(file_path, old_string, new_string, replace_all?)`,
+  `grep(pattern, path?, include?)`, `glob(pattern, path?)`,
+  `bash(description, command, workdir?, run_in_background?)` avec le marqueur
+  `[exit code: N]`, `job_output`, `job_list`, `job_kill`.
+- Plusieurs appels par message : les lectures tournent ensemble (10 au plus), les écritures
+  et `bash` passent seuls, les résultats reviennent dans l'ordre du modèle
+  (`packages/core/tools/src/batch.ts`).
+- Une phrase de consigne par outil offert, retirée quand l'outil ne l'est pas.
+- Leur note `2026-06-15-ptc.md` écarte le « tout code » pour un agent de code : les appels
+  simples (`bash`, `read`, `edit`) sont déjà bien servis par des appels natifs.
+
+Suite donnée : AGENT-2026-11-25-NATIVE-TOOLS dans `opti.md` (harnais `native`, défaut de
+l'app Mac ; le JavaScript reste sélectionnable). Aucune comparaison GPU JS / natif n'a été
+faite.
