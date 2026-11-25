@@ -5864,6 +5864,7 @@ fn bridge_generate(
     context_limit: usize,
     resident_gb: f64,
     cancelled: &AtomicBool,
+    agent_yield: Option<&AtomicBool>,
     random: &mut u64,
     mcp: &mut mlxl3_native::mcp::Manager,
     draft: Option<&RoundDraft>,
@@ -5921,6 +5922,7 @@ fn bridge_generate(
         context_limit,
         resident_gb,
         cancelled,
+        agent_yield,
         random,
         mcp,
         draft,
@@ -6005,6 +6007,7 @@ struct BridgeHost<'a, M, H> {
     context_limit: usize,
     resident_gb: f64,
     cancelled: &'a AtomicBool,
+    agent_yield: Option<&'a AtomicBool>,
     random: &'a mut u64,
     mcp: &'a mut mlxl3_native::mcp::Manager,
     draft: Option<&'a RoundDraft>,
@@ -6106,6 +6109,11 @@ impl mlxl3_native::agent_turn::Host for BridgeHost<'_, HostModel<'_>, HostMtp<'_
 
     fn emit(&mut self, event: Value) -> Result<()> {
         emit_event(event)
+    }
+
+    fn yield_requested(&self) -> bool {
+        self.agent_yield
+            .is_some_and(|flag| flag.load(Ordering::Relaxed))
     }
 
     fn cancellation(&self) -> &AtomicBool {
@@ -6359,6 +6367,9 @@ fn native_bridge(
             .ok()
             .as_deref(),
     ));
+    let agent_yield = Arc::new(AtomicBool::new(false));
+    signal_hook::flag::register(signal_hook::consts::SIGUSR2, Arc::clone(&agent_yield))?;
+    ready["agent_yield_supported"] = json!(true);
     emit_event(ready)?;
     let cancelled = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGUSR1, Arc::clone(&cancelled))?;
@@ -6592,6 +6603,7 @@ fn native_bridge(
                 }
             }
             "generate" => {
+                agent_yield.store(false, Ordering::Relaxed);
                 if request.memory_saver {
                     prompt_cache = None;
                 }
@@ -6761,6 +6773,7 @@ fn native_bridge(
                         context_limit,
                         resident_gb,
                         &cancelled,
+                        request.tool_rounds.map(|_| agent_yield.as_ref()),
                         &mut random,
                         &mut mcp,
                         dflash_weights.as_ref().map(|(_, _, weights)| weights),

@@ -6,6 +6,8 @@ import UniformTypeIdentifiers
 struct AgentStudioView: View {
   let workspace: URL
   var file: URL? = nil
+  var turnResult: AgentTurnResult?
+  private let showPermissions: Bool
   var onClose: (() -> Void)? = nil
   @Environment(\.dismiss) private var dismiss
   @EnvironmentObject private var studio: StudioModel
@@ -23,11 +25,13 @@ struct AgentStudioView: View {
   @State private var collapsed = Set<String>()
 
   init(
-    workspace: URL, file: URL? = nil, onClose: (() -> Void)? = nil,
+    workspace: URL, file: URL? = nil, showPermissions: Bool = false, turnResult: AgentTurnResult? = nil, onClose: (() -> Void)? = nil,
     model: AgentStudioModel? = nil
   ) {
     self.workspace = workspace
     self.file = file
+    self.turnResult = turnResult
+    self.showPermissions = showPermissions
     self.onClose = onClose
     _model = StateObject(wrappedValue: model ?? AgentStudioModel())
   }
@@ -72,7 +76,8 @@ struct AgentStudioView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .tint(studio.accentColor)
     .task {
-      await model.open(workspace: workspace, file: file)
+      await model.open(workspace: workspace, file: file, turnResult: turnResult)
+      if showPermissions, model.error == nil { permissions = true }
     }
     .onExitCommand { navigate { close() } }
     .confirmationDialog(
@@ -168,9 +173,9 @@ struct AgentStudioView: View {
       }
       Menu {
         Button(
-          L("Ouvrir un projet dans une nouvelle tâche…", "Open project in a new task…"),
+          L("Travailler dans un dossier…", "Work in a folder…"),
           systemImage: "folder.badge.plus"
-        ) { navigate { chooseProject() } }
+        ) { navigate { studio.chooseAgentProject() } }.disabled(mutating || model.state.source != nil)
         Divider()
         Button(L("Créer un checkpoint", "Create checkpoint"), systemImage: "flag") {
           Task { await model.checkpoint() }
@@ -265,9 +270,9 @@ struct AgentStudioView: View {
                   "Files created by the Agent will appear here.")
               ).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                 .fixedSize(horizontal: false, vertical: true)
-              Button(L("Ouvrir un projet…", "Open project…")) { chooseProject() }.buttonStyle(
+              Button(L("Travailler dans un dossier…", "Work in a folder…")) { studio.chooseAgentProject() }.buttonStyle(
                 .studio
-              ).disabled(mutating).padding(.top, 4)
+              ).disabled(mutating || model.state.source != nil).padding(.top, 4)
             }.padding(.horizontal, 8).padding(.top, 6)
           }
         }.padding(.horizontal, 10).padding(.bottom, 16)
@@ -718,17 +723,6 @@ struct AgentStudioView: View {
     }
   }
   private func close() { if let onClose { onClose() } else { dismiss() } }
-  private func chooseProject() {
-    let panel = NSOpenPanel()
-    panel.canChooseDirectories = true
-    panel.canChooseFiles = false
-    panel.allowsMultipleSelection = false
-    panel.message = L(
-      "Le projet s’ouvre dans une nouvelle tâche isolée. La tâche actuelle est conservée.",
-      "The project opens in a new isolated task. Your current task is kept.")
-    guard panel.runModal() == .OK, let url = panel.url else { return }
-    Task { await studio.openAgentProject(url) }
-  }
   private func exportZIP() {
     let panel = NSSavePanel()
     panel.allowedContentTypes = [.zip]

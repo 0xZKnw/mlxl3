@@ -28,6 +28,52 @@ struct AgentPermissions: Codable, Equatable, Sendable {
   }
 }
 
+/// Written by the sandbox supervisor beside project.json, outside the agent's writable copy.
+struct AgentCommandReceipt: Codable, Equatable, Sendable {
+  enum Outcome: String, Codable, Sendable { case unconfirmed, success, failure, interrupted }
+  let testCommand: Bool
+  let outcome: Outcome
+
+  struct Recording: Sendable {
+    let file: URL
+    let testCommand: Bool
+
+    func finish(_ result: AgentSandbox.Result) {
+      write(result.interrupted ? .interrupted : result.status == 0 ? .success : .failure)
+    }
+
+    fileprivate func write(_ outcome: Outcome) {
+      let receipt = AgentCommandReceipt(testCommand: testCommand, outcome: outcome)
+      // The UI owns the directory's lifetime. A late job never recreates a completed turn.
+      try? JSONEncoder().encode(receipt).write(to: file, options: .atomic)
+    }
+  }
+
+  static func folder(metadata: URL, turn: UUID) -> URL {
+    metadata.appendingPathComponent("command-receipts/\(turn.uuidString)", isDirectory: true)
+  }
+
+  static func start(command: String, in folder: URL?) -> Recording? {
+    guard let folder else { return nil }
+    let words = command.trimmingCharacters(in: .whitespacesAndNewlines)
+      .split(whereSeparator: { $0 == " " || $0 == "\t" }).joined(separator: " ")
+    // Only plain test runner invocations are labelled as such. Compound shell commands,
+    // builds, --help or --no-run still get their true process outcome as ordinary commands.
+    let test = ["swift test", "cargo test", "npm test", "pnpm test", "yarn test", "bun test",
+      "pytest", "pytest -q", "python -m pytest", "python3 -m pytest", "go test ./...", "node --test"].contains(words)
+    let recording = Recording(file: folder.appendingPathComponent(UUID().uuidString), testCommand: test)
+    recording.write(.unconfirmed)
+    return recording
+  }
+
+  static func read(from folder: URL) throws -> [Self] {
+    // Atomic writes may have temporary names; only published UUID files are receipts.
+    let files = try FileManager.default.contentsOfDirectory(at: folder, includingPropertiesForKeys: nil)
+      .filter { UUID(uuidString: $0.lastPathComponent) != nil }
+    return try files.map { try JSONDecoder().decode(Self.self, from: Data(contentsOf: $0)) }
+  }
+}
+
 /// `sandbox_check(pid, NULL, SANDBOX_FILTER_NONE)`: 1 when `pid` runs under a sandbox. Only
 /// the fixed arguments are passed (no variadic filter), which is safe for this form.
 @_silgen_name("sandbox_check")
@@ -743,12 +789,17 @@ enum AgentSandbox {
         else { exit(1) }
         guard let id = request["id"] else { continue }
         let permissions: AgentPermissions
+        var commandFolder: URL?
         if let permissionsPath {
-          struct Envelope: Decodable { let permissions: AgentPermissions }
+          struct Envelope: Decodable { let permissions: AgentPermissions; let activeCommandTurn: UUID? }
           guard let data = try? Data(contentsOf: URL(fileURLWithPath: permissionsPath)), data.count <= 2_000_000,
             let envelope = try? JSONDecoder().decode(Envelope.self, from: data),
             (1...30).contains(envelope.permissions.commandSeconds) else { exit(1) }
           permissions = envelope.permissions
+          if let id = envelope.activeCommandTurn {
+            commandFolder = AgentCommandReceipt.folder(
+              metadata: URL(fileURLWithPath: permissionsPath).deletingLastPathComponent(), turn: id)
+          }
         } else { permissions = AgentPermissions() }
         var response: [String: Any] = ["jsonrpc": "2.0", "id": id]
         switch method {
@@ -838,6 +889,7 @@ enum AgentSandbox {
               "wall": AgentJavaScript.wall(commandSeconds: permissions.commandSeconds, longCalls: longCalls),
               "internet": permissions.internet, "hosts": permissions.internetHosts,
             ]
+            if let commandFolder { call["commandFolder"] = commandFolder.path }
             if let text { call["text"] = text }
             var data = Data()
             do {
@@ -947,6 +999,7 @@ enum AgentSandbox {
             supervisor.standardError = FileHandle.nullDevice
             let output = Pipe()
             supervisor.standardOutput = output
+            let recording = name == "run" ? AgentCommandReceipt.start(command: command, in: commandFolder) : nil
             try supervisor.run()
             let data = output.fileHandleForReading.readDataToEndOfFile()
             supervisor.waitUntilExit()
@@ -954,6 +1007,7 @@ enum AgentSandbox {
               throw CocoaError(.executableRuntimeMismatch)
             }
             let result = try JSONDecoder().decode(Result.self, from: data)
+            recording?.finish(result)
             response["result"] = [
               "content": [
                 [

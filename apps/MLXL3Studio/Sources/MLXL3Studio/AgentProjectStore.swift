@@ -8,6 +8,10 @@ struct AgentProjectState: Codable, Sendable {
   var originalHashes: [String: String] = [:]
   // Optional for pre-checkpoint metadata. Never infer historical state from today's files.
   var messageCheckpoints: [String: String]?
+  // Earlier turns must still fork as independent tasks without access to the attached source.
+  var messagesBeforeAttachment: Set<String>?
+  var activeCommandTurn: UUID?
+  var commandReceipts: [String: AgentCommandSummary]?
   var permissions = AgentPermissions()
   var skippedFiles = 0
 }
@@ -16,6 +20,32 @@ struct AgentCheckpoint: Identifiable, Sendable, Hashable {
   let id: String
   let date: Date
   let title: String
+}
+
+struct AgentCommandSummary: Codable, Equatable, Sendable {
+  var commands: [String: Int] = [:]
+  var tests: [String: Int] = [:]
+  var isEmpty: Bool { commands.isEmpty && tests.isEmpty }
+
+  init() {}
+  init(folder: URL) throws {
+    for receipt in try AgentCommandReceipt.read(from: folder) {
+      if receipt.testCommand { tests[receipt.outcome.rawValue, default: 0] += 1 }
+      else { commands[receipt.outcome.rawValue, default: 0] += 1 }
+    }
+  }
+}
+
+struct AgentTurnResult: Equatable, Sendable {
+  struct File: Equatable, Sendable {
+    let path: String
+    let added: Bool
+  }
+  let before: String
+  let after: String
+  let files: [File]
+  let commands: AgentCommandSummary
+  let newDocument: String?
 }
 
 struct AgentProjectStore: Sendable {
@@ -71,7 +101,7 @@ struct AgentProjectStore: Sendable {
     try save(state)
   }
 
-  func checkpoint(messageID: UUID) throws {
+  func checkpoint(messageID: UUID, startingTurn: Bool = false) throws {
     Self.mutation.lock()
     defer { Self.mutation.unlock() }
     let revision = try checkpoint("Conversation boundary", force: false)
@@ -79,7 +109,55 @@ struct AgentProjectStore: Sendable {
     var checkpoints = state.messageCheckpoints ?? [:]
     checkpoints[messageID.uuidString] = revision
     state.messageCheckpoints = checkpoints
+    let previous = state.activeCommandTurn
+    if startingTurn {
+      let folder = AgentCommandReceipt.folder(metadata: metadata, turn: messageID)
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true,
+        attributes: [.posixPermissions: 0o700])
+      state.activeCommandTurn = messageID
+    } else if let previous {
+      // A missing or unreadable receipt must not lose the response's file checkpoint.
+      let folder = AgentCommandReceipt.folder(metadata: metadata, turn: previous)
+      if let receipts = try? AgentCommandSummary(folder: folder), !receipts.isEmpty {
+        state.commandReceipts = state.commandReceipts ?? [:]
+        state.commandReceipts?[messageID.uuidString] = receipts
+      }
+      state.activeCommandTurn = nil
+    }
     try save(state)
+    // A job completing after this boundary must not change a historical result.
+    if let previous, previous != state.activeCommandTurn {
+      try? FileManager.default.removeItem(at: AgentCommandReceipt.folder(metadata: metadata, turn: previous))
+    }
+  }
+
+  /// Immutable boundaries for exactly one exchange. Older histories can lack either one.
+  func turnResult(user: UUID, assistant: UUID) throws -> AgentTurnResult? {
+    let state = try state()
+    guard let before = state.messageCheckpoints?[user.uuidString],
+      let after = state.messageCheckpoints?[assistant.uuidString] else { return nil }
+    try requireRevision(before)
+    try requireRevision(after)
+    var files: [AgentTurnResult.File] = []
+    if before != after {
+      let raw = try git(["diff", "--name-status", "--no-renames", "-z", before, after, "--"])
+      let fields = String(decoding: raw, as: UTF8.self).split(separator: "\0")
+      guard fields.count.isMultiple(of: 2), fields.count <= 4 * Self.maximumFiles else {
+        throw CocoaError(.fileReadCorruptFile)
+      }
+      for index in stride(from: 0, to: fields.count, by: 2) {
+        let path = String(fields[index + 1])
+        guard Self.validPath(path) else { throw CocoaError(.fileReadCorruptFile) }
+        files.append(.init(path: path, added: fields[index] == "A"))
+      }
+    }
+    var newDocument: String?
+    if files.count == 1, let file = files.first, file.added,
+      try Self.editorText(contents(file.path, revision: after)) != nil {
+      newDocument = file.path
+    }
+    return AgentTurnResult(before: before, after: after, files: files,
+      commands: state.commandReceipts?[assistant.uuidString] ?? AgentCommandSummary(), newDocument: newDocument)
   }
 
   /// Each branch retains its own baseline. Applying one branch makes overlapping
@@ -106,6 +184,17 @@ struct AgentProjectStore: Sendable {
       _ = try branch.git(["reset", "--hard", revision])
       let retained = Set(messages.map(\.uuidString))
       state.messageCheckpoints = state.messageCheckpoints?.filter { retained.contains($0.key) }
+      if state.messagesBeforeAttachment?.contains(messageID.uuidString) == true {
+        state.source = nil
+        state.baseline = nil
+        state.originalHashes = [:]
+        state.skippedFiles = 0
+        state.messagesBeforeAttachment = nil
+      } else {
+        state.messagesBeforeAttachment = state.messagesBeforeAttachment?.intersection(retained)
+      }
+      state.commandReceipts = state.commandReceipts?.filter { retained.contains($0.key) }
+      state.activeCommandTurn = nil
       try branch.save(state)
     } catch {
       try? FileManager.default.removeItem(at: destination.deletingLastPathComponent())
@@ -210,35 +299,79 @@ struct AgentProjectStore: Sendable {
     Self.mutation.lock()
     defer { Self.mutation.unlock() }
     let root = try AgentSandbox.canonicalRoot(source)
-    guard root.path != "/",
-      root != FileManager.default.homeDirectoryForCurrentUser.resolvingSymlinksInPath(),
-      !workspace.path.hasPrefix(root.path + "/"), !root.path.hasPrefix(workspace.path + "/")
+    // realpath requires an existing item; new tasks may have several missing parents.
+    // Resolve both sides identically, including a symlinked Application Support directory.
+    var ancestor = workspace.deletingLastPathComponent()
+    var missing: [String] = []
+    while !FileManager.default.fileExists(atPath: ancestor.path) {
+      missing.append(ancestor.lastPathComponent)
+      ancestor.deleteLastPathComponent()
+    }
+    let task = try missing.reversed().reduce(AgentSandbox.canonicalRoot(ancestor)) { $0.appendingPathComponent($1) }
+    let home = try AgentSandbox.canonicalRoot(FileManager.default.homeDirectoryForCurrentUser)
+    guard root.path != "/", root.path != home.path,
+      root.path != task.path, !task.path.hasPrefix(root.path + "/"), !root.path.hasPrefix(task.path + "/")
     else { throw CocoaError(.fileReadNoPermission) }
-    try FileManager.default.createDirectory(
-      at: workspace, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-    guard try FileManager.default.contentsOfDirectory(atPath: workspace.path).isEmpty else {
-      throw CocoaError(.fileWriteFileExists)
+    var state = try state()
+    guard state.source == nil else {
+      throw NSError(domain: "MLXL3.Project", code: 4, userInfo: [NSLocalizedDescriptionKey:
+        L("Un dossier est déjà rattaché à cette tâche.", "A folder is already attached to this task.")])
     }
     let inventory = try files(in: root, importing: true)
-    guard !inventory.paths.isEmpty else { throw CocoaError(.fileReadUnknown) }
-    var state = try state()
+    if inventory.paths.isEmpty {
+      // The enumerator can produce no entries for a file or an unreadable directory.
+      // A newly created, readable project folder is a valid starting point.
+      _ = try FileManager.default.contentsOfDirectory(atPath: root.path)
+    }
+    try FileManager.default.createDirectory(
+      at: workspace, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+    guard try AgentSandbox.canonicalRoot(workspace).path == task.appendingPathComponent(workspace.lastPathComponent).path
+    else { throw CocoaError(.fileWriteNoPermission) }
+    let existing = try files().paths
+    let previous = try versions().first?.id
+    state.messagesBeforeAttachment = Set(state.messageCheckpoints?.keys.map { $0 } ?? [])
     state.source = root.path
     state.skippedFiles = inventory.skipped
-    for path in inventory.paths {
-      let data = try HTMLPreview.data(at: root.appendingPathComponent(path), in: root)
-      let mode =
-        (try FileManager.default.attributesOfItem(atPath: root.appendingPathComponent(path).path)[
-          .posixPermissions] as? NSNumber)?.uint16Value
-      try Self.write(data, path: path, root: workspace, mode: mode)
-      state.originalHashes[path] = Self.digest(data)
+    var installed: [String] = []
+    var createdDirectories: [String] = []
+    var checkpointStarted = false
+    do {
+      for path in inventory.paths {
+        let file = try Self.diskFile(path, root: root)
+        // Never overwrite a task file, including one created since the inventory.
+        try Self.write(file.data, path: path, root: workspace, mode: file.mode, replacing: false) {
+          createdDirectories.append($0)
+        }
+        installed.append(path)
+        state.originalHashes[path] = Self.digest(file.data)
+      }
+      checkpointStarted = true
+      // Only source files belong to the original project's baseline. Existing task files
+      // remain visible as additions in the review before anything is applied to the source.
+      state.baseline = try checkpoint("Project imported", includedPaths: inventory.paths)
+      if !existing.isEmpty { _ = try checkpoint("Attached project and existing task files") }
+      try save(state)
+    } catch {
+      for path in installed.reversed() {
+        if let live = try? Self.diskFile(path, root: workspace),
+          Self.digest(live.data) == state.originalHashes[path] {
+          try Self.remove(path: path, root: workspace)
+        }
+      }
+      for path in createdDirectories.reversed() {
+        try Self.remove(path: path, root: workspace, emptyDirectory: true)
+      }
+      if checkpointStarted && FileManager.default.fileExists(atPath: repository.path) {
+        if let previous { _ = try git(["update-ref", "HEAD", previous]) }
+        else { try FileManager.default.removeItem(at: repository) }
+      }
+      throw error
     }
-    try save(state)
-    state.baseline = try checkpoint("Project imported")
-    try save(state)
   }
 
   /// Anchor every directory to descriptors; an Agent-created symlink cannot redirect a write.
-  static func write(_ data: Data, path: String, root: URL, mode: mode_t? = nil) throws {
+  static func write(_ data: Data, path: String, root: URL, mode: mode_t? = nil, replacing: Bool = true,
+    onCreateDirectory: ((String) -> Void)? = nil) throws {
     mutation.lock()
     defer { mutation.unlock() }
     guard validPath(path), data.count <= HTMLPreview.maximumBytes else {
@@ -249,8 +382,10 @@ struct AgentProjectStore: Sendable {
     guard descriptor >= 0 else { throw CocoaError(.fileWriteNoPermission) }
     defer { close(descriptor) }
     let parts = path.split(separator: "/").map(String.init)
-    for part in parts.dropLast() {
-      if mkdirat(descriptor, part, 0o755) != 0 && errno != EEXIST { throw POSIXError(.EACCES) }
+    for (index, part) in parts.dropLast().enumerated() {
+      if mkdirat(descriptor, part, 0o755) == 0 {
+        onCreateDirectory?(parts[...index].joined(separator: "/"))
+      } else if errno != EEXIST { throw POSIXError(.EACCES) }
       let next = openat(descriptor, part, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
       guard next >= 0 else { throw CocoaError(.fileWriteNoPermission) }
       close(descriptor)
@@ -275,7 +410,13 @@ struct AgentProjectStore: Sendable {
     let handle = FileHandle(fileDescriptor: file, closeOnDealloc: false)
     try handle.write(contentsOf: data)
     try handle.synchronize()
-    guard renameat(descriptor, temporary, descriptor, parts.last!) == 0 else {
+    if replacing {
+      guard renameat(descriptor, temporary, descriptor, parts.last!) == 0 else { throw POSIXError(.EACCES) }
+    } else if linkat(descriptor, temporary, descriptor, parts.last!, 0) != 0 {
+      if errno == EEXIST {
+        throw NSError(domain: "MLXL3.Project", code: 5, userInfo: [NSLocalizedDescriptionKey:
+          L("Un fichier de la tâche existe déjà à cet emplacement : ", "A task file already exists at this path: ") + path])
+      }
       throw POSIXError(.EACCES)
     }
   }
@@ -334,6 +475,10 @@ struct AgentProjectStore: Sendable {
   }
 
   @discardableResult func checkpoint(_ title: String, force: Bool = true) throws -> String {
+    try checkpoint(title, force: force, includedPaths: nil)
+  }
+
+  private func checkpoint(_ title: String, force: Bool = true, includedPaths: [String]?) throws -> String {
     Self.mutation.lock()
     defer { Self.mutation.unlock() }
     try FileManager.default.createDirectory(
@@ -341,6 +486,7 @@ struct AgentProjectStore: Sendable {
     try FileManager.default.createDirectory(
       at: metadata, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
     let inventory = try files()
+    let paths = includedPaths ?? inventory.paths
     if !FileManager.default.fileExists(atPath: repository.path) {
       _ = try git(["init", "--bare", repository.path])
     }
@@ -353,10 +499,10 @@ struct AgentProjectStore: Sendable {
     .write(to: info.appendingPathComponent("attributes"), options: .atomic)
     _ = try git(["read-tree", "--empty"])
     // Explicit paths prevent .gitignore or an Agent's exclusions from hiding a changed file.
-    for start in stride(from: 0, to: inventory.paths.count, by: 100) {
+    for start in stride(from: 0, to: paths.count, by: 100) {
       _ = try git(
         ["add", "-f", "--"]
-          + Array(inventory.paths[start..<min(start + 100, inventory.paths.count)]))
+          + paths[start..<min(start + 100, paths.count)].map { ":(literal)" + $0 })
     }
     let indexed = String(decoding: try git(["ls-files", "--stage", "-z"]), as: UTF8.self).split(
       separator: "\0")
@@ -389,6 +535,10 @@ struct AgentProjectStore: Sendable {
     guard revision.utf8.count == 40,
       revision.utf8.allSatisfy({ (48...57).contains($0) || (97...102).contains($0) })
     else { throw CocoaError(.fileReadCorruptFile) }
+  }
+
+  static func editorText(_ bytes: Data) -> String? {
+    bytes.contains(0) ? nil : String(data: bytes, encoding: .utf8)
   }
 
   func contents(_ path: String, revision: String) throws -> Data {
@@ -514,7 +664,7 @@ struct AgentProjectStore: Sendable {
     }
   }
 
-  private static func remove(path: String, root: URL) throws {
+  private static func remove(path: String, root: URL, emptyDirectory: Bool = false) throws {
     guard validPath(path) else { throw CocoaError(.fileWriteNoPermission) }
     let root = try AgentSandbox.canonicalRoot(root)
     var descriptor = open(root.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW | O_CLOEXEC)
@@ -527,7 +677,10 @@ struct AgentProjectStore: Sendable {
       close(descriptor)
       descriptor = next
     }
-    guard unlinkat(descriptor, parts.last!, 0) == 0 else { throw POSIXError(.EACCES) }
+    if unlinkat(descriptor, parts.last!, emptyDirectory ? AT_REMOVEDIR : 0) != 0 {
+      if emptyDirectory && (errno == ENOTEMPTY || errno == ENOENT) { return }
+      throw POSIXError(.EACCES)
+    }
   }
 
   func restore(_ revision: String) throws {

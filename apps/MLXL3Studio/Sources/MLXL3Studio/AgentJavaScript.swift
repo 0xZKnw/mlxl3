@@ -60,6 +60,7 @@ enum AgentJavaScript {
     var wall = AgentJavaScript.seconds
     /// File keeping `state` between calls (outside the workspace); nil: no persistence.
     var stateFile: URL?
+    var commandFolder: URL?
   }
 
   /// Wall of one call for `commandSeconds`, when the engine accepts a longer MCP deadline.
@@ -190,7 +191,7 @@ enum AgentJavaScript {
     private var table: [Int: Job] = [:]
     private var next = 1
 
-    func start(root: URL, command: String, writable: Bool, network: Bool) throws -> Int {
+    func start(root: URL, command: String, writable: Bool, network: Bool, commandFolder: URL? = nil) throws -> Int {
       lock.lock()
       defer { lock.unlock() }
       guard table.values.filter({ $0.watcher.result == nil }).count < Self.running else {
@@ -209,6 +210,7 @@ enum AgentJavaScript {
         : nil
       let watcher = AgentSandbox.Watcher(spill: spill)
       table[id] = Job(id: id, command: command, started: ProcessInfo.processInfo.systemUptime, watcher: watcher)
+      let recording = AgentCommandReceipt.start(command: command, in: commandFolder)
       Thread {
         let result =
           (try? AgentSandbox.execute(
@@ -217,6 +219,7 @@ enum AgentJavaScript {
             spill: spill))
           ?? AgentSandbox.Result(
             output: "the sandbox refused the command", status: 126, interrupted: false, raw: nil, omitted: nil)
+        recording?.finish(result)
         watcher.finish(result)
       }.start()
       return id
@@ -483,7 +486,7 @@ enum AgentJavaScript {
             }
             let reply = perform(
               op, args, root: root, permissions: permissions, deadline: deadline, parent: parent,
-              jobs: jobs)
+              jobs: jobs, commandFolder: settings.commandFolder)
             guard writeLine(reply, to: process.input) else {
               failure = "the program stopped while a function was answering"
               break loop
@@ -681,7 +684,7 @@ enum AgentJavaScript {
   /// One host function, answered as `{ok, value}` or `{ok: false, error}`.
   static func perform(
     _ op: String, _ args: [Any], root: URL, permissions: AgentPermissions, deadline: Double,
-    parent: pid_t, jobs: Jobs = Jobs()
+    parent: pid_t, jobs: Jobs = Jobs(), commandFolder: URL? = nil
   ) -> [String: Any] {
     func failure(_ text: String) -> [String: Any] { ["ok": false, "error": text] }
     func text(_ index: Int) -> String? { index < args.count ? args[index] as? String : nil }
@@ -828,7 +831,7 @@ enum AgentJavaScript {
       // v2's shell), and the model gets its id and output so far instead of a killed command.
       let id: Int
       do {
-        id = try jobs.start(root: root, command: command, writable: permissions.write, network: permissions.internet)
+        id = try jobs.start(root: root, command: command, writable: permissions.write, network: permissions.internet, commandFolder: commandFolder)
       } catch { return failure("\(error)") }
       guard let job = jobs.wait(id, seconds: min(Double(permissions.commandSeconds), remaining - 0.3)) else {
         return failure("the job disappeared")
@@ -854,7 +857,7 @@ enum AgentJavaScript {
         !command.contains("\0")
       else { return failure("the command must be 1 to \(AgentSandbox.maximumCommand) bytes") }
       do {
-        return ["ok": true, "value": try jobs.start(root: root, command: command, writable: permissions.write, network: permissions.internet)]
+        return ["ok": true, "value": try jobs.start(root: root, command: command, writable: permissions.write, network: permissions.internet, commandFolder: commandFolder)]
       } catch { return failure("\(error)") }
     case "jobs":
       return ["ok": true, "value": jobs.list()]
@@ -1088,7 +1091,8 @@ enum AgentJavaScript {
           outcome =
             (try? kernel.run(
               code: code, text: request["text"] as? String, permissions: permissions,
-              settings: Settings(wall: wall, stateFile: stateFile)))
+              settings: Settings(wall: wall, stateFile: stateFile,
+                commandFolder: (request["commandFolder"] as? String).map { URL(fileURLWithPath: $0) })))
             ?? Outcome(text: "Error: the JavaScript sandbox refused the call.", isError: true)
         }
         guard let data = try? JSONEncoder().encode(outcome),

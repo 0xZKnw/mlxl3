@@ -7,6 +7,7 @@ import subprocess
 import sys
 import tempfile
 import time
+import uuid
 from pathlib import Path
 
 helper = str(Path(sys.argv[1]).resolve())
@@ -29,13 +30,16 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     root.mkdir()
 
     # The structured-tools checks name their harness; `permissions=False` omits the file.
-    def exchange(messages, raw=None, permissions=None, long_calls=False, *, timeout=12):
+    def exchange(messages, raw=None, permissions=None, long_calls=False, *, timeout=12, command_turn=None):
         payload = raw if raw is not None else ''.join(json.dumps(item) + '\n' for item in messages)
         arguments = [helper, '--agent-tools', str(root)]
         if permissions is None:
             permissions = {'harness': 'tools'}
         if permissions is not False:
-            metadata.write_text(json.dumps({'permissions': permissions}))
+            envelope = {'permissions': permissions}
+            if command_turn:
+                envelope['activeCommandTurn'] = command_turn
+            metadata.write_text(json.dumps(envelope))
             arguments.append(str(metadata))
             if long_calls:
                 arguments.append('long-calls')
@@ -54,6 +58,20 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     check([tool['name'] for tool in responses[1]['result']['tools']] == ['run', 'list_files', 'read_file', 'write_file'], 'Only built-in sandbox tools exposed')
     check(responses[2]['result']['isError'] is False and 'protocol-ok' in responses[2]['result']['content'][0]['text'], 'Real command through MCP')
     check((root / 'result.txt').read_text() == 'protocol-ok', 'Production tool writes actual file')
+    # Results come from the host even if the JavaScript or shell prints fake successes.
+    for harness, name, args in [
+        ('tools', 'run', {'command': 'printf "passed"; exit 4'}),
+        ('javascript', 'javascript', {'code': 'run("exit 4"); return "all tests passed"'}),
+    ]:
+        turn = str(uuid.uuid4()).upper()
+        folder = metadata.parent / 'command-receipts' / turn
+        folder.mkdir(parents=True)
+        result, responses = exchange([request('tools/call', {'name': name, 'arguments': args})],
+                                     permissions={'harness': harness}, command_turn=turn)
+        check(result.returncode == 0 and len(responses) == 1, f'{harness} returned a tool response')
+        recorded = [json.loads(path.read_text()) for path in folder.iterdir()]
+        check(recorded == [{'testCommand': False, 'outcome': 'failure'}],
+              f'{harness} records the real process exit independently of tool output')
     for params in [
         {'name': 'unknown', 'arguments': {'command': 'true'}},
         {'name': 'run', 'arguments': {}},

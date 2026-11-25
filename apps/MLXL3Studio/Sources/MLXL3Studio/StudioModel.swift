@@ -177,6 +177,10 @@ final class StudioModel: ObservableObject {
     private(set) var engineLongToolCalls = false
     /// The running engine announces `agent_loop_supported` (reported at ready).
     private(set) var engineAgentLoop = false
+    private var engineCanYieldAgentTurn = false
+    private var activeEngineAcknowledged = false
+    private var didRequestAgentYield = false
+    @Published private(set) var queuedAgentGuidance: String?
     /// Engines announcing this verify MTP drafts by exact speculative sampling.
     @Published private(set) var mtpSamplingSupported: Bool?
     /// The engine verifies DFlash2 with exact speculative sampling (engine 2.0.19+).
@@ -271,6 +275,11 @@ final class StudioModel: ObservableObject {
     private var modelLoadID = UUID()
     private var activeRequestID: String? {
         didSet {
+            if activeRequestID != oldValue {
+                activeEngineAcknowledged = false
+                didRequestAgentYield = false
+                if queuedAgentGuidance != nil { queuedAgentGuidance = nil }
+            }
             if activeRequestID == nil {
                 generationWatchdog?.cancel(); generationWatchdog = nil
                 cancellationFallback?.cancel(); cancellationFallback = nil
@@ -279,6 +288,7 @@ final class StudioModel: ObservableObject {
             }
         }
     }
+    private var attachedFolderCache: (id: UUID, url: URL?)?
     @Published var agentStudioBusy = false
     @Published var studioDocument: StudioDocument?
     private var generationWatchdog: Task<Void, Never>?
@@ -899,6 +909,25 @@ final class StudioModel: ObservableObject {
         bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.keys.allSatisfy { $0 == "exa" }
     }
 
+    var canSteerActiveAgent: Bool {
+        guard let request = activeRequestID, let response = activeResponseID else { return false }
+        return selectedMode == .agent && currentConversation?.agent == true
+            && currentConversation?.messages.last?.id == response && composerBusy
+            && cancelledGenerationID != request && queuedAgentGuidance == nil
+    }
+
+    var canQueueAgentGuidance: Bool {
+        canSteerActiveAgent && pendingAttachments.isEmpty
+            && !draft.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
+    private func requestAgentYieldIfReady() {
+        guard engineCanYieldAgentTurn, activeEngineAcknowledged, !didRequestAgentYield,
+              queuedAgentGuidance != nil, cancelledGenerationID != activeRequestID else { return }
+        if bridge.yieldAfterAgentTool() { didRequestAgentYield = true }
+        else { engineCanYieldAgentTurn = false; objectWillChange.send() }
+    }
+
     var canAttemptSend: Bool { canSend || (!engineState.isReady && !isGenerating && hasDraftContent) }
 
     var canSend: Bool {
@@ -911,6 +940,11 @@ final class StudioModel: ObservableObject {
 
     var sendBlockReason: String? {
         if preparingDocuments { return L("Recherche dans les documents…", "Searching documents…") }
+        if queuedAgentGuidance != nil, cancellationReason == nil {
+            return engineCanYieldAgentTurn
+                ? L("Précision en attente de la fin de l’action en cours.", "Instruction queued until the current action finishes.")
+                : L("Ce moteur transmettra la précision à la fin du tour.", "This engine will send the instruction when the turn ends.")
+        }
         if composerBusy { return cancellationReason ?? L("Génération en cours", "Generating") }
         guard !canSend else { return nil }
         if isImportingFiles || libraryImporting { return L("Import de fichiers en cours", "Importing files") }
@@ -1430,6 +1464,13 @@ final class StudioModel: ObservableObject {
     private(set) var lastSubmittedMessageID: UUID?
 
     func send() {
+        if composerBusy {
+            guard canQueueAgentGuidance else { return }
+            // Keep the text in the persisted draft until the next turn actually starts.
+            queuedAgentGuidance = draft
+            requestAgentYieldIfReady()
+            return
+        }
         if !engineState.isReady && !isGenerating && hasDraftContent { attemptedSendWithoutModel = true }
         guard canSend, let conversation = currentConversation else { return }
         // Chat wins over automatic tuning: stop it, then send once the engine acknowledges.
@@ -1477,7 +1518,7 @@ final class StudioModel: ObservableObject {
         }
         let userID = UUID()
         if currentConversation?.agent == true, let workspace = agentWorkspaceURL {
-            do { try AgentProjectStore(workspace: workspace).checkpoint(messageID: userID) }
+            do { try AgentProjectStore(workspace: workspace).checkpoint(messageID: userID, startingTurn: true) }
             catch { featureError = error.localizedDescription; return }
         }
         voice.stop()
@@ -1614,6 +1655,9 @@ final class StudioModel: ObservableObject {
 
     private func forceStopGeneration(_ reason: String) {
         activeMessage()?.fail(reason)
+        // Capture the interrupted message before ejectModel clears its ID. The snapshot
+        // waits for the retiring engine below; tools may still be finishing a write.
+        finishAgentTurn(afterEngineStop: true)
         labConfiguration = nil
         activeRequestID = nil; activeResponseID = nil
         ejectModel()
@@ -2418,7 +2462,14 @@ final class StudioModel: ObservableObject {
     }
 
     private func handle(_ event: BridgeEvent) {
-        if let activeRequestID, event.requestID == activeRequestID { generationLastActivity = .now }
+        if let activeRequestID, event.requestID == activeRequestID {
+            generationLastActivity = .now
+            if !activeEngineAcknowledged, generationStartedAt != nil,
+               ["generation_status", "delta", "tool_start", "tool_result"].contains(event.type) {
+                activeEngineAcknowledged = true
+                requestAgentYieldIfReady()
+            }
+        }
         if dflashConfigurationPending && event.type == "error" && (event.requestID == nil || event.requestID == "") {
             dflashDownloadError = event.message ?? L("La configuration DFlash a échoué.", "DFlash configuration failed.")
             dflash2Enabled = false; dflashActive = nil
@@ -2464,6 +2515,7 @@ final class StudioModel: ObservableObject {
         case "loading":
             engineState = .loading(event.model ?? selectedModelName ?? "modèle")
         case "ready":
+            engineCanYieldAgentTurn = event.agentYieldSupported == true
             memorySaverSupported = event.memorySaverSupported == true
             engineReasoningSupported = event.reasoningEffortSupported == true
             engineReasoningLevels = event.reasoningEffortLevels.map { Set($0.compactMap(ReasoningEffort.init(rawValue:))) }
@@ -2606,7 +2658,8 @@ final class StudioModel: ObservableObject {
             message?.turnContext = event.turnContext
             message?.finish(
                 stats: event.stats,
-                fallbackAnswer: event.assistantContext,
+                fallbackAnswer: event.stopReason == "agent_yield" && (event.assistantContext ?? "").isEmpty
+                    ? L("Tâche mise en pause.", "Task paused.") : event.assistantContext,
                 cacheContext: event.cacheContext
             )
             if event.contextFull == true {
@@ -2618,13 +2671,22 @@ final class StudioModel: ObservableObject {
                     message?.fail(L("Limite de 32 768 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.", "32,768-token Agent limit reached. Partial output was kept; continue in another turn."))
                 }
             }
-            if message?.error == nil, event.contextFull != true, message?.content.isEmpty == false {
+            if queuedAgentGuidance == nil, message?.error == nil, event.contextFull != true, message?.content.isEmpty == false {
                 notifyGenerationFinished(requestID: requestID)
             }
             if let index = conversations.firstIndex(where: { $0.messages.contains { $0.id == activeResponseID } }) {
                 conversations[index].updatedAt = .now
             }
-            finishAgentTurn()
+            let guidance = queuedAgentGuidance
+            let threadID = selectedConversationID
+            let responseID = activeResponseID
+            let resume = guidance != nil && message?.error == nil && cancelledGenerationID != requestID
+            finishAgentTurn { [weak self] in
+                guard resume, let self, let guidance, draft == guidance, selectedMode == .agent,
+                      selectedConversationID == threadID, currentConversation?.messages.last?.id == responseID,
+                      activeRequestID == nil, canSend else { return }
+                send()
+            }
             activeRequestID = nil
             activeResponseID = nil
             schedulePersistence()
@@ -2909,26 +2971,47 @@ extension StudioModel {
             .appending(path: "agent-workspaces/\(id.uuidString)/files", directoryHint: .isDirectory)
     }
 
+    var attachedAgentFolder: URL? {
+        guard selectedMode == .agent, let id = selectedConversationID, let workspace = agentWorkspaceURL else { return nil }
+        if let cached = attachedFolderCache, cached.id == id { return cached.url }
+        guard let state = try? AgentProjectStore(workspace: workspace).state() else { return nil }
+        let folder = state.source.map { URL(fileURLWithPath: $0, isDirectory: true) }
+        attachedFolderCache = (id, folder)
+        return folder
+    }
+
+    func chooseAgentProject() {
+        guard selectedMode == .agent, let id = selectedConversationID,
+              !isGenerating, !agentStudioBusy, attachedAgentFolder == nil else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = L("Rattacher", "Attach")
+        panel.message = L("L’agent travaillera sur une copie dans cette conversation. Vous pourrez examiner les changements avant de les appliquer au dossier.",
+                          "The Agent will work on a copy in this conversation. You can review changes before applying them to the folder.")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task {
+            guard selectedConversationID == id else { return }
+            await openAgentProject(url)
+        }
+    }
+
     func openAgentProject(_ source: URL) async {
-        guard !isGenerating, !agentStudioBusy else { return }
+        guard selectedMode == .agent, currentConversation?.agent == true, let id = selectedConversationID,
+              let workspace = agentWorkspaceURL, !isGenerating, !agentStudioBusy else { return }
         agentStudioBusy = true
         defer { agentStudioBusy = false }
-        var conversation = Conversation(title: source.lastPathComponent)
-        conversation.agent = true
-        conversation.projectID = selectedProjectID
-        let workspace = conversationFileURL.deletingLastPathComponent().resolvingSymlinksInPath()
-            .appendingPathComponent("agent-workspaces/\(conversation.id.uuidString)/files")
         do {
             try await Task.detached { try AgentProjectStore(workspace: workspace).importProject(source) }.value
-            if let id = selectedConversationID { drafts[id] = draft }
-            conversations.insert(conversation, at: 0)
-            selectedConversationID = conversation.id
-            selectedMode = .agent
-            draft = ""
-            studioDocument = StudioDocument(workspace: workspace)
-            schedulePersistence()
-            refreshAgentWorkspace()
-        } catch { featureError = error.localizedDescription }
+            attachedFolderCache = nil
+            guard selectedMode == .agent, selectedConversationID == id else { return }
+            // The registry already points at this thread's copy. The picker in the
+            // conversation stays there; an open editor reloads its imported files.
+            if studioDocument?.workspace == workspace { studioDocument = StudioDocument(workspace: workspace) }
+        } catch {
+            if selectedMode == .agent, selectedConversationID == id { featureError = error.localizedDescription }
+        }
     }
 
     func openAgentWorkspace() {
@@ -3002,15 +3085,21 @@ extension StudioModel {
         catch { featureError = error.localizedDescription }
     }
 
-    private func finishAgentTurn() {
+    private func finishAgentTurn(afterEngineStop: Bool = false, onSaved: (@MainActor () -> Void)? = nil) {
         guard currentConversation?.agent == true, let workspace = agentWorkspaceURL,
             let messageID = activeResponseID else { return }
         let store = AgentProjectStore(workspace: workspace)
         agentStudioBusy = true
         Task {
-            defer { agentStudioBusy = false }
-            do { try await Task.detached { try store.checkpoint(messageID: messageID) }.value }
-            catch { featureError = error.localizedDescription }
+            if afterEngineStop { await bridge.waitForRetiringProcesses() }
+            do {
+                try await Task.detached { try store.checkpoint(messageID: messageID) }.value
+                agentStudioBusy = false
+                onSaved?()
+            } catch {
+                agentStudioBusy = false
+                featureError = error.localizedDescription
+            }
         }
     }
 

@@ -57,6 +57,7 @@ pub trait Host {
     fn call_tool(&mut self, name: &str, arguments: Value) -> ToolResult;
     fn emit(&mut self, event: Value) -> Result<()>;
     fn cancellation(&self) -> &AtomicBool;
+    fn yield_requested(&self) -> bool;
     /// The prompt cache no longer matches what the next step renders.
     fn forget_prompt_cache(&mut self);
     /// The model state after a cancellation (the bridge resets it before failing).
@@ -93,6 +94,75 @@ pub struct TurnEnd {
     /// The JSON answer was validated and shown.
     pub json_answer: bool,
     pub rounds: usize,
+}
+
+/// Steering lets a running MCP call finish. A simultaneous Stop wins at the next boundary.
+#[derive(Debug, PartialEq, Eq)]
+enum ToolBoundary {
+    Continue,
+    Yield,
+    Cancel,
+}
+
+fn tool_boundary(cancelled: bool, yield_requested: bool) -> ToolBoundary {
+    if cancelled {
+        ToolBoundary::Cancel
+    } else if yield_requested {
+        ToolBoundary::Yield
+    } else {
+        ToolBoundary::Continue
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn queued_guidance_never_overrides_stop_or_starts_a_tool() {
+    let cancelled = kani::any();
+    let queued = kani::any();
+    let action = tool_boundary(cancelled, queued);
+    assert_eq!(action == ToolBoundary::Cancel, cancelled);
+    assert_eq!(action == ToolBoundary::Continue, !cancelled && !queued);
+    assert_eq!(action == ToolBoundary::Yield, !cancelled && queued);
+    kani::cover!(cancelled && queued && action == ToolBoundary::Cancel);
+    kani::cover!(action == ToolBoundary::Yield);
+    kani::cover!(action == ToolBoundary::Continue);
+}
+
+/// Keep the same tool failures the UI saw. The parser's private repair notes are not
+/// user messages. A note can also carry the summary of earlier, compacted exchanges.
+fn yielded_turn(
+    host: &mut dyn Host,
+    transcript: &[Value],
+    answer: String,
+    token_hash: String,
+    rounds: usize,
+) -> Result<TurnEnd> {
+    host.forget_prompt_cache();
+    let mut history = Vec::new();
+    for message in transcript {
+        if message["role"] == "user" {
+            history.pop(); // the preceding malformed assistant call
+            history.push(std::borrow::Cow::Owned(json!({
+                "role":"assistant", "content":"", "tool_calls":[{"type":"function",
+                    "function":{"name":"invalid_tool_call", "arguments":{}}}]
+            })));
+            history.push(std::borrow::Cow::Owned(json!({
+                "role":"tool", "name":"invalid_tool_call", "content":message["content"]
+            })));
+        } else {
+            history.push(std::borrow::Cow::Borrowed(message));
+        }
+    }
+    Ok(TurnEnd {
+        raw: answer.clone(),
+        assistant: answer,
+        token_hash,
+        context_full: false,
+        stop_reason: "agent_yield",
+        turn_context: Some(serde_json::to_string(&history)?),
+        json_answer: false,
+        rounds,
+    })
 }
 
 /// Runs one turn on `dialogue` with `tools` offered to the model.
@@ -200,6 +270,23 @@ pub fn run_turn(
         })?;
         generated_total += output.generated_tokens;
         prompt_estimate = Some(output.context_used);
+        // The model step has ended. A queued instruction can take over before a retry,
+        // another reasoning segment or the first tool; an explicit Stop takes priority.
+        if host.yield_requested() {
+            if host.cancellation().load(Ordering::Relaxed) {
+                host.reset_model();
+                bail!("generation cancelled");
+            }
+            let answer = step_answer + &output.answer;
+            dialogue.push(json!({"role":"assistant", "content":answer}));
+            return yielded_turn(
+                host,
+                &dialogue[turn.original_length..],
+                answer,
+                output.token_hash,
+                round,
+            );
+        }
         if let Some(text) = output.reasoning_cut {
             forced_closes += 1;
             step_raw.push_str(&output.raw);
@@ -364,20 +451,40 @@ pub fn run_turn(
                 call
             })
             .collect();
-        let tool_calls: Vec<_> = calls
-            .iter()
-            .map(|call| json!({"type":"function", "function":{"name":call.name, "arguments":call.arguments}}))
-            .collect();
-        dialogue.push(json!({
-            "role":"assistant",
-            "content":answer,
-            "tool_calls":tool_calls
-        }));
-        for call in calls {
-            if host.cancellation().load(Ordering::Relaxed) {
-                host.reset_model();
-                bail!("generation cancelled");
+        let assistant_index = dialogue.len();
+        dialogue.push(json!({"role":"assistant", "content":answer, "tool_calls":[]}));
+        let mut calls = calls.into_iter();
+        // Check before the first call, between individual calls in a batch, and after the
+        // final result. The transcript contains only calls that were actually dispatched.
+        loop {
+            match tool_boundary(
+                host.cancellation().load(Ordering::Relaxed),
+                host.yield_requested(),
+            ) {
+                ToolBoundary::Cancel => {
+                    host.reset_model();
+                    bail!("generation cancelled");
+                }
+                ToolBoundary::Yield => {
+                    let ran_tools = dialogue.len() > assistant_index + 1;
+                    if ran_tools {
+                        dialogue.push(json!({"role":"assistant", "content":""}));
+                    } else {
+                        dialogue[assistant_index] = json!({"role":"assistant", "content":answer});
+                    }
+                    return yielded_turn(
+                        host,
+                        &dialogue[turn.original_length..],
+                        answer,
+                        output.token_hash,
+                        round + usize::from(ran_tools),
+                    );
+                }
+                ToolBoundary::Continue => {}
             }
+            let Some(call) = calls.next() else { break };
+            dialogue[assistant_index]["tool_calls"].as_array_mut().expect("tool_calls is initialized as an array")
+                .push(json!({"type":"function", "function":{"name":call.name, "arguments":call.arguments}}));
             let server = host.server(&call.name);
             let call_id = format!("mcp-{round}-{}-{}", dialogue.len(), call.name);
             host.emit(json!({
@@ -615,6 +722,7 @@ mod tests {
         cancelled: AtomicBool,
         /// Cancel once this many tools ran.
         cancel_after: Option<usize>,
+        yield_after: Option<usize>,
         resets: usize,
         forgets: usize,
         shown: usize,
@@ -634,6 +742,7 @@ mod tests {
                 calls: Vec::new(),
                 cancelled: AtomicBool::new(false),
                 cancel_after: None,
+                yield_after: None,
                 resets: 0,
                 forgets: 0,
                 shown: 0,
@@ -735,6 +844,10 @@ mod tests {
         fn emit(&mut self, event: Value) -> Result<()> {
             self.events.push(event);
             Ok(())
+        }
+
+        fn yield_requested(&self) -> bool {
+            self.yield_after == Some(self.calls.len())
         }
 
         fn cancellation(&self) -> &AtomicBool {
@@ -1130,6 +1243,80 @@ mod tests {
     }
 
     #[test]
+    fn guidance_yields_between_individual_calls_and_replays_only_finished_tools() -> Result<()> {
+        for count in 0..=2 {
+            let mut batch = call("first");
+            batch.tool_text += &call("second").tool_text;
+            let mut host = ScriptHost::new(vec![batch]);
+            host.yield_after = Some(count);
+            let end = run_turn(&mut host, dialogue(), &tools(), &turn(100_000, 8))?;
+            assert_eq!(end.stop_reason, "agent_yield");
+            assert_eq!(host.calls.len(), count);
+            assert_eq!(host.requests.len(), 1);
+            assert_eq!(host.resets, 0);
+            assert_eq!(host.forgets, 1);
+            let history: Vec<Value> = serde_json::from_str(end.turn_context.as_deref().unwrap())?;
+            assert_eq!(history.len(), if count == 0 { 1 } else { count + 2 });
+            assert_eq!(
+                history[0]["tool_calls"].as_array().map_or(0, Vec::len),
+                count
+            );
+            for (index, expected) in ["first", "second"][..count].iter().enumerate() {
+                assert_eq!(history[index + 1]["content"], format!("ran {expected}"));
+            }
+            assert!(
+                history
+                    .last()
+                    .is_some_and(|m| m["role"] == "assistant" && m.get("tool_calls").is_none())
+            );
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn guidance_handles_unreadable_calls_without_replaying_synthetic_users() -> Result<()> {
+        let malformed = "<tool_call>{\"name\":";
+        for count in [0, 1] {
+            let mut broken = call("");
+            broken.tool_text = malformed.into();
+            let mut host = ScriptHost::new(vec![broken, call("read")]);
+            host.yield_after = Some(count);
+            let end = run_turn(&mut host, dialogue(), &tools(), &turn(100_000, 8))?;
+            let history: Vec<Value> = serde_json::from_str(end.turn_context.as_deref().unwrap())?;
+            assert_eq!(host.calls.len(), count);
+            assert_eq!(host.requests.len(), count + 1);
+            assert!(
+                history
+                    .iter()
+                    .all(|m| matches!(m["role"].as_str(), Some("assistant" | "tool")))
+            );
+            assert!(!history.iter().any(|m| m["content"] == malformed));
+            if count == 1 {
+                assert_eq!(history[1]["name"], "invalid_tool_call");
+                assert_eq!(history[1]["content"], host.events[2]["text"]);
+                assert_eq!(history[3]["content"], "ran read");
+            }
+        }
+        Ok(())
+    }
+
+    #[test]
+    fn simultaneous_stop_and_guidance_cancel_at_model_step_end() {
+        let mut broken = call("");
+        broken.tool_text = "<tool_call>{\"name\":".into();
+        for step in [answer("finished"), broken, call("write")] {
+            let mut host = ScriptHost::new(vec![step]);
+            host.yield_after = Some(0);
+            host.cancelled.store(true, Ordering::Relaxed);
+            let error = run_turn(&mut host, dialogue(), &tools(), &turn(100_000, 8)).unwrap_err();
+            assert_eq!(error.to_string(), "generation cancelled");
+            assert_eq!(host.resets, 1);
+            assert!(host.calls.is_empty());
+            assert_eq!(host.requests.len(), 1);
+        }
+    }
+
+    #[test]
     fn a_cancellation_between_calls_stops_the_turn_and_resets_the_model() {
         let two = format!(
             "<tool_call>{}</tool_call><tool_call>{}</tool_call>",
@@ -1251,6 +1438,23 @@ mod tests {
             "the next turns see it too"
         );
         assert_eq!(host.calls.len(), 8);
+        Ok(())
+    }
+
+    #[test]
+    fn guidance_after_compaction_preserves_replayable_tool_history() -> Result<()> {
+        let mut host = heavy(12);
+        host.summaries.push_back(answer("- changed settings"));
+        host.yield_after = Some(9);
+        let end = run_turn(&mut host, dialogue(), &tools(), &turn(20_000, 50))?;
+        assert_eq!((end.stop_reason, host.calls.len()), ("agent_yield", 9));
+        let context: Vec<Value> = serde_json::from_str(end.turn_context.as_deref().unwrap())?;
+        assert!(carries_summary(&context, "- changed settings"));
+        assert!(
+            context
+                .iter()
+                .all(|m| matches!(m["role"].as_str(), Some("assistant" | "tool")))
+        );
         Ok(())
     }
 
