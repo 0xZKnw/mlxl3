@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     root.mkdir()
 
     # The structured-tools checks name their harness; `permissions=False` omits the file.
-    def exchange(messages, raw=None, permissions=None, long_calls=False):
+    def exchange(messages, raw=None, permissions=None, long_calls=False, *, timeout=12):
         payload = raw if raw is not None else ''.join(json.dumps(item) + '\n' for item in messages)
         arguments = [helper, '--agent-tools', str(root)]
         if permissions is None:
@@ -40,7 +40,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
             if long_calls:
                 arguments.append('long-calls')
         result = subprocess.run(arguments, input=payload, text=True,
-                                capture_output=True, timeout=12, check=False)
+                                capture_output=True, timeout=timeout, check=False)
         return result, [json.loads(line) for line in result.stdout.splitlines()]
 
     result, responses = exchange([
@@ -58,7 +58,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
         {'name': 'unknown', 'arguments': {'command': 'true'}},
         {'name': 'run', 'arguments': {}},
         {'name': 'run', 'arguments': {'command': ''}},
-        {'name': 'run', 'arguments': {'command': 'x' * 16385}},
+        {'name': 'run', 'arguments': {'command': 'x' * (256 * 1024 + 1)}},
         {'name': 'run', 'arguments': {'command': 'echo\0bad'}},
     ]:
         result, responses = exchange([request('tools/call', params)])
@@ -134,18 +134,34 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     readonly = dict(js_policy, write=False, run=False)
     _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "return typeof write + typeof run"}})], permissions=readonly)
     check(responses[0]['result']['content'][0]['text'] == 'Result:\nundefinedundefined', 'Read-only JavaScript API')
-    for code in ['é' * 16000, '// x\n' * 30000]:
+    limit = 1 << 20
+    # JSON escaping can turn a 1 MiB source into a 6 MiB pipe transfer on the hosted Mac.
+    large_exchange_timeout = 60
+    for code in ['é' * 600000, '// x\n' * 220000, '/' * (limit + 1), '\x01' * (limit + 1)]:
         result, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': code}}, 7),
-                                      request('tools/list', identifier=8)], permissions=js_policy)
-        check(result.returncode == 0 and [row['id'] for row in responses] == [7, 8] and responses[0]['result']['isError'],
-              f'Oversized code refused without ending the server ({len(code.encode())} bytes)')
+                                      request('tools/list', identifier=8)], permissions=js_policy, timeout=large_exchange_timeout)
+        text = responses[0]['result']['content'][0]['text'] if responses else ''
+        check(result.returncode == 0 and [row['id'] for row in responses] == [7, 8] and responses[0]['result']['isError']
+              and f'this code is {len(code.encode())} bytes' in text and 'Nothing was run' in text,
+              f'Oversized code refused with its size, without ending the server ({len(code.encode())} bytes): {text[:160]!r}')
+    # Exactly the limit runs (a comment: no result).
+    _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': '//' + 'x' * (limit - 2)}})],
+                            permissions=js_policy, timeout=large_exchange_timeout)
+    check(not responses[0]['result']['isError'], f"Code of exactly 1 MiB runs: {responses[0]['result']['content'][0]['text'][:200]!r}")
+    # The failing call of a real task: a whole Python game written in one call (about 45,000
+    # tokens), refused at the old 32 KiB limit as "JavaScript sandbox refused or unavailable".
+    game = ''.join(f'vitesse_{i} = clamp(voiture.speed * 0.98 + {i}, -5, 41)  # é — ok "q" \'s\n' for i in range(1500))
+    _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': f"write(\"circuit_race.py\", `{game}`); return 'written'"}})], permissions=js_policy)
+    check(responses[0]['result']['content'][0]['text'] == 'Result:\nwritten' and (root / 'circuit_race.py').read_text() == game and len(game.encode()) > 90000,
+          f"Whole program written in one call ({len(game.encode())} bytes): {responses[0]['result']['content'][0]['text'][:200]!r}")
+    (root / 'circuit_race.py').unlink()
     _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "return 'r'.repeat(100000)"}})], permissions=js_policy)
     big = responses[0]['result']['content'][0]['text']
     # The result keeps its start and end (it used to keep the start and say "truncated").
     check(not responses[0]['result']['isError'] and len(big.encode()) < 33100 and 'omitted' in big
           and big.startswith('Result:\nrrr') and big.endswith('rrr'), f'Large result bounded, start and end kept: {big[:80]!r}…{big[-80:]!r}')
-    _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "write('wide.txt', 'é'.repeat(130000)); return read('wide.txt').length"}})], permissions=js_policy)
-    check(responses[0]['result']['content'][0]['text'] == 'Result:\n130000', f"Widest write fits the protocol: {responses[0]['result']['content'][0]['text'][:200]!r}")
+    _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "write('wide.txt', 'é'.repeat(524288)); return read('wide.txt').length"}})], permissions=js_policy)
+    check(responses[0]['result']['content'][0]['text'] == 'Result:\n524288', f"Widest write fits the protocol: {responses[0]['result']['content'][0]['text'][:200]!r}")
     # run() lets a talkative command finish: start and end of its output, real status.
     chatty = 'i=0; while [ $i -lt 2000 ]; do echo line-$i-xxxxxxxxxxxxxxxxxxxx; i=$((i+1)); done; echo FINISHED > run-done.txt; echo tests: 42 passed'
     _, responses = exchange([

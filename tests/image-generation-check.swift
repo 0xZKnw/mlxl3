@@ -4,6 +4,13 @@ import Foundation
 struct ImageGenerationCheck {
     @MainActor static func main() async throws {
         AppLocalization.set(.en)
+        let fetching = "Fetching 9 files: 100%|########| 9/9 [00:01<00:00]"
+        precondition(ImageGeneration.progressMessage(in: fetching, steps: 9) == nil)
+        precondition(ImageGeneration.progressMessage(in: "Loading tokenizer, text encoder and VAE\r" + fetching, steps: 9) == "Loading the text encoder and VAE…")
+        let log = fetching + "\r  0%|      | 0/9 [00:00<?, ?it/s]\r 44%|####  | 4/9 [00:06<00:09]"
+        precondition(ImageGeneration.progressMessage(in: log, steps: 9) == "Step 4 of 9")
+        precondition(ImageGeneration.progressMessage(in: log + "\r100%|######| 9/9 [00:16<00:00]", steps: 9) == "Finishing the image…")
+        precondition(ImageGeneration.progressMessage(in: "100%|######| 10/9 [00:01<00:00]", steps: 9) == nil)
         let minimum = OperatingSystemVersion(majorVersion: 26, minorVersion: 3, patchVersion: 0)
         let old = OperatingSystemVersion(majorVersion: 26, minorVersion: 2, patchVersion: 9)
         for gpu in ["Apple M5", "Apple M5 Pro", "Apple M5 Max"] {

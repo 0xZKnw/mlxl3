@@ -5,12 +5,13 @@ import importlib.util
 import io
 import math
 import os
+import subprocess
 import sys
 import tempfile
 import unittest
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, call, patch
 
 
 class ImageWorkerTest(unittest.TestCase):
@@ -84,6 +85,70 @@ class ImageWorkerTest(unittest.TestCase):
         )
         self.image.save.assert_called_once_with(output, format="PNG")
 
+    def test_matmul_depth_for_image_projection_shapes(self):
+        for inputs, outputs, bits, depth in (
+            (4096, 4096, 3, 64),
+            (4096, 4096, 4, 64),
+            (4096, 12288, 3, 64),
+            (4096, 12288, 4, 32),
+            (12288, 4096, 3, 32),
+            (12288, 4096, 4, 64),
+            (4096, 4096, 5, 16),
+            (128, 256, 3, 16),
+        ):
+            for block_rows, group, expected in ((64, 4, depth), (32, 1, 16)):
+                with self.subTest(inputs=inputs, outputs=outputs, bits=bits, group=group):
+                    self.worker.qmm(inputs, outputs, bits, block_rows, group)
+                    args = self.core.fast.metal_kernel.call_args.kwargs
+                    self.assertIn(f"#define OP_K {expected}u", args["header"].splitlines())
+
+    def test_native_window_depth_and_invalid_overrides(self):
+        self.worker.qmm(4096, 4096, 3, 64, 4)
+        shader = self.core.fast.metal_kernel.call_args.kwargs["source"]
+
+        def preprocess(step_tiles, inputs, depth=None):
+            command = ["cc", "-E", "-P", "-x", "c", "-DBK=16u"]
+            command += [f"-DSTEP_TILES={step_tiles}u", f"-DINPUT_DIMS={inputs}u"]
+            if depth is not None:
+                command.append(f"-DOP_K={depth}u")
+            return subprocess.run(
+                [*command, "-"],
+                input=shader,
+                capture_output=True,
+                text=True,
+                timeout=10,
+                check=False,
+            )
+
+        for tiles in (1, 2, 4, 8):
+            with self.subTest(tiles=tiles):
+                default = preprocess(tiles, 4112)
+                old_depth = preprocess(tiles, 4112, 16)
+                self.assertEqual(default.returncode, 0, default.stderr)
+                self.assertEqual(old_depth.returncode, 0, old_depth.stderr)
+                self.assertEqual(default.stdout, old_depth.stdout)
+        for tiles, inputs, depth in ((1, 4096, 32), (4, 4112, 64), (4, 4096, 24)):
+            with self.subTest(tiles=tiles, inputs=inputs, depth=depth):
+                self.assertNotEqual(preprocess(tiles, inputs, depth).returncode, 0)
+
+    def test_limits_allocator_cache_before_loading_at_512px(self):
+        order = Mock()
+        order.attach_mock(self.core.set_cache_limit, "limit")
+        order.attach_mock(self.build, "build")
+        self.run_worker("--size", "512")
+        self.assertEqual(order.method_calls, [call.limit(512 * 1024**2), call.build(self.root)])
+
+    def test_preserves_allocator_cache_at_larger_sizes(self):
+        for size in (768, 1024):
+            with self.subTest(size=size), patch.object(self.model.vae, "decode", self.decode):
+                self.saver.reset_mock()
+                self.model.callbacks.reset_mock()
+                self.image.size = (size, size)
+                self.run_worker("--size", str(size))
+                self.core.set_cache_limit.assert_not_called()
+                self.assertEqual(self.model.generate_image.call_args.kwargs["width"], size)
+                self.assertEqual(self.model.generate_image.call_args.kwargs["height"], size)
+
     def test_two_steps(self):
         self.run_worker("--steps", "2")
         self.assertEqual(self.model.generate_image.call_args.kwargs["num_inference_steps"], 2)
@@ -103,6 +168,7 @@ class ImageWorkerTest(unittest.TestCase):
             self.assertEqual(cm.exception.code, 2)
             self.assertIn("--steps", err.getvalue())
         self.build.assert_not_called()
+        self.core.set_cache_limit.assert_not_called()
         self.core.device_info.assert_not_called()
 
     def test_rejects_unsupported_hardware_before_loading(self):
@@ -124,6 +190,7 @@ class ImageWorkerTest(unittest.TestCase):
                 with self.assertRaisesRegex(RuntimeError, "M5 GPU and macOS 26.3"):
                     self.run_worker()
         self.build.assert_not_called()
+        self.core.set_cache_limit.assert_not_called()
 
     def test_accepts_m5_family(self):
         self.core.device_info.return_value = {"device_name": "Apple M5 Max"}

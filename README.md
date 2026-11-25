@@ -36,7 +36,7 @@ project workspaces, vision, conversion and independent engine updates.
 | **Chat** | Streaming responses and reasoning, Markdown, code, math, HTML previews, attachments, vision, conversation branches, search and export. |
 | **Agent Studio** | Isolated project copies, file editing, diffs, Git checkpoints, restore, ZIP export and reviewed changes applied to the original project. |
 | **Models** | Recommended EXL3 checkpoints, model cards, resumable downloads, local imports and Quantization Studio. |
-| **Server and Lab** | An OpenAI-compatible endpoint, live server logs, recorded generation metrics, charts and JSON export. |
+| **Server and Lab** | An OpenAI-compatible endpoint, live server logs, token usage by model and detailed generation history with JSON export. |
 | **Personalization** | System, Light and Dark appearances, Iris and custom accents, reading controls, project profiles, startup models and idle unloading. |
 
 The ASCII characters transform within fixed cells as light flows across the
@@ -85,6 +85,7 @@ A managed engine that fails before startup can fall back to the bundled runtime.
 ### Chat
 
 - Stream answers and separate reasoning with Markdown, tables, syntax-colored code and rendered math.
+- Choose a reasoning level next to **Tools**. Studio remembers a separate choice for each model. **Model default** uses the original chat template. Qwen3.6 offers thinking on or off, Qwen3.8 Flash Next offers Off, Low, Medium and Extra high, and Inkling 2 Mini supports Zero effort, Minimal, Low, Medium, High and Max. At zero effort, Inkling can still emit thinking tokens. Each setting uses the model’s native instruction. The model decides when to finish thinking and when to end its reply, within the available context.
 - Edit, regenerate or branch messages. Pin and search saved conversations, then export them.
 - Attach text documents and PDFs with extracted text, source excerpts and page references. Scanned PDFs require prior text extraction.
 - Send PNG, JPEG or WebP images with **LFM3-VL** using the picker, drag and drop or Command-V. Saved history retains image bytes after the original is removed.
@@ -114,9 +115,21 @@ context and port, copy the endpoint and key, and inspect logs. Loopback access
 is the default. Optional LAN access uses a generated bearer key over HTTP.
 Desktop passes the key to the engine through a private pipe.
 
-**Lab** displays recorded generations with decode and prefill rates, latency,
-token counts, memory and runtime details. Compare samples or export JSON.
-These are observations from actual sessions, not controlled benchmarks.
+Open **Lab** from the sidebar’s **…** menu or with **⌘5**. **Usage** shows
+input and output tokens for Chat and Agent over today, 7 days, 30 days or all
+recorded time. The overview compares token volumes with the preceding period
+when records exist and shows active days, the busiest day and average output
+tokens per generation. The median time to first text uses retained generations
+with an end-to-end measurement. Models are ordered by tokens used. Average and maximum tok/s
+refer to decode speed. Each generation with a measured decode interval counts
+once toward the average.
+
+**Generations** lets you inspect individual runs, filter by model or export
+the retained details as JSON. **This Mac** shows hardware and current memory
+use. Daily totals persist after individual details age out. On first upgrade,
+Studio starts the totals from the generation details still available on the Mac.
+
+[Preview Lab on macOS with sample usage data](docs/images/studio-lab-usage.png).
 
 ## Models and compatibility
 
@@ -254,6 +267,23 @@ backends remain in the source tree and are excluded from the v2 packages.
 Performance depends on the checkpoint, quantization, context, prompt, output
 budget, acceleration mode, Mac and memory pressure. Decode, prefill, time to
 first token, total latency and memory measure different parts of the workload.
+
+For Flash Next in plain autoregressive chat, set `MLXL3_FLASH_PREFILL_EXPERT4=1`
+to group the routed experts of up to four prompt tokens. Add
+`MLXL3_FLASH_PREFILL_SERIAL_TAIL=1` to process the final spans of long prompts
+serially before decode. The standalone `MLXL3_FLASH_PROMPT_FINAL_HEAD=1` option
+skips intermediate vocabulary projections and has no demonstrated speed gain on
+its own. Grouped mode takes precedence. Each switch accepts only `0` or `1`,
+defaults to off, and is read when loading a Flash session.
+
+At a 3 GiB expert budget, grouped prefill shortened time to first token but the
+long-prompt CLI series measured about 4.9–5.0 tok/s in decode versus 6.1 with
+serial prefill. With an optional 5 GiB cache and early resident-expert processing,
+a separate 654+128 bridge comparison finished in 80.3 s versus 113.5 s for the
+3 GiB serial reference. Its average process peak rose from 7.06 to 9.13 GiB.
+The two comparisons use different protocols. See the
+[CLI measurements](docs/measurements/flash-long-decode-20261121/summary.json) and
+[bridge measurements and settings](docs/measurements/flash-long-stability-20261122/README.md).
 
 Recorded campaigns include:
 

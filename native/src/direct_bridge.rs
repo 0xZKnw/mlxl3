@@ -182,6 +182,8 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     ready["mcp_call_timeout_supported"] = json!(true);
     // AGENT-2026-11-23-BOUCLE: `reasoning_budget`, 512 rounds, pruning, repeated-call stop.
     ready["agent_loop_supported"] = json!(true);
+    ready["reasoning_effort_supported"] = json!(true);
+    ready["reasoning_effort_levels"] = json!(mlxl3_native::tokenizer::REASONING_EFFORTS);
     emit_event(ready)?;
     for line in io::stdin().lock().lines() {
         let line = line?;
@@ -247,6 +249,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                 }
                 "tune_mtp" => bail!("Tune MTP supports Qwen3.5/3.6/3.8 targets"),
                 "generate" => {
+                    let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;
                     cancelled.store(false, Ordering::Relaxed);
                     anyhow::ensure!(
                         model.is_flash()

@@ -2429,6 +2429,20 @@ impl NativeChatModel {
         Ok((self.forward_many(tokens)?, None))
     }
 
+    /// Flash has no reusable chat checkpoint at intermediate span boundaries.
+    fn advance_flash_prompt(
+        &mut self,
+        chunk: &[u32],
+        total: usize,
+        end: usize,
+        cancelled: &AtomicBool,
+    ) -> Result<bool> {
+        let Self::Flash(target) = self else {
+            return Ok(false);
+        };
+        target.advance_chat_prompt(chunk, total, end, cancelled)
+    }
+
     fn prefill_chunk_size(&self) -> usize {
         match self {
             Self::Gemma4(_) | Self::Lfm3(_) => 256,
@@ -2951,15 +2965,21 @@ fn report_prefill_progress(done: usize, total: usize) -> Result<()> {
 }
 
 /// Sets the reasoning level for one request; dropping it restores the template default.
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 struct ReasoningRequest;
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 impl ReasoningRequest {
     fn set(effort: Option<String>) -> Result<Self> {
         if let Some(level) = &effort {
             anyhow::ensure!(
-                mlxl3_native::tokenizer::REASONING_EFFORTS.contains(&level.as_str()),
+                mlxl3_native::tokenizer::accepts_reasoning_effort(level),
                 "unsupported reasoning effort {level:?}"
             );
         }
@@ -2968,14 +2988,21 @@ impl ReasoningRequest {
     }
 }
 
-#[cfg(all(feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 impl Drop for ReasoningRequest {
     fn drop(&mut self) {
         REASONING_REQUESTED.with(|cell| *cell.borrow_mut() = None);
     }
 }
 
-#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[cfg(all(
+    test,
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
 #[test]
 fn bridge_reasoning_effort_is_optional_validated_and_scoped() -> Result<()> {
     let current = || REASONING_REQUESTED.with(|cell| cell.borrow().clone());
@@ -2985,8 +3012,11 @@ fn bridge_reasoning_effort_is_optional_validated_and_scoped() -> Result<()> {
         "older apps keep the template default"
     );
     for level in mlxl3_native::tokenizer::REASONING_EFFORTS {
-        let request: BridgeRequest =
-            serde_json::from_value(json!({"type":"generate", "reasoning_effort":level}))?;
+        let request: BridgeRequest = serde_json::from_value(
+            json!({"type":"generate", "reasoning_effort":level, "max_tokens":-1}),
+        )?;
+        assert!(request.reasoning_budget.is_none());
+        assert_eq!(request.max_tokens, -1);
         {
             let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;
             assert_eq!(current().as_deref(), Some(level));
@@ -3563,6 +3593,14 @@ fn prefill_round(
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
             bail!("generation cancelled");
+        }
+        if draft.is_none()
+            && end < tokens.len()
+            && model.advance_flash_prompt(chunk, tokens.len(), end, cancelled)?
+        {
+            #[cfg(test)]
+            tests::FLASH_ADVANCED_ENDS.with_borrow_mut(|ends| ends.push(end));
+            continue;
         }
         logits = Some(
             if let Some((session, weights)) = dflash.as_mut().zip(draft) {
@@ -4408,8 +4446,8 @@ struct RoundOutput {
     token_hash: String,
     /// The generated token ids (a forced end of thinking continues from them).
     generated: Vec<u32>,
-    /// The round stopped at its reasoning budget; holds the marker closing that block.
-    reasoning_cut: Option<&'static str>,
+    /// The round stopped at its reasoning budget; holds the exact text to resume the model.
+    reasoning_cut: Option<String>,
 }
 
 #[cfg(all(
@@ -4863,7 +4901,7 @@ fn bridge_generate_round(
         usize::try_from(max_tokens)?.min(available)
     };
     let reasoning_limit = reasoning_budget
-        .map(|limit| mlxl3_native::agent_loop::step_reasoning_budget(limit, available));
+        .and_then(|limit| mlxl3_native::agent_loop::step_reasoning_budget(limit, budget));
     let _prefill_progress = PrefillProgress::set(request_id);
     #[cfg(feature = "mlx")]
     if let NativeChatModel::Flash(target) = &mut *model
@@ -5190,6 +5228,11 @@ fn bridge_generate_round(
     }
     let mut thinking_tokens = 0usize;
     let mut reasoning_cut = None;
+    let mut closing_plan: Option<(&str, String, usize)> = None;
+    let summarizing = buffer_output
+        && messages
+            .last()
+            .is_some_and(|message| message["content"] == mlxl3_native::agent_loop::SUMMARY_REQUEST);
     // The prompt says which call format the model will use: Inkling 2 declares its tools
     // in a `tool_declare` system message, and may write text before a call.
     let inkling_tools = rendered.contains("<|message_system|>tool_declare<|content_xml|>");
@@ -5286,10 +5329,36 @@ fn bridge_generate_round(
                 }
             }
         }
-        if let Some(close) = splitter.thinking_close() {
+        if let (Some(limit), Some(marker)) = (reasoning_limit, splitter.thinking_close()) {
             thinking_tokens += 1;
-            if reasoning_limit.is_some_and(|limit| thinking_tokens >= limit) {
-                reasoning_cut = Some(close);
+            let context_left = available - generated.len();
+            if closing_plan.as_ref().is_none_or(|plan| plan.0 != marker) {
+                let continuation = |compact| {
+                    mlxl3_native::agent_loop::reasoning_continuation(
+                        marker,
+                        summarizing,
+                        !tools.is_empty(),
+                        compact,
+                    )
+                };
+                let mut text = continuation(false);
+                let mut size = tokenizer.encode(&text)?.len();
+                if context_left.saturating_sub(limit.saturating_sub(thinking_tokens)) <= size {
+                    text = continuation(true);
+                    size = tokenizer.encode(&text)?.len();
+                }
+                closing_plan = Some((marker, text, size));
+            }
+            if let Some((_, text, size)) = &closing_plan
+                && mlxl3_native::agent_loop::cut_thinking_now(
+                    thinking_tokens,
+                    limit,
+                    context_left,
+                    *size,
+                    budget - generated.len(),
+                )
+            {
+                reasoning_cut = Some(text.clone());
                 break;
             }
         }
@@ -6252,6 +6321,7 @@ fn native_bridge(
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "images_supported":model.supports_images(),
         "reasoning_effort_supported":true,
+        "reasoning_effort_levels":mlxl3_native::tokenizer::REASONING_EFFORTS,
         // Agent mode: `tool_rounds` per request, and `callTimeoutSeconds` per MCP server;
         // AGENT-2026-11-23-BOUCLE: `reasoning_budget`, 512 rounds, pruning, repeated-call stop.
         "tool_rounds_supported":true, "mcp_call_timeout_supported":true,
@@ -6863,6 +6933,17 @@ fn native_chat(
             let (chunk, group) = (model.prefill_chunk_size(), model.prefill_group()?);
             let mut start = 0;
             while let Some(end) = model.prefill_span_end(start, tokens.len(), chunk, group) {
+                if end < tokens.len()
+                    && model.advance_flash_prompt(
+                        &tokens[start..end],
+                        tokens.len(),
+                        end,
+                        &AtomicBool::new(false),
+                    )?
+                {
+                    start = end;
+                    continue;
+                }
                 last = Some(model.forward_span(&tokens[start..end], false)?.0);
                 model.eval_state()?;
                 start = end;
@@ -6980,6 +7061,59 @@ fn native_chat(
 #[cfg(all(test, feature = "mlx", feature = "chat"))]
 mod tests {
     use super::*;
+
+    thread_local! {
+        pub(super) static FLASH_ADVANCED_ENDS: std::cell::RefCell<Vec<usize>> = const { std::cell::RefCell::new(Vec::new()) };
+    }
+
+    #[test]
+    #[ignore = "physical Apple GPU and MLXL3_FLASH_MODEL; run once per prefill configuration"]
+    fn flash_prefill_round_matches_scalar_continuation() -> Result<()> {
+        use mlxl3_native::array::{Array, Dtype};
+        let finite_logits = |a: Array| -> Result<Vec<u8>> {
+            let values = a.astype(Dtype::Float32)?.to_f32()?;
+            anyhow::ensure!(values.len() == 248320 && values.iter().all(|v| v.is_finite()));
+            a.to_bytes()
+        };
+        let enabled = |key| std::env::var(key).as_deref() == Ok("1");
+        let expected_ends: Vec<usize> = if enabled("MLXL3_FLASH_PREFILL_EXPERT4")
+            && enabled("MLXL3_FLASH_PREFILL_SERIAL_TAIL")
+        {
+            (8..=208).step_by(8).collect()
+        } else if enabled("MLXL3_FLASH_PREFILL_EXPERT4") || enabled("MLXL3_FLASH_PROMPT_FINAL_HEAD")
+        {
+            (8..=256).step_by(8).collect()
+        } else {
+            vec![]
+        };
+        let tokens: Vec<_> = (0..257).map(|i| 18 + (i * 193) % 8000).collect();
+        let mut model =
+            NativeChatModel::load(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
+        anyhow::ensure!(matches!(model, NativeChatModel::Flash(_)));
+        let mut last = None;
+        for &token in &tokens {
+            last = Some(model.forward(token)?);
+        }
+        let expected_last = finite_logits(last.context("missing scalar logits")?)?;
+        let expected_next = finite_logits(model.forward(28)?)?;
+        FLASH_ADVANCED_ENDS.with_borrow_mut(Vec::clear);
+        let mut cache = None;
+        let (logits, draft, cached) = prefill_round(
+            &mut model,
+            &tokens,
+            &[],
+            None,
+            &mut cache,
+            "flash-review",
+            true,
+            &AtomicBool::new(false),
+        )?;
+        anyhow::ensure!(draft.is_none() && cached == 0 && cache.is_none());
+        anyhow::ensure!(finite_logits(logits)? == expected_last);
+        anyhow::ensure!(finite_logits(model.forward(28)?)? == expected_next);
+        FLASH_ADVANCED_ENDS.with_borrow(|actual| assert_eq!(actual, &expected_ends));
+        Ok(())
+    }
 
     /// DSPARK-INK2M-P10c: sampled rows on the 8-bit target take the measured costs; greedy rows, the FP16
     /// target and `p4c` the P4c linear costs; any other policy name is refused.

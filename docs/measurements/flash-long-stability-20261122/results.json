@@ -1,0 +1,1200 @@
+{
+  "model": "Qwen3.8 Flash Next EXL3 2.05 bpw",
+  "hardware": "Apple M5, 24 GiB",
+  "prompt_tokens": 654,
+  "generated_tokens": 128,
+  "decode_intervals": 127,
+  "mlx": "0.32.2",
+  "precision": "greedy; exact token, text and history hashes compared to the earlier 128-token bridge response",
+  "prompt_sha256": "08f29b554ac450448993bd44724c2479c0a160d21aff6793c18b5b268e3132f5",
+  "context": 4096,
+  "settings": {
+    "A": "serial prefill, 3 GiB expert cache (starting configuration)",
+    "G": "grouped prefill with serial suffix, 5 GiB expert cache",
+    "H": "G + MLXL3_SSD_GPU_HOT=1",
+    "J": "H + MLXL3_SSD_COLD_READY=0"
+  },
+  "method": "Single-model fresh bridge processes; temperature zero, no prompt cache, no MTP or DFlash; lowercase letters denote 8-token short warmups. Wall times exclude model load. Throughputs pool tokens and elapsed stage times; response times are arithmetic means.",
+  "instrumentation": "Darwin proc_pid_rusage v4 on the owned inference process at text emission boundaries; first nonempty text delta to completion. Global internal Apple SSD counters and AGX device gauge at approximately 1 Hz; only enclosed complete intervals with a common monotonic clock. Global devices may include concurrent system work. Thermal 0 nominal, 1 fair, 2 serious, 3 critical (NSProcessInfo).",
+  "limitations": [
+    "One long prompt; six or four fresh processes per series. Alternation reduces order bias but cannot hold clocks, file cache, storage service or thermals fixed.",
+    "The two historical CLI samples of 4.6 and 9.2 tok/s on battery have no per-phase device probe. No matching CPU/GPU/SSD throttle event was recovered; no unique retrospective cause can be assigned.",
+    "Process disk accounting and system SSD traffic use different scopes. A difference in delivered MiB/s on a fixed response is not on its own proof that the SSD limits throughput.",
+    "Initial 2.0.21 A lacks aligned device samples. Two early observer starts had an empty result or a process-relative clock. Both were discarded.",
+    "A component overlap test required an unavailable independent binary fixture and stopped before executing. The independent production CLI output comparison used a frozen serial oracle instead."
+  ],
+  "cache_replay": {
+    "status": "complete",
+    "cases": [
+      {
+        "name": "OFF-MAIN",
+        "historical53": 18401,
+        "lfu": 12119,
+        "lru": 12655
+      },
+      {
+        "name": "OFF-HOLD",
+        "historical53": 19708,
+        "lfu": 13422,
+        "lru": 13914
+      }
+    ],
+    "eligible": false
+  },
+  "source_2_0_21": "5f52ee335c4c163897679ab47cc8e27ed1a31b8b",
+  "binary_2_0_21": "88f8f53eac6707735f22d9ac1da2a195d41237a3f4e810152cbec6b4185f5cae",
+  "source_2_0_23": "e60299ee831d5613a43780ebea790bf3c87210af",
+  "upstream_base": "e6962db11f83109e9f620700dbb7c5b3cd2a1fea",
+  "binary_2_0_23": "d2cf5a1676bdde60e3dd5701a1e76d804a795ee204a88bcd3902297da4907388",
+  "numerical_oracle": {
+    "status": "complete",
+    "passes": [
+      "24505fa8eb500f979a6ab70c1a4a5be17f7aaf346a6d9090fe543a3837f9faa3",
+      "24505fa8eb500f979a6ab70c1a4a5be17f7aaf346a6d9090fe543a3837f9faa3",
+      "24505fa8eb500f979a6ab70c1a4a5be17f7aaf346a6d9090fe543a3837f9faa3"
+    ]
+  },
+  "2.0.21_screen": {
+    "order": "aghAGHHGA",
+    "full_output_parity": true,
+    "averages": {
+      "A": {
+        "n": 2,
+        "pooled_prefill_tps": 7.98261075718385,
+        "pooled_decode_tps": 7.53498634692824,
+        "min_decode_tps": 7.50789711048711,
+        "max_decode_tps": 7.56227177253592,
+        "mean_ttft_s": 81.9304802715,
+        "mean_elapsed_s": 98.785207438,
+        "mean_process_peak_gib": 7.070226546376944
+      },
+      "G": {
+        "n": 2,
+        "pooled_prefill_tps": 10.554713661684952,
+        "pooled_decode_tps": 7.239432825780211,
+        "min_decode_tps": 7.196927552291714,
+        "max_decode_tps": 7.282443157036877,
+        "mean_ttft_s": 61.965159437500006,
+        "mean_elapsed_s": 79.50798539600001,
+        "mean_process_peak_gib": 9.149741627275944
+      },
+      "H": {
+        "n": 2,
+        "pooled_prefill_tps": 11.00001491623888,
+        "pooled_decode_tps": 8.305677896658635,
+        "min_decode_tps": 8.122574293999755,
+        "max_decode_tps": 8.497227132687819,
+        "mean_ttft_s": 59.457251792,
+        "mean_elapsed_s": 74.7480221245,
+        "mean_process_peak_gib": 9.149672996252775
+      }
+    },
+    "samples": [
+      {
+        "mode": "A",
+        "prefill": 8.459073277213045,
+        "decode": 7.50789711048711,
+        "elapsed_s": 94.231158709,
+        "first_s": 77.315612959,
+        "process_io_gib": 11.410003662109375,
+        "process_cpu_s": 9.064585291666663,
+        "cycles_bn": 28.266405333,
+        "instructions_bn": 68.015707988,
+        "runnable_s": 9.733904708333341,
+        "thermal_states": [
+          0
+        ],
+        "wall_s": 16.915561167001215,
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.015625,
+        "process_peak_gib": 7.071187861263752,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.536445542000365,
+            "process_io_bytes": 3685941248,
+            "process_user_seconds": 1.2227749166666655,
+            "process_system_seconds": 1.3218129166666657
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 4.133426041000348,
+            "process_io_bytes": 2852257792,
+            "process_user_seconds": 1.1500262083333332,
+            "process_system_seconds": 1.070123708333334
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 4.3328326669998205,
+            "process_io_bytes": 3054321664,
+            "process_user_seconds": 1.1688826249999984,
+            "process_system_seconds": 1.166791
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 3.9127367500004766,
+            "process_io_bytes": 2658877440,
+            "process_user_seconds": 1.0201561250000033,
+            "process_system_seconds": 0.943888583333333
+          }
+        ]
+      },
+      {
+        "mode": "G",
+        "prefill": 11.497158946686389,
+        "decode": 7.282443157036877,
+        "elapsed_s": 74.32489425,
+        "first_s": 56.885680625,
+        "process_io_gib": 11.272369384765625,
+        "process_cpu_s": 8.145271416666667,
+        "cycles_bn": 23.833196224,
+        "instructions_bn": 63.738222061,
+        "runnable_s": 8.779842833333326,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 17.438987249999627,
+        "device": {
+          "covered_s": 16.299646999999823,
+          "ssd_mib_s": 644.537060373155,
+          "ssd_reads_s": 1869.304286160328,
+          "ssd_mean_read_ms": 0.3738894193442515,
+          "gpu_mean_pct": 87.23529411764706
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 1.32550048828125,
+        "process_peak_gib": 9.148215770721436,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.370790832999774,
+            "process_io_bytes": 3707486208,
+            "process_user_seconds": 1.1245087500000004,
+            "process_system_seconds": 0.9893993333333313
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 4.728100124999401,
+            "process_io_bytes": 2823110656,
+            "process_user_seconds": 1.2914973750000023,
+            "process_system_seconds": 0.9255777916666688
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 4.067778292001094,
+            "process_io_bytes": 2978709504,
+            "process_user_seconds": 1.047578041666661,
+            "process_system_seconds": 0.8293198749999995
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 4.272056457999497,
+            "process_io_bytes": 2594308096,
+            "process_user_seconds": 1.1355135416666684,
+            "process_system_seconds": 0.8016092499999985
+          }
+        ]
+      },
+      {
+        "mode": "H",
+        "prefill": 11.549224352328327,
+        "decode": 8.497227132687819,
+        "elapsed_s": 71.575869208,
+        "first_s": 56.629792875,
+        "process_io_gib": 11.278076171875,
+        "process_cpu_s": 8.335639416666668,
+        "cycles_bn": 24.176043438,
+        "instructions_bn": 64.97508446,
+        "runnable_s": 8.983104874999995,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 14.946101417001046,
+        "device": {
+          "covered_s": 13.270003249999718,
+          "ssd_mib_s": 843.9637981060961,
+          "ssd_reads_s": 4759.833046762919,
+          "ssd_mean_read_ms": 0.24658284539999684,
+          "gpu_mean_pct": 84.28571428571429
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.6629791259765625,
+        "process_peak_gib": 9.147544384002686,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 3.6706720840011258,
+            "process_io_bytes": 3662888960,
+            "process_user_seconds": 1.0144203333333337,
+            "process_system_seconds": 0.8889794583333348
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 3.6325337079997553,
+            "process_io_bytes": 2808545280,
+            "process_user_seconds": 1.1129454583333356,
+            "process_system_seconds": 0.7712173333333308
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 3.5652689580001606,
+            "process_io_bytes": 2974416896,
+            "process_user_seconds": 1.1179152083333328,
+            "process_system_seconds": 0.7945583750000011
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 4.077362083999105,
+            "process_io_bytes": 2663890944,
+            "process_user_seconds": 1.6417629583333309,
+            "process_system_seconds": 0.9935712083333321
+          }
+        ]
+      },
+      {
+        "mode": "H",
+        "prefill": 10.500668298753022,
+        "decode": 8.122574293999755,
+        "elapsed_s": 77.920175041,
+        "first_s": 62.284710709,
+        "process_io_gib": 11.239028930664062,
+        "process_cpu_s": 9.585337374999995,
+        "cycles_bn": 23.098038306,
+        "instructions_bn": 64.900107139,
+        "runnable_s": 10.222655291666662,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 15.635395125000286,
+        "device": {
+          "covered_s": 14.404216625000117,
+          "ssd_mib_s": 728.800263721382,
+          "ssd_reads_s": 2072.44869868095,
+          "ssd_mean_read_ms": 0.3774663575974809,
+          "gpu_mean_pct": 83.06666666666666
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.6104583740234375,
+        "process_peak_gib": 9.151801608502865,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.043592916999842,
+            "process_io_bytes": 3688464384,
+            "process_user_seconds": 1.2841887499999984,
+            "process_system_seconds": 1.0725475416666654
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 3.867504542000461,
+            "process_io_bytes": 2812166144,
+            "process_user_seconds": 1.4247540833333332,
+            "process_system_seconds": 0.9267076249999988
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 3.9595229160004237,
+            "process_io_bytes": 2966847488,
+            "process_user_seconds": 1.5485698749999983,
+            "process_system_seconds": 1.024901374999999
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 3.7645417919993633,
+            "process_io_bytes": 2600337408,
+            "process_user_seconds": 1.4177621249999994,
+            "process_system_seconds": 0.8856590833333371
+          }
+        ]
+      },
+      {
+        "mode": "G",
+        "prefill": 9.755070848318244,
+        "decode": 7.196927552291714,
+        "elapsed_s": 84.691076542,
+        "first_s": 67.04463825,
+        "process_io_gib": 11.273788452148438,
+        "process_cpu_s": 8.716914874999997,
+        "cycles_bn": 24.764287618,
+        "instructions_bn": 63.806654668,
+        "runnable_s": 9.379082625000002,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 17.646264083999995,
+        "device": {
+          "covered_s": 16.29687591700167,
+          "ssd_mib_s": 653.9673649279898,
+          "ssd_reads_s": 2316.3335225875076,
+          "ssd_mean_read_ms": 0.324101915520941,
+          "gpu_mean_pct": 84.82352941176471
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.609344482421875,
+        "process_peak_gib": 9.151267483830452,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.78140808399985,
+            "process_io_bytes": 3706011648,
+            "process_user_seconds": 1.5598322083333294,
+            "process_system_seconds": 1.2533674999999995
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 4.783617707998928,
+            "process_io_bytes": 2816786432,
+            "process_user_seconds": 1.1950152083333379,
+            "process_system_seconds": 0.9663591666666704
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 3.9502482080006303,
+            "process_io_bytes": 2978463744,
+            "process_user_seconds": 1.0479707499999975,
+            "process_system_seconds": 0.7971037916666646
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 4.130810708998979,
+            "process_io_bytes": 2603876352,
+            "process_user_seconds": 1.100864708333333,
+            "process_system_seconds": 0.7962145833333345
+          }
+        ]
+      },
+      {
+        "mode": "A",
+        "prefill": 7.556960306658676,
+        "decode": 7.56227177253592,
+        "elapsed_s": 103.339256167,
+        "first_s": 86.545347584,
+        "process_io_gib": 11.270828247070312,
+        "process_cpu_s": 9.21035079166667,
+        "cycles_bn": 28.301415434,
+        "instructions_bn": 67.989483867,
+        "runnable_s": 9.905163125000001,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 16.793831625000166,
+        "device": {
+          "covered_s": 16.20330420800019,
+          "ssd_mib_s": 681.1183105511852,
+          "ssd_reads_s": 2006.3808950737696,
+          "ssd_mean_read_ms": 0.3642564718548139,
+          "gpu_mean_pct": 87.88235294117646
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.0,
+        "process_peak_gib": 7.069265231490135,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.032592290999673,
+            "process_io_bytes": 3629891584,
+            "process_user_seconds": 1.0813532916666695,
+            "process_system_seconds": 1.1806984583333318
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 4.392241249999643,
+            "process_io_bytes": 2824126464,
+            "process_user_seconds": 1.2816222083333315,
+            "process_system_seconds": 1.150455000000001
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 4.384327666999525,
+            "process_io_bytes": 3017162752,
+            "process_user_seconds": 1.2284742500000014,
+            "process_system_seconds": 1.2157063333333369
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 3.9845827919998555,
+            "process_io_bytes": 2630778880,
+            "process_user_seconds": 1.0834122916666686,
+            "process_system_seconds": 0.9885353333333313
+          }
+        ]
+      }
+    ],
+    "raw_sha256": "1d86e8791f82f13b6243aa7a088c75f61f4655fb5e8eb518d9bb897e8bb02f2b",
+    "host_samples_sha256": "630969bb595c0600c67c46aeac897c4f19e1ee2b7a7dc53eecd5591f76e3fd06"
+  },
+  "2.0.21_reverse": {
+    "order": "HGGH",
+    "full_output_parity": true,
+    "averages": {
+      "G": {
+        "n": 2,
+        "pooled_prefill_tps": 10.021296039391695,
+        "pooled_decode_tps": 7.0884771261209485,
+        "min_decode_tps": 7.026619140802824,
+        "max_decode_tps": 7.151433902987612,
+        "mean_ttft_s": 65.26394543699999,
+        "mean_elapsed_s": 83.180360354,
+        "mean_process_peak_gib": 9.14875741302967
+      },
+      "H": {
+        "n": 2,
+        "pooled_prefill_tps": 9.86125095821917,
+        "pooled_decode_tps": 7.4199709574116355,
+        "min_decode_tps": 7.2862211594590285,
+        "max_decode_tps": 7.558722944830848,
+        "mean_ttft_s": 66.32423397950001,
+        "mean_elapsed_s": 83.4402276665,
+        "mean_process_peak_gib": 9.151267495006323
+      }
+    },
+    "samples": [
+      {
+        "mode": "H",
+        "prefill": 9.995624704455686,
+        "decode": 7.2862211594590285,
+        "elapsed_s": 82.863395375,
+        "first_s": 65.433212917,
+        "process_io_gib": 11.310821533203125,
+        "process_cpu_s": 11.138631041666674,
+        "cycles_bn": 25.187456665,
+        "instructions_bn": 65.173923568,
+        "runnable_s": 12.222365458333329,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 17.428946541998812,
+        "device": {
+          "covered_s": 16.519057458001043,
+          "ssd_mib_s": 676.284707278442,
+          "ssd_reads_s": 2428.6494615083666,
+          "ssd_mean_read_ms": 0.3152204953513298,
+          "gpu_mean_pct": 82.6470588235294
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 1.446136474609375,
+        "process_peak_gib": 9.149421192705631,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.972116584000105,
+            "process_io_bytes": 3730636800,
+            "process_user_seconds": 1.7899724583333345,
+            "process_system_seconds": 1.3792021250000026
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 3.8288139999986015,
+            "process_io_bytes": 2820980736,
+            "process_user_seconds": 1.123836166666667,
+            "process_system_seconds": 0.8313742083333295
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 3.9925065410006937,
+            "process_io_bytes": 2981576704,
+            "process_user_seconds": 1.5353385000000017,
+            "process_system_seconds": 1.071769791666668
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 4.634785624999495,
+            "process_io_bytes": 2611707904,
+            "process_user_seconds": 2.179955999999997,
+            "process_system_seconds": 1.2265063749999996
+          }
+        ]
+      },
+      {
+        "mode": "G",
+        "prefill": 10.16140004380855,
+        "decode": 7.026619140802824,
+        "elapsed_s": 82.438311375,
+        "first_s": 64.364168916,
+        "process_io_gib": 11.232986450195312,
+        "process_cpu_s": 8.490409541666665,
+        "cycles_bn": 25.512167684,
+        "instructions_bn": 63.778586339,
+        "runnable_s": 9.066488999999997,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 18.07408895899971,
+        "device": {
+          "covered_s": 17.253304792000563,
+          "ssd_mib_s": 633.4909532849365,
+          "ssd_reads_s": 1754.9681272679281,
+          "ssd_mean_read_ms": 0.3911980435285181,
+          "gpu_mean_pct": 85.22222222222223
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.6816864013671875,
+        "process_peak_gib": 9.146003179252148,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 5.182420958999501,
+            "process_io_bytes": 3700785152,
+            "process_user_seconds": 1.311727916666662,
+            "process_system_seconds": 1.1608398333333305
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 3.266969665999568,
+            "process_io_bytes": 2803548160,
+            "process_user_seconds": 0.8329635833333349,
+            "process_system_seconds": 0.6386905833333358
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 5.538189958999283,
+            "process_io_bytes": 2969681920,
+            "process_user_seconds": 1.47945,
+            "process_system_seconds": 1.1241664166666645
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 4.086304041000403,
+            "process_io_bytes": 2587312128,
+            "process_user_seconds": 1.1521374583333355,
+            "process_system_seconds": 0.7902218333333373
+          }
+        ]
+      },
+      {
+        "mode": "G",
+        "prefill": 9.88500296044004,
+        "decode": 7.151433902987612,
+        "elapsed_s": 83.922409333,
+        "first_s": 66.163721958,
+        "process_io_gib": 11.322097778320312,
+        "process_cpu_s": 8.490564416666668,
+        "cycles_bn": 24.780877835,
+        "instructions_bn": 63.764269397,
+        "runnable_s": 9.127083541666678,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 17.75850624999839,
+        "device": {
+          "covered_s": 16.28393637500085,
+          "ssd_mib_s": 641.3605874826108,
+          "ssd_reads_s": 1898.6809631278966,
+          "ssd_mean_read_ms": 0.37027167494663304,
+          "gpu_mean_pct": 86.82352941176471
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.5853424072265625,
+        "process_peak_gib": 9.151511646807194,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.597042792000138,
+            "process_io_bytes": 3718889472,
+            "process_user_seconds": 1.2322414583333305,
+            "process_system_seconds": 1.1196578750000015
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 4.447417832998326,
+            "process_io_bytes": 2824060928,
+            "process_user_seconds": 1.1788018750000013,
+            "process_system_seconds": 0.8951636249999986
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 4.934521167000639,
+            "process_io_bytes": 2978381824,
+            "process_user_seconds": 1.2962839583333334,
+            "process_system_seconds": 1.0960225416666702
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 3.7792695829994045,
+            "process_io_bytes": 2635677696,
+            "process_user_seconds": 0.936123333333331,
+            "process_system_seconds": 0.7360059999999997
+          }
+        ]
+      },
+      {
+        "mode": "H",
+        "prefill": 9.730442129344787,
+        "decode": 7.558722944830848,
+        "elapsed_s": 84.017059958,
+        "first_s": 67.215255042,
+        "process_io_gib": 11.283767700195312,
+        "process_cpu_s": 11.242307375000003,
+        "cycles_bn": 22.732828962,
+        "instructions_bn": 65.05047005,
+        "runnable_s": 11.988232583333343,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 16.8015810830002,
+        "device": {
+          "covered_s": 16.60722700000042,
+          "ssd_mib_s": 689.4833345747433,
+          "ssd_reads_s": 2092.8238049614856,
+          "ssd_mean_read_ms": 0.3562131938658073,
+          "gpu_mean_pct": 83.52941176470588
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.71893310546875,
+        "process_peak_gib": 9.153113797307014,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.3345017499996175,
+            "process_io_bytes": 3711188992,
+            "process_user_seconds": 1.6679160416666683,
+            "process_system_seconds": 1.2895798750000012
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 4.106747750000068,
+            "process_io_bytes": 2806104064,
+            "process_user_seconds": 1.5875280416666655,
+            "process_system_seconds": 1.0214674166666633
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 4.271507457999178,
+            "process_io_bytes": 2968928256,
+            "process_user_seconds": 1.849587583333335,
+            "process_system_seconds": 1.2239379166666708
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 4.088462542000343,
+            "process_io_bytes": 2629632000,
+            "process_user_seconds": 1.6023096666666632,
+            "process_system_seconds": 0.9996092499999989
+          }
+        ]
+      }
+    ],
+    "raw_sha256": "d896392aeb24b9c67894c0dbb820e2914d154ddd9cb5ba4e1704dca701a106a8",
+    "host_samples_sha256": "3a0f45be963fc44959b4489ac5925c75b3a9788e428de88b351e9581467db057"
+  },
+  "2.0.23_final": {
+    "order": "ahjAHJJHA",
+    "full_output_parity": true,
+    "averages": {
+      "A": {
+        "n": 2,
+        "pooled_prefill_tps": 6.94035920270244,
+        "pooled_decode_tps": 6.594612776443035,
+        "min_decode_tps": 6.303997875701631,
+        "max_decode_tps": 6.913317363434131,
+        "mean_ttft_s": 94.234059333,
+        "mean_elapsed_s": 113.492217167,
+        "mean_process_peak_gib": 7.06165873631835
+      },
+      "H": {
+        "n": 2,
+        "pooled_prefill_tps": 10.162910645073874,
+        "pooled_decode_tps": 7.946554519521506,
+        "min_decode_tps": 7.829747343461869,
+        "max_decode_tps": 8.066899624330205,
+        "mean_ttft_s": 64.35576827099999,
+        "mean_elapsed_s": 80.33756441700001,
+        "mean_process_peak_gib": 9.132850114256144
+      },
+      "J": {
+        "n": 2,
+        "pooled_prefill_tps": 10.097205633356197,
+        "pooled_decode_tps": 7.930462148787928,
+        "min_decode_tps": 7.835757182385855,
+        "max_decode_tps": 8.027484379151277,
+        "mean_ttft_s": 64.7735397505,
+        "mean_elapsed_s": 80.7877650005,
+        "mean_process_peak_gib": 9.151381947100163
+      }
+    },
+    "samples": [
+      {
+        "mode": "A",
+        "prefill": 7.036174360731156,
+        "decode": 6.913317363434131,
+        "elapsed_s": 111.321115792,
+        "first_s": 92.950760958,
+        "process_io_gib": 11.0447998046875,
+        "process_cpu_s": 10.610692833333331,
+        "cycles_bn": 29.374071539,
+        "instructions_bn": 67.92007674,
+        "runnable_s": 11.28111629166667,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 18.37025837500005,
+        "device": {
+          "covered_s": 17.406037042001117,
+          "ssd_mib_s": 596.5308620333875,
+          "ssd_reads_s": 1633.0540910265734,
+          "ssd_mean_read_ms": 0.38602504555848727,
+          "gpu_mean_pct": 84.94444444444444
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.0,
+        "process_peak_gib": 7.060537204146385,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.586785665998832,
+            "process_io_bytes": 3532980224,
+            "process_user_seconds": 1.3433565416666653,
+            "process_system_seconds": 1.3337403333333313
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 4.553659291999793,
+            "process_io_bytes": 2808627200,
+            "process_user_seconds": 1.4522735833333336,
+            "process_system_seconds": 1.197739541666671
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 4.586682500001189,
+            "process_io_bytes": 2966503424,
+            "process_user_seconds": 1.418961999999997,
+            "process_system_seconds": 1.2713524583333289
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 4.643048416999591,
+            "process_io_bytes": 2551152640,
+            "process_user_seconds": 1.4328893750000091,
+            "process_system_seconds": 1.1602877916666685
+          }
+        ]
+      },
+      {
+        "mode": "H",
+        "prefill": 10.01847862303144,
+        "decode": 7.829747343461869,
+        "elapsed_s": 81.502519292,
+        "first_s": 65.28230541699999,
+        "process_io_gib": 11.299301147460938,
+        "process_cpu_s": 9.589820791666671,
+        "cycles_bn": 23.340481251,
+        "instructions_bn": 65.023468833,
+        "runnable_s": 10.261229333333326,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 16.219935375000205,
+        "device": {
+          "covered_s": 15.369650167000145,
+          "ssd_mib_s": 711.153700636464,
+          "ssd_reads_s": 2058.862736377837,
+          "ssd_mean_read_ms": 0.3758320527114145,
+          "gpu_mean_pct": 82.625
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 1.1615447998046875,
+        "process_peak_gib": 9.134437039494514,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.107595207999111,
+            "process_io_bytes": 3714924544,
+            "process_user_seconds": 1.261482333333337,
+            "process_system_seconds": 1.0753162083333336
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 4.086322292001569,
+            "process_io_bytes": 2818768896,
+            "process_user_seconds": 1.3504580833333328,
+            "process_system_seconds": 0.9349153750000028
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 4.049277082998742,
+            "process_io_bytes": 2984476672,
+            "process_user_seconds": 1.7255515833333313,
+            "process_system_seconds": 1.1185286249999997
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 3.9762988750007935,
+            "process_io_bytes": 2614362112,
+            "process_user_seconds": 1.260522583333337,
+            "process_system_seconds": 0.8625958333333301
+          }
+        ]
+      },
+      {
+        "mode": "J",
+        "prefill": 10.002462851674425,
+        "decode": 8.027484379151277,
+        "elapsed_s": 81.207974834,
+        "first_s": 65.38729833400001,
+        "process_io_gib": 11.277542114257812,
+        "process_cpu_s": 8.903155833333336,
+        "cycles_bn": 21.967457039,
+        "instructions_bn": 62.344110005,
+        "runnable_s": 9.520061541666664,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 15.820467333000124,
+        "device": {
+          "covered_s": 15.348352332999639,
+          "ssd_mib_s": 725.3819646042824,
+          "ssd_reads_s": 1961.4483266241493,
+          "ssd_mean_read_ms": 0.39491972765321376,
+          "gpu_mean_pct": 80.5
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.6996917724609375,
+        "process_peak_gib": 9.151313282549381,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.015272582999387,
+            "process_io_bytes": 3718479872,
+            "process_user_seconds": 1.2546410833333361,
+            "process_system_seconds": 1.052788333333332
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 3.9082319170011033,
+            "process_io_bytes": 2822701056,
+            "process_user_seconds": 1.2735202916666637,
+            "process_system_seconds": 0.8730635833333338
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 3.9643103329999576,
+            "process_io_bytes": 2972368896,
+            "process_user_seconds": 1.4427589583333358,
+            "process_system_seconds": 1.0019196666666659
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 3.9323799169997073,
+            "process_io_bytes": 2595618816,
+            "process_user_seconds": 1.192820000000001,
+            "process_system_seconds": 0.8113589999999995
+          }
+        ]
+      },
+      {
+        "mode": "J",
+        "prefill": 10.193760374725438,
+        "decode": 7.835757182385855,
+        "elapsed_s": 80.367555167,
+        "first_s": 64.159781167,
+        "process_io_gib": 11.28826904296875,
+        "process_cpu_s": 8.89384695833333,
+        "cycles_bn": 22.33032928,
+        "instructions_bn": 62.396641393,
+        "runnable_s": 9.520056250000003,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 16.207708750000165,
+        "device": {
+          "covered_s": 15.326595041000473,
+          "ssd_mib_s": 708.0118008743091,
+          "ssd_reads_s": 1972.7799892353837,
+          "ssd_mean_read_ms": 0.3847609084865723,
+          "gpu_mean_pct": 81.625
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.579925537109375,
+        "process_peak_gib": 9.151450611650944,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.251904208998894,
+            "process_io_bytes": 3725148160,
+            "process_user_seconds": 1.2468891666666622,
+            "process_system_seconds": 1.074621041666667
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 3.98664641600044,
+            "process_io_bytes": 2825584640,
+            "process_user_seconds": 1.0898815000000006,
+            "process_system_seconds": 0.8122608749999998
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 3.9858045000000857,
+            "process_io_bytes": 2968190976,
+            "process_user_seconds": 1.3586300416666681,
+            "process_system_seconds": 0.9589468333333322
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 3.9831490840006154,
+            "process_io_bytes": 2601762816,
+            "process_user_seconds": 1.4381556250000003,
+            "process_system_seconds": 0.9142507916666709
+          }
+        ]
+      },
+      {
+        "mode": "H",
+        "prefill": 10.311568008525807,
+        "decode": 8.066899624330205,
+        "elapsed_s": 79.172609542,
+        "first_s": 63.429231125,
+        "process_io_gib": 11.216018676757812,
+        "process_cpu_s": 8.630903874999998,
+        "cycles_bn": 23.483448761,
+        "instructions_bn": 64.77600491,
+        "runnable_s": 9.245214625000003,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 15.743343500000265,
+        "device": {
+          "covered_s": 15.2604539999993,
+          "ssd_mib_s": 731.5000875793415,
+          "ssd_reads_s": 2068.614734528963,
+          "ssd_mean_read_ms": 0.383737134725038,
+          "gpu_mean_pct": 82.625
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.630859375,
+        "process_peak_gib": 9.131263189017773,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 4.437728667000556,
+            "process_io_bytes": 3703324672,
+            "process_user_seconds": 1.349552583333331,
+            "process_system_seconds": 1.1528986249999988
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 3.816376249998939,
+            "process_io_bytes": 2795962368,
+            "process_user_seconds": 1.172804166666669,
+            "process_system_seconds": 0.827696958333334
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 3.892786333000913,
+            "process_io_bytes": 2961440768,
+            "process_user_seconds": 1.3286397916666672,
+            "process_system_seconds": 0.9306343333333338
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 3.596271541999158,
+            "process_io_bytes": 2582380544,
+            "process_user_seconds": 1.098756666666663,
+            "process_system_seconds": 0.7697283749999997
+          }
+        ]
+      },
+      {
+        "mode": "A",
+        "prefill": 6.847118514107231,
+        "decode": 6.303997875701631,
+        "elapsed_s": 115.663318542,
+        "first_s": 95.517357708,
+        "process_io_gib": 11.217971801757812,
+        "process_cpu_s": 11.671585625000002,
+        "cycles_bn": 29.95095917,
+        "instructions_bn": 68.064784757,
+        "runnable_s": 12.44251045833333,
+        "thermal_states": [
+          1
+        ],
+        "wall_s": 20.145903459000692,
+        "device": {
+          "covered_s": 18.44194829099979,
+          "ssd_mib_s": 547.8587116623054,
+          "ssd_reads_s": 1589.0403517887369,
+          "ssd_mean_read_ms": 0.3644771360177444,
+          "gpu_mean_pct": 86.6842105263158
+        },
+        "token_hash": "0b0cd2dcd564a4b9",
+        "text_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "history_sha256": "c52122b9992cfd7a70f27aac332d4205a627300f0a5fc475efe3c561da9dc278",
+        "power_start": "Battery Power",
+        "power_end": "Battery Power",
+        "process_compressed_end_gib": 0.01104736328125,
+        "process_peak_gib": 7.0627802684903145,
+        "process_swapin_bytes": 0,
+        "text_stream_windows": [
+          {
+            "first": 1,
+            "last": 32,
+            "seconds": 5.275731875000929,
+            "process_io_bytes": 3591012352,
+            "process_user_seconds": 1.550574000000001,
+            "process_system_seconds": 1.5500542916666689
+          },
+          {
+            "first": 32,
+            "last": 64,
+            "seconds": 5.410696916998859,
+            "process_io_bytes": 2817458176,
+            "process_user_seconds": 1.6841324583333375,
+            "process_system_seconds": 1.394128291666668
+          },
+          {
+            "first": 64,
+            "last": 96,
+            "seconds": 4.531549792000078,
+            "process_io_bytes": 3011559424,
+            "process_user_seconds": 1.3803544166666626,
+            "process_system_seconds": 1.323472374999998
+          },
+          {
+            "first": 96,
+            "last": 128,
+            "seconds": 4.927839416001007,
+            "process_io_bytes": 2625175552,
+            "process_user_seconds": 1.4952880000000022,
+            "process_system_seconds": 1.293488374999999
+          }
+        ]
+      }
+    ],
+    "raw_sha256": "40cc41bbc7bf68c2c1bae0f4dfdf1ab821acbeab511a64254791f9b36b5db8c7",
+    "host_samples_sha256": "c7994457f82bb8c024b9bb2073e878dff77d0266d64e5c295e3a181bce0c25eb"
+  }
+}

@@ -3,6 +3,7 @@ import SwiftUI
 @main
 struct MLXL3StudioApp: App {
     @NSApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @Environment(\.openWindow) private var openWindow
     @StateObject private var studio: StudioModel
     // A QA bundle must stay isolated even when macOS relaunches it without args.
     private static var previewProcess: Bool {
@@ -84,24 +85,27 @@ struct MLXL3StudioApp: App {
                 Button(L("Réglages…", "Settings…")) { studio.openAppSettings() }
                     .keyboardShortcut(",", modifiers: .command)
             }
-        }
-
-        Window(L("Générer une image", "Generate an image"), id: "image-generation") {
-            if Image21Hardware.available {
-                ImageGenerationView()
-            } else {
-                Text(Image21Hardware.requirement).padding()
+            // ⌘1…⌘5 switch modes, as the sidebar rows show on hover; they also work
+            // with the sidebar hidden. selectMode keeps its own guards.
+            CommandGroup(before: .sidebar) {
+                ForEach(Array(StudioMode.allCases.enumerated()), id: \.element) { index, mode in
+                    Button(mode.displayTitle) { studio.selectMode(mode) }
+                        .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
+                        .disabled(mode == .lab ? !studio.canOpenLab : studio.isGenerating)
+                }
+                Divider()
             }
-        }
-        .defaultSize(width: 680, height: 670)
-        .defaultLaunchBehavior(.suppressed)
-        .commandsReplaced {
             CommandGroup(after: .windowList) {
                 if Image21Hardware.available {
-                    WindowVisibilityToggle(windowID: "image-generation")
+                    Button(L("Générer une image", "Generate an image")) {
+                        studio.showImages = true
+                        if let window = NSApp.windows.first(where: { $0.canBecomeMain && !($0 is NSPanel) }) {
+                            window.makeKeyAndOrderFront(nil)
+                        } else { openWindow(id: "studio") }
+                    }
+                    .disabled(studio.showAppSettings || studio.showModelManager || studio.showMCPManager || studio.showWorkspace || studio.studioDocument != nil)
                 }
             }
         }
-
     }
 }

@@ -19,19 +19,16 @@ struct MessageCopyButton: View {
     Button {
       copied = MessageClipboard.copy(message, to: pasteboard)
     } label: {
-      Label(
-        copied ? L("Copié", "Copied") : L("Copier", "Copy"),
-        systemImage: copied ? "checkmark" : "doc.on.doc"
-      )
-      .font(.system(size: 10, weight: .medium))
-      .foregroundStyle(copied ? StudioTheme.accent : StudioTheme.secondary)
-      .padding(.horizontal, 9)
-      .frame(height: 25)
+      Image(systemName: copied ? "checkmark" : "doc.on.doc")
+        .font(.system(size: 11.5, weight: .medium))
+        .foregroundStyle(copied ? StudioTheme.ink : StudioTheme.quiet)
+        .contentTransition(.symbolEffect(.replace))
+        .frame(width: 26, height: 26)
     }
     .buttonStyle(StudioControlStyle())
     .disabled(message.content.isEmpty)
     .help(L("Copier le message entier", "Copy entire message"))
-    .accessibilityLabel(L("Copier le message entier", "Copy entire message"))
+    .accessibilityLabel(copied ? L("Copié", "Copied") : L("Copier le message entier", "Copy entire message"))
     .animation(.easeOut(duration: 0.15), value: copied)
     .task(id: copied) {
       guard copied else { return }

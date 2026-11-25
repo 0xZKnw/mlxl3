@@ -59,6 +59,11 @@ enum StudioTheme {
         if style.isGraphite { return rgb(dark ? 0xE3A25F : 0xB4661C) }
         return NSColor(white: dark ? 0.86 : 0.18, alpha: 1)
     })
+    /// A failed step: muted red, at least 4.5:1 on the canvas in both schemes.
+    static let failure = Color(nsColor: NSColor(name: nil) { appearance in
+        appearance.bestMatch(from: [.aqua, .darkAqua]) == .darkAqua
+            ? rgb(0xEC7A72) : rgb(0xB8342C)
+    })
 
     /// Display titles: serif in the Aurora styles, SF Pro semibold in Graphite
     /// (about three quarters of the serif size, which reads larger).
@@ -103,6 +108,47 @@ struct StudioCaption: View {
             Text(text.uppercased()).font(.system(size: size, weight: .medium)).tracking(tracking)
                 .foregroundStyle(colored ? AnyShapeStyle(StudioTheme.quiet) : AnyShapeStyle(.foreground))
         }
+    }
+}
+
+/// Live status text. While `active`, a soft highlight sweeps across the words: the label says
+/// what is running, the sweep says it is still running. It replaces pulsing dots, which
+/// carried no information and kept blinking beside text that already moved.
+/// Reduce Motion, or `active == false`, shows the plain label in `color`.
+struct StudioShimmerText: View {
+    let text: String
+    var font: Font = .system(size: 13, weight: .medium)
+    var active = true
+    var color: Color = StudioTheme.secondary
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// Seconds for one sweep; the band rests outside the text for part of it.
+    static let period = 2.2
+
+    var body: some View {
+        let label = Text(text).font(font)
+        if active && !reduceMotion {
+            TimelineView(.animation(minimumInterval: 1 / 30)) { context in
+                label.foregroundStyle(Self.sweep(at: context.date))
+            }
+        } else {
+            label.foregroundStyle(color)
+        }
+    }
+
+    /// The highlight centre moves from beyond the leading edge to beyond the trailing one;
+    /// outside its band the gradient pads with the resting colour.
+    static func sweep(at date: Date) -> LinearGradient {
+        let progress = date.timeIntervalSinceReferenceDate.truncatingRemainder(dividingBy: period) / period
+        let centre = -0.45 + 1.9 * progress
+        return LinearGradient(
+            stops: [
+                .init(color: StudioTheme.quiet, location: 0),
+                .init(color: StudioTheme.ink, location: 0.5),
+                .init(color: StudioTheme.quiet, location: 1),
+            ],
+            startPoint: UnitPoint(x: centre - 0.32, y: 0.5),
+            endPoint: UnitPoint(x: centre + 0.32, y: 0.5))
     }
 }
 

@@ -33,10 +33,22 @@ PROJECTIONS = (
     "img_mlp.out",
 )
 
+# Depth of one TensorOps multiply for the measured 1024-row image projections.
+# Keys are (input width, output width, EXL3 bits). Other geometries keep K16.
+WINDOW_MATMUL_DEPTH = {
+    (4096, 4096, 3): 64,
+    (4096, 4096, 4): 64,
+    (4096, 12288, 3): 64,
+    (4096, 12288, 4): 32,
+    (12288, 4096, 3): 32,
+    (12288, 4096, 4): 64,
+}
+
 
 @lru_cache(maxsize=32)
 def qmm(inputs, outputs, bits, block_rows, group):
     shared = group > 1
+    op_k = WINDOW_MATMUL_DEPTH.get((inputs, outputs, bits), 16) if shared else 16
     filename = "_qmm_tensor_window_kernel.metal" if shared else "_qmm_tensor_kernel.metal"
     shader = Path(__file__).with_name(filename)
     if not shader.is_file():
@@ -65,6 +77,7 @@ inline float mlxl3_decode_codeword(uint state, int unused) {
         "ROW_GROUP": group,
         "BN": 32,
         "BK": 16,
+        "OP_K": op_k,
         "INPUT_DIMS": inputs,
         "OUTPUT_DIMS": outputs,
         "K_BITS": bits,
@@ -74,7 +87,7 @@ inline float mlxl3_decode_codeword(uint state, int unused) {
     }.items():
         header += f"#define {name} {value}u\n"
     return mx.fast.metal_kernel(
-        name=f"image21_qmm_{inputs}_{outputs}_{bits}_{block_rows}_{group}",
+        name=f"image21_qmm_{inputs}_{outputs}_{bits}_{block_rows}_{group}_depth{op_k}",
         input_names=["xhat", "trellis"],
         output_names=["yhat"],
         header=header,
@@ -275,6 +288,9 @@ def main():
     print(require_supported_gpu(), flush=True)
     from mflux.callbacks.instances.memory_saver import MemorySaver
 
+    if args.size == 512:
+        # Limit unused Metal buffers before the worker loads the model.
+        mx.set_cache_limit(512 * 1024**2)
     model = build(args.model)
     # Studio launches this worker for one image. Each component can be released after its phase.
     model.callbacks.register(MemorySaver(model, keep_transformer=False, cache_limit_bytes=None))

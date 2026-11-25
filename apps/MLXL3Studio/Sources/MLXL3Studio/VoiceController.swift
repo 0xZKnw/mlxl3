@@ -10,21 +10,83 @@ nonisolated func requestSpeechAuthorization(
     }
 }
 
-private final class SpeechAudioSink: @unchecked Sendable {
-    private let lock = NSLock()
-    private var request: SFSpeechAudioBufferRecognitionRequest?
+private struct DictationDraft {
+    var confirmed: String
+    /// French typography puts a space before `!?;:`; English and most other languages do not.
+    var spacesBeforeHighPunctuation = false
 
-    init(_ request: SFSpeechAudioBufferRecognitionRequest) { self.request = request }
+    mutating func receive(_ phrase: String, isFinal: Bool) -> String {
+        guard !phrase.isEmpty else { return confirmed }
+        let needsSpace =
+            confirmed.last.map { !$0.isWhitespace } == true
+            && phrase.first.map { first in
+                !first.isWhitespace && !",.…)]}".contains(first)
+                    && (spacesBeforeHighPunctuation || !"!?;:".contains(first))
+            } == true
+        let draft = confirmed + (needsSpace ? " " : "") + phrase
+        if isFinal { confirmed = draft }
+        return draft
+    }
+}
+
+// The audio tap can race stop(). Serialize converter access and close the stream once.
+// `wrap` turns each converted buffer into the stream's element (`AnalyzerInput` for the analyzer).
+private final class SpeechAudioSink<Output>: @unchecked Sendable {
+    private let lock = NSLock()
+    private let converter: AVAudioConverter
+    private let wrap: (AVAudioPCMBuffer) -> Output
+    private var pendingInput: AVAudioPCMBuffer?
+    private var output: AsyncThrowingStream<Output, Error>.Continuation?
+
+    init(
+        converter: AVAudioConverter, output: AsyncThrowingStream<Output, Error>.Continuation,
+        wrap: @escaping (AVAudioPCMBuffer) -> Output
+    ) {
+        self.converter = converter
+        self.wrap = wrap
+        self.output = output
+        converter.primeMethod = .none
+    }
 
     func append(_ buffer: AVAudioPCMBuffer) {
-        lock.lock(); defer { lock.unlock() }
-        request?.append(buffer)
+        lock.lock()
+        defer { lock.unlock() }
+        guard let output else { return }
+        let format = converter.outputFormat
+        let frames = ceil(Double(buffer.frameLength) * format.sampleRate / converter.inputFormat.sampleRate)
+        guard frames > 0 else { return }
+        guard buffer.format == converter.inputFormat, frames < Double(UInt32.max),
+            let converted = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: UInt32(frames))
+        else {
+            output.finish(throwing: CocoaError(.formatting))
+            self.output = nil
+            return
+        }
+        pendingInput = buffer
+        defer { pendingInput = nil }
+        var error: NSError?
+        let status = converter.convert(to: converted, error: &error) { _, inputStatus in
+            guard let input = self.pendingInput else {
+                inputStatus.pointee = .noDataNow
+                return nil
+            }
+            self.pendingInput = nil
+            inputStatus.pointee = .haveData
+            return input
+        }
+        if status == .error {
+            output.finish(throwing: error ?? CocoaError(.formatting))
+            self.output = nil
+        } else if converted.frameLength > 0 {
+            output.yield(wrap(converted))
+        }
     }
 
     func finish() {
-        lock.lock(); defer { lock.unlock() }
-        request?.endAudio()
-        request = nil
+        lock.lock()
+        defer { lock.unlock() }
+        output?.finish()
+        output = nil
     }
 }
 
@@ -35,49 +97,99 @@ final class VoiceController: ObservableObject {
     @Published var error: String?
     private let engine = AVAudioEngine()
     private let synthesizer = AVSpeechSynthesizer()
-    private var sink: SpeechAudioSink?
-    private var recognition: SFSpeechRecognitionTask?
+    private var sink: SpeechAudioSink<AnalyzerInput>?
+    private var analyzer: SpeechAnalyzer?
+    private var recognition: Task<Void, Never>?
     private var timeout: Task<Void, Never>?
     private var session = UUID()
     private var hasTap = false
 
-    func start(locale: String, update: @escaping @MainActor (String) -> Void) async {
+    func start(locale: String, draft: String, update: @escaping @MainActor (String) -> Void) async {
         guard !recording, !starting else { return }
-        error = nil; starting = true
-        let token = UUID(); session = token
+        error = nil
+        starting = true
+        let token = UUID()
+        session = token
         defer { if session == token { starting = false } }
         let microphone = await AVCaptureDevice.requestAccess(for: .audio)
         guard session == token else { return }
-        guard microphone else { error = L("Accès au microphone refusé dans Réglages Système.", "Microphone access denied in System Settings."); return }
+        guard microphone else {
+            error = L(
+                "Accès au microphone refusé dans Réglages Système.", "Microphone access denied in System Settings.")
+            return
+        }
         let authorization = await requestSpeechAuthorization(SFSpeechRecognizer.requestAuthorization)
         guard session == token else { return }
-        guard authorization == .authorized else { error = L("Reconnaissance vocale non autorisée.", "Speech recognition is not authorized."); return }
-        guard let recognizer = SFSpeechRecognizer(locale: Locale(identifier: locale)), recognizer.isAvailable, recognizer.supportsOnDeviceRecognition else {
-            error = L("La dictée locale n’est pas disponible pour cette langue sur ce Mac.", "On-device dictation is unavailable for this language on this Mac."); return
+        guard authorization == .authorized else {
+            error = L("Reconnaissance vocale non autorisée.", "Speech recognition is not authorized.")
+            return
+        }
+        let supported = await DictationTranscriber.supportedLocale(equivalentTo: Locale(identifier: locale))
+        guard session == token else { return }
+        guard let supported else {
+            error = L(
+                "La dictée locale n’est pas disponible pour cette langue sur ce Mac.",
+                "On-device dictation is unavailable for this language on this Mac.")
+            return
+        }
+        let transcriber = DictationTranscriber(locale: supported, preset: .progressiveLongDictation)
+        do {
+            if let install = try await AssetInventory.assetInstallationRequest(supporting: [transcriber]) {
+                guard session == token else { return }
+                try await install.downloadAndInstall()
+            }
+        } catch {
+            guard session == token else { return }
+            self.error = error.localizedDescription
+            return
+        }
+        guard session == token else { return }
+        let format = await SpeechAnalyzer.bestAvailableAudioFormat(compatibleWith: [transcriber])
+        guard session == token else { return }
+        let input = engine.inputNode
+        let hardwareFormat = input.outputFormat(forBus: 0)
+        guard hardwareFormat.sampleRate > 0, hardwareFormat.channelCount > 0,
+            let format, let converter = AVAudioConverter(from: hardwareFormat, to: format)
+        else {
+            error = L("Microphone indisponible.", "Microphone unavailable.")
+            return
         }
         synthesizer.stopSpeaking(at: .immediate)
-        let request = SFSpeechAudioBufferRecognitionRequest()
-        request.requiresOnDeviceRecognition = true
-        request.shouldReportPartialResults = true
-        let sink = SpeechAudioSink(request)
+        let (audio, output) = AsyncThrowingStream<AnalyzerInput, Error>.makeStream()
+        let sink = SpeechAudioSink(converter: converter, output: output) { AnalyzerInput(buffer: $0) }
+        let analyzer = SpeechAnalyzer(modules: [transcriber])
         self.sink = sink
-        let input = engine.inputNode
-        let format = input.outputFormat(forBus: 0)
-        guard format.sampleRate > 0, format.channelCount > 0 else { stop(); error = L("Microphone indisponible.", "Microphone unavailable."); return }
-        input.installTap(onBus: 0, bufferSize: 1024, format: format) { @Sendable buffer, _ in sink.append(buffer) }
-        hasTap = true
-        recognition = recognizer.recognitionTask(with: request) { @Sendable [weak self] result, failure in
-            let text = result?.bestTranscription.formattedString
-            let final = result?.isFinal == true
-            let detail = failure?.localizedDescription
-            Task { @MainActor in
-                guard let self, self.session == token else { return }
-                if let text { update(text) }
-                if final || detail != nil { self.stop(); self.error = detail }
+        self.analyzer = analyzer
+        let frenchSpacing = supported.language.languageCode?.identifier == "fr"
+        recognition = Task { [weak self] in
+            var transcript = DictationDraft(confirmed: draft, spacesBeforeHighPunctuation: frenchSpacing)
+            do {
+                for try await result in transcriber.results {
+                    guard self?.session == token else { return }
+                    update(transcript.receive(String(result.text.characters), isFinal: result.isFinal))
+                }
+                if self?.session == token { self?.stop() }
+            } catch {
+                guard self?.session == token else { return }
+                self?.stop()
+                self?.error = error.localizedDescription
             }
         }
-        do { try engine.start(); recording = true }
-        catch { stop(); self.error = error.localizedDescription }
+        do {
+            try await analyzer.start(inputSequence: audio)
+            guard session == token else { return }
+            input.installTap(onBus: 0, bufferSize: 1024, format: hardwareFormat) { @Sendable buffer, _ in
+                sink.append(buffer)
+            }
+            hasTap = true
+            try engine.start()
+            recording = true
+        } catch {
+            guard session == token else { return }
+            stop()
+            self.error = error.localizedDescription
+            return
+        }
         timeout = Task { [weak self] in
             try? await Task.sleep(for: .seconds(55))
             guard !Task.isCancelled, self?.session == token else { return }
@@ -86,12 +198,22 @@ final class VoiceController: ObservableObject {
     }
 
     func stop() {
-        session = UUID(); starting = false; recording = false
-        timeout?.cancel(); timeout = nil
+        session = UUID()
+        starting = false
+        recording = false
+        timeout?.cancel()
+        timeout = nil
         engine.stop()
-        if hasTap { engine.inputNode.removeTap(onBus: 0); hasTap = false }
-        sink?.finish(); sink = nil
-        recognition?.cancel(); recognition = nil
+        if hasTap {
+            engine.inputNode.removeTap(onBus: 0)
+            hasTap = false
+        }
+        sink?.finish()
+        sink = nil
+        recognition?.cancel()
+        recognition = nil
+        if let analyzer { Task { await analyzer.cancelAndFinishNow() } }
+        analyzer = nil
     }
 
     func speak(_ text: String, locale: String) {

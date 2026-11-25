@@ -36,7 +36,9 @@ private func sandboxCheck(_ pid: pid_t, _ operation: UnsafePointer<CChar>?, _ ty
 /// All model-controlled executable text crosses this kernel-enforced boundary.
 enum AgentSandbox {
   static let maximumOutput = 32_768
-  static let maximumCommand = 16_384
+  static let maximumCommand = 256 * 1024
+  /// A refused MCP call whose text tells the model why.
+  struct Refusal: Error { let text: String }
 
   static func canonicalRoot(_ root: URL) throws -> URL {
     guard let path = realpath(root.path, nil) else { throw POSIXError(.ENOENT) }
@@ -532,7 +534,7 @@ enum AgentSandbox {
   ) throws -> Result {
     guard !command.isEmpty, command.utf8.count <= maximumCommand, !command.contains("\0"),
       seconds.isFinite, seconds > 0, seconds <= (watcher == nil ? 30 : longestJob),
-      (16...(1 << 20)).contains(limit)
+      (16...(4 << 20)).contains(limit)
     else { throw CocoaError(.fileReadCorruptFile) }
     let root = try canonicalRoot(root)
     let home = try privateHome(for: root)
@@ -720,8 +722,8 @@ enum AgentSandbox {
     let stateFile = permissionsPath.map {
       URL(fileURLWithPath: $0).deletingLastPathComponent().appendingPathComponent("js-state.json").path
     }
-    // The native engine already bounds MCP responses; bound requests here as well
-    // (a 32 KiB program can double when JSON-escaped).
+    // The native engine already bounds MCP responses; bound requests here as well: a 1 MiB
+    // program grows at most sixfold once JSON-escaped (control characters as \u00XX).
     var buffer = Data()
     var repeats = AgentJavaScript.RepeatGuard()
     // The persistent JavaScript kernel (`--agent-js-kernel`), started on the first call.
@@ -732,7 +734,7 @@ enum AgentSandbox {
       let chunk = FileHandle.standardInput.availableData
       if chunk.isEmpty { break }
       buffer.append(chunk)
-      if buffer.count > 196_608 { exit(1) }
+      if buffer.count > 16 << 20 { exit(1) }
       while let end = buffer.firstIndex(of: 10) {
         let line = Data(buffer[..<end])
         buffer.removeSubrange(...end)
@@ -790,9 +792,10 @@ enum AgentSandbox {
             }
             // Refused here: a supervisor stops reading past the limit, and writing the rest
             // into its closed pipe would end this server with SIGPIPE.
-            guard !code.isEmpty, code.utf8.count <= AgentJavaScript.maximumCode else {
-              throw CocoaError(.fileReadTooLarge)
+            guard code.utf8.count <= AgentJavaScript.maximumCode else {
+              throw Refusal(text: AgentJavaScript.tooLarge(code.utf8.count).text)
             }
+            guard !code.isEmpty else { throw Refusal(text: "Error: the code is empty.") }
             if let current = kernel, !current.process.isRunning {
               kernel = nil
               kernelLost = true
@@ -852,7 +855,11 @@ enum AgentSandbox {
             ]
           } catch {
             response["result"] = [
-              "content": [["type": "text", "text": "JavaScript sandbox refused or unavailable."]],
+              "content": [[
+                "type": "text",
+                "text": (error as? Refusal)?.text
+                  ?? "Error: the JavaScript sandbox stopped during this call or could not start (it restarts on the next call). Check what the call did before running it again.",
+              ]],
               "isError": true,
             ]
           }

@@ -22,6 +22,7 @@ jobs:
         run: |
           bundle="$RUNNER_TEMP/Studio Resources/Image21"
           sh scripts/copy-image21-resources.sh "$bundle"
+          cmp docs/images/studio-image21-m5.png "$bundle/studio-image21-m5.png"
           cmp apps/MLXL3Studio/Resources/Image21/render.py "$bundle/render.py"
           for shader in _qmm_tensor_kernel.metal _qmm_tensor_window_kernel.metal; do
             cmp "native/shaders/$shader" "$bundle/$shader"
@@ -60,7 +61,8 @@ jobs:
       - run: python -m ruff check scripts/build_manifest.py tests/test_build_manifest.py tests/test_engine_builder.py
   desktop-preferences:
     runs-on: macos-26
-    timeout-minutes: 15
+    # Cold Swift builds can take 15 minutes before the final AppKit fixtures run.
+    timeout-minutes: 25
     env:
       MLXL3_SKIP_METAL_CHECK: '1'
     steps:

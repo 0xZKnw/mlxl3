@@ -14,6 +14,8 @@ private struct DFlashInstallEvent: Decodable {
 final class StudioModel: ObservableObject {
     @Published private(set) var selectedMode: StudioMode = .chat
     @Published private(set) var labSamples: [LabSample] = []
+    @Published private(set) var labUsage = LabUsageLedger()
+    private var modeBeforeLab: StudioMode = .chat
     let localServer = LocalServer()
     let decision = DecisionStudio()
     let quantizer = QuantizationModel()
@@ -59,6 +61,8 @@ final class StudioModel: ObservableObject {
     private var documentSearchTicket: UUID?
     private weak var activeMessageReference: ChatMessage?
     @Published var selectedProjectID: UUID?
+    let imageGeneration = ImageGeneration()
+    @Published var showImages = false
     @Published var showWorkspace = false
     @Published var showMCPManager = false
     @Published var responseSchema = ""
@@ -153,6 +157,7 @@ final class StudioModel: ObservableObject {
     @Published private(set) var reasoningChoice: ReasoningEffort?
     /// The running engine passes `reasoning_effort` to the template (reported at ready).
     @Published private(set) var engineReasoningSupported = false
+    @Published private(set) var engineReasoningLevels = ReasoningEffort.legacyLevels
     /// Older engines only: output tokens of one Agent turn, all tool rounds and reasoning
     /// included. A long task ran out of it mid-work (AGENT-2026-11-23-BOUCLE).
     static let agentTokenBudget = 32_768
@@ -337,8 +342,9 @@ final class StudioModel: ObservableObject {
         AppLocalization.set(language)
         quantizationObservation = quantizer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         do {
-        if let snapshot = try ConversationStore.load(from: conversationFileURL),
-           !snapshot.conversations.isEmpty {
+        let loaded = try ConversationStore.load(from: conversationFileURL)
+        if let loaded { restoreLab(from: loaded) }
+        if let snapshot = loaded, !snapshot.conversations.isEmpty {
             conversations = snapshot.conversations.map(Conversation.init(snapshot:))
             selectedConversationID = conversations.contains {
                 $0.id == snapshot.selectedConversationID
@@ -350,7 +356,6 @@ final class StudioModel: ObservableObject {
             if let value = snapshot.topP, value.isFinite, value > 0, value <= 1 { topP = value }
             if let value = snapshot.presencePenalty, value.isFinite, (-2...2).contains(value) { presencePenalty = value }
             systemPrompt = snapshot.systemPrompt
-            labSamples = Array((snapshot.labSamples ?? []).filter(\.valid).suffix(1000))
             projects = snapshot.projects ?? []
             profiles = snapshot.profiles ?? []
             documents = snapshot.documents ?? []
@@ -701,25 +706,37 @@ final class StudioModel: ObservableObject {
     }
 
     /// The reasoning selector shows only when both the model and the engine support it.
-    var reasoningControlAvailable: Bool { engineReasoningSupported && reasoningSupport != nil }
+    var reasoningControlAvailable: Bool { engineReasoningSupported && !reasoningLevels.isEmpty }
 
-    /// Level the next request uses: the saved choice when this model supports it, else its default.
-    var reasoningLevel: ReasoningEffort? {
-        guard let support = reasoningSupport else { return nil }
-        return reasoningChoice.flatMap { support.levels.contains($0) ? $0 : nil } ?? support.defaultLevel
+    var reasoningLevels: [ReasoningEffort] {
+        reasoningSupport?.choices(acceptedByEngine: engineReasoningLevels) ?? []
     }
 
-    /// Sent only when it differs from the template default, so default prompts stay identical.
+    var effectiveReasoningChoice: ReasoningEffort? {
+        guard let choice = reasoningChoice, let support = reasoningSupport else { return nil }
+        if reasoningLevels.contains(choice) { return choice }
+        if let level = support.nativeAliases[choice], reasoningLevels.contains(level) { return level }
+        // Obsolete budget-only preferences revert to the template default.
+        return nil
+    }
+
+    var reasoningLevel: ReasoningEffort? { effectiveReasoningChoice ?? reasoningSupport?.defaultLevel }
+
     var requestReasoningEffort: String? {
-        guard reasoningControlAvailable, let support = reasoningSupport, let level = reasoningLevel,
-              level != support.defaultLevel else { return nil }
-        return level.rawValue
+        guard reasoningControlAvailable, let choice = effectiveReasoningChoice else { return nil }
+        return choice.rawValue
     }
 
     func setReasoningLevel(_ level: ReasoningEffort) {
-        guard let model = selectedModel, reasoningSupport?.levels.contains(level) == true else { return }
+        guard let model = selectedModel, reasoningLevels.contains(level) else { return }
         reasoningChoice = level
         preferences.set(level.rawValue, forKey: "studio.reasoning.\(model.path)")
+    }
+
+    func resetReasoningLevel() {
+        guard let model = selectedModel else { return }
+        reasoningChoice = nil
+        preferences.removeObject(forKey: "studio.reasoning.\(model.path)")
     }
 
     private func restoreReasoningPreference() {
@@ -1479,7 +1496,8 @@ final class StudioModel: ObservableObject {
             let system = ProcessInfo.processInfo.operatingSystemVersionString, hardware = LabHardware.identity
             let context = activeContextLimit ?? 0, temperature = samplingTemperature, topK = samplingTopK
             let mtp = mtpApplicable, dflash = dflash2Applicable
-            labConfiguration = { stats in LabSample(model: model.name, modelPath: model.path, bits: model.bits, mode: mode,
+            let sampleID = assistant.id
+            labConfiguration = { stats in LabSample(id: sampleID, model: model.name, modelPath: model.path, bits: model.bits, mode: mode,
                 runtime: runtime, system: system, hardware: hardware, context: context, temperature: temperature,
                 topK: topK, mtp: mtp, dflash: dflash, stats: stats) }
         }
@@ -2203,6 +2221,7 @@ final class StudioModel: ObservableObject {
             if let backup = try? ConversationStore.load(from: backupURL) {
                 conversations = backup.conversations.map(Conversation.init(snapshot:))
                 selectedConversationID = conversations.first?.id
+                restoreLab(from: backup)
                 projects = backup.projects ?? []
                 profiles = backup.profiles ?? []
                 documents = backup.documents ?? []
@@ -2301,6 +2320,7 @@ final class StudioModel: ObservableObject {
         restoreMTPPreference()
         restoreReasoningPreference()
         engineReasoningSupported = false
+        engineReasoningLevels = ReasoningEffort.legacyLevels
         mtpHeadPath = selectedModel.flatMap { preferences.string(forKey: "studio.mtpHead.\($0.path)") }
             ?? (selectedModelName == mtpLegacyModelName ? preferences.string(forKey: "studio.mtpHeadPath") ?? "" : "")
         mtpError = nil
@@ -2419,6 +2439,8 @@ final class StudioModel: ObservableObject {
         case "ready":
             memorySaverSupported = event.memorySaverSupported == true
             engineReasoningSupported = event.reasoningEffortSupported == true
+            engineReasoningLevels = event.reasoningEffortLevels.map { Set($0.compactMap(ReasoningEffort.init(rawValue:))) }
+                ?? ReasoningEffort.legacyLevels
             let longCalls = event.mcpCallTimeoutSupported == true && event.toolRoundsSupported == true
             let rewriteAgentRegistry = longCalls != engineLongToolCalls
             engineLongToolCalls = longCalls
@@ -2537,11 +2559,16 @@ final class StudioModel: ObservableObject {
             schedulePersistence()
         case "complete":
             guard let requestID = activeRequestID, event.requestID == requestID else { return }
-            if event.contextFull != true, let stats = event.stats, let sample = labConfiguration?(stats), sample.valid {
-                labSamples.append(sample)
-                labSamples = Array(labSamples.suffix(1000))
-            }
+            let sample = event.stats.flatMap { labConfiguration?($0) }
             labConfiguration = nil
+            if var sample {
+                sample.localDay = LabUsagePeriod.day(sample.date, calendar: .current)
+                labUsage.record(sample)
+                if event.contextFull != true && sample.valid {
+                    labSamples.append(sample)
+                    labSamples = Array(labSamples.suffix(1000))
+                }
+            }
             if let stats = event.stats, let name = selectedModelName,
                let index = conversations.firstIndex(where: { $0.messages.contains { $0.id == activeResponseID } }),
                let limit = stats.contextLimit ?? conversations[index].contextUsage?.limit ?? activeContextLimit,
@@ -2646,6 +2673,22 @@ final class StudioModel: ObservableObject {
         return title.count > 46 ? String(title.prefix(46)) + "…" : title
     }
 
+    private func restoreLab(from snapshot: WorkspaceSnapshot) {
+        let saved = snapshot.labSamples ?? []
+        if var ledger = snapshot.labUsage {
+            ledger.backfillDecodeIfNeeded(from: saved)
+            labUsage = ledger
+        } else {
+            labUsage = LabUsageLedger(samples: saved)
+        }
+        var seen = Set<UUID>()
+        labSamples = saved.filter { $0.valid && seen.insert($0.id).inserted }.suffix(1000).map { sample in
+            var dated = sample
+            dated.localDay = sample.localDay ?? LabUsagePeriod.day(sample.date, calendar: .current)
+            return dated
+        }
+    }
+
     private var workspaceSnapshot: WorkspaceSnapshot {
         var snapshot = WorkspaceSnapshot(
             selectedConversationID: selectedConversationID,
@@ -2663,6 +2706,7 @@ final class StudioModel: ObservableObject {
         snapshot.topP = topP
         snapshot.presencePenalty = presencePenalty
         snapshot.labSamples = labSamples
+        snapshot.labUsage = labUsage
         var savedDrafts: [ConversationDraft] = []
         var bytes = 0
         var omitted = false
@@ -2701,14 +2745,31 @@ final class StudioModel: ObservableObject {
 }
 
 extension StudioModel {
+    var canOpenLab: Bool {
+        !isGenerating && modeTransition == nil && !showImages && !showAppSettings && !showModelManager
+            && !showWorkspace && !showMCPManager && studioDocument == nil
+    }
+
+    func leaveLab() {
+        guard selectedMode == .lab else { return }
+        // Opening Lab keeps the running workspace and its selected conversation alive.
+        selectedMode = modeBeforeLab
+    }
+
     func selectMode(_ mode: StudioMode) {
         guard !isGenerating, modeTransition == nil, mode != selectedMode else { return }
+        if mode == .lab && !canOpenLab { return }
+        if selectedMode == .lab && mode == modeBeforeLab {
+            leaveLab()
+            return
+        }
         voice.stop()
         if mode == .decision {
             decision.refresh(registered: models)
             selectedMode = mode
             return
         }
+        if mode == .lab { modeBeforeLab = selectedMode }
         if mode == .server || mode == .lab { selectedMode = mode; return }
         if selectedMode == .decision || decision.active || decision.server.active {
             // The decision model leaves memory to the chat model.
@@ -3123,9 +3184,9 @@ extension StudioModel {
         let prefix = draft
         Task { [weak self] in
             guard let self else { return }
-            await voice.start(locale: voiceLocale) { [weak self] text in
+            await voice.start(locale: voiceLocale, draft: prefix) { [weak self] text in
                 guard let self, self.selectedConversationID == conversation, !self.isGenerating else { return }
-                self.draft = prefix + (prefix.isEmpty ? "" : " ") + text
+                self.draft = text
             }
         }
     }

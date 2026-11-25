@@ -8,25 +8,29 @@ struct StudioView: View {
     @AppStorage("studio.sidebarVisible") private var sidebarVisible = true
 
     private var coveredByPage: Bool {
-        studio.showAppSettings || studio.showModelManager || studio.showWorkspace || studio.showMCPManager
+        studio.showImages || studio.showAppSettings || studio.showModelManager || studio.showWorkspace || studio.showMCPManager
     }
 
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
-                if sidebarVisible {
+                if sidebarVisible && studio.selectedMode != .lab {
                     SidebarView()
                         .frame(width: studio.sidebarWidth.points)
                         .modifier(StudioSidebarSurface())
                 }
-                ChatWorkspaceView(sidebarVisible: $sidebarVisible)
+                if studio.selectedMode == .lab {
+                    LabWorkspaceView(onBack: studio.leaveLab)
+                } else {
+                    ChatWorkspaceView(sidebarVisible: $sidebarVisible)
+                }
 
                 if studio.showInspector && (studio.selectedMode == .chat || studio.selectedMode == .agent) && geometry.size.width >= 1280 {
                     GenerationInspector().frame(width: 340).padding(8)
                 }
             }
             .background {
-                StudioAurora(busy: studio.isGenerating, animated: !studio.showAppSettings && !studio.showWorkspace && !studio.showModelManager && !studio.showMCPManager && studio.studioDocument == nil,
+                StudioAurora(busy: studio.isGenerating, animated: !coveredByPage && studio.studioDocument == nil,
                              fullHeight: true)
                     .background(StudioTheme.canvas)
             }
@@ -65,6 +69,15 @@ struct StudioView: View {
                     .background(StudioTheme.canvas)
             }
         }
+        .disabled(studio.showImages)
+        .accessibilityHidden(studio.showImages)
+        .allowsHitTesting(!studio.showImages)
+        .overlay {
+            if studio.showImages && Image21Hardware.available {
+                ImageGenerationView(engine: studio.imageGeneration, close: { studio.showImages = false })
+                    .transition(.opacity)
+            }
+        }
         .environment(\.locale, Locale(identifier: studio.language.rawValue))
         .disabled(studio.showAppSettings)
         .allowsHitTesting(!studio.showAppSettings)
@@ -90,7 +103,7 @@ struct StudioView: View {
         .ignoresSafeArea()
         .frame(minWidth: 820, minHeight: 600)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2),
-                   value: [studio.showAppSettings, studio.showModelManager, studio.showWorkspace, studio.showMCPManager])
+                   value: [studio.showImages, studio.showAppSettings, studio.showModelManager, studio.showWorkspace, studio.showMCPManager])
         .alert(L("MLXL3", "MLXL3"), isPresented: Binding(get: { studio.featureError != nil }, set: { if !$0 { studio.featureError = nil } })) {
             Button("OK") { studio.featureError = nil }
         } message: { Text(studio.featureError ?? "") }
@@ -104,170 +117,102 @@ struct StudioView: View {
     }
 }
 
+/// One left edge for everything: rows sit 8 pt from the sidebar edge and their
+/// content 10 pt further in, so icons, titles and section headings share x = 18.
+private enum SidebarMetrics {
+    static let inset: CGFloat = 8
+    static let content: CGFloat = 10
+    static let row: CGFloat = 28
+    static let radius: CGFloat = 7
+}
+
+/// Search and new conversation at the top, the modes and Image as labelled rows,
+/// the history, and one footer row instead of four unlabelled icons.
 private struct SidebarView: View {
-    @Environment(\.openWindow) private var openWindow
     @EnvironmentObject private var studio: StudioModel
     @Environment(\.studioStyle) private var style
     @State private var search = ""
-
-    private var filteredConversations: [Conversation] {
-        studio.sidebarConversations(matching: search)
-    }
+    @FocusState private var searchFocused: Bool
 
     var body: some View {
-        let visibleConversations = filteredConversations
-        let graphite = style.isGraphite
+        let conversations = studio.sidebarConversations(matching: search)
         VStack(alignment: .leading, spacing: 0) {
-            HStack(spacing: 8) {
-                // The monogram alone names the app; the wordmark repeated it.
-                MonogramMark(size: graphite ? 26 : 35)
-                    .accessibilityElement()
-                    .accessibilityLabel("MLXL3")
+            // The window controls share this row; the actions line up with the workspace toolbar.
+            HStack(spacing: 2) {
                 Spacer(minLength: 0)
                 DownloadNotificationButton(library: studio.modelLibrary)
-            }
-            .foregroundStyle(StudioTheme.ink)
-            .padding(.horizontal, graphite ? 20 : 18)
-            .padding(.top, graphite ? 40 : 37).padding(.bottom, graphite ? 14 : 16)
-
-            SidebarModePicker()
-                .padding(.horizontal, 10)
-                .disabled(studio.isGenerating)
-
-            SidebarProjectMenu()
-                .padding(.horizontal, 10).padding(.top, 8)
-                .disabled(studio.isGenerating)
-
-            // Search and the new-conversation action share one row so the
-            // conversation list keeps the vertical space.
-            HStack(spacing: 6) {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").font(.system(size: 11.5))
-                    TextField(L("Rechercher", "Search"), text: $search)
-                        .textFieldStyle(.plain)
-                        .accessibilityLabel(L("Rechercher dans les titres des conversations", "Search conversation titles"))
-                    if !search.isEmpty {
-                        Button { search = "" } label: { Image(systemName: "xmark.circle.fill") }
-                            .buttonStyle(.plain)
-                            .help(L("Effacer la recherche", "Clear search"))
-                    }
-                }
-                .font(.system(size: graphite ? 12.5 : 12))
-                .foregroundStyle(graphite ? StudioTheme.quiet : StudioTheme.secondary)
-                .padding(.horizontal, 10)
-                .frame(height: 30)
-                .background(graphite ? StudioTheme.contrast.opacity(0.05) : StudioTheme.panel,
-                            in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-                .overlay {
-                    RoundedRectangle(cornerRadius: 8, style: .continuous)
-                        .strokeBorder(StudioTheme.edge, lineWidth: graphite ? 0 : 0.5).allowsHitTesting(false)
-                }
-
-                if graphite {
-                    Button(action: studio.newConversation) {
-                        Image(systemName: "square.and.pencil")
-                            .font(.system(size: 13, weight: .regular))
-                            .frame(width: 30, height: 30)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(StudioControlStyle(cornerRadius: 8))
-                    .accessibilityIdentifier("sidebar.newConversation")
-                    .accessibilityLabel(newConversationTitle)
-                    .help(newConversationTitle + " · ⌘N")
-                } else {
                 Button(action: studio.newConversation) {
                     Image(systemName: "square.and.pencil")
-                        .font(.system(size: 13, weight: .medium))
+                        .font(.system(size: 14))
                         .frame(width: 30, height: 30)
                         .contentShape(Rectangle())
                 }
-                .buttonStyle(StudioToolbarStyle(materialOpacity: 0.76))
+                .buttonStyle(StudioControlStyle(cornerRadius: 8))
                 .accessibilityIdentifier("sidebar.newConversation")
                 .accessibilityLabel(newConversationTitle)
                 .help(newConversationTitle + " · ⌘N")
-                }
             }
-            .padding(.horizontal, 10)
-            .padding(.top, 6)
+            .font(.system(size: 14))
+            .frame(height: 30)
+            .padding(.horizontal, SidebarMetrics.inset)
+            .padding(.top, 14)
 
-            if graphite {
-                HStack(spacing: 6) {
-                    Text("Conversations")
-                    Spacer()
-                    Text("\(visibleConversations.count)").monospacedDigit()
+            searchField
+                .padding(.horizontal, SidebarMetrics.inset)
+                .padding(.top, 8)
+
+            VStack(spacing: 1) {
+                VStack(spacing: 1) {
+                    // Lab lives in the footer "…"; the others keep the ⌘-numbers of the View menu.
+                    ForEach(Array(StudioMode.allCases.enumerated()).filter { $0.element != .lab }, id: \.element) { index, mode in
+                        SidebarNavRow(icon: mode.icon, title: mode.displayTitle, selected: studio.selectedMode == mode,
+                                      shortcut: "⌘\(index + 1)") { studio.selectMode(mode) }
+                    }
                 }
-                .font(.system(size: 11.5, weight: .medium))
-                .foregroundStyle(StudioTheme.quiet)
-                .padding(.horizontal, 22)
+                .disabled(studio.isGenerating)
+                // Images open their own page, available while a chat reply streams (as before).
+                if Image21Hardware.available {
+                    SidebarNavRow(icon: "photo", title: L("Image", "Image"), selected: studio.showImages,
+                                  detail: L("Générer une image", "Generate an image")) {
+                        studio.showImages = true
+                    }
+                }
+            }
+            .padding(.horizontal, SidebarMetrics.inset)
+            .padding(.top, 10)
+
+            SidebarScopeMenu()
+                .padding(.horizontal, SidebarMetrics.inset)
                 .padding(.top, 16)
-                .padding(.bottom, 4)
-            } else {
-            HStack(spacing: 7) {
-                Text("Conversations")
-                Text("\(visibleConversations.count)").monospacedDigit()
-                    .font(.system(size: 10, weight: .semibold))
-                    .padding(.horizontal, 6).frame(height: 16)
-                    .background(StudioTheme.contrast.opacity(0.07), in: Capsule())
-                Spacer()
-            }
-            .font(.system(size: 11, weight: .semibold))
-            .foregroundStyle(StudioTheme.quiet)
-            .padding(.horizontal, 22)
-            .padding(.top, 12)
-            .padding(.bottom, 4)
-            }
+                .disabled(studio.isGenerating)
 
             ScrollView {
-                let conversations = visibleConversations
+                // Only Chat and Agent open a conversation; elsewhere no row reads as current.
+                let showsSelection = studio.selectedMode == .chat || studio.selectedMode == .agent
                 let pinnedID = conversations.first(where: \.isPinned)?.id
                 let recentID = pinnedID == nil ? nil : conversations.first(where: { !$0.isPinned })?.id
-                LazyVStack(spacing: 2) {
+                LazyVStack(alignment: .leading, spacing: 1) {
                     ForEach(conversations) { conversation in
                         if conversation.id == pinnedID {
-                            sectionLabel(graphite ? L("Épinglées", "Pinned") : L("ÉPINGLÉES", "PINNED"))
+                            SidebarSectionHeader(title: L("Épinglées", "Pinned"), first: true)
                         }
                         if conversation.id == recentID {
-                            sectionLabel(graphite ? L("Récentes", "Recent") : L("RÉCENTES", "RECENT"))
+                            SidebarSectionHeader(title: L("Récentes", "Recent"), first: false)
                         }
-                        SidebarConversationItem(conversation: conversation)
+                        SidebarConversationItem(conversation: conversation, showsSelection: showsSelection)
                     }
-                    if conversations.isEmpty {
-                        Text(search.isEmpty ? L("Vos conversations apparaîtront ici.", "Your conversations will appear here.") : L("Aucune conversation trouvée.", "No conversations found."))
-                            .font(.system(size: 12))
-                            .foregroundStyle(StudioTheme.quiet)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(12)
-                    }
+                    if conversations.isEmpty { emptyState }
                 }
-                .padding(.horizontal, 10)
+                .padding(.horizontal, SidebarMetrics.inset)
+                .padding(.bottom, 14)
             }
             .scrollIndicators(.hidden)
-            .mask(StudioEdgeFade(top: 10, bottom: 18))
+            .mask(StudioEdgeFade(top: 6, bottom: 22))
 
-            if Image21Hardware.available {
-                Button { openWindow(id: "image-generation") } label: {
-                    Label(L("Générer une image", "Generate an image"), systemImage: "photo")
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-                .buttonStyle(StudioControlStyle(cornerRadius: 8))
-                .padding(.horizontal, 10).padding(.vertical, 6)
-            }
-
-            // Projects, MCP, Models and Settings as one icon row (named in the
-            // tooltip and accessibility label) instead of four full-width rows.
-            VStack(spacing: 0) {
-                Rectangle().fill(StudioTheme.edge).frame(height: 0.5)
-                    .padding(.horizontal, 12).padding(.bottom, 8)
-                HStack(spacing: 2) {
-                    utilityButton(L("Projets et profils", "Projects and profiles"), icon: "folder", action: { studio.showWorkspace = true })
-                    utilityButton("MCP", icon: "shippingbox", action: { studio.showMCPManager = true })
-                    utilityButton(L("Modèles", "Models"), icon: "square.stack", action: studio.openModelManager)
-                    utilityButton(L("Réglages", "Settings"), icon: "gearshape", action: studio.openAppSettings)
-                    SidebarUpdateBadge(updater: studio.updateManager, action: studio.openUpdateSettings)
-                }
-            }
-            .padding(.horizontal, 10)
-            .padding(.bottom, 12)
+            SidebarFooter()
+                .padding(.horizontal, SidebarMetrics.inset)
+                .padding(.top, 4)
+                .padding(.bottom, 10)
         }
     }
 
@@ -275,169 +220,273 @@ private struct SidebarView: View {
         studio.selectedMode == .agent ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation")
     }
 
-    private func sectionLabel(_ title: String) -> some View {
-        Text(title)
-            .font(.system(size: style.isGraphite ? 11 : 9, weight: style.isGraphite ? .medium : .semibold))
-            .tracking(style.isGraphite ? 0 : 0.8)
-            .foregroundStyle(StudioTheme.quiet)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.leading, 12).padding(.top, 10).padding(.bottom, 5)
-    }
-
-    private func utilityButton(_ title: String, icon: String, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 13.5))
-                .frame(maxWidth: .infinity).frame(height: 32)
-                .contentShape(Rectangle())
-        }
-        .buttonStyle(StudioControlStyle(cornerRadius: 8))
-        .help(title)
-        .accessibilityLabel(title)
-    }
-}
-
-/// Chat, Agent, Server and Lab as one segmented row: four full-width rows used
-/// to take the space of four conversations.
-private struct SidebarModePicker: View {
-    @EnvironmentObject private var studio: StudioModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.studioStyle) private var style
-    @Namespace private var selection
-
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(StudioMode.allCases) { mode in
-                let selected = studio.selectedMode == mode
-                Button { studio.selectMode(mode) } label: {
-                    VStack(spacing: 3) {
-                        Image(systemName: mode.icon)
-                            .font(.system(size: style.isGraphite ? 13 : 12.5, weight: selected && !style.isGraphite ? .semibold : .regular))
-                            .frame(height: 15)
-                        Text(mode.title)
-                            .font(.system(size: 10.5, weight: selected && !style.isGraphite ? .semibold : .medium))
-                            .lineLimit(1).minimumScaleFactor(0.8)
-                    }
-                    .foregroundStyle(selected ? StudioTheme.ink : StudioTheme.quiet)
-                    .frame(maxWidth: .infinity).frame(height: 40)
-                    .background {
-                        if selected {
-                            // Graphite: a selection, not a box in a box.
-                            RoundedRectangle(cornerRadius: style.isGraphite ? 8 : 7, style: .continuous)
-                                .fill(StudioTheme.contrast.opacity(style.isGraphite ? 0.075 : 0.09))
-                                .overlay {
-                                    RoundedRectangle(cornerRadius: style.isGraphite ? 8 : 7, style: .continuous)
-                                        .strokeBorder(StudioTheme.edge, lineWidth: style.isGraphite ? 0 : 0.5)
-                                }
-                                .matchedGeometryEffect(id: "mode", in: selection)
-                        }
-                    }
-                    .contentShape(Rectangle())
+    private var searchField: some View {
+        let graphite = style.isGraphite
+        return HStack(spacing: 7) {
+            Image(systemName: "magnifyingglass")
+                .font(.system(size: 12))
+                .foregroundStyle(StudioTheme.quiet)
+            TextField(L("Rechercher", "Search"), text: $search)
+                .textFieldStyle(.plain)
+                .focused($searchFocused)
+                .onExitCommand { search = ""; searchFocused = false }
+                .accessibilityLabel(L("Rechercher dans les conversations", "Search conversations"))
+            if !search.isEmpty {
+                Button { search = "" } label: {
+                    Image(systemName: "xmark.circle.fill").foregroundStyle(StudioTheme.quiet)
                 }
                 .buttonStyle(.plain)
-                .help(mode.title)
-                .accessibilityLabel(mode.title)
-                .accessibilityAddTraits(selected ? .isSelected : [])
-            }
-        }
-        .padding(style.isGraphite ? 0 : 3)
-        .background(style.isGraphite ? .clear : StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10, style: .continuous))
-        .overlay {
-            RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .strokeBorder(StudioTheme.edge, lineWidth: style.isGraphite ? 0 : 0.5).allowsHitTesting(false)
-        }
-        .animation(reduceMotion ? nil : style.isGraphite ? .spring(duration: 0.22, bounce: 0) : .easeOut(duration: 0.16),
-                   value: studio.selectedMode)
-    }
-}
-
-/// The project choice shares the navigation rows' inset and surface instead of
-/// the system pop-up chrome.
-private struct SidebarProjectMenu: View {
-    @EnvironmentObject private var studio: StudioModel
-    @Environment(\.studioStyle) private var style
-
-    private var projectName: String {
-        studio.projects.first { $0.id == studio.selectedProjectID }?.name ?? L("Sans projet", "No project")
-    }
-
-    var body: some View {
-        Menu {
-            Button { studio.chooseProject(nil) } label: {
-                if studio.selectedProjectID == nil {
-                    Label(L("Sans projet", "No project"), systemImage: "checkmark")
-                } else { Text(L("Sans projet", "No project")) }
-            }
-            if !studio.projects.isEmpty { Divider() }
-            ForEach(studio.projects) { project in
-                Button { studio.chooseProject(project.id) } label: {
-                    if studio.selectedProjectID == project.id {
-                        Label(project.name, systemImage: "checkmark")
-                    } else { Text(project.name) }
-                }
-            }
-        } label: {
-            HStack(spacing: 11) {
-                Image(systemName: studio.selectedProjectID == nil ? "folder" : "folder.fill").frame(width: 18)
-                Text(projectName).lineLimit(1).truncationMode(.tail)
-                Spacer(minLength: 4)
-                Image(systemName: "chevron.up.chevron.down")
-                    .font(.system(size: 9, weight: .semibold))
+                .help(L("Effacer la recherche", "Clear search"))
+            } else if !searchFocused {
+                Text("⌘K")
+                    .font(.system(size: 11))
                     .foregroundStyle(StudioTheme.quiet)
-            }
-            .font(.system(size: style.isGraphite ? 12.5 : 12, weight: style.isGraphite ? .regular : .medium))
-            .foregroundStyle(style.isGraphite ? AnyShapeStyle(StudioTheme.secondary) : AnyShapeStyle(.foreground))
-            .padding(.horizontal, style.isGraphite ? 10 : 12)
-            .frame(height: 30)
-            .frame(maxWidth: .infinity)
-            .background(style.isGraphite ? .clear : StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8, style: .continuous))
-            .overlay {
-                RoundedRectangle(cornerRadius: 8, style: .continuous)
-                    .strokeBorder(StudioTheme.edge, lineWidth: style.isGraphite ? 0 : 0.5)
+                    .accessibilityHidden(true)
             }
         }
-        .menuStyle(.button).buttonStyle(StudioControlStyle(cornerRadius: 8)).menuIndicator(.hidden)
-        .accessibilityLabel(L("Projet", "Project"))
-        .accessibilityValue(projectName)
-        .help(L("Projet de la conversation", "Conversation project"))
+        .font(.system(size: 13))
+        .foregroundStyle(StudioTheme.ink)
+        .padding(.leading, SidebarMetrics.content)
+        .padding(.trailing, 9)
+        .frame(height: 30)
+        .background(graphite ? StudioTheme.contrast.opacity(searchFocused ? 0.07 : 0.05) : StudioTheme.panel,
+                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .overlay {
+            RoundedRectangle(cornerRadius: 8, style: .continuous)
+                .strokeBorder(searchFocused ? StudioTheme.contrast.opacity(0.16) : StudioTheme.edge,
+                              lineWidth: graphite && !searchFocused ? 0 : 0.5)
+                .allowsHitTesting(false)
+        }
+        .background {
+            // ⌘K focuses the search; Escape clears it and gives the focus back.
+            Button("") { searchFocused = true }
+                .keyboardShortcut("k", modifiers: .command)
+                .opacity(0).allowsHitTesting(false).accessibilityHidden(true)
+        }
+    }
+
+    private var emptyState: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            if search.isEmpty {
+                Text(studio.selectedMode == .agent ? L("Aucune tâche", "No tasks yet") : L("Aucune conversation", "No conversations yet"))
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(StudioTheme.secondary)
+                Text(L("Commencez avec ⌘N.", "Start one with ⌘N."))
+            } else {
+                Text(L("Aucun résultat pour « \(search) »", "No results for “\(search)”"))
+                    .lineLimit(2)
+            }
+        }
+        .font(.system(size: 12))
+        .foregroundStyle(StudioTheme.quiet)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, SidebarMetrics.content)
+        .padding(.top, 10)
     }
 }
 
-/// One surface per row: the selection and hover fill also cover the pin, and
-/// an unpinned row only reserves room for the pin while it is hovered.
-private struct SidebarConversationItem: View {
-    @EnvironmentObject private var studio: StudioModel
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @Environment(\.studioStyle) private var style
-    let conversation: Conversation
+/// Hover, press and selection share one fill so every sidebar row answers alike.
+/// Hover is instant: rows are passed over all day and should not shimmer.
+private struct SidebarRowStyle: ButtonStyle {
+    var selected = false
+    var hovered = false
+
+    func makeBody(configuration: Configuration) -> some View {
+        Surface(configuration: configuration, selected: selected, hovered: hovered)
+    }
+
+    private struct Surface: View {
+        let configuration: ButtonStyle.Configuration
+        let selected: Bool
+        let hovered: Bool
+        @Environment(\.isEnabled) private var enabled
+        @Environment(\.studioStyle) private var style
+
+        var body: some View {
+            let fill = !enabled ? (selected ? 0.05 : 0)
+                : configuration.isPressed ? 0.11
+                : selected ? (style.isGraphite ? 0.085 : 0.075)
+                : hovered ? 0.045 : 0
+            configuration.label
+                .background(StudioTheme.contrast.opacity(fill),
+                            in: RoundedRectangle(cornerRadius: SidebarMetrics.radius, style: .continuous))
+                .contentShape(RoundedRectangle(cornerRadius: SidebarMetrics.radius, style: .continuous))
+                .opacity(enabled ? 1 : selected ? 0.8 : 0.45)
+        }
+    }
+}
+
+extension StudioMode {
+    var displayTitle: String { self == .decision ? L("Décision", "Decision") : title }
+}
+
+/// A place as a labelled row: the icon alone did not say what Decision or Lab were.
+/// A mode's ⌘-number appears on hover, next to the place it opens.
+private struct SidebarNavRow: View {
+    @Environment(\.isEnabled) private var enabled
+    let icon: String
+    let title: String
+    let selected: Bool
+    var shortcut: String? = nil
+    var detail: String? = nil
+    let action: () -> Void
     @State private var hovered = false
 
     var body: some View {
-        let selected = conversation.id == studio.selectedConversationID
-        let showsPin = conversation.isPinned || hovered
-        Button { studio.selectConversation(conversation.id) } label: {
-            ConversationRow(conversation: conversation, selected: selected)
-                .padding(.trailing, showsPin ? 26 : 0)
-        }
-        .buttonStyle(.plain)
-        .overlay(alignment: .trailing) {
-            Button { studio.setConversationPinned(conversation.id, !conversation.isPinned) } label: {
-                Image(systemName: conversation.isPinned ? "pin.fill" : "pin")
-                    .font(.system(size: 10.5)).frame(width: 26, height: 30)
-                    .foregroundStyle(conversation.isPinned ? StudioTheme.secondary : StudioTheme.quiet)
-                    .contentShape(Rectangle())
+        Button(action: action) {
+            HStack(spacing: 9) {
+                Image(systemName: icon)
+                    .font(.system(size: 13, weight: selected ? .medium : .regular))
+                    .frame(width: 18)
+                    .foregroundStyle(selected ? StudioTheme.ink : StudioTheme.quiet)
+                Text(title)
+                    .font(.system(size: 13, weight: selected ? .medium : .regular))
+                    .foregroundStyle(selected ? StudioTheme.ink : StudioTheme.secondary)
+                Spacer(minLength: 4)
+                if hovered && enabled, let shortcut {
+                    Text(shortcut)
+                        .font(.system(size: 11))
+                        .monospacedDigit()
+                        .foregroundStyle(StudioTheme.quiet)
+                        .accessibilityHidden(true)
+                }
             }
-            .buttonStyle(.plain)
-            .opacity(showsPin ? 1 : 0)
-            .allowsHitTesting(showsPin)
-            .padding(.trailing, 2)
-            .help(conversation.isPinned ? L("Désépingler", "Unpin") : L("Épingler", "Pin"))
-            .accessibilityLabel((conversation.isPinned ? L("Désépingler ", "Unpin ") : L("Épingler ", "Pin ")) + conversation.title)
+            .padding(.leading, 9)
+            .padding(.trailing, SidebarMetrics.content)
+            .frame(height: SidebarMetrics.row)
+            .contentShape(Rectangle())
         }
-        .background(StudioTheme.contrast.opacity(selected ? (style.isGraphite ? 0.08 : 0.075) : (hovered ? (style.isGraphite ? 0.04 : 0.035) : 0)),
-                    in: RoundedRectangle(cornerRadius: 8, style: .continuous))
+        .buttonStyle(SidebarRowStyle(selected: selected, hovered: hovered))
+        .onHover { hovered = $0 }
+        .help(detail ?? shortcut.map { "\(title) · \($0)" } ?? title)
+        .accessibilityLabel(title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+    }
+}
+
+/// The list's title is also its project filter: "Conversations" (or the project's
+/// name) with a menu, instead of a "No project" row that read like an error.
+private struct SidebarScopeMenu: View {
+    @EnvironmentObject private var studio: StudioModel
+    @State private var hovered = false
+
+    private var project: WorkspaceProject? {
+        studio.projects.first { $0.id == studio.selectedProjectID }
+    }
+
+    var body: some View {
+        let title = project?.name ?? (studio.selectedMode == .agent ? L("Tâches", "Tasks") : L("Conversations", "Conversations"))
+        HStack(spacing: 0) {
+            Menu {
+                Section(L("Projet", "Project")) {
+                    Button { studio.chooseProject(nil) } label: {
+                        if studio.selectedProjectID == nil {
+                            Label(L("Sans projet", "No project"), systemImage: "checkmark")
+                        } else { Text(L("Sans projet", "No project")) }
+                    }
+                    ForEach(studio.projects) { project in
+                        Button { studio.chooseProject(project.id) } label: {
+                            if studio.selectedProjectID == project.id {
+                                Label(project.name, systemImage: "checkmark")
+                            } else { Text(project.name) }
+                        }
+                    }
+                }
+                Divider()
+                Button { SidebarDestination.projects.open(studio) } label: {
+                    Label(L("Gérer les projets…", "Manage projects…"), systemImage: "folder.badge.gearshape")
+                }
+            } label: {
+                HStack(spacing: 6) {
+                    if project != nil {
+                        Image(systemName: "folder.fill").font(.system(size: 11))
+                    }
+                    Text(title).lineLimit(1).truncationMode(.tail)
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(StudioTheme.quiet)
+                }
+                .font(.system(size: 12.5, weight: .semibold))
+                .foregroundStyle(StudioTheme.secondary)
+                .padding(.horizontal, SidebarMetrics.content)
+                .frame(height: 26)
+                .contentShape(Rectangle())
+            }
+            .menuStyle(.button)
+            .buttonStyle(SidebarRowStyle(hovered: hovered))
+            .menuIndicator(.hidden)
+            .fixedSize(horizontal: true, vertical: false)
+            .onHover { hovered = $0 }
+            .accessibilityLabel(L("Projet", "Project"))
+            .accessibilityValue(project?.name ?? L("Sans projet", "No project"))
+            .help(L("Choisir le projet de la conversation", "Choose the conversation project"))
+            Spacer(minLength: 0)
+        }
+    }
+}
+
+private struct SidebarSectionHeader: View {
+    @Environment(\.studioStyle) private var style
+    let title: String
+    let first: Bool
+
+    var body: some View {
+        Group {
+            if style.isGraphite {
+                Text(title).font(.system(size: 11, weight: .semibold))
+            } else {
+                Text(title.uppercased()).font(.system(size: 9.5, weight: .semibold)).tracking(0.8)
+            }
+        }
+        .foregroundStyle(StudioTheme.quiet)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.leading, SidebarMetrics.content)
+        .padding(.top, first ? 4 : 14)
+        .padding(.bottom, 4)
+        .accessibilityAddTraits(.isHeader)
+    }
+}
+
+/// A conversation title fades out at the edge instead of ending on "…"; short titles
+/// never reach the fade. Its actions sit behind "…" on hover and in the context menu.
+private struct SidebarConversationItem: View {
+    @EnvironmentObject private var studio: StudioModel
+    @Environment(\.studioStyle) private var style
+    let conversation: Conversation
+    let showsSelection: Bool
+    @State private var hovered = false
+
+    var body: some View {
+        let selected = showsSelection && conversation.id == studio.selectedConversationID
+        let empty = conversation.messages.isEmpty
+        Button { studio.selectConversation(conversation.id) } label: {
+            Text(empty && ["Nouvelle conversation", "New conversation"].contains(conversation.title)
+                 ? L("Nouvelle conversation", "New conversation") : conversation.title)
+                .font(.system(size: 13, weight: selected && !style.isGraphite ? .medium : .regular))
+                // An untouched draft recedes so it does not read as one more chat.
+                .foregroundStyle(selected ? StudioTheme.ink : empty ? StudioTheme.quiet : StudioTheme.secondary)
+                .lineLimit(1)
+                .fixedSize(horizontal: true, vertical: false)
+                // minWidth 0: the frame takes the row's width even when the title is longer.
+                .frame(minWidth: 0, maxWidth: .infinity, alignment: .leading)
+                .mask {
+                    HStack(spacing: 0) {
+                        Color.black
+                        LinearGradient(colors: [.black, .clear], startPoint: .leading, endPoint: .trailing)
+                            .frame(width: 22)
+                    }
+                }
+                .padding(.leading, SidebarMetrics.content)
+                .padding(.trailing, hovered ? 30 : 6)
+                .frame(height: SidebarMetrics.row)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(SidebarRowStyle(selected: selected, hovered: hovered))
+        .overlay(alignment: .trailing) {
+            if hovered { actionsMenu.padding(.trailing, 3) }
+        }
         .overlay(alignment: .leading) {
-            // Graphite selects by luminance alone.
+            // Aurora keeps its accent mark; Graphite selects by luminance alone.
             if selected && !style.isGraphite {
                 Capsule().fill(studio.accentColor)
                     .frame(width: 3, height: 14)
@@ -447,36 +496,144 @@ private struct SidebarConversationItem: View {
             }
         }
         .onHover { hovered = $0 }
-        .animation(reduceMotion ? nil : .easeOut(duration: 0.14), value: hovered)
-        .contextMenu {
-            Button(conversation.isPinned ? L("Désépingler", "Unpin") : L("Épingler", "Pin"),
-                   systemImage: conversation.isPinned ? "pin.slash" : "pin") {
-                studio.setConversationPinned(conversation.id, !conversation.isPinned)
-            }
-            Button(L("Supprimer", "Delete"), role: .destructive) { studio.deleteConversation(conversation.id) }
+        .help(conversation.title)
+        .accessibilityLabel(conversation.title)
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .contextMenu { actions }
+    }
+
+    @ViewBuilder private var actions: some View {
+        Button(conversation.isPinned ? L("Désépingler", "Unpin") : L("Épingler", "Pin"),
+               systemImage: conversation.isPinned ? "pin.slash" : "pin") {
+            studio.setConversationPinned(conversation.id, !conversation.isPinned)
+        }
+        Divider()
+        Button(L("Supprimer", "Delete"), systemImage: "trash", role: .destructive) {
+            studio.deleteConversation(conversation.id)
+        }
+    }
+
+    private var actionsMenu: some View {
+        Menu { actions } label: {
+            Image(systemName: "ellipsis")
+                .font(.system(size: 12, weight: .semibold))
+                .frame(width: 24, height: 22)
+                .contentShape(Rectangle())
+        }
+        .menuStyle(.button)
+        .buttonStyle(StudioControlStyle(cornerRadius: 6))
+        .menuIndicator(.hidden)
+        .fixedSize()
+        .help(L("Actions", "Actions"))
+        .accessibilityLabel(L("Actions pour ", "Actions for ") + conversation.title)
+    }
+}
+
+/// The pages the sidebar footer and project menu open. Shared with the checks so
+/// a destination cannot be wired in one place and forgotten in the other.
+enum SidebarDestination: CaseIterable {
+    case models, lab, projects, mcp, settings
+
+    var title: String {
+        switch self {
+        case .models: L("Modèles", "Models")
+        case .lab: "Lab"
+        case .projects: L("Projets et profils", "Projects and profiles")
+        case .mcp: L("Serveurs MCP", "MCP servers")
+        case .settings: L("Réglages…", "Settings…")
+        }
+    }
+
+    var icon: String {
+        switch self {
+        case .models: "square.stack"
+        case .lab: StudioMode.lab.icon
+        case .projects: "folder"
+        case .mcp: "shippingbox"
+        case .settings: "gearshape"
+        }
+    }
+
+    @MainActor func open(_ studio: StudioModel) {
+        switch self {
+        case .models: studio.openModelManager()
+        case .lab: studio.selectMode(.lab)
+        case .projects: studio.showWorkspace = true
+        case .mcp: studio.showMCPManager = true
+        case .settings: studio.openAppSettings()
         }
     }
 }
 
-private struct ConversationRow: View {
-    @Environment(\.studioStyle) private var style
-    let conversation: Conversation
-    let selected: Bool
+/// Models as a labelled row (the page people open most), Lab, projects and MCP
+/// behind "…", and the gear for Settings: no unlabelled icon row, no account-like brand row.
+private struct SidebarFooter: View {
+    @EnvironmentObject private var studio: StudioModel
+    @State private var hovered = false
 
     var body: some View {
-        HStack(spacing: 0) {
-            Text(conversation.messages.isEmpty && ["Nouvelle conversation", "New conversation"].contains(conversation.title)
-                 ? L("Nouvelle conversation", "New conversation") : conversation.title)
-                .font(.system(size: 13, weight: selected && !style.isGraphite ? .medium : .regular))
-                .foregroundStyle(selected ? StudioTheme.ink : StudioTheme.secondary)
-                .lineLimit(1)
-            Spacer(minLength: 0)
+        HStack(spacing: 2) {
+            Button { SidebarDestination.models.open(studio) } label: {
+                HStack(spacing: 9) {
+                    Image(systemName: SidebarDestination.models.icon)
+                        .font(.system(size: 13))
+                        .frame(width: 18)
+                        .foregroundStyle(StudioTheme.quiet)
+                    Text(SidebarDestination.models.title)
+                        .font(.system(size: 13))
+                        .foregroundStyle(StudioTheme.secondary)
+                    Spacer(minLength: 0)
+                }
+                .padding(.leading, 9)
+                .padding(.trailing, SidebarMetrics.content)
+                .frame(height: 30)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(SidebarRowStyle(hovered: hovered))
+            .onHover { hovered = $0 }
+            .help(L("Gérer et télécharger des modèles", "Manage and download models"))
+
+            SidebarUpdateBadge(updater: studio.updateManager, action: studio.openUpdateSettings)
+
+            Menu {
+                Button { SidebarDestination.lab.open(studio) } label: {
+                    if studio.selectedMode == .lab {
+                        Label(SidebarDestination.lab.title, systemImage: "checkmark")
+                    } else {
+                        Label(SidebarDestination.lab.title, systemImage: SidebarDestination.lab.icon)
+                    }
+                }
+                .disabled(studio.isGenerating)
+                Divider()
+                Button { SidebarDestination.projects.open(studio) } label: {
+                    Label(SidebarDestination.projects.title, systemImage: SidebarDestination.projects.icon)
+                }
+                Button { SidebarDestination.mcp.open(studio) } label: {
+                    Label(SidebarDestination.mcp.title, systemImage: SidebarDestination.mcp.icon)
+                }
+            } label: {
+                Image(systemName: "ellipsis")
+                    .font(.system(size: 13, weight: .medium))
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
+            }
+            .menuStyle(.button)
+            .buttonStyle(StudioControlStyle(cornerRadius: 8))
+            .menuIndicator(.hidden)
+            .fixedSize()
+            .help(L("Lab, projets et serveurs MCP", "Lab, projects and MCP servers"))
+            .accessibilityLabel(L("Plus", "More"))
+
+            Button { SidebarDestination.settings.open(studio) } label: {
+                Image(systemName: "gearshape")
+                    .font(.system(size: 14))
+                    .frame(width: 30, height: 30)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(StudioControlStyle(cornerRadius: 8))
+            .help(L("Réglages · ⌘,", "Settings · ⌘,"))
+            .accessibilityLabel(L("Réglages", "Settings"))
         }
-        .padding(.horizontal, 12)
-        .frame(height: 30)
-        .contentShape(Rectangle())
-        .help(conversation.title)
-        .accessibilityAddTraits(selected ? .isSelected : [])
     }
 }
 
@@ -506,8 +663,6 @@ private struct ChatWorkspaceView: View {
                 DecisionWorkspaceView(decision: studio.decision)
             } else if studio.selectedMode == .server {
                 ServerWorkspaceView(server: studio.localServer)
-            } else if studio.selectedMode == .lab {
-                LabWorkspaceView()
             } else if let conversation = studio.currentConversation, !conversation.messages.isEmpty {
                 MessagesView(messages: conversation.messages)
                 ComposerView()
@@ -593,15 +748,14 @@ private struct WorkspaceHeader: View {
     }
 }
 
-/// Agent controls under the composer: the task's studio and folder, its runnable HTML files,
-/// and its Internet switch. Everything else lives in Agent Studio.
+/// Agent controls under the composer: the task's studio and its runnable HTML files. The
+/// folder and the Internet switch sit in the composer; everything else lives in Agent Studio.
 private struct AgentTaskBar: View {
     @EnvironmentObject private var studio: StudioModel
     @State private var htmlFiles: [URL] = []
     @State private var previewError: String?
 
     var body: some View {
-        let internet = studio.agentPermissions.internet
         HStack(spacing: 8) {
             Button {
                 if let workspace = studio.agentWorkspaceURL { studio.studioDocument = StudioDocument(workspace: workspace) }
@@ -611,12 +765,6 @@ private struct AgentTaskBar: View {
             .buttonStyle(StudioControlStyle())
             .disabled(studio.isGenerating || studio.agentStudioBusy)
             .help(L("Fichiers, changements à valider, versions et permissions de la tâche", "The task’s files, changes to review, versions and permissions"))
-            Button(action: studio.openAgentWorkspace) {
-                Image(systemName: "folder").frame(width: 28, height: 28)
-            }
-            .buttonStyle(StudioControlStyle())
-            .help(L("Ouvrir le dossier de la tâche dans le Finder", "Open the task’s folder in Finder"))
-            .accessibilityLabel(L("Dossier de la tâche", "Task folder"))
             if !studio.isGenerating, let first = htmlFiles.first {
                 if htmlFiles.count == 1 {
                     Button { preview(first) } label: {
@@ -634,19 +782,6 @@ private struct AgentTaskBar: View {
                 }
             }
             Spacer(minLength: 8)
-            Button { studio.setAgentInternet(!internet) } label: {
-                Label("Internet", systemImage: internet ? "globe" : "network.slash")
-                    .padding(.horizontal, 8).frame(height: 28)
-                    .foregroundStyle(internet ? StudioTheme.ink : StudioTheme.quiet)
-            }
-            .buttonStyle(StudioControlStyle(emphasized: internet))
-            .disabled(studio.isGenerating || studio.agentStudioBusy)
-            .help(internet
-                ? L("Internet activé pour cette tâche : commandes (pip, npm, git clone), fetch et recherche web. Cliquer pour le couper.",
-                    "Internet is on for this task: commands (pip, npm, git clone), fetch and web search. Click to turn it off.")
-                : L("Internet coupé pour cette tâche. Cliquer pour l’activer.", "Internet is off for this task. Click to turn it on."))
-            .accessibilityValue(internet ? L("activé", "on") : L("coupé", "off"))
-            .accessibilityIdentifier("agent.bar.internet")
         }
         .font(.system(size: 12))
         .foregroundStyle(StudioTheme.secondary)
@@ -691,10 +826,9 @@ private struct WelcomeView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background {
-            // Graphite's home texture; the other styles draw nothing here.
+            // Graphite's home texture (it keeps the top half clear itself); the other
+            // styles draw nothing here.
             StudioAurora(animated: true, fullHeight: true, placement: .home)
-                .mask(LinearGradient(stops: [.init(color: .clear, location: 0.5), .init(color: .black, location: 1)],
-                                     startPoint: .top, endPoint: .bottom))
                 .ignoresSafeArea()
         }
     }
