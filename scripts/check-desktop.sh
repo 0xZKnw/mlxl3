@@ -262,6 +262,7 @@ queue_after_preferences() {
     queue_app_check model-card tests/model-card-check.swift
     queue_app_check file-import tests/file-import-check.swift
     queue_app_check image-input tests/image-input-check.swift
+    queue_app_check image-history-ui tests/image-history-ui-check.swift
     queue_app_check workspace-features tests/workspace-features-check.swift
     combine RecommendedModelsCombined.swift "${app_sources}/ModelManager.swift" tests/recommended-models-ui-check.swift
     queue_compile recommendations "${(@)sources:#*/ModelManager.swift}" "${math_objects[@]}" \
@@ -401,6 +402,9 @@ run_after_preferences() {
     "${test_dir}/file-import-check" "$PWD/tests/fake-desktop-engine.py"
     await_compile image-input
     run_fixture_check "${test_dir}/image-input-check" "$PWD/tests/fake-desktop-engine.py" "$PWD/tests/fixtures/image-input"
+    await_compile image-history-ui
+    run_fixture_check "${test_dir}/image-history-ui-check" "$PWD/docs/images/studio-image21-m5.png" | tee "${test_dir}/image-history-ui.log"
+    grep -q '^Image history interface passed:' "${test_dir}/image-history-ui.log"
     await_compile workspace-features
     "${test_dir}/workspace-features-check" "$PWD/tests/fake-desktop-engine.py"
     await_compile recommendations

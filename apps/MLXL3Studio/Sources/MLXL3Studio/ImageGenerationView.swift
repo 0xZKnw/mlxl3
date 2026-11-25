@@ -7,6 +7,8 @@ struct ImageGenerationView: View {
     let close: () -> Void
     @AppStorage("image21ModelDirectory") private var modelPath = ""
     @State private var previewImage: NSImage?
+    @State private var showsHistory = false
+    @State private var selectedImage: URL?
 
     private static let example = Bundle.main.url(forResource: "studio-image21-m5", withExtension: "png",
                                                   subdirectory: "Image21").flatMap(NSImage.init(contentsOf:))
@@ -15,35 +17,72 @@ struct ImageGenerationView: View {
         HStack(spacing: 0) {
             VStack(alignment: .leading, spacing: 0) {
                 StudioSidebarHeader(title: L("Images", "Images"))
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
-                        modelPicker
-                        Divider()
-                        settings
-                    }
-                    .padding(.horizontal, 20)
+                VStack(spacing: 3) {
+                    navigation(L("Générer", "Generate"), icon: "wand.and.stars", history: false)
+                    navigation(L("Historique", "History"), icon: "clock", history: true)
                 }
-                StudioBackButton(action: close)
+                .padding(.horizontal, 10).padding(.bottom, 20)
+                if showsHistory {
+                    Spacer()
+                } else {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 22) {
+                            modelPicker
+                            Divider()
+                            settings
+                        }
+                        .padding(.horizontal, 20)
+                    }
+                }
+                StudioBackButton(action: goBack)
                     .padding(.horizontal, 18).padding(.vertical, 16)
             }
             .frame(width: studio.sidebarWidth.points)
             .modifier(StudioSidebarSurface())
 
-            VStack(alignment: .leading, spacing: 16) {
-                Text(L("Générer une image", "Generate an image"))
-                    .font(StudioTheme.display(39)).tracking(StudioTheme.displayTracking(-1.2))
-                    .accessibilityAddTraits(.isHeader)
-                preview
-                composer
+            if showsHistory {
+                ImageHistoryView(engine: engine, selection: $selectedImage) { showsHistory = false }
+            } else {
+                VStack(alignment: .leading, spacing: 16) {
+                    Text(L("Générer une image", "Generate an image"))
+                        .font(StudioTheme.display(39)).tracking(StudioTheme.displayTracking(-1.2))
+                        .accessibilityAddTraits(.isHeader)
+                    preview
+                    composer
+                }
+                .padding(.horizontal, 28).padding(.top, 38).padding(.bottom, 24)
+                .frame(maxWidth: 960)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.horizontal, 28).padding(.top, 38).padding(.bottom, 24)
-            .frame(maxWidth: 960)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .foregroundStyle(StudioTheme.ink)
         .background { StudioAurora(animated: false).background(StudioTheme.canvas) }
-        .onExitCommand(perform: close)
+        .onExitCommand(perform: goBack)
         .task(id: engine.result) { previewImage = engine.result.flatMap(NSImage.init(contentsOf:)) }
+    }
+
+    private func navigation(_ title: String, icon: String, history: Bool) -> some View {
+        let selected = history == showsHistory
+        return Button {
+            selectedImage = nil
+            showsHistory = history
+        } label: {
+            HStack(spacing: 11) {
+                Image(systemName: icon).frame(width: 18)
+                Text(title)
+                Spacer()
+                if !history && engine.running { ProgressView().controlSize(.mini) }
+            }
+            .font(.system(size: 13, weight: selected ? .semibold : .regular))
+            .padding(.horizontal, 12).frame(height: 36)
+        }
+        .buttonStyle(StudioControlStyle(emphasized: selected))
+        .accessibilityAddTraits(selected ? .isSelected : [])
+        .accessibilityIdentifier(history ? "images.history" : "images.create")
+    }
+
+    private func goBack() {
+        if showsHistory && selectedImage != nil { selectedImage = nil } else { close() }
     }
 
     private var modelPicker: some View {
