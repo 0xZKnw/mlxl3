@@ -801,7 +801,7 @@ private struct StatsRow: View {
             }
             if let dspark = stats.dsparkAcceptance {
                 MetricChip(icon: "checkmark.circle", value: "\(dspark.accepted)/\(dspark.proposed)",
-                           label: String(format: L("DSpark %.0f%% · %.2f tok/bloc", "DSpark %.0f%% · %.2f tok/block"),
+                           label: String(format: L("DFlash2 %.0f%% · %.2f tok/bloc", "DFlash2 %.0f%% · %.2f tok/block"),
                                          100 * Double(dspark.accepted) / Double(dspark.proposed), dspark.tokensPerBlock))
             }
             if let blocks = stats.dflashBlocks, blocks > 0, let seconds = stats.dflashBlockSeconds {

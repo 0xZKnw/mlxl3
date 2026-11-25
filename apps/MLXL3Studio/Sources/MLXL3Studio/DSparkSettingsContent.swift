@@ -13,7 +13,7 @@ struct DSparkToolbarControl: View {
     var body: some View {
         Button { presented.toggle() } label: {
             HStack(spacing: 5) {
-                Text("DSpark")
+                Text("DFlash2")
                 Text(studio.dsparkEnabled ? "On" : "Off")
                     .font(.system(size: 10, weight: .medium))
                     .foregroundStyle(studio.dsparkEnabled ? studio.accentColor : StudioTheme.quiet)
@@ -22,9 +22,9 @@ struct DSparkToolbarControl: View {
             .padding(.horizontal, 8).frame(height: 30)
         }
         .buttonStyle(WorkspaceControlStyle(selected: presented))
-        .help(L("Accélération DSpark · choix mémorisé", "DSpark acceleration · remembered"))
+        .help(L("Accélération DFlash2 · choix mémorisé", "DFlash2 acceleration · remembered"))
         .accessibilityIdentifier("toolbar.dspark")
-        .accessibilityLabel(L("Réglages DSpark", "DSpark settings"))
+        .accessibilityLabel(L("Réglages DFlash2", "DFlash2 settings"))
         .accessibilityValue(accessibleStatus)
         .popover(isPresented: $presented, arrowEdge: .bottom) {
             ScrollView {
@@ -63,7 +63,7 @@ struct DSparkSettingsContent: View {
         VStack(alignment: .leading, spacing: 12) {
             Toggle(isOn: Binding(get: { studio.dsparkEnabled || studio.dsparkDrafterDownloading },
                                  set: { studio.setDSparkEnabled($0) })) {
-                Text(L("Activer DSpark", "Enable DSpark")).font(.system(size: 13, weight: .semibold))
+                Text(L("Activer DFlash2", "Enable DFlash2")).font(.system(size: 13, weight: .semibold))
             }
             .toggleStyle(.switch)
             .disabled(studio.isGenerating)
@@ -104,8 +104,8 @@ struct DSparkSettingsContent: View {
             Text(studio.dsparkDefault == true
                  ? L("Brouillon DFlash2 téléchargé une fois pour ce modèle. La largeur des blocs suit l'acceptation pour ne pas ralentir le décodage.",
                      "DFlash2 drafter downloaded once for this model. The block width follows the acceptance so decoding is not slowed down.")
-                 : L("Brouillon fourni avec le modèle. La largeur des blocs suit l'acceptation pour ne pas ralentir le décodage.",
-                     "Drafter shipped with the model. The block width follows the acceptance so decoding is not slowed down."))
+                 : L("Le brouillon DFlash2 (≈ 1 Go) se télécharge une fois pour ce modèle ; l'accélération s'active dès qu'il est installé.",
+                     "The DFlash2 drafter (≈ 1 GB) is downloaded once for this model; the acceleration turns on as soon as it is installed."))
                 .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                 .fixedSize(horizontal: false, vertical: true)
         }

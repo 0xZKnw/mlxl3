@@ -331,7 +331,7 @@ final class StudioModel: ObservableObject {
         self.modelIdleUnloadDelay = ModelIdleUnloadDelay.load(from: preferences)
         self.memorySaverEnabled = preferences.bool(forKey: "studio.memorySaverEnabled")
         // DECISION-2026-11-22-INK2M-DSPARK-OFF: plain decoding unless the user turns DSpark on
-        self.dsparkEnabled = (preferences.object(forKey: "studio.dsparkEnabled") as? Bool) ?? false
+        self.dsparkEnabled = (preferences.object(forKey: "studio.inklingDFlash2Enabled") as? Bool) ?? false
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
         self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
@@ -750,7 +750,7 @@ final class StudioModel: ObservableObject {
     /// cancels the drafter download; turning it on starts it when the drafter is missing.
     func setDSparkEnabled(_ enabled: Bool) {
         dsparkEnabled = enabled
-        preferences.set(enabled, forKey: "studio.dsparkEnabled")
+        preferences.set(enabled, forKey: "studio.inklingDFlash2Enabled")
         if enabled {
             prepareDSparkDrafter()
         } else {
@@ -760,7 +760,7 @@ final class StudioModel: ObservableObject {
     }
 
     /// The user's own choice of the switch; nil while it was never touched.
-    private var dsparkPreference: Bool? { preferences.object(forKey: "studio.dsparkEnabled") as? Bool }
+    private var dsparkPreference: Bool? { preferences.object(forKey: "studio.inklingDFlash2Enabled") as? Bool }
 
     /// What the switch shows and the next request sends, from the user's choice (`preference`) and the engine's
     /// default (`engineDefault`: a DFlash2 drafter is installed): the choice when there is one, else the default.
@@ -1541,7 +1541,8 @@ final class StudioModel: ObservableObject {
                     mtpHeadPath: mtpEffectiveHeadPath,
                     mtpDepth: mtpDepth,
                     memorySaver: memorySaverEnabled && memorySaverSupported,
-                    dspark: dsparkEnabled,
+                    // Only the DFlash2 drafter: the official DSpark drafter is never used by the app.
+                    dspark: dsparkEnabled && dsparkDefault == true,
                     allowedTools: selectedMode == .agent ? nil : currentProject?.allowedTools,
                     responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema,
                     reasoningEffort: requestReasoningEffort,

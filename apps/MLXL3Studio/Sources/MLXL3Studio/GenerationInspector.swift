@@ -114,7 +114,7 @@ struct GenerationInspector: View {
                         }
 
                         if studio.dsparkSupported == true {
-                            SettingCard(title: L("Accélération DSpark", "DSpark acceleration"), icon: "bolt.fill", grouped: false) {
+                            SettingCard(title: L("Accélération DFlash2", "DFlash2 acceleration"), icon: "bolt.fill", grouped: false) {
                                 DSparkSettingsContent()
                             }
                             .id("dspark-settings")
