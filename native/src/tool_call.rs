@@ -107,8 +107,9 @@ fn trailing_name_start(text: &str) -> usize {
 /// Inkling 2 calls, one or more, after optional text. That text is the model's own
 /// `<|content_text|>` message (a separate message in this format), never part of a call;
 /// text after a call is refused like in the other formats. The JSON `name` names the tool
-/// (the header must end with it); a damaged JSON still runs when its `"args":{…}` is
-/// readable, under the header name.
+/// (the header must end with it); a JSON `name` that is only the leading part of the header
+/// name (`sandbox` for `sandbox.javascript`) leaves the header name. A damaged JSON still
+/// runs when its `"args":{…}` is readable, under the header name.
 fn parse_inkling_calls(response: &str) -> Result<Vec<ToolCall>> {
     let mut calls = Vec::new();
     let mut rest = response;
@@ -121,12 +122,19 @@ fn parse_inkling_calls(response: &str) -> Result<Vec<ToolCall>> {
             Some(Ok(Value::Object(mut call))) => {
                 let end = values.byte_offset();
                 let name = match call.remove("name") {
+                    Some(Value::String(name)) if before.ends_with(&name) => name,
                     Some(Value::String(name)) => {
+                        // The header alone names the tool when the JSON gives only its leading
+                        // part (seen: `sandbox.javascript` then `"name":"sandbox"`).
+                        let header = &before[trailing_name_start(before)..];
                         ensure!(
-                            before.ends_with(&name),
-                            "Inkling tool call name differs from its header"
+                            !name.is_empty()
+                                && header
+                                    .strip_prefix(name.as_str())
+                                    .is_some_and(|rest| rest.starts_with('.')),
+                            "the \"name\" in the call's JSON differs from the tool name written before the call"
                         );
-                        name
+                        header.to_owned()
                     }
                     None => before[trailing_name_start(before)..].to_owned(),
                     Some(_) => anyhow::bail!("Inkling tool call name must be a string"),
@@ -739,6 +747,23 @@ pub fn unreadable_call_message(error: &anyhow::Error) -> String {
 /// What the model reads when it calls a tool it was not offered (AGENT-2026-11-24-DSH-PISTES,
 /// P2, after DeepSeek Harness's code-mode hint): the tools it can call, and that functions a
 /// tool's description lists (the `javascript` tool's `read`, `run`...) go in that tool's input.
+/// The offered tool a bare name stands for: the only one named `<server>.<name>`
+/// (`javascript` for `sandbox.javascript`). None when `name` is offered as it is, when no
+/// offered tool ends with it, or when several do.
+pub fn offered_name<'a>(name: &str, offered: &[&'a str]) -> Option<&'a str> {
+    if name.is_empty() || offered.contains(&name) {
+        return None;
+    }
+    let mut matches = offered.iter().filter(|tool| {
+        tool.strip_suffix(name)
+            .is_some_and(|server| server.ends_with('.') && server.len() > 1)
+    });
+    match (matches.next(), matches.next()) {
+        (Some(tool), None) => Some(tool),
+        _ => None,
+    }
+}
+
 pub fn unknown_tool_message(name: &str, offered: &[&str]) -> String {
     if offered.is_empty() {
         return format!(
@@ -845,6 +870,50 @@ mod tests {
             parse_answer(&nested).unwrap()[0].arguments["code"],
             format!("'{m}'")
         );
+        // The header names the tool when the JSON gives only its leading part: the calls of
+        // AGENT-2026-11-25-INKLING-HEADER, as the model wrote them (with and without text).
+        let server_only = format!(
+            r#"sandbox.javascript{m}{{"name":"sandbox","args":{{"code":"return list();"}}}}"#
+        );
+        assert_eq!(
+            parse_answer(&server_only).unwrap(),
+            [call(
+                "sandbox.javascript",
+                serde_json::json!({"code": "return list();"})
+            )]
+        );
+        let after_text = format!("Je vérifie l'état du projet.\n\n{server_only}");
+        assert_eq!(
+            parse_answer(&after_text).unwrap(),
+            [call(
+                "sandbox.javascript",
+                serde_json::json!({"code": "return list();"})
+            )]
+        );
+        let two_parts = format!(r#"a.b.c{m}{{"name":"a.b","args":{{}}}}"#);
+        assert_eq!(
+            parse_answer(&two_parts).unwrap(),
+            [call("a.b.c", serde_json::json!({}))]
+        );
+        // Two such calls in one answer: the second header is found after the first call.
+        let twice = format!("{server_only}\n{server_only}");
+        assert_eq!(parse_answer(&twice).unwrap().len(), 2);
+        // Only a whole leading part counts: anything else is still a conflict of names.
+        for conflict in [
+            format!(r#"sandbox.javascript{m}{{"name":"sand","args":{{}}}}"#),
+            format!(r#"sandbox.javascript{m}{{"name":"sandbox.","args":{{}}}}"#),
+            format!(r#"sandbox.javascript{m}{{"name":"sandbox.java","args":{{}}}}"#),
+            format!(r#"sandbox.javascript{m}{{"name":"exa.web_search_exa","args":{{}}}}"#),
+            format!(r#"sandbox{m}{{"name":"sandbox.javascript","args":{{}}}}"#),
+            format!(r#"sandbox.javascript {m}{{"name":"sandbox","args":{{}}}}"#),
+            format!(r#"{m}{{"name":"sandbox","args":{{}}}}"#),
+        ] {
+            let message = parse_answer(&conflict).unwrap_err().to_string();
+            assert!(
+                message.contains("differs from the tool name written before the call"),
+                "{conflict}: {message}"
+            );
+        }
         for (input, error) in [
             (format!("{single} done"), "ordinary text"),
             (
@@ -860,7 +929,7 @@ mod tests {
             (format!("javascript{m}"), "unfinished"),
             (
                 format!(r#"other{m}{{"name":"javascript","args":{{}}}}"#),
-                "differs from its header",
+                "differs from the tool name written before the call",
             ),
             (
                 format!(r#"x{m}{{"name":"x","args":"code"}}"#),
@@ -886,6 +955,42 @@ mod tests {
             let message = parse_answer(&input).unwrap_err().to_string();
             assert!(message.contains(error), "{input:.80}: {message}");
         }
+    }
+
+    #[test]
+    fn a_bare_tool_name_stands_for_the_only_offered_tool_that_ends_with_it() {
+        let offered = [
+            "exa.web_fetch_exa",
+            "exa.web_search_exa",
+            "sandbox.javascript",
+        ];
+        assert_eq!(
+            offered_name("javascript", &offered),
+            Some("sandbox.javascript")
+        );
+        assert_eq!(
+            offered_name("web_fetch_exa", &offered),
+            Some("exa.web_fetch_exa")
+        );
+        // Offered as it is, unknown, a part of a name, a server, or nothing: no change.
+        for name in [
+            "sandbox.javascript",
+            "read_file",
+            "script",
+            "sandbox",
+            "",
+            ".javascript",
+            "exa",
+        ] {
+            assert_eq!(offered_name(name, &offered), None, "{name}");
+        }
+        // Two servers with the same tool name: the bare name does not choose.
+        let twins = ["a.search", "b.search"];
+        assert_eq!(offered_name("search", &twins), None);
+        assert_eq!(offered_name("javascript", &["javascript"]), None);
+        assert_eq!(offered_name("javascript", &[]), None);
+        // A nested name keeps its own dots.
+        assert_eq!(offered_name("b.c", &["a.b.c", "x"]), Some("a.b.c"));
     }
 
     #[test]

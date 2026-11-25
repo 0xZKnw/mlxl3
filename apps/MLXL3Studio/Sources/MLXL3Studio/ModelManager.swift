@@ -204,9 +204,6 @@ struct ModelManagerView: View {
     private func modelRow(_ model: LocalModel) -> some View {
         let loaded = studio.loadedModel?.name == model.name
         let decision = studio.isDecisionModel(model)
-        let prefix = decision ? L("DÉCISION · ", "DECISION · ") : ""
-        let bits = model.bits.map { String(format: "%.2f BPW", $0) } ?? "—"
-        let details = "\(prefix)\(model.architectureLabel) · EXL3 · \(bits) · \(model.size)"
         return HStack(alignment: .center, spacing: 13) {
             Image(systemName: decision ? "checklist.checked" : "cube.transparent")
                 .font(.system(size: 17, weight: .light))
@@ -222,8 +219,11 @@ struct ModelManagerView: View {
                         StudioStatusPill(text: L("Chargé", "Loaded"), color: StudioTheme.success)
                     }
                 }
-                Text(verbatim: details)
-                    .font(.system(size: 12)).monospacedDigit().foregroundStyle(StudioTheme.quiet).lineLimit(1)
+                // In parts: as one expression it exceeds the type checker's time on CI.
+                let kind: String = decision ? L("DÉCISION · ", "DECISION · ") : ""
+                let bits: String = model.bits.map { String(format: "%.2f BPW", $0) } ?? "—"
+                Text("\(kind)\(model.architectureLabel) · EXL3 · \(bits) · \(model.size)")
+                .font(.system(size: 12)).monospacedDigit().foregroundStyle(StudioTheme.quiet).lineLimit(1)
             }
             Spacer(minLength: 8)
             if decision {

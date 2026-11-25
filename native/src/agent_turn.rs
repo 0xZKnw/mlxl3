@@ -353,6 +353,17 @@ pub fn run_turn(
             round += 1;
             continue;
         }
+        // A bare tool name that a single offered tool carries is that tool: the call runs and
+        // the dialogue keeps the full name.
+        let calls: Vec<tool_call::ToolCall> = calls
+            .into_iter()
+            .map(|mut call| {
+                if let Some(full) = tool_call::offered_name(&call.name, &offered) {
+                    call.name = full.to_owned();
+                }
+                call
+            })
+            .collect();
         let tool_calls: Vec<_> = calls
             .iter()
             .map(|call| json!({"type":"function", "function":{"name":call.name, "arguments":call.arguments}}))
@@ -890,6 +901,37 @@ mod tests {
             "There is no tool named `javascript`; nothing was executed. No tool can be called now: answer without tools."
         );
         assert_eq!(end.stop_reason, "eos");
+        Ok(())
+    }
+
+    #[test]
+    fn a_bare_tool_name_runs_the_only_offered_tool_that_ends_with_it() -> Result<()> {
+        let offered = vec![
+            json!({"type":"function", "function":{"name":"sandbox.javascript", "parameters":{}}}),
+            json!({"type":"function", "function":{"name":"exa.web_search_exa", "parameters":{}}}),
+        ];
+        // `call` writes the bare name `javascript`.
+        let mut host = ScriptHost::new(vec![call("return 1"), answer("ok")]);
+        let end = run_turn(&mut host, dialogue(), &offered, &turn(100_000, 8))?;
+        assert_eq!(host.calls.len(), 1, "the call reaches MCP");
+        assert_eq!(host.calls[0].0, "sandbox.javascript");
+        assert_eq!(host.events[1]["tool_name"], "sandbox.javascript");
+        assert_eq!(host.events[2]["is_error"], false);
+        // The dialogue keeps the full name: the next step sees the right example.
+        assert_eq!(
+            host.requests[1].dialogue[2]["tool_calls"][0]["function"]["name"],
+            "sandbox.javascript"
+        );
+        assert_eq!((end.rounds, end.stop_reason), (1, "eos"));
+        // Two tools with that last name: nothing is chosen, the model gets the list.
+        let twins = vec![
+            json!({"type":"function", "function":{"name":"a.javascript", "parameters":{}}}),
+            json!({"type":"function", "function":{"name":"b.javascript", "parameters":{}}}),
+        ];
+        let mut host = ScriptHost::new(vec![call("return 1"), answer("ok")]);
+        run_turn(&mut host, dialogue(), &twins, &turn(100_000, 8))?;
+        assert!(host.calls.is_empty());
+        assert_eq!(host.events[2]["is_error"], true);
         Ok(())
     }
 

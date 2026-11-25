@@ -1,0 +1,541 @@
+{"model":"Inkling-2-Mini-EXL3-3.33bpw-5d8cff98","type":"loading"}
+{"agent_loop_supported":true,"bridge_protocol":1,"context_limit":16384,"context_memory":null,"dflash_configure_supported":true,"dflash_family":null,"dflash_sampling_supported":false,"dflash_supported":false,"dflash_tune_supported":false,"dflash_tuning_key":"7a69ce56ec33d564:2.0.35:a0d6a2e669b0:release:0.32.2:Apple M5:16384:pipeline=all:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:mtppostnorm-v1=1:mtpevict-v1=1:q36headlane-v1=1:lanelayout-v1=1:smallm-v2=1:dflash-v4:copy=0","dspark_default":false,"dspark_supported":true,"flash":null,"images_supported":true,"load_seconds":6.402756458,"mcp_call_timeout_supported":true,"mcp_errors":{},"mcp_servers":0,"mcp_tools":0,"memory":{"mlx_active_bytes":12089554984,"mlx_cache_bytes":0,"mlx_peak_bytes":12574724516,"process_compressed_lifetime_logical_bytes":1489764352,"process_compressed_logical_bytes":1168113664,"process_compressed_peak_logical_bytes":1457438720,"process_decompressions":621852,"process_footprint_bytes":12480466376,"process_id":43154,"process_ledger_swapins_logical_bytes":0,"process_lifetime_peak_bytes":13445975760,"process_start_abstime":22922192496073},"memory_saver_supported":true,"mlx_version":"0.32.2","model":"Inkling-2-Mini-EXL3-3.33bpw-5d8cff98","model_context_limit":1048576,"modules":9216,"mtp_auto_download_supported":false,"mtp_configure_supported":true,"mtp_max_depth":3,"mtp_sampling_supported":true,"mtp_supported":false,"mtp_tune_supported":false,"mtp_tuning_key":"7a69ce56ec33d564:2.0.35:a0d6a2e669b0:release:0.32.2:Apple M5:16384:pipeline=all:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:mtppostnorm-v1=1:mtpevict-v1=1:q36headlane-v1=1:lanelayout-v1=1:smallm-v2=1","reasoning_effort_levels":["none","minimal","low","medium","high","xhigh","max"],"reasoning_effort_supported":true,"resident_gb":13.776574205,"runtime_commit":"a0d6a2e669b0","runtime_executable":"/private/tmp/claude-501/-Users-justin--claude-spares-spare-nFMnku/0922763b-ca08-415d-86cc-5364e2bf9951/scratchpad/engine-extract-2.0.35/mlxl3","runtime_profile":"release","runtime_version":"2.0.35","tool_rounds_supported":true,"type":"ready","workspace_features":true}
+{"mcp_errors":{},"mcp_servers":2,"mcp_tool_catalog":[{"function":{"description":"[exa] Read a webpage's full content as clean markdown. Use after web_search_exa when highlights are insufficient or to read any URL.\n\nBest for: Extracting full content from known URLs. Batch multiple URLs in one call.\nReturns: Clean text content and metadata from the page(s).","name":"exa.web_fetch_exa","parameters":{"$schema":"http://json-schema.org/draft-07/schema#","additionalProperties":false,"properties":{"maxCharacters":{"description":"Maximum characters to extract per page (default: 3000)","minimum":1,"type":"number"},"urls":{"description":"URLs to read. Batch multiple URLs in one call.","items":{"type":"string"},"type":"array"}},"required":["urls"],"type":"object"}},"type":"function"},{"function":{"description":"[exa] Search the web for any topic and get clean, ready-to-use content.\n\n      Best for: Finding current information, news, facts, people, companies, or answering questions about any topic.\n      Returns: Clean text content from top search results.\n\n      Query tips:\n      describe the ideal page, not keywords. \"blog post comparing React and Vue performance\" not \"React vs Vue\".\n      Use category:people / category:company to search through Linkedin profiles / companies respectively.\n      If highlights are insufficient, follow up with web_fetch_exa on the best URLs.","name":"exa.web_search_exa","parameters":{"$schema":"http://json-schema.org/draft-07/schema#","additionalProperties":false,"properties":{"numResults":{"description":"Number of search results to return (default: 10).","type":"number"},"objective":{"description":"Goal for this search turn; say which documents should rank first, which should be excluded, and what specific facts or figures to pull from them.","maxLength":4096,"minLength":1,"type":"string"},"query":{"description":"Natural language search query. Should be a semantically rich description of the ideal page, not just keywords. Optionally include category:<type> (company, people) to focus results — e.g. 'category:people John Doe software engineer'.","minLength":1,"type":"string"}},"required":["query","objective"],"type":"object"}},"type":"function"},{"function":{"description":"[sandbox] Run JavaScript in your private macOS sandbox to work on the project. The code is the body of an async function: `return` a value to see it (a lone expression is returned as is), and use console.log for notes. Batch steps: one call can read, edit and verify. These functions are synchronous (await is optional) and throw an Error on failure:\nlist(): string[]  // every project file path, relative, sorted\nglob(pattern: string): string[]  // e.g. \"src/**/*.ts\"; without / it matches file names anywhere\nview(path: string, offset?: number, limit?: number): string  // numbered `N| ` lines, 200 by default\nread(path: string): string  // raw text, at most 1 MiB\nsearch(regex: string, path?: string): {path: string, line: number, text: string}[]  // grep -E; at most 200 matches, 50 per file\nedit(path: string, find: string, replace: string, all?: boolean): {line: number, count: number, snippet: string}  // `find` once (all: each); tolerates indentation, `N| ` prefixes, curly quotes\nedits(path: string, changes: [find: string, replace: string][]): {count: number, lines: number[]}  // several edits of one file, all or nothing\nwrite(path: string, text: string): void  // creates folders, at most 1 MiB\nrun(command: string): {status: number | null, stopped: boolean, omitted: number, output: string, job?: number}  // /bin/sh in the project, with Internet (curl, git clone, pip, npm); still running after 5 s: status null, continues as job `job`; output over 32 KiB keeps its first 8 and last 24 KiB, all of it in the file the result names\nspawn(command: string): number  // background job (server, build), ≤4 at once, ≤15 min; its end is announced in a later result\njobs(): {id, command, running, status, seconds}[];  tail(id, lines = 40): string;  wait(id, seconds?): {id, running, status, seconds, output};  kill(id)\nfetch(url: string): {status: number, url: string, type: string, text: string}  // HTTPS GET to the allowed hosts (*), text only, at most 2 MiB; redirects are checked\ndownload(url: string, path: string): {status: number, url: string, bytes: number}  // saves into the project, at most 100 MiB; put test material under .mlxl3-scratch/ (never part of the reviewed changes)\nThe JavaScript itself has no direct network, files outside the project, require/import or timers. Limits per call: 10 s, 200 function calls, 32 KiB of output. `$` keeps any value between calls (emptied if the kernel restarts; a result says so). `state` is also kept on disk (JSON values, 256 Ki characters). Writing is enabled. A file's content goes in the `text` argument, not in the code: write(path, text) then needs no escaping.","name":"sandbox.javascript","parameters":{"additionalProperties":false,"properties":{"code":{"description":"JavaScript, the body of an async function","maxLength":1048576,"type":"string"},"text":{"description":"Optional raw text (a file's content), read in the code as the variable `text`","maxLength":1048576,"type":"string"}},"required":["code"],"type":"object"}},"type":"function"}],"mcp_tools":3,"request_id":"mcp","type":"mcp_status"}
+{"dflash_active":false,"dflash_draft_path":null,"dflash_mode":0,"dflash_proposals":0,"dflash_requested":false,"mtp_active":false,"mtp_depth":0,"mtp_reason":null,"mtp_requested":false,"mtp_sampling":false,"request_id":"run-0","type":"generation_mode"}
+{"phase":"prefill","request_id":"run-0","text":"Preparing context","type":"generation_status"}
+{"context_limit":16384,"request_id":"run-0","type":"context_usage","used_tokens":1666}
+{"phase":"prefill","request_id":"run-0","text":"Reading context · 896 / 1666 tokens","type":"generation_status"}
+{"phase":"thinking","request_id":"run-0","text":"The","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" asks","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" in","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" French","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":":","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" \"","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"Look","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" at","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" project","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" state","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" with","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" javascript","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" tool","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"list","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":")","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" then","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" tell","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" me","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" how","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" many","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" there","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" are","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"\"","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"So","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" I","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" need","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" to","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" call","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"sandbox","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" javascript","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" tool","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"'","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"s","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" `","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"list","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"()","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"`","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" function","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" Let","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" me","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" do","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" that","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"tool_preparation","request_id":"run-0","text":"Preparing tool call · 63 tokens","type":"generation_status"}
+{"phase":"tool_preparation","request_id":"run-0","text":"Preparing tool call · 69 tokens","type":"generation_status"}
+{"phase":"tool_preparation","request_id":"run-0","text":"Preparing tool call · 72 tokens","type":"generation_status"}
+{"phase":"tool_preparation","request_id":"run-0","text":"Preparing tool call · 76 tokens","type":"generation_status"}
+{"phase":"tool_preparation","request_id":"run-0","text":"Preparing tool call · 88 tokens","type":"generation_status"}
+{"arguments":{"code":"return list()"},"request_id":"run-0","server_name":"sandbox","tool_call_id":"mcp-0-2-sandbox.javascript","tool_name":"sandbox.javascript","type":"tool_start"}
+{"is_error":false,"request_id":"run-0","server_name":"sandbox","text":"Result:\n[\n  \"a.txt\",\n  \"b.txt\",\n  \"src/c.txt\"\n]","tool_call_id":"mcp-0-2-sandbox.javascript","tool_name":"sandbox.javascript","type":"tool_result"}
+{"phase":"prefill","request_id":"run-0","text":"Reading MCP results","type":"generation_status"}
+{"context_limit":16384,"request_id":"run-0","type":"context_usage","used_tokens":1737}
+{"phase":"prefill","request_id":"run-0","text":"Reading context · 1024 / 1737 tokens","type":"generation_status"}
+{"phase":"thinking","request_id":"run-0","text":"The","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" wants","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" me","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" to","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" look","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" at","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" project","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" state","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" with","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" javascript","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" tool","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"list","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":")","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" then","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" tell","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" them","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" how","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" many","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" there","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" are","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" I","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" did","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" that","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" —","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" list","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" returned","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"3","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" Wait","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" asked","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" in","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" French","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" Should","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" I","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" count","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"?","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" The","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" list","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" shows","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":":","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"txt","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" b","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"txt","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" src","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"/","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"c","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"txt","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" —","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" that","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"'","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"s","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"3","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" Maybe","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" tool","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"'","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"s","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" list","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" exclude","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"s","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" some","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" hidden","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"?","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" Let","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"'","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"s","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" just","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" answer","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" But","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" maybe","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" I","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" should","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" double","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"-","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"check","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" with","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" glob","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" The","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" task","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" simple","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":";","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" I","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" already","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" have","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" result","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" I","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" could","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" do","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" one","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" more","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" check","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" with","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" glob","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" to","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" be","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" thorough","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" Let","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" me","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" just","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" answer","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":"Actually","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" let","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" me","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" maybe","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" run","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" one","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" more","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" call","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" to","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" confirm","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" count","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" but","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" list","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" already","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" gives","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" I","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" can","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" just","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" respond","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" in","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":" French","type":"delta"}
+{"phase":"thinking","request_id":"run-0","text":".","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"J'","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"ai ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"listé","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"les ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"fichiers ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"du ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"projet ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"avec ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"l'","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"outil ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"JavaScript. ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"Voici ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"ce ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"que ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"j'","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"en ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"ai ré","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"cupéré","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" :","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"\n\n","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"|","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" #","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" |","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"Fichier |","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"\n","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"|","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"---|","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"---------|","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"\n","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"|","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"1 |","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" `","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"a.txt`","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" |","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"\n","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"|","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"2 |","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" `","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"b.txt`","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" |","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"\n","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"|","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"3 |","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" `","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"src/","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"c.txt`","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" |","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"\n\n","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"**","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"Il ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"y ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"a ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"3 ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"fichiers**","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"au ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"total ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"dans ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"le ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"projet (","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"2 à","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":" ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"la ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"racine ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"et ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"1 ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"dans ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"le ","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"dossier `","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"src/","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":"`","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":")","type":"delta"}
+{"phase":"answer","request_id":"run-0","text":".","type":"delta"}
+{"assistant_context":"J'ai listé les fichiers du projet avec l'outil JavaScript. Voici ce que j'en ai récupéré :\n\n| # | Fichier |\n|---|---------|\n| 1 | `a.txt` |\n| 2 | `b.txt` |\n| 3 | `src/c.txt` |\n\n**Il y a 3 fichiers** au total dans le projet (2 à la racine et 1 dans le dossier `src/`).","cache_context":"<|message_model|><|content_thinking|>The user wants me to look at the project state with the javascript tool (list files), then tell them how many there are. I did that — list returned 3 files. Wait, the user asked in French. Should I count? The list shows: a.txt, b.txt, src/c.txt — that's 3 files. Maybe the tool's list excludes some hidden files? Let's just answer. But maybe I should double-check with glob. The task is simple; I already have the result. I could do one more check with glob to be thorough. Let me just answer.\n\nActually, let me maybe run one more call to confirm the count, but the list already gives the files. I can just respond in French.<|end_message|><|message_model|><|content_text|>J'ai listé les fichiers du projet avec l'outil JavaScript. Voici ce que j'en ai récupéré :\n\n| # | Fichier |\n|---|---------|\n| 1 | `a.txt` |\n| 2 | `b.txt` |\n| 3 | `src/c.txt` |\n\n**Il y a 3 fichiers** au total dans le projet (2 à la racine et 1 dans le dossier `src/`).<|end_message|>","context_full":false,"elapsed_seconds":34.205107541,"first_text_seconds":9.814441166,"request_id":"run-0","round_stats":[{"cached_prompt_tokens":0,"context_limit":16384,"context_used":1757,"decode_seconds":4.7059757090000005,"decode_tokens":90,"decode_tps":19.12462060266873,"dflash_accepted_tokens":null,"dflash_block_seconds":0.0,"dflash_blocks":null,"dflash_lookup_blocks":null,"dflash_profile":null,"dflash_proposed_tokens":null,"draft_load_seconds":0.0,"elapsed_seconds":14.41504375,"end_to_end_ttft_seconds":null,"evaluated_prompt_tokens":1666,"generated_tokens":91,"inkling_lookup_accepted_tokens":7,"inkling_lookup_blocks":6,"inkling_lookup_profile":{"accepted":7,"block_ms":1851.954834,"blocks":6,"held_steps":5,"plain_ms":2822.660457,"plain_steps":79,"proposed":17,"width_blocks":[0,0,2,3,1,0,0,0]},"inkling_lookup_proposed_tokens":17,"memory":{"mlx_active_bytes":12371714028,"mlx_cache_bytes":1066278836,"mlx_peak_bytes":12993874966,"process_compressed_lifetime_logical_bytes":1518616576,"process_compressed_logical_bytes":1176141824,"process_compressed_peak_logical_bytes":1457438720,"process_decompressions":625742,"process_footprint_bytes":13731024592,"process_id":43154,"process_ledger_swapins_logical_bytes":0,"process_lifetime_peak_bytes":14036995768,"process_start_abstime":22922192496073},"model_size_gb":13.776574205,"mtp_accepted_tokens":null,"mtp_blocks":null,"mtp_depth_blocks":null,"mtp_lookup_blocks":null,"mtp_proposed_tokens":null,"prefill_seconds":9.702817583,"prefill_tps":171.70270241078694,"prepare_seconds":0.003680625,"prompt_tokens":1666,"round_count":1,"tool_rounds":0,"tool_seconds":0.0,"topk_readback_rows":[0,1],"ttft_seconds":9.709068041},{"cached_prompt_tokens":0,"context_limit":16384,"context_used":2011,"decode_seconds":9.972835541000002,"decode_tokens":273,"decode_tps":27.374360970623766,"dflash_accepted_tokens":null,"dflash_block_seconds":0.0,"dflash_blocks":null,"dflash_lookup_blocks":null,"dflash_profile":null,"dflash_proposed_tokens":null,"draft_load_seconds":0.0,"elapsed_seconds":19.738866,"end_to_end_ttft_seconds":null,"evaluated_prompt_tokens":1737,"generated_tokens":274,"inkling_lookup_accepted_tokens":2,"inkling_lookup_blocks":2,"inkling_lookup_profile":{"accepted":2,"block_ms":164.348625,"blocks":2,"held_steps":3,"plain_ms":9786.099551999994,"plain_steps":271,"proposed":6,"width_blocks":[0,0,1,0,1,0,0,0]},"inkling_lookup_proposed_tokens":6,"memory":{"mlx_active_bytes":12380499660,"mlx_cache_bytes":1068425786,"mlx_peak_bytes":12994084318,"process_compressed_lifetime_logical_bytes":1519222784,"process_compressed_logical_bytes":1168310272,"process_compressed_peak_logical_bytes":1457438720,"process_decompressions":626257,"process_footprint_bytes":13740822224,"process_id":43154,"process_ledger_swapins_logical_bytes":0,"process_lifetime_peak_bytes":14144999048,"process_start_abstime":22922192496073},"model_size_gb":13.776574205,"mtp_accepted_tokens":null,"mtp_blocks":null,"mtp_depth_blocks":null,"mtp_lookup_blocks":null,"mtp_proposed_tokens":null,"prefill_seconds":9.762335375,"prefill_tps":177.928736647198,"prepare_seconds":0.001434625,"prompt_tokens":1737,"round_count":1,"tool_rounds":0,"tool_seconds":0.0,"topk_readback_rows":[0,1],"ttft_seconds":9.766030459}],"stats":{"cached_prompt_tokens":0,"context_limit":16384,"context_used":2011,"decode_seconds":14.678811250000003,"decode_tokens":363,"decode_tps":24.729522971419087,"dflash_accepted_tokens":null,"dflash_block_seconds":0.0,"dflash_blocks":null,"dflash_lookup_blocks":null,"dflash_profile":null,"dflash_proposed_tokens":null,"draft_load_seconds":0.0,"elapsed_seconds":34.205084166,"end_to_end_ttft_seconds":9.814441166,"evaluated_prompt_tokens":3403,"generated_tokens":365,"inkling_lookup_accepted_tokens":9,"inkling_lookup_blocks":8,"inkling_lookup_profile":{"accepted":7,"block_ms":1851.954834,"blocks":6,"held_steps":5,"plain_ms":2822.660457,"plain_steps":79,"proposed":17,"width_blocks":[0,0,2,3,1,0,0,0]},"inkling_lookup_proposed_tokens":23,"memory":{"mlx_active_bytes":12380499660,"mlx_cache_bytes":1068425786,"mlx_peak_bytes":12994084318,"process_compressed_lifetime_logical_bytes":1519222784,"process_compressed_logical_bytes":1168310272,"process_compressed_peak_logical_bytes":1457438720,"process_decompressions":626257,"process_footprint_bytes":13740822224,"process_id":43154,"process_ledger_swapins_logical_bytes":0,"process_lifetime_peak_bytes":14144999048,"process_start_abstime":22922192496073},"model_size_gb":13.776574205,"mtp_accepted_tokens":null,"mtp_blocks":null,"mtp_depth_blocks":null,"mtp_lookup_blocks":null,"mtp_proposed_tokens":null,"prefill_seconds":19.465152957999997,"prefill_tps":174.82523807250118,"prepare_seconds":0.00511525,"prompt_tokens":3403,"round_count":2,"tool_rounds":1,"tool_seconds":0.050745708,"topk_readback_rows":[0,2],"ttft_seconds":9.709214416},"stop_reason":"eos","token_hash":"e01ad258a0085a59","tool_rounds":1,"turn_context":"[{\"content\":\"\",\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":{\"code\":\"return list()\"},\"name\":\"sandbox.javascript\"},\"type\":\"function\"}]},{\"content\":\"Result:\\n[\\n  \\\"a.txt\\\",\\n  \\\"b.txt\\\",\\n  \\\"src/c.txt\\\"\\n]\",\"name\":\"sandbox.javascript\",\"role\":\"tool\"},{\"content\":\"<|message_model|><|content_thinking|>The user wants me to look at the project state with the javascript tool (list files), then tell them how many there are. I did that — list returned 3 files. Wait, the user asked in French. Should I count? The list shows: a.txt, b.txt, src/c.txt — that's 3 files. Maybe the tool's list excludes some hidden files? Let's just answer. But maybe I should double-check with glob. The task is simple; I already have the result. I could do one more check with glob to be thorough. Let me just answer.\\n\\nActually, let me maybe run one more call to confirm the count, but the list already gives the files. I can just respond in French.<|end_message|><|message_model|><|content_text|>J'ai listé les fichiers du projet avec l'outil JavaScript. Voici ce que j'en ai récupéré :\\n\\n| # | Fichier |\\n|---|---------|\\n| 1 | `a.txt` |\\n| 2 | `b.txt` |\\n| 3 | `src/c.txt` |\\n\\n**Il y a 3 fichiers** au total dans le projet (2 à la racine et 1 dans le dossier `src/`).<|end_message|>\",\"role\":\"assistant\"}]","type":"complete"}
+{"dflash_active":false,"dflash_draft_path":null,"dflash_mode":0,"dflash_proposals":0,"dflash_requested":false,"mtp_active":false,"mtp_depth":0,"mtp_reason":null,"mtp_requested":false,"mtp_sampling":false,"request_id":"run-1","type":"generation_mode"}
+{"phase":"prefill","request_id":"run-1","text":"Preparing context","type":"generation_status"}
+{"context_limit":16384,"request_id":"run-1","type":"context_usage","used_tokens":1666}
+{"phase":"prefill","request_id":"run-1","text":"Reading context · 1024 / 1666 tokens","type":"generation_status"}
+{"phase":"thinking","request_id":"run-1","text":"The","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" asks","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" in","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" French","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":":","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" \"","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"Look","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" at","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" project","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" state","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" with","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" javascript","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" tool","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"list","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":")","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" then","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" tell","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" me","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" how","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" many","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" there","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" are","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"\"","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" So","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" I","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" should","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" call","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"sandbox","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" javascript","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" tool","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" to","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" list","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"tool_preparation","request_id":"run-1","text":"Preparing tool call · 51 tokens","type":"generation_status"}
+{"phase":"tool_preparation","request_id":"run-1","text":"Preparing tool call · 66 tokens","type":"generation_status"}
+{"phase":"tool_preparation","request_id":"run-1","text":"Preparing tool call · 79 tokens","type":"generation_status"}
+{"arguments":{"code":"return list();"},"request_id":"run-1","server_name":"sandbox","tool_call_id":"mcp-0-2-sandbox.javascript","tool_name":"sandbox.javascript","type":"tool_start"}
+{"is_error":false,"request_id":"run-1","server_name":"sandbox","text":"Result:\n[\n  \"a.txt\",\n  \"b.txt\",\n  \"src/c.txt\"\n]","tool_call_id":"mcp-0-2-sandbox.javascript","tool_name":"sandbox.javascript","type":"tool_result"}
+{"phase":"prefill","request_id":"run-1","text":"Reading MCP results","type":"generation_status"}
+{"context_limit":16384,"request_id":"run-1","type":"context_usage","used_tokens":1738}
+{"phase":"prefill","request_id":"run-1","text":"Reading context · 1024 / 1738 tokens","type":"generation_status"}
+{"phase":"thinking","request_id":"run-1","text":"The","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" asks","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" in","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" French","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":":","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" \"","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"Reg","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"arde","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" l","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"'","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"état","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" du","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" projet","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" avec","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" l","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"'","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"outil","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" javascript","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"liste","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" les","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" fichiers","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":")","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" puis","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" dis","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"-","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"moi","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" combien","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" il","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" y","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" en","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"\"","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" —","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" Look","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" at","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" state","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" of","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" project","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" with","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" javascript","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" tool","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" (","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"list","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":")","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" then","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" tell","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" me","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" how","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" many","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" there","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" are","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"The","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" list","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"()","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" returned","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"3","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":":","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" a","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"txt","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" b","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"txt","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" src","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"/","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"c","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"txt","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" So","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" answer","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" ","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"3","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"\n\n","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"I","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" should","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" respond","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" in","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" French","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" Maybe","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" also","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" view","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"?","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" The","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" user","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" only","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" asked","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" to","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" list","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" and","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" tell","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" count","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" I","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" could","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" also","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" check","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" contents","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" briefly","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" but","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" request","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" is","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" specific","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":":","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" list","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" files","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" and","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" count","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" I","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"'","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"ll","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" just","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" answer","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" con","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"cise","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":"ly","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":",","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" maybe","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" mention","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" the","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":" paths","type":"delta"}
+{"phase":"thinking","request_id":"run-1","text":".","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"Voici ","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"l'","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"é","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"tat ","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"du ","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"projet :","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"\n\n","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"- `","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"a.txt`","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"\n","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"- `","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"b.txt`","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"\n","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"- `","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"src/","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"c.txt`","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"\n\n","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"Il ","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"y ","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"a **","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"3 ","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"fichiers**","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":" ","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"au ","type":"delta"}
+{"phase":"answer","request_id":"run-1","text":"total.","type":"delta"}
+{"assistant_context":"Voici l'état du projet :\n\n- `a.txt`\n- `b.txt`\n- `src/c.txt`\n\nIl y a **3 fichiers** au total.","cache_context":"<|message_model|><|content_thinking|>The user asks in French: \"Regarde l'état du projet avec l'outil javascript (liste les fichiers), puis dis-moi combien il y en a.\" — Look at the state of the project with the javascript tool (list files), then tell me how many there are.\n\nThe list() returned 3 files: a.txt, b.txt, src/c.txt. So the answer is 3 files.\n\nI should respond in French. Maybe also view the files? The user only asked to list files and tell the count. I could also check contents briefly, but the request is specific: list files and count. I'll just answer concisely, maybe mention the paths.<|end_message|><|message_model|><|content_text|>Voici l'état du projet :\n\n- `a.txt`\n- `b.txt`\n- `src/c.txt`\n\nIl y a **3 fichiers** au total.<|end_message|>","context_full":false,"elapsed_seconds":29.575739542,"first_text_seconds":9.413600209,"request_id":"run-1","round_stats":[{"cached_prompt_tokens":0,"context_limit":16384,"context_used":1746,"decode_seconds":2.9142895420000006,"decode_tokens":79,"decode_tps":27.107807533010043,"dflash_accepted_tokens":null,"dflash_block_seconds":0.0,"dflash_blocks":null,"dflash_lookup_blocks":null,"dflash_profile":null,"dflash_proposed_tokens":null,"draft_load_seconds":0.0,"elapsed_seconds":12.222509792,"end_to_end_ttft_seconds":null,"evaluated_prompt_tokens":1666,"generated_tokens":80,"inkling_lookup_accepted_tokens":7,"inkling_lookup_blocks":6,"inkling_lookup_profile":{"accepted":7,"block_ms":454.7465420000001,"blocks":6,"held_steps":5,"plain_ms":2429.8279169999996,"plain_steps":68,"proposed":17,"width_blocks":[0,0,2,3,1,0,0,0]},"inkling_lookup_proposed_tokens":17,"memory":{"mlx_active_bytes":12371715896,"mlx_cache_bytes":1057727644,"mlx_peak_bytes":12993885582,"process_compressed_lifetime_logical_bytes":1524449280,"process_compressed_logical_bytes":1170522112,"process_compressed_peak_logical_bytes":1457438720,"process_decompressions":626437,"process_footprint_bytes":13723897528,"process_id":43154,"process_ledger_swapins_logical_bytes":0,"process_lifetime_peak_bytes":14144999048,"process_start_abstime":22922192496073},"model_size_gb":13.776574205,"mtp_accepted_tokens":null,"mtp_blocks":null,"mtp_depth_blocks":null,"mtp_lookup_blocks":null,"mtp_proposed_tokens":null,"prefill_seconds":9.305199,"prefill_tps":179.03969598070927,"prepare_seconds":0.000928875,"prompt_tokens":1666,"round_count":1,"tool_rounds":0,"tool_seconds":0.0,"topk_readback_rows":[0,1],"ttft_seconds":9.30822025},{"cached_prompt_tokens":0,"context_limit":16384,"context_used":1934,"decode_seconds":7.347839166999998,"decode_tokens":195,"decode_tps":26.538414296786424,"dflash_accepted_tokens":null,"dflash_block_seconds":0.0,"dflash_blocks":null,"dflash_lookup_blocks":null,"dflash_profile":null,"dflash_proposed_tokens":null,"draft_load_seconds":0.0,"elapsed_seconds":17.337982792,"end_to_end_ttft_seconds":null,"evaluated_prompt_tokens":1738,"generated_tokens":196,"inkling_lookup_accepted_tokens":25,"inkling_lookup_blocks":10,"inkling_lookup_profile":{"accepted":25,"block_ms":1421.754793,"blocks":10,"held_steps":11,"plain_ms":5859.970707000002,"plain_steps":162,"proposed":42,"width_blocks":[0,0,1,2,5,0,0,2]},"inkling_lookup_proposed_tokens":42,"memory":{"mlx_active_bytes":12380108752,"mlx_cache_bytes":1069691262,"mlx_peak_bytes":12994017782,"process_compressed_lifetime_logical_bytes":1524449280,"process_compressed_logical_bytes":1169735680,"process_compressed_peak_logical_bytes":1457438720,"process_decompressions":626485,"process_footprint_bytes":13756124904,"process_id":43154,"process_ledger_swapins_logical_bytes":0,"process_lifetime_peak_bytes":14148783776,"process_start_abstime":22922192496073},"model_size_gb":13.776574205,"mtp_accepted_tokens":null,"mtp_blocks":null,"mtp_depth_blocks":null,"mtp_lookup_blocks":null,"mtp_proposed_tokens":null,"prefill_seconds":9.986937791,"prefill_tps":174.0273181200994,"prepare_seconds":0.000802875,"prompt_tokens":1738,"round_count":1,"tool_rounds":0,"tool_seconds":0.0,"topk_readback_rows":[0,1],"ttft_seconds":9.990143625}],"stats":{"cached_prompt_tokens":0,"context_limit":16384,"context_used":1934,"decode_seconds":10.262128708999999,"decode_tokens":274,"decode_tps":26.700113375083575,"dflash_accepted_tokens":null,"dflash_block_seconds":0.0,"dflash_blocks":null,"dflash_lookup_blocks":null,"dflash_profile":null,"dflash_proposed_tokens":null,"draft_load_seconds":0.0,"elapsed_seconds":29.575723375,"end_to_end_ttft_seconds":9.413600209,"evaluated_prompt_tokens":3404,"generated_tokens":276,"inkling_lookup_accepted_tokens":32,"inkling_lookup_blocks":16,"inkling_lookup_profile":{"accepted":7,"block_ms":454.7465420000001,"blocks":6,"held_steps":5,"plain_ms":2429.8279169999996,"plain_steps":68,"proposed":17,"width_blocks":[0,0,2,3,1,0,0,0]},"inkling_lookup_proposed_tokens":59,"memory":{"mlx_active_bytes":12380108752,"mlx_cache_bytes":1069691262,"mlx_peak_bytes":12994017782,"process_compressed_lifetime_logical_bytes":1524449280,"process_compressed_logical_bytes":1169735680,"process_compressed_peak_logical_bytes":1457438720,"process_decompressions":626485,"process_footprint_bytes":13756124904,"process_id":43154,"process_ledger_swapins_logical_bytes":0,"process_lifetime_peak_bytes":14148783776,"process_start_abstime":22922192496073},"model_size_gb":13.776574205,"mtp_accepted_tokens":null,"mtp_blocks":null,"mtp_depth_blocks":null,"mtp_lookup_blocks":null,"mtp_proposed_tokens":null,"prefill_seconds":19.292136791,"prefill_tps":176.44494422142,"prepare_seconds":0.00173175,"prompt_tokens":3404,"round_count":2,"tool_rounds":1,"tool_seconds":0.01503975,"topk_readback_rows":[0,2],"ttft_seconds":9.308286834},"stop_reason":"eos","token_hash":"16390e0227f93d32","tool_rounds":1,"turn_context":"[{\"content\":\"\",\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":{\"code\":\"return list();\"},\"name\":\"sandbox.javascript\"},\"type\":\"function\"}]},{\"content\":\"Result:\\n[\\n  \\\"a.txt\\\",\\n  \\\"b.txt\\\",\\n  \\\"src/c.txt\\\"\\n]\",\"name\":\"sandbox.javascript\",\"role\":\"tool\"},{\"content\":\"<|message_model|><|content_thinking|>The user asks in French: \\\"Regarde l'état du projet avec l'outil javascript (liste les fichiers), puis dis-moi combien il y en a.\\\" — Look at the state of the project with the javascript tool (list files), then tell me how many there are.\\n\\nThe list() returned 3 files: a.txt, b.txt, src/c.txt. So the answer is 3 files.\\n\\nI should respond in French. Maybe also view the files? The user only asked to list files and tell the count. I could also check contents briefly, but the request is specific: list files and count. I'll just answer concisely, maybe mention the paths.<|end_message|><|message_model|><|content_text|>Voici l'état du projet :\\n\\n- `a.txt`\\n- `b.txt`\\n- `src/c.txt`\\n\\nIl y a **3 fichiers** au total.<|end_message|>\",\"role\":\"assistant\"}]","type":"complete"}
