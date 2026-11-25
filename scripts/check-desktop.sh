@@ -236,6 +236,7 @@ queue_rest() {
     queue_compile agent-sandbox -O "${app_sources}/AgentSandbox.swift" "${app_sources}/AgentJavaScript.swift" "${app_sources}/AgentNetwork.swift" \
         tests/agent-sandbox-check.swift -o "${test_dir}/agent-sandbox-check"
     queue_studio_model_check studio-modes StudioModesCombined.swift tests/studio-modes-check.swift
+    queue_app_check model-storage tests/model-storage-check.swift
     queue_app_check decision tests/decision-studio-check.swift
     queue_studio_model_check idle-unload ModelIdleUnloadCombined.swift tests/model-idle-unload-check.swift -warnings-as-errors
     queue_studio_model_check unload-control ModelUnloadControlCombined.swift tests/model-unload-control-check.swift -warnings-as-errors
@@ -244,7 +245,7 @@ queue_rest() {
 
 queue_after_preferences() {
     queue_studio_model_check sampling SpeculativeSamplingCombined.swift tests/speculative-sampling-check.swift -warnings-as-errors
-    queue_studio_model_check experience DesktopExperienceCombined.swift tests/desktop-experience-check.swift -warnings-as-errors
+    queue_studio_model_check experience DesktopExperienceCombined.swift tests/desktop-experience-check.swift tests/model-storage-ui-check.swift -warnings-as-errors
     queue_studio_model_check text-size ResponseTextSizeCombined.swift tests/response-text-size-check.swift -warnings-as-errors
     queue_studio_model_check mtp-layout MTPPanelLayoutCombined.swift tests/mtp-panel-layout-check.swift -warnings-as-errors
     queue_studio_model_check runtime-contract RuntimeContractCombined.swift tests/issue163-runtime-contract-check.swift -warnings-as-errors
@@ -262,6 +263,7 @@ queue_after_preferences() {
     queue_app_check model-card tests/model-card-check.swift
     queue_app_check file-import tests/file-import-check.swift
     queue_app_check image-input tests/image-input-check.swift
+    queue_app_check image-history-ui tests/image-history-ui-check.swift
     queue_app_check workspace-features tests/workspace-features-check.swift
     combine RecommendedModelsCombined.swift "${app_sources}/ModelManager.swift" tests/recommended-models-ui-check.swift
     queue_compile recommendations "${(@)sources:#*/ModelManager.swift}" "${math_objects[@]}" \
@@ -354,6 +356,8 @@ run_rest() {
     await_compile studio-modes
     fixture_timeout=180 run_fixture_check "${test_dir}/studio-modes-check" "$PWD/tests/fake-mode-engine.py" | tee "${test_dir}/studio-modes.log"
     grep -q "^Studio modes checks passed:" "${test_dir}/studio-modes.log"
+    await_compile model-storage
+    run_fixture_check "${test_dir}/model-storage-check"
     # Decision mode: drafts, discovery, decide-bridge lifecycle and decide-serve launch on a fake engine.
     await_compile decision
     "${test_dir}/decision-check" "$PWD/tests/fake-decision-engine.py"
@@ -401,6 +405,9 @@ run_after_preferences() {
     "${test_dir}/file-import-check" "$PWD/tests/fake-desktop-engine.py"
     await_compile image-input
     run_fixture_check "${test_dir}/image-input-check" "$PWD/tests/fake-desktop-engine.py" "$PWD/tests/fixtures/image-input"
+    await_compile image-history-ui
+    run_fixture_check "${test_dir}/image-history-ui-check" "$PWD/docs/images/studio-image21-m5.png" | tee "${test_dir}/image-history-ui.log"
+    grep -q '^Image history interface passed:' "${test_dir}/image-history-ui.log"
     await_compile workspace-features
     "${test_dir}/workspace-features-check" "$PWD/tests/fake-desktop-engine.py"
     await_compile recommendations

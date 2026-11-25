@@ -70,6 +70,12 @@ if command == "serve":
     emit("ready", port=port, model=model, host=host, context=context)
     server.serve_forever()
 elif command == "bridge":
+    if model.startswith("compare-test-"):
+        # A live predecessor holds the same local lock until the process exits.
+        import fcntl
+
+        lease = open(os.path.join(os.environ["MLXL3_HOME"], "compare.lock"), "a")
+        fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
     active = None
     ignore_stop = False
 
@@ -99,6 +105,8 @@ elif command == "bridge":
         # AGENT-2026-11-23-BOUCLE: a newer engine when the test leaves this marker file
         agent_loop_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
     )
+    if model.startswith("compare-test-no-reader-"):
+        time.sleep(60)
     for line in sys.stdin:
         request = json.loads(line)
         if request["type"] == "set_mcp":
@@ -114,6 +122,32 @@ elif command == "bridge":
         elif request["type"] == "generate":
             active = request["request_id"]
             text = request["messages"][-1]["content"]
+            if model.startswith("compare-test-"):
+                with open(os.path.join(os.environ["MLXL3_HOME"], "compare-requests.jsonl"), "a") as log:
+                    log.write(json.dumps({"request": request, "model": model, "registry": registry}) + "\n")
+                if text == "comparison-errors" and model == "compare-test-a":
+                    emit("delta", request_id="unrelated", phase="answer", text="wrong request")
+                    emit("delta", request_id=active, phase="thinking", text="internal thought")
+                    emit("delta", request_id=active, phase="answer", text="   \n")
+                    emit(
+                        "complete",
+                        request_id=active,
+                        assistant_context="",
+                        cache_context="<think>private</think>",
+                        stop_reason="max_tokens",
+                        stats={"ttft_seconds": 0.1, "prefill_tps": 120, "decode_tps": 100,
+                               "prompt_tokens": 12, "generated_tokens": 1},
+                    )
+                    continue
+                if text == "comparison-errors" and model == "compare-test-b":
+                    emit("complete", request_id=active, assistant_context="B's fallback answer", stop_reason="eos")
+                    continue
+                if text == "comparison-empty":
+                    emit("complete", request_id=active, stop_reason="eos")
+                    continue
+                if text == "comparison-malformed":
+                    print("invalid fixture frame", flush=True)
+                    continue
             if text.startswith("hang-"):
                 ignore_stop = text == "hang-ignore"
                 if ignore_stop:

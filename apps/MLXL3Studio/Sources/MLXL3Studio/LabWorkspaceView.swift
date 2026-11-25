@@ -12,20 +12,25 @@ private extension LabUsagePeriod {
 }
 
 private enum LabPage: String, CaseIterable, Identifiable {
-    case usage, generations, hardware
+    case usage, compare, generations, hardware
     var id: Self { self }
 
     var title: String {
         switch self {
         case .usage: L("Utilisation", "Usage")
+        case .compare: L("Comparer", "Compare")
         case .generations: L("Générations", "Generations")
         case .hardware: L("Ce Mac", "This Mac")
         }
     }
 
+    /// The page's own heading; the sidebar keeps the short name.
+    var heading: String { self == .compare ? L("Comparer les modèles", "Compare models") : title }
+
     var detail: String {
         switch self {
         case .usage: L("Tokens, débit et modèles utilisés sur ce Mac.", "Tokens, speed and models used on this Mac.")
+        case .compare: L("Le même prompt sur deux modèles, l’un après l’autre.", "The same prompt on two models, one after the other.")
         case .generations: L("Le détail mesuré de chaque réponse récente.", "The measured detail of each recent reply.")
         case .hardware: L("Le matériel, les logiciels et la mémoire en ce moment.", "Hardware, software and memory right now.")
         }
@@ -34,6 +39,7 @@ private enum LabPage: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .usage: "chart.bar"
+        case .compare: "rectangle.split.2x1"
         case .generations: "clock"
         case .hardware: "desktopcomputer"
         }
@@ -49,6 +55,7 @@ struct LabWorkspaceView: View {
             ? LabPage(rawValue: String($0.dropFirst("--ui-preview-lab-page=".count))) : nil }.first ?? .usage
         : .usage
     @State private var period = LabUsagePeriod.thirtyDays
+    @State private var comparisonDraft = LabComparisonDraft()
     let onBack: () -> Void
 
     var body: some View {
@@ -64,7 +71,7 @@ struct LabWorkspaceView: View {
 
             GeometryReader { geometry in
                 let inset: CGFloat = geometry.size.width < 620 ? 24 : 36
-                let width = min(820, max(0, geometry.size.width - 2 * inset))
+                let width = min(page == .compare ? 940 : 820, max(0, geometry.size.width - 2 * inset))
                 ScrollView {
                     VStack(alignment: .leading, spacing: 24) {
                         heading(width: width)
@@ -76,6 +83,8 @@ struct LabWorkspaceView: View {
                                       responses: LabResponseMeasurements(samples: studio.labSamples, period: period, now: time.date),
                                       width: width)
                             }
+                        case .compare:
+                            LabComparisonView(comparison: studio.labComparison, draft: $comparisonDraft, width: width)
                         case .generations:
                             TimelineView(.everyMinute) { time in
                                 LabGenerationsView(period: period, now: time.date)
@@ -101,8 +110,8 @@ struct LabWorkspaceView: View {
         let layout = wide ? AnyLayout(HStackLayout(alignment: .center, spacing: 20))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 16))
         return layout {
-            StudioPageHeader(title: page.title, detail: page.detail)
-            if page != .hardware {
+            StudioPageHeader(title: page.heading, detail: page.detail)
+            if page == .usage || page == .generations {
                 Picker(L("Période", "Period"), selection: $period) {
                     ForEach(LabUsagePeriod.allCases) { Text($0.title).tag($0) }
                 }
@@ -119,7 +128,7 @@ struct LabWorkspaceView: View {
     }
 
     // Sage identifies generated output in the legend, the token split and the daily bars.
-    private static let outputColor = Color(nsColor: StudioTheme.adaptiveColor(
+    static let outputColor = Color(nsColor: StudioTheme.adaptiveColor(
         light: StudioTheme.rgb(0x426D57), dark: StudioTheme.rgb(0x9ABCA5)))
 
     static func formattedShare(_ fraction: Double, locale: Locale) -> String {

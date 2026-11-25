@@ -71,6 +71,11 @@ separately and allow enough unified memory for the chosen checkpoint.
 2. Choose a model and quantization, download it, then load it from the model selector.
 3. Start a conversation. Use **+** for attachments and tools, or switch to Agent, Server or Lab.
 
+In **Models → Manage storage**, select a model or a partial download to see its
+allocated size, shared files and estimated reclaimable space. Review the estimate
+before removing anything. Files moved to the macOS Trash continue to occupy disk
+space until the Trash is emptied.
+
 The app is **ad-hoc signed, not notarized**. If macOS blocks first launch,
 approve this specific app in **System Settings → Privacy & Security**.
 Agent project features also require Git from Apple's Command Line Tools.
@@ -95,6 +100,14 @@ A managed engine that fails before startup can fall back to the bundled runtime.
 Image input is limited to **eight images / 8 MiB per conversation**, with at
 most 64 million source pixels per image. Text-only models cannot continue an
 image conversation. Documents and images can be attached together.
+
+### Images
+
+On a supported M5 Mac, open **Images → History** to browse the PNGs generated
+on this Mac, newest first. Select a thumbnail to see the image, its prompt,
+the model, the resolution, the step count and the seed. Older PNGs from Studio
+also appear. **Reuse settings** copies a saved prompt, size, step count and seed
+into the generator for another run. [View a saved generation on an M5](docs/images/studio-image-history.png).
 
 ### Agent
 
@@ -123,6 +136,12 @@ tokens per generation. The median time to first text uses retained generations
 with an end-to-end measurement. Models are ordered by tokens used. Average and maximum tok/s
 refer to decode speed. Each generation with a measured decode interval counts
 once toward the average.
+
+In **Compare**, choose two installed text models, enter a shared prompt and set
+an output limit. Studio runs one model at a time and shows the answers together
+with time to first visible text and decode speed. Model loading is excluded from
+the first-text measurement. Comparison runs have their own sessions and leave
+your conversations and usage totals intact. [See a comparison on an Apple M5](docs/images/studio-lab-compare.png).
 
 **Generations** lets you inspect individual runs, filter by model or export
 the retained details as JSON. **This Mac** shows hardware and current memory

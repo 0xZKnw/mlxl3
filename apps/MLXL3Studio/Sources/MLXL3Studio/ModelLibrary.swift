@@ -93,7 +93,7 @@ struct RecommendedModelFamily: Identifiable, Sendable {
     let models: [RecommendedHubModel]
 }
 
-struct PendingDownload: Decodable, Identifiable {
+struct PendingDownload: Decodable, Identifiable, Equatable, Sendable {
     let id: String
     let repo: String
     let size_bytes: Int64
@@ -157,6 +157,7 @@ final class ModelLibrary: ObservableObject {
     @Published private(set) var downloadMessage: String?
     @Published var variantID = ""
     @Published private(set) var pending: [PendingDownload] = []
+    @Published private(set) var discardingStorageID: String?
     @Published var authMessage: String?
     private var resultLimit = 60
     private var cacheDate = Date()
@@ -239,7 +240,7 @@ final class ModelLibrary: ObservableObject {
     }
 
     private func startDownload(repo: String, size: Int64, arguments: [String], studio: StudioModel) {
-        guard downloading == nil else { return }
+        guard downloading == nil, discardingStorageID == nil, !studio.modelInstallState.isWorking else { return }
         downloading = repo
         lastDownloadRepo = repo
         downloadProgress = ModelDownloadProgress(total: Double(size))
@@ -293,10 +294,27 @@ final class ModelLibrary: ObservableObject {
         startDownload(repo: job.repo, size: job.size_bytes, arguments: ["hub", "resume", job.id], studio: studio)
     }
 
-    func discard(_ job: PendingDownload) {
+    func discard(_ job: PendingDownload, storagePreview: ModelStorageItem, studio: StudioModel) {
+        guard !studio.storageHasActiveWork, !studio.modelInstallState.isWorking, discardingStorageID == nil else { return }
+        discardingStorageID = job.id
+        error = nil
         Task {
-            do { _ = try await CLICommand().output(["hub", "discard", job.id]); refreshPending() }
-            catch { self.error = error.localizedDescription }
+            defer { discardingStorageID = nil }
+            do {
+                guard storagePreview.downloadID == job.id else { throw MLXL3BridgeError.invalidResponse }
+                let models = try JSONDecoder().decode([LocalModel].self, from: await CLICommand().output(["list", "--json"]))
+                let current = try JSONDecoder().decode([PendingDownload].self, from: await CLICommand().output(["hub", "pending", ""]))
+                let image = studio.storageImageModelPath
+                let inventory = try await Task.detached(priority: .utility) {
+                    try ModelStorageInventory.scan(models: models, pending: current, imageModelPath: image)
+                }.value
+                try inventory.validateRemoval(storagePreview)
+                guard !studio.storageHasActiveWork else {
+                    throw MLXL3BridgeError.commandFailed(L("Une opération utilise les modèles. Réessaie après sa fin.", "Models are in use. Try again when the operation finishes."))
+                }
+                _ = try await CLICommand().output(["hub", "discard", job.id])
+                pending = try JSONDecoder().decode([PendingDownload].self, from: await CLICommand().output(["hub", "pending", ""]))
+            } catch { self.error = error.localizedDescription }
         }
     }
 

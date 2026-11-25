@@ -103,7 +103,7 @@ struct MLXL3StudioApp: App {
                             window.makeKeyAndOrderFront(nil)
                         } else { openWindow(id: "studio") }
                     }
-                    .disabled(studio.showAppSettings || studio.showModelManager || studio.showMCPManager || studio.showWorkspace || studio.studioDocument != nil)
+                    .disabled(studio.labComparison.isRunning || studio.showAppSettings || studio.showModelManager || studio.showMCPManager || studio.showWorkspace || studio.studioDocument != nil)
                 }
             }
         }
