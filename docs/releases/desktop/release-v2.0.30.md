@@ -49,7 +49,11 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Source and download
 
-Completed after the build.
+- Source: [`6836e664b`](https://github.com/0xZKnw/mlxl3/commit/6836e664b) (tag `v2.0.30`).
+- `MLXL3-Desktop-v2.0.30-b83-Apple-Silicon.dmg`: 253,730,091 bytes, SHA-256 `5d88fc8a0f0f42ccb0cb08aa19926e4f8ba1e03c899c8cb75c5ee83b66737673`.
+- `MLXL3-Desktop-v2.0.30-b83-Apple-Silicon.dmg.sha256`: 110 bytes.
+- Bundled engine: MLXL3 engine 2.0.34, the same files as [`engine-v2.0.34`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.34).
+- This DMG: `hdiutil verify` valid, `codesign --deep --strict` passed on the app, version 2.0.30 / build 83, `build-info` has commit `6836e664b` with no tracked changes; the five runtime files are identical to the published engine archive.
 
 ## Acknowledgements
 

@@ -34,7 +34,12 @@ Install the archive through the Desktop engine updater, or extract all its files
 
 ## Artifacts
 
-Completed after the build.
+| File | Size | SHA-256 |
+|---|---|---|
+| `MLXL3-Engine-v2.0.34-arm64.tar.gz` | 69,298,110 bytes | `ec918e639116ed3842a6834fa198fe3bb32c9edf1bfaa7fbdd205d7f84e20e93` |
+| `MLXL3-Engine-v2.0.34-arm64.tar.gz.sha256` | 100 bytes | |
+
+Source: `6836e664b` (tag `engine-v2.0.34`). The archive was extracted into a new directory: `mlxl3` passes a strict signature check and is arm64, its manifest reports 2.0.34 and `engine-v2.0.34`, and its five files are identical to those bundled in Desktop 2.0.30. The binary itself was not started for this release.
 
 ## Thanks
 
