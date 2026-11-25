@@ -50,7 +50,11 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Source and download
 
-ARTIFACTS_PLACEHOLDER
+- Source: [`c806094f6`](https://github.com/0xZKnw/mlxl3/commit/c806094f6fcd2379468d0ba5e13adaba9f96c919) (tag `v2.0.27`).
+- `MLXL3-Desktop-v2.0.27-b80-Apple-Silicon.dmg`: 253,375,899 bytes, SHA-256 `1a50f34ea831a3c138e12cc5fd419677a348713a882478e5d801835e58a8632e`.
+- `MLXL3-Desktop-v2.0.27-b80-Apple-Silicon.dmg.sha256`: 110 bytes.
+- Bundled engine: MLXL3 engine 2.0.32, the same files as [`engine-v2.0.32`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.32).
+- This DMG: `hdiutil verify` valid, `codesign --deep --strict` passed on the app, version 2.0.27 / build 80, built with the macOS 26.5 SDK; `build-info` has commit `c806094f6` with no tracked changes; the five runtime files are identical to the published engine archive.
 
 ## Acknowledgements
 

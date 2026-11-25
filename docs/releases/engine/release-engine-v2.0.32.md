@@ -77,7 +77,18 @@ Install the archive through the Desktop engine updater, or extract all its files
 
 ## Artifacts
 
-ARTIFACTS_PLACEHOLDER
+| File | Size | SHA-256 |
+|---|---|---|
+| `MLXL3-Engine-v2.0.32-arm64.tar.gz` | 69,297,803 bytes | `10003a720c745975e2502a0bbf650a792d576569e12ace109a99a51bd0f247b6` |
+| `MLXL3-Engine-v2.0.32-arm64.tar.gz.sha256` | 100 bytes | |
+
+Source: `c806094f6fcd` (tag `engine-v2.0.32`).
+
+The released archive was extracted into a new directory and checked:
+- **Files:** `engine.json`, `mlxl3`, `libmlx.dylib`, `libjaccl.dylib` and `mlx.metallib`; `mlxl3` passes a strict signature check and is arm64.
+- **`runtime-info`:** it reports 2.0.32, backend `mlx`, from source `c806094f6fcd`; `mlxl3` is 15,521,136 bytes, SHA-256 `abf9b81489bfae34b241c74505dd2c721da312186e7a00e597327514fed816f9`.
+- **Same engine as Desktop 2.0.27:** the five files are identical to those bundled in the DMG.
+- **Not done on the extracted binary:** a bridge run. The bridge check above ran on a binary built from the same code before the version commit.
 
 ## Thanks
 
