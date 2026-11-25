@@ -29,22 +29,24 @@ CONVERSION = {
 MAX_JSON = 8 * 1024 * 1024
 MAX_FILES = 20_000
 _JOB_RECORD: Path | None = None
+_JOB_LOCK = threading.Lock()
 
 
 def watch_parent(parent: int) -> None:
     while os.getppid() == parent:
         time.sleep(0.2)
-    if _JOB_RECORD is not None:
-        try:
-            state = read_json(_JOB_RECORD)
-        except (OSError, ValueError, TypeError):
-            state = {}
-        state.update(status="interrupted", error="Desktop process exited")
-        try:
-            _JOB_RECORD.write_text(json.dumps(state, indent=2) + "\n")
-        except OSError:
-            pass
-    os._exit(130)
+    with _JOB_LOCK:
+        if _JOB_RECORD is not None:
+            try:
+                state = read_json(_JOB_RECORD)
+                if state.get("status") == "running":
+                    state.update(status="interrupted", error="Desktop process exited")
+                    temporary = _JOB_RECORD.with_suffix(".json.tmp")
+                    temporary.write_text(json.dumps(state, indent=2) + "\n")
+                    temporary.replace(_JOB_RECORD)
+            except (OSError, ValueError, TypeError):
+                pass
+        os._exit(130)
 
 
 def emit(kind: str, **values) -> None:
@@ -479,9 +481,10 @@ def convert(request: dict) -> dict:
     }
 
     def save():
-        temporary = job / "job.json.tmp"
-        temporary.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
-        temporary.replace(job / "job.json")
+        with _JOB_LOCK:
+            temporary = job / "job.json.tmp"
+            temporary.write_text(json.dumps(report, indent=2, allow_nan=False) + "\n")
+            temporary.replace(job / "job.json")
 
     _JOB_RECORD = job / "job.json"
     save()

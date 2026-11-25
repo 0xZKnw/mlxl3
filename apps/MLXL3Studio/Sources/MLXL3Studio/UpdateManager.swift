@@ -466,7 +466,16 @@ final class UpdateManager: ObservableObject {
         return data
     }
 
-    enum ReleaseChannel { case app, engine }
+    enum ReleaseChannel {
+        case app, engine
+
+        func assetPattern(versionPattern: String) -> String {
+            switch self {
+            case .app: return "^MLXL3-Desktop-v\(versionPattern)-b[0-9]+-Apple-Silicon\\.dmg$"
+            case .engine: return "^MLXL3-Engine-v\(versionPattern)-arm64\\.tar\\.gz$"
+            }
+        }
+    }
 
     nonisolated static func selectRelease(_ data: Data, channel: ReleaseChannel, updateChannel: UpdateChannel = .stable) throws -> AppUpdateRelease? {
         let payloads: [GitHubRelease]
@@ -491,9 +500,7 @@ final class UpdateManager: ObservableObject {
                   SemanticVersion(version) != nil,
                   let page = URL(string: payload.htmlURL),
                   trustedURL(page, path: "/\(repository)/releases/tag/\(payload.tagName)") else { return nil }
-            let pattern = channel == .app
-                ? "^MLXL3-Desktop-v\(NSRegularExpression.escapedPattern(for: rawVersion))-b[0-9]+-Apple-Silicon\\.dmg$"
-                : "^MLXL3-Engine-v\(NSRegularExpression.escapedPattern(for: rawVersion))-arm64\\.tar\\.gz$"
+            let pattern = channel.assetPattern(versionPattern: NSRegularExpression.escapedPattern(for: rawVersion))
             let assets = payload.assets.compactMap { asset -> AppUpdateAsset? in
                 guard asset.name.range(of: pattern, options: .regularExpression) != nil,
                       asset.size > 0, asset.size <= 1_500_000_000,
@@ -580,12 +587,19 @@ final class UpdateManager: ObservableObject {
     /// once a newer one is verified; other families and unrelated files stay.
     nonisolated static func pruneCache(_ root: URL, keeping kept: URL) {
         let name = kept.lastPathComponent
-        guard let family = ["MLXL3-Desktop-", "MLXL3-Engine-"].first(where: { name.hasPrefix($0) }),
+        let version = #"[0-9]+\.[0-9]+\.[0-9]+(?:-beta\.[1-9][0-9]*)?"#
+        let families = [ReleaseChannel.app, .engine].map { $0.assetPattern(versionPattern: version) }
+        let keys: Set<URLResourceKey> = [.isRegularFileKey, .isSymbolicLinkKey]
+        guard let pattern = families.first(where: { name.range(of: $0, options: .regularExpression) != nil }),
               let entries = try? FileManager.default.contentsOfDirectory(
-                at: root, includingPropertiesForKeys: nil, options: [.skipsHiddenFiles])
+                at: root, includingPropertiesForKeys: Array(keys), options: [.skipsHiddenFiles])
         else { return }
-        for entry in entries where entry.lastPathComponent.hasPrefix(family) && entry.lastPathComponent != name {
-            try? FileManager.default.removeItem(at: entry)
+        for entry in entries where entry.lastPathComponent != name {
+            guard entry.lastPathComponent.range(of: pattern, options: .regularExpression) != nil,
+                  let values = try? entry.resourceValues(forKeys: keys),
+                  values.isRegularFile == true, values.isSymbolicLink == false else { continue }
+            // A directory replacing the checked file must never be removed recursively.
+            _ = Darwin.unlink(entry.path)
         }
     }
 

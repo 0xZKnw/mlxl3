@@ -221,7 +221,7 @@ import SwiftUI
       }
       preconditionFailure("Quantization controller did not finish within 7 seconds")
     }
-    for malformed in ["array", "incomplete", "invalid"] {
+    for malformed in ["array", "incomplete", "invalid", "scalar", "null"] {
       quantizer.input = "malformed/" + malformed
       quantizer.inspect()
       try await wait { !quantizer.inspecting }
@@ -244,6 +244,15 @@ import SwiftUI
     check(
       prepared && quantizer.output == completed && quantizer.progress == 1,
       "Controller lost prepare/settings/completion boundary")
+    quantizer.cancel()  // Studio stops its services when the user quits.
+    let record = root.appendingPathComponent("jobs/converted/job.json")
+    let report = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: record))
+    check(report["status"] == "complete", "Shutdown marked a finished conversion as interrupted")
+    let lateFailure = root.appendingPathComponent("output-late-fail")
+    quantizer.convert(to: lateFailure) {}
+    try await wait { !quantizer.converting }
+    check(quantizer.output == nil && quantizer.error != nil,
+          "A worker that exited unsuccessfully published an installable checkpoint")
     let failing = root.appendingPathComponent("output-fail")
     quantizer.convert(to: failing) {}
     try await wait { !quantizer.converting }
@@ -261,6 +270,9 @@ import SwiftUI
     check(
       kill(pid, 0) != 0 && errno == ESRCH && quantizer.output == nil,
       "Ignored SIGTERM worker survived Stop or became installable")
+    let stoppedRecord = root.appendingPathComponent("jobs/output-hang/job.json")
+    let stoppedReport = try JSONDecoder().decode([String: String].self, from: Data(contentsOf: stoppedRecord))
+    check(stoppedReport["status"] == "interrupted", "Forced stop left the conversion marked as running")
     if let path = ProcessInfo.processInfo.environment["MLXL3_STUDIOS_UI_SNAPSHOTS"] {
       _ = NSApplication.shared
       let prefsName = "io.mlxl3.studios-ui." + UUID().uuidString
@@ -318,6 +330,10 @@ import SwiftUI
     }
     if request["operation"] as? String == "probe" {
       if let source = request["source"] as? String, source.hasPrefix("malformed/") {
+        if source.hasSuffix("scalar") || source.hasSuffix("null") {
+          try emit(["type": "result", "result": source.hasSuffix("scalar") ? 42 as Any : NSNull()])
+          return
+        }
         let response = source.hasSuffix("array") ? "[]\n" : source.hasSuffix("incomplete") ? "{}\n" : "not-json\n"
         try FileHandle.standardOutput.write(contentsOf: Data(response.utf8))
         return
@@ -333,6 +349,15 @@ import SwiftUI
       ])
     } else {
       let output = URL(fileURLWithPath: request["output"] as! String)
+      let job = URL(fileURLWithPath: request["jobs"] as! String).appendingPathComponent(output.lastPathComponent)
+      try FileManager.default.createDirectory(at: job, withIntermediateDirectories: true)
+      let record = job.appendingPathComponent("job.json")
+      try Data(#"{"status":"running"}"#.utf8).write(to: record)
+      try emit(["type": "job", "path": job.path])
+      if output.lastPathComponent == "output-late-fail" {
+        try emit(["type": "result", "result": ["status": "complete", "output": output.path]])
+        exit(1)
+      }
       if output.lastPathComponent.contains("fail") {
         try emit(["type": "error", "text": "fixture conversion failure"])
         exit(1)
@@ -345,6 +370,7 @@ import SwiftUI
       }
       let settings = request["settings"] as! [String: Any]
       precondition(settings["bits"] as? Double == 3.5)
+      try Data(#"{"status":"complete"}"#.utf8).write(to: record)
       try emit(["type": "progress", "phase": "convert", "completed": 1, "total": 2])
       try emit(["type": "result", "result": ["status": "complete", "output": output.path]])
     }
