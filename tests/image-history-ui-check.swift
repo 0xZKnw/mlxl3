@@ -10,10 +10,13 @@ private struct HistoryUIError: LocalizedError {
 @main
 struct ImageHistoryInterfaceCheck {
     @MainActor static func main() {
+        // Foundation resolves Downloads relative to this disposable home before AppKit starts.
+        let temporary = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-history-ui-\(UUID())")
+        setenv("CFFIXED_USER_HOME", temporary.path, 1)
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
         Task { @MainActor in
-            do { try await checkWorkspace(); exit(EXIT_SUCCESS) }
+            do { try await checkWorkspace(temporary: temporary); exit(EXIT_SUCCESS) }
             catch {
                 FileHandle.standardError.write(Data((error.localizedDescription + "\n").utf8))
                 exit(EXIT_FAILURE)
@@ -23,14 +26,17 @@ struct ImageHistoryInterfaceCheck {
         exit(EXIT_FAILURE)
     }
 
-    @MainActor static func checkWorkspace() async throws {
+    @MainActor static func checkWorkspace(temporary: URL) async throws {
         guard CommandLine.arguments.count == 2 else { throw HistoryUIError(message: "Expected a 512 px sample PNG") }
         let example = URL(fileURLWithPath: CommandLine.arguments[1])
         let fileManager = FileManager.default
-        let temporary = fileManager.temporaryDirectory.appendingPathComponent("mlxl3-history-ui-\(UUID())")
         let images = temporary.appendingPathComponent("Images")
-        try fileManager.createDirectory(at: temporary, withIntermediateDirectories: true)
+        let downloads = temporary.appendingPathComponent("Downloads", isDirectory: true)
+        try fileManager.createDirectory(at: downloads, withIntermediateDirectories: true)
         defer { try? fileManager.removeItem(at: temporary) }
+        guard URL.downloadsDirectory.resolvingSymlinksInPath().path == downloads.resolvingSymlinksInPath().path else {
+            throw HistoryUIError(message: "The export check needs an isolated Downloads folder")
+        }
         let suite = "io.mlxl3.history-ui.\(UUID())"
         guard let preferences = UserDefaults(suiteName: suite) else { throw HistoryUIError(message: "No test preferences") }
         defer { preferences.removePersistentDomain(forName: suite) }
@@ -44,8 +50,12 @@ struct ImageHistoryInterfaceCheck {
             await progress(1, files.reduce(0) { $0 + $1.size })
             try StudioImageFixtures.publish(files, at: destination)
         })
-        let host = NSHostingView(rootView: AnyView(ImageGenerationView(engine: engine, close: {}).environmentObject(studio)
-            .defaultAppStorage(preferences).preferredColorScheme(.dark)))
+        func workspace() -> AnyView {
+            AnyView(ImageGenerationView(engine: engine, close: {}).environmentObject(studio)
+                .environment(\.locale, Locale(identifier: studio.language.rawValue))
+                .defaultAppStorage(preferences).preferredColorScheme(.dark))
+        }
+        let host = NSHostingView(rootView: workspace())
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1120, height: 760),
                               styleMask: [.titled, .resizable], backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -108,6 +118,48 @@ struct ImageHistoryInterfaceCheck {
             }
         }
 
+        func download(_ cells: [Word], filename: String, accept: Bool) async throws {
+            let destination = downloads.appendingPathComponent(filename)
+            let before = try engine.usageStore.summary()
+            let gallery = engine.history
+            var matched = false
+            let reply = Timer(timeInterval: 0.1, repeats: true) { _ in
+                MainActor.assumeIsolated {
+                    guard !matched, let panel = NSApp.modalWindow as? NSSavePanel, panel.isVisible,
+                          panel.allowedContentTypes == [.png], panel.nameFieldStringValue == filename,
+                          panel.url?.resolvingSymlinksInPath().path == destination.resolvingSymlinksInPath().path else { return }
+                    matched = true
+                    // Complete the real app-modal session. The system Save button lives
+                    // in a separate process, which CI does not need permission to drive.
+                    if accept { NSApp.stopModal(withCode: .OK) } else { panel.cancel(nil) }
+                }
+            }
+            let timeout = Timer(fire: .now.addingTimeInterval(5), interval: 0, repeats: false) { _ in
+                MainActor.assumeIsolated { (NSApp.modalWindow as? NSSavePanel)?.cancel(nil) }
+            }
+            RunLoop.main.add(reply, forMode: .modalPanel)
+            RunLoop.main.add(timeout, forMode: .modalPanel)
+            defer { reply.invalidate(); timeout.invalidate() }
+            try click("download png", in: cells)
+            let shown = ContinuousClock.now.advanced(by: .seconds(6))
+            while !matched && ContinuousClock.now < shown { try await Task.sleep(for: .milliseconds(25)) }
+            guard matched else { throw HistoryUIError(message: "Download PNG did not open the expected PNG save panel") }
+            if accept {
+                let deadline = ContinuousClock.now.advanced(by: .seconds(4))
+                while !fileManager.fileExists(atPath: destination.path) && ContinuousClock.now < deadline {
+                    try await Task.sleep(for: .milliseconds(25))
+                }
+                guard try Data(contentsOf: destination) == Data(contentsOf: example) else {
+                    throw HistoryUIError(message: "The downloaded PNG differed from the selected image")
+                }
+            } else if fileManager.fileExists(atPath: destination.path) {
+                throw HistoryUIError(message: "Cancelling downloaded a PNG")
+            }
+            guard try before == engine.usageStore.summary(), engine.history == gallery else {
+                throw HistoryUIError(message: "Export changed the gallery or the Lab counters")
+            }
+        }
+
         func variantPicker(in view: NSView) -> NSSegmentedControl? {
             if let picker = view as? NSSegmentedControl, picker.segmentCount == 2 { return picker }
             for child in view.subviews {
@@ -151,6 +203,7 @@ struct ImageHistoryInterfaceCheck {
         try click("generated image", in: grid)
         let older = try await words()
         try expect(["prompt unavailable", "512", "29"], in: older)
+        try await download(older, filename: "Image-29.png", accept: false)
         guard !older.contains(where: { $0.text.contains("reuse settings") }) else {
             throw HistoryUIError(message: "A legacy PNG offered to reuse unknown settings")
         }
@@ -158,6 +211,15 @@ struct ImageHistoryInterfaceCheck {
         try click("a cobalt blue teapot", in: await words())
         let details = try await words()
         try expect(["a cobalt blue teapot", "fixture model", "base", "512", "17", "371", "show png"], in: details)
+        try await download(details, filename: "Image-371.png", accept: true)
+        studio.setLanguage(.fr)
+        host.rootView = workspace()
+        ocr.recognitionLanguages = ["fr-FR"]
+        try expect(["télécharger le png", "réutiliser les réglages"],
+                   in: await words(snapshot: "studio-image-history-download-fr.png"))
+        studio.setLanguage(.en)
+        host.rootView = workspace()
+        ocr.recognitionLanguages = ["en-US"]
 
         window.setContentSize(.init(width: 820, height: 700))
         try click("all images", in: await words())
@@ -267,6 +329,6 @@ struct ImageHistoryInterfaceCheck {
         }
         try expectImageCounts([12, 12], for: .turbo, in: recovered)
         try await checkImageSaveSettings(studio: studio, window: window, preferences: preferences)
-        print("Image history interface passed: image library, reuse, Lab counts in both periods and live refresh, saving preference")
+        print("Image history interface passed: PNG download and cancellation, image library, reuse, Lab counts in both periods and live refresh, saving preference")
     }
 }
