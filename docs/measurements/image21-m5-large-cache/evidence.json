@@ -1,0 +1,1178 @@
+{
+  "campaign": "IMAGE21-M5-LARGECACHE-19",
+  "paths": "Command, model and raw artifact paths are relative to the campaign's parent workspace. $HF_HUB_CACHE is the Hugging Face Hub cache root.",
+  "raw_results_sha256": {
+    "pilot-768": "9e632e16ce841d383022e61373caa4d8848b4964be021b2bbe6da75f4ca3b18b",
+    "short-768": "0b433aab689a5e3a5652a001d8cb2d89281cef84153713253628f874b6a8771e",
+    "long-768": "883237813a58deceb21b9e0c3cf6d47b24d0bf27dce1cf2f59849856ac92474c",
+    "pilot-1024": "63eeec30e86c295d4fd6b734ec52850a4636bdfa05ba17cf87fdf3ff86359eca",
+    "short-1024": "b9bc720b41b87d97e8e0b0ad6d9de0670f587078c833d78dadabd3e55d95b7ad",
+    "long-1024": "666f52db73cfdf95b39d937b32689f2c28a2c04b1b0e9bbb6fddb6cbf818f878"
+  },
+  "records": {
+    "pilot-768": {
+      "candidate": "B",
+      "candidate_args": [],
+      "phase": "pilot",
+      "size": 768,
+      "steps": 2,
+      "order": "AB",
+      "seed": 371,
+      "prompt": "An old oak tree beside a quiet river in autumn light.",
+      "status": "complete",
+      "parity": true,
+      "runs": [
+        {
+          "label": "01-A",
+          "arm": "A",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/state.py",
+            "build/image21-large-cache/A/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "768",
+            "--steps",
+            "2",
+            "--seed",
+            "371",
+            "--prompt",
+            "An old oak tree beside a quiet river in autumn light.",
+            "--output",
+            "build/image21-large-cache/pilot-768/01-A.png"
+          ],
+          "image": "build/image21-large-cache/pilot-768/01-A.png",
+          "log": "build/image21-large-cache/pilot-768/01-A.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t71%; discharging; 12:56 remaining present: true",
+          "wall_s": 29.92,
+          "rss_bytes": 3863494656,
+          "footprint_bytes": 18710711320,
+          "step_s": 8.03,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t70%; discharging; 12:26 remaining present: true",
+          "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+          "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8",
+          "allocator": [
+            {
+              "phase": "before_step",
+              "monotonic_ns": 108007092643250,
+              "active_bytes": 9710368,
+              "cache_bytes": 0,
+              "peak_bytes": 9751204
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 108016115080083,
+              "active_bytes": 3580511022,
+              "cache_bytes": 1280437642,
+              "peak_bytes": 4188095278
+            },
+            {
+              "phase": "before_step",
+              "monotonic_ns": 108016115962083,
+              "active_bytes": 3579921198,
+              "cache_bytes": 1281322378,
+              "peak_bytes": 4188095278
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 108023147546125,
+              "active_bytes": 3580805934,
+              "cache_bytes": 1280437642,
+              "peak_bytes": 4222468910
+            },
+            {
+              "phase": "before_vae",
+              "monotonic_ns": 108023276459291,
+              "active_bytes": 1720758,
+              "cache_bytes": 0,
+              "peak_bytes": 4222468910
+            },
+            {
+              "phase": "after_vae",
+              "monotonic_ns": 108031210094833,
+              "active_bytes": 1023036798,
+              "cache_bytes": 16773842732,
+              "peak_bytes": 6025500538
+            }
+          ],
+          "states": [
+            "f65fc590ca66b3c6c4091a779b5697e72ff6f7664abb77e59a1e8e248df593cc",
+            "bdeddd97e5a1003e864370b3b10c375ec1800ba5488bb07298aefafe0f050104"
+          ]
+        },
+        {
+          "label": "02-B",
+          "arm": "B",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/state.py",
+            "build/image21-large-cache/B/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "768",
+            "--steps",
+            "2",
+            "--seed",
+            "371",
+            "--prompt",
+            "An old oak tree beside a quiet river in autumn light.",
+            "--output",
+            "build/image21-large-cache/pilot-768/02-B.png"
+          ],
+          "image": "build/image21-large-cache/pilot-768/02-B.png",
+          "log": "build/image21-large-cache/pilot-768/02-B.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t70%; discharging; 12:26 remaining present: true",
+          "wall_s": 27.48,
+          "rss_bytes": 4246339584,
+          "footprint_bytes": 7292537952,
+          "step_s": 9.04,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t70%; discharging; 12:26 remaining present: true",
+          "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+          "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8",
+          "allocator": [
+            {
+              "phase": "before_step",
+              "monotonic_ns": 108036827596375,
+              "active_bytes": 9710368,
+              "cache_bytes": 0,
+              "peak_bytes": 9751204
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 108046117317125,
+              "active_bytes": 3580494638,
+              "cache_bytes": 544498058,
+              "peak_bytes": 4188078894
+            },
+            {
+              "phase": "before_step",
+              "monotonic_ns": 108046118429583,
+              "active_bytes": 3579904814,
+              "cache_bytes": 537027776,
+              "peak_bytes": 4188078894
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 108054908643833,
+              "active_bytes": 3580789550,
+              "cache_bytes": 554984640,
+              "peak_bytes": 4222452526
+            },
+            {
+              "phase": "before_vae",
+              "monotonic_ns": 108054978886333,
+              "active_bytes": 1720758,
+              "cache_bytes": 0,
+              "peak_bytes": 4222452526
+            },
+            {
+              "phase": "after_vae",
+              "monotonic_ns": 108060165966125,
+              "active_bytes": 1037763850,
+              "cache_bytes": 424673280,
+              "peak_bytes": 6535923418
+            }
+          ],
+          "states": [
+            "f65fc590ca66b3c6c4091a779b5697e72ff6f7664abb77e59a1e8e248df593cc",
+            "bdeddd97e5a1003e864370b3b10c375ec1800ba5488bb07298aefafe0f050104"
+          ]
+        }
+      ],
+      "provenance": {
+        "source_commit": "458098f2709094db97e497f0047f01a886228957",
+        "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+        "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+        "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+        "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+        "resources": {
+          "A": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+          },
+          "B": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "edfe9e35c575980e890c12de1b0c61dff7216ed0da949ed14ae36cdbec8d2476"
+          }
+        },
+        "versions": {
+          "mflux": "0.24.0",
+          "mlx": "0.32.4",
+          "transformers": "5.24.0",
+          "huggingface_hub": "1.33.0",
+          "Pillow": "13.0.0",
+          "numpy": "2.5.5"
+        },
+        "python": "build/image21-studio/venv/bin/python",
+        "python_version": "3.12.14",
+        "macos": "27.3",
+        "harness": {
+          "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+          "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+          "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0"
+        },
+        "environment": {},
+        "worker_environment": {
+          "HF_HUB_OFFLINE": "1",
+          "TRANSFORMERS_OFFLINE": "1",
+          "PYTHONNOUSERSITE": "1"
+        }
+      },
+      "historical_pilot": {
+        "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+        "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8",
+        "states": [
+          "f65fc590ca66b3c6c4091a779b5697e72ff6f7664abb77e59a1e8e248df593cc",
+          "bdeddd97e5a1003e864370b3b10c375ec1800ba5488bb07298aefafe0f050104"
+        ]
+      }
+    },
+    "short-768": {
+      "candidate": "B",
+      "candidate_args": [],
+      "phase": "short",
+      "size": 768,
+      "steps": 4,
+      "order": "ABBA",
+      "seed": 1729,
+      "prompt": "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+      "status": "complete",
+      "parity": true,
+      "runs": [
+        {
+          "label": "01-A",
+          "arm": "A",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/A/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "768",
+            "--steps",
+            "4",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/short-768/01-A.png"
+          ],
+          "image": "build/image21-large-cache/short-768/01-A.png",
+          "log": "build/image21-large-cache/short-768/01-A.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t69%; discharging; 11:56 remaining present: true",
+          "wall_s": 46.59,
+          "rss_bytes": 4718641152,
+          "footprint_bytes": 18739105416,
+          "step_s": 8.68,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t68%; discharging; 11:46 remaining present: true",
+          "png": "7056634f744e012d1ec59fa8880bd7acc0ad29fab58c38421547a0ed4fdf2c4d",
+          "rgb": "1093496e0f58bf39bc5f26872dd007bae95f2e890bc8a5b33cd2592a5ab63fbe"
+        },
+        {
+          "label": "02-B",
+          "arm": "B",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/B/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "768",
+            "--steps",
+            "4",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/short-768/02-B.png"
+          ],
+          "image": "build/image21-large-cache/short-768/02-B.png",
+          "log": "build/image21-large-cache/short-768/02-B.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t68%; discharging; 11:46 remaining present: true",
+          "wall_s": 43.09,
+          "rss_bytes": 4234805248,
+          "footprint_bytes": 7298338872,
+          "step_s": 8.55,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t68%; discharging; 11:36 remaining present: true",
+          "png": "7056634f744e012d1ec59fa8880bd7acc0ad29fab58c38421547a0ed4fdf2c4d",
+          "rgb": "1093496e0f58bf39bc5f26872dd007bae95f2e890bc8a5b33cd2592a5ab63fbe"
+        },
+        {
+          "label": "03-B",
+          "arm": "B",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/B/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "768",
+            "--steps",
+            "4",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/short-768/03-B.png"
+          ],
+          "image": "build/image21-large-cache/short-768/03-B.png",
+          "log": "build/image21-large-cache/short-768/03-B.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t68%; discharging; 11:36 remaining present: true",
+          "wall_s": 43.19,
+          "rss_bytes": 4300521472,
+          "footprint_bytes": 7215500552,
+          "step_s": 8.71,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t67%; discharging; 11:26 remaining present: true",
+          "png": "7056634f744e012d1ec59fa8880bd7acc0ad29fab58c38421547a0ed4fdf2c4d",
+          "rgb": "1093496e0f58bf39bc5f26872dd007bae95f2e890bc8a5b33cd2592a5ab63fbe"
+        },
+        {
+          "label": "04-A",
+          "arm": "A",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/A/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "768",
+            "--steps",
+            "4",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/short-768/04-A.png"
+          ],
+          "image": "build/image21-large-cache/short-768/04-A.png",
+          "log": "build/image21-large-cache/short-768/04-A.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t67%; discharging; 11:26 remaining present: true",
+          "wall_s": 48.43,
+          "rss_bytes": 4740857856,
+          "footprint_bytes": 18721214712,
+          "step_s": 9.43,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t67%; discharging; 11:16 remaining present: true",
+          "png": "7056634f744e012d1ec59fa8880bd7acc0ad29fab58c38421547a0ed4fdf2c4d",
+          "rgb": "1093496e0f58bf39bc5f26872dd007bae95f2e890bc8a5b33cd2592a5ab63fbe"
+        }
+      ],
+      "provenance": {
+        "source_commit": "458098f2709094db97e497f0047f01a886228957",
+        "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+        "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+        "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+        "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+        "resources": {
+          "A": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+          },
+          "B": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "edfe9e35c575980e890c12de1b0c61dff7216ed0da949ed14ae36cdbec8d2476"
+          }
+        },
+        "versions": {
+          "mflux": "0.24.0",
+          "mlx": "0.32.4",
+          "transformers": "5.24.0",
+          "huggingface_hub": "1.33.0",
+          "Pillow": "13.0.0",
+          "numpy": "2.5.5"
+        },
+        "python": "build/image21-studio/venv/bin/python",
+        "python_version": "3.12.14",
+        "macos": "27.3",
+        "harness": {
+          "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+          "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+          "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0"
+        },
+        "environment": {},
+        "worker_environment": {
+          "HF_HUB_OFFLINE": "1",
+          "TRANSFORMERS_OFFLINE": "1",
+          "PYTHONNOUSERSITE": "1"
+        }
+      },
+      "historical_pilot": {
+        "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+        "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8",
+        "states": [
+          "f65fc590ca66b3c6c4091a779b5697e72ff6f7664abb77e59a1e8e248df593cc",
+          "bdeddd97e5a1003e864370b3b10c375ec1800ba5488bb07298aefafe0f050104"
+        ]
+      },
+      "performance": {
+        "paired_footprint_saved_bytes": [
+          11440766544,
+          11505714160
+        ],
+        "wall_ratio": 0.9080193643443485,
+        "passes": true
+      }
+    },
+    "long-768": {
+      "candidate": "B",
+      "candidate_args": [],
+      "phase": "long",
+      "size": 768,
+      "steps": 40,
+      "order": "BA",
+      "seed": 1729,
+      "prompt": "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+      "status": "complete",
+      "parity": true,
+      "runs": [
+        {
+          "label": "01-B",
+          "arm": "B",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/B/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "768",
+            "--steps",
+            "40",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/long-768/01-B.png"
+          ],
+          "image": "build/image21-large-cache/long-768/01-B.png",
+          "log": "build/image21-large-cache/long-768/01-B.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t63%; discharging; 10:06 remaining present: true",
+          "wall_s": 428.3,
+          "rss_bytes": 4229038080,
+          "footprint_bytes": 7000460600,
+          "step_s": 10.46,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t59%; discharging; 8:46 remaining present: true",
+          "png": "a03a9e95e94fd893956c8ffe188aa46ac1576a377b182d2b6cabffcd778d539f",
+          "rgb": "1802b3dbf7ef5c82aa6eb7495892cb174824f68f976dec3d359aae81c489cc03"
+        },
+        {
+          "label": "02-A",
+          "arm": "A",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/A/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "768",
+            "--steps",
+            "40",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/long-768/02-A.png"
+          ],
+          "image": "build/image21-large-cache/long-768/02-A.png",
+          "log": "build/image21-large-cache/long-768/02-A.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t59%; discharging; 8:46 remaining present: true",
+          "wall_s": 452.17,
+          "rss_bytes": 4286857216,
+          "footprint_bytes": 18654121440,
+          "step_s": 10.9,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t56%; discharging; 7:16 remaining present: true",
+          "png": "a03a9e95e94fd893956c8ffe188aa46ac1576a377b182d2b6cabffcd778d539f",
+          "rgb": "1802b3dbf7ef5c82aa6eb7495892cb174824f68f976dec3d359aae81c489cc03"
+        }
+      ],
+      "provenance": {
+        "source_commit": "458098f2709094db97e497f0047f01a886228957",
+        "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+        "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+        "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+        "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+        "resources": {
+          "A": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+          },
+          "B": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "edfe9e35c575980e890c12de1b0c61dff7216ed0da949ed14ae36cdbec8d2476"
+          }
+        },
+        "versions": {
+          "mflux": "0.24.0",
+          "mlx": "0.32.4",
+          "transformers": "5.24.0",
+          "huggingface_hub": "1.33.0",
+          "Pillow": "13.0.0",
+          "numpy": "2.5.5"
+        },
+        "python": "build/image21-studio/venv/bin/python",
+        "python_version": "3.12.14",
+        "macos": "27.3",
+        "harness": {
+          "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+          "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+          "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0"
+        },
+        "environment": {},
+        "worker_environment": {
+          "HF_HUB_OFFLINE": "1",
+          "TRANSFORMERS_OFFLINE": "1",
+          "PYTHONNOUSERSITE": "1"
+        }
+      },
+      "historical_pilot": {
+        "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+        "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8",
+        "states": [
+          "f65fc590ca66b3c6c4091a779b5697e72ff6f7664abb77e59a1e8e248df593cc",
+          "bdeddd97e5a1003e864370b3b10c375ec1800ba5488bb07298aefafe0f050104"
+        ]
+      },
+      "performance": {
+        "paired_footprint_saved_bytes": [
+          11653660840
+        ],
+        "wall_ratio": 0.9472101200875777,
+        "passes": true
+      }
+    },
+    "pilot-1024": {
+      "candidate": "B",
+      "candidate_args": [],
+      "phase": "pilot",
+      "size": 1024,
+      "steps": 2,
+      "order": "AB",
+      "seed": 371,
+      "prompt": "An old oak tree beside a quiet river in autumn light.",
+      "status": "complete",
+      "parity": true,
+      "runs": [
+        {
+          "label": "01-A",
+          "arm": "A",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/state.py",
+            "build/image21-large-cache/A/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "1024",
+            "--steps",
+            "2",
+            "--seed",
+            "371",
+            "--prompt",
+            "An old oak tree beside a quiet river in autumn light.",
+            "--output",
+            "build/image21-large-cache/pilot-1024/01-A.png"
+          ],
+          "image": "build/image21-large-cache/pilot-1024/01-A.png",
+          "log": "build/image21-large-cache/pilot-1024/01-A.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t70%; discharging; 12:26 remaining present: true",
+          "wall_s": 46.86,
+          "rss_bytes": 4729257984,
+          "footprint_bytes": 18724490864,
+          "step_s": 15.57,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t69%; discharging; 12:06 remaining present: true",
+          "png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04",
+          "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967",
+          "allocator": [
+            {
+              "phase": "before_step",
+              "monotonic_ns": 108083645602375,
+              "active_bytes": 9710368,
+              "cache_bytes": 0,
+              "peak_bytes": 9751204
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 108098763532000,
+              "active_bytes": 3582454094,
+              "cache_bytes": 1572339250,
+              "peak_bytes": 4285483342
+            },
+            {
+              "phase": "before_step",
+              "monotonic_ns": 108098764141416,
+              "active_bytes": 3581405518,
+              "cache_bytes": 1573387826,
+              "peak_bytes": 4285483342
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 108114792092625,
+              "active_bytes": 3582978382,
+              "cache_bytes": 1605369394,
+              "peak_bytes": 4320086350
+            },
+            {
+              "phase": "before_vae",
+              "monotonic_ns": 108114867419000,
+              "active_bytes": 2638262,
+              "cache_bytes": 0,
+              "peak_bytes": 4320086350
+            },
+            {
+              "phase": "after_vae",
+              "monotonic_ns": 108126498929583,
+              "active_bytes": 1030833278,
+              "cache_bytes": 16688989996,
+              "peak_bytes": 7901382354
+            }
+          ],
+          "states": [
+            "3dc50363f0299fff59cbf57b0445ec5c91108df9b9bf4378b2adfba5e8e30986",
+            "3b98462d44a7ee6f326471b6189fb81ed6e097273c40869e466afb739a26b22e"
+          ]
+        },
+        {
+          "label": "02-B",
+          "arm": "B",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/state.py",
+            "build/image21-large-cache/B/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "1024",
+            "--steps",
+            "2",
+            "--seed",
+            "371",
+            "--prompt",
+            "An old oak tree beside a quiet river in autumn light.",
+            "--output",
+            "build/image21-large-cache/pilot-1024/02-B.png"
+          ],
+          "image": "build/image21-large-cache/pilot-1024/02-B.png",
+          "log": "build/image21-large-cache/pilot-1024/02-B.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t69%; discharging; 12:06 remaining present: true",
+          "wall_s": 43.35,
+          "rss_bytes": 4236066816,
+          "footprint_bytes": 8110312400,
+          "step_s": 15.54,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t69%; discharging; 12:06 remaining present: true",
+          "png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04",
+          "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967",
+          "allocator": [
+            {
+              "phase": "before_step",
+              "monotonic_ns": 108131383546666,
+              "active_bytes": 9710368,
+              "cache_bytes": 0,
+              "peak_bytes": 9751204
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 108147585699958,
+              "active_bytes": 3582305614,
+              "cache_bytes": 568785236,
+              "peak_bytes": 4285334862
+            },
+            {
+              "phase": "before_step",
+              "monotonic_ns": 108147587502791,
+              "active_bytes": 3581257038,
+              "cache_bytes": 536666920,
+              "peak_bytes": 4285334862
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 108162471859208,
+              "active_bytes": 3582829902,
+              "cache_bytes": 569647912,
+              "peak_bytes": 4319937870
+            },
+            {
+              "phase": "before_vae",
+              "monotonic_ns": 108162535760083,
+              "active_bytes": 2638262,
+              "cache_bytes": 0,
+              "peak_bytes": 4319937870
+            },
+            {
+              "phase": "after_vae",
+              "monotonic_ns": 108170575817375,
+              "active_bytes": 1057047818,
+              "cache_bytes": 377487360,
+              "peak_bytes": 7901382354
+            }
+          ],
+          "states": [
+            "3dc50363f0299fff59cbf57b0445ec5c91108df9b9bf4378b2adfba5e8e30986",
+            "3b98462d44a7ee6f326471b6189fb81ed6e097273c40869e466afb739a26b22e"
+          ]
+        }
+      ],
+      "provenance": {
+        "source_commit": "458098f2709094db97e497f0047f01a886228957",
+        "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+        "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+        "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+        "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+        "resources": {
+          "A": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+          },
+          "B": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "edfe9e35c575980e890c12de1b0c61dff7216ed0da949ed14ae36cdbec8d2476"
+          }
+        },
+        "versions": {
+          "mflux": "0.24.0",
+          "mlx": "0.32.4",
+          "transformers": "5.24.0",
+          "huggingface_hub": "1.33.0",
+          "Pillow": "13.0.0",
+          "numpy": "2.5.5"
+        },
+        "python": "build/image21-studio/venv/bin/python",
+        "python_version": "3.12.14",
+        "macos": "27.3",
+        "harness": {
+          "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+          "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+          "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0"
+        },
+        "environment": {},
+        "worker_environment": {
+          "HF_HUB_OFFLINE": "1",
+          "TRANSFORMERS_OFFLINE": "1",
+          "PYTHONNOUSERSITE": "1"
+        }
+      },
+      "historical_pilot": {
+        "png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04",
+        "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967",
+        "states": [
+          "3dc50363f0299fff59cbf57b0445ec5c91108df9b9bf4378b2adfba5e8e30986",
+          "3b98462d44a7ee6f326471b6189fb81ed6e097273c40869e466afb739a26b22e"
+        ]
+      }
+    },
+    "short-1024": {
+      "candidate": "B",
+      "candidate_args": [],
+      "phase": "short",
+      "size": 1024,
+      "steps": 4,
+      "order": "ABBA",
+      "seed": 1729,
+      "prompt": "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+      "status": "complete",
+      "parity": true,
+      "runs": [
+        {
+          "label": "01-A",
+          "arm": "A",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/A/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "1024",
+            "--steps",
+            "4",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/short-1024/01-A.png"
+          ],
+          "image": "build/image21-large-cache/short-1024/01-A.png",
+          "log": "build/image21-large-cache/short-1024/01-A.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t67%; discharging; 11:16 remaining present: true",
+          "wall_s": 73.81,
+          "rss_bytes": 4623794176,
+          "footprint_bytes": 18898865848,
+          "step_s": 15.36,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t66%; discharging; 11:06 remaining present: true",
+          "png": "982484cf25b1f40eaf5690b315001228a6a03ba1d17ce641013880c96f76724f",
+          "rgb": "64bf71e3bee60f7f39ababc542055139a607b8a2c01b53a0bb1904ba3b1b1ce1"
+        },
+        {
+          "label": "02-B",
+          "arm": "B",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/B/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "1024",
+            "--steps",
+            "4",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/short-1024/02-B.png"
+          ],
+          "image": "build/image21-large-cache/short-1024/02-B.png",
+          "log": "build/image21-large-cache/short-1024/02-B.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t66%; discharging; 11:06 remaining present: true",
+          "wall_s": 78.25,
+          "rss_bytes": 4227710976,
+          "footprint_bytes": 8127975432,
+          "step_s": 16.32,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t65%; discharging; 10:46 remaining present: true",
+          "png": "982484cf25b1f40eaf5690b315001228a6a03ba1d17ce641013880c96f76724f",
+          "rgb": "64bf71e3bee60f7f39ababc542055139a607b8a2c01b53a0bb1904ba3b1b1ce1"
+        },
+        {
+          "label": "03-B",
+          "arm": "B",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/B/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "1024",
+            "--steps",
+            "4",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/short-1024/03-B.png"
+          ],
+          "image": "build/image21-large-cache/short-1024/03-B.png",
+          "log": "build/image21-large-cache/short-1024/03-B.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t65%; discharging; 10:46 remaining present: true",
+          "wall_s": 87.4,
+          "rss_bytes": 4312383488,
+          "footprint_bytes": 8126287136,
+          "step_s": 18.45,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t64%; discharging; 10:26 remaining present: true",
+          "png": "982484cf25b1f40eaf5690b315001228a6a03ba1d17ce641013880c96f76724f",
+          "rgb": "64bf71e3bee60f7f39ababc542055139a607b8a2c01b53a0bb1904ba3b1b1ce1"
+        },
+        {
+          "label": "04-A",
+          "arm": "A",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/A/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "1024",
+            "--steps",
+            "4",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/short-1024/04-A.png"
+          ],
+          "image": "build/image21-large-cache/short-1024/04-A.png",
+          "log": "build/image21-large-cache/short-1024/04-A.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t64%; discharging; 10:26 remaining present: true",
+          "wall_s": 93.49,
+          "rss_bytes": 4715937792,
+          "footprint_bytes": 18714791608,
+          "step_s": 18.34,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t63%; discharging; 10:06 remaining present: true",
+          "png": "982484cf25b1f40eaf5690b315001228a6a03ba1d17ce641013880c96f76724f",
+          "rgb": "64bf71e3bee60f7f39ababc542055139a607b8a2c01b53a0bb1904ba3b1b1ce1"
+        }
+      ],
+      "provenance": {
+        "source_commit": "458098f2709094db97e497f0047f01a886228957",
+        "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+        "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+        "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+        "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+        "resources": {
+          "A": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+          },
+          "B": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "edfe9e35c575980e890c12de1b0c61dff7216ed0da949ed14ae36cdbec8d2476"
+          }
+        },
+        "versions": {
+          "mflux": "0.24.0",
+          "mlx": "0.32.4",
+          "transformers": "5.24.0",
+          "huggingface_hub": "1.33.0",
+          "Pillow": "13.0.0",
+          "numpy": "2.5.5"
+        },
+        "python": "build/image21-studio/venv/bin/python",
+        "python_version": "3.12.14",
+        "macos": "27.3",
+        "harness": {
+          "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+          "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+          "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0"
+        },
+        "environment": {},
+        "worker_environment": {
+          "HF_HUB_OFFLINE": "1",
+          "TRANSFORMERS_OFFLINE": "1",
+          "PYTHONNOUSERSITE": "1"
+        }
+      },
+      "historical_pilot": {
+        "png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04",
+        "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967",
+        "states": [
+          "3dc50363f0299fff59cbf57b0445ec5c91108df9b9bf4378b2adfba5e8e30986",
+          "3b98462d44a7ee6f326471b6189fb81ed6e097273c40869e466afb739a26b22e"
+        ]
+      },
+      "performance": {
+        "paired_footprint_saved_bytes": [
+          10770890416,
+          10588504472
+        ],
+        "wall_ratio": 0.9901374775851763,
+        "passes": true
+      }
+    },
+    "long-1024": {
+      "candidate": "B",
+      "candidate_args": [],
+      "phase": "long",
+      "size": 1024,
+      "steps": 40,
+      "order": "BA",
+      "seed": 1729,
+      "prompt": "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+      "status": "complete",
+      "parity": true,
+      "runs": [
+        {
+          "label": "01-B",
+          "arm": "B",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/B/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "1024",
+            "--steps",
+            "40",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/long-1024/01-B.png"
+          ],
+          "image": "build/image21-large-cache/long-1024/01-B.png",
+          "log": "build/image21-large-cache/long-1024/01-B.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t56%; discharging; 7:16 remaining present: true",
+          "wall_s": 933.24,
+          "rss_bytes": 4227596288,
+          "footprint_bytes": 8099089768,
+          "step_s": 22.94,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t48%; discharging; 4:36 remaining present: true",
+          "png": "26068f73dc2fe6600c5e91f64aafce698f407a518e311a4bdd415cbf48589a86",
+          "rgb": "2e0217b5e82256f769802ff2ff2d7724cafb14f97bf88d92f2f53c8b83297224"
+        },
+        {
+          "label": "02-A",
+          "arm": "A",
+          "status": "measured",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/A/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "1024",
+            "--steps",
+            "40",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/long-1024/02-A.png"
+          ],
+          "image": "build/image21-large-cache/long-1024/02-A.png",
+          "log": "build/image21-large-cache/long-1024/02-A.log",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t48%; discharging; 4:36 remaining present: true",
+          "wall_s": 858.14,
+          "rss_bytes": 4606771200,
+          "footprint_bytes": 18714447040,
+          "step_s": 20.85,
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t40%; discharging; 1:36 remaining present: true",
+          "png": "26068f73dc2fe6600c5e91f64aafce698f407a518e311a4bdd415cbf48589a86",
+          "rgb": "2e0217b5e82256f769802ff2ff2d7724cafb14f97bf88d92f2f53c8b83297224"
+        }
+      ],
+      "provenance": {
+        "source_commit": "458098f2709094db97e497f0047f01a886228957",
+        "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+        "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+        "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+        "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+        "resources": {
+          "A": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+          },
+          "B": {
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+            "render.py": "edfe9e35c575980e890c12de1b0c61dff7216ed0da949ed14ae36cdbec8d2476"
+          }
+        },
+        "versions": {
+          "mflux": "0.24.0",
+          "mlx": "0.32.4",
+          "transformers": "5.24.0",
+          "huggingface_hub": "1.33.0",
+          "Pillow": "13.0.0",
+          "numpy": "2.5.5"
+        },
+        "python": "build/image21-studio/venv/bin/python",
+        "python_version": "3.12.14",
+        "macos": "27.3",
+        "harness": {
+          "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+          "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+          "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0"
+        },
+        "environment": {},
+        "worker_environment": {
+          "HF_HUB_OFFLINE": "1",
+          "TRANSFORMERS_OFFLINE": "1",
+          "PYTHONNOUSERSITE": "1"
+        }
+      },
+      "historical_pilot": {
+        "png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04",
+        "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967",
+        "states": [
+          "3dc50363f0299fff59cbf57b0445ec5c91108df9b9bf4378b2adfba5e8e30986",
+          "3b98462d44a7ee6f326471b6189fb81ed6e097273c40869e466afb739a26b22e"
+        ]
+      },
+      "performance": {
+        "paired_footprint_saved_bytes": [
+          10615357272
+        ],
+        "wall_ratio": 1.0875148577155243,
+        "passes": false
+      }
+    }
+  }
+}

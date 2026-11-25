@@ -8,6 +8,7 @@ struct ImageGenerationView: View {
     @AppStorage("image21ModelDirectory") private var modelPath = ""
     @State private var previewImage: NSImage?
     @State private var showsHistory = false
+    @State private var lowMemory = false
     @State private var selectedImage: URL?
 
     private static let example = Bundle.main.url(forResource: "studio-image21-m5", withExtension: "png",
@@ -101,6 +102,13 @@ struct ImageGenerationView: View {
                 ForEach([512, 768, 1024], id: \.self) { Text(String($0)).tag($0) }
             }
             .pickerStyle(.segmented).labelsHidden()
+            if engine.offersLowMemory(at: engine.size) {
+                Toggle(L("Réduire la mémoire", "Reduce memory use"), isOn: $lowMemory)
+                    .font(.system(size: 12.5))
+                    .help(L("Réduit la mémoire utilisée et peut allonger la génération.",
+                            "Uses less memory and may take longer to generate."))
+                    .accessibilityIdentifier("images.lowMemory")
+            }
             Stepper(value: $engine.steps, in: 2...50) {
                 Text(L("\(engine.steps) étapes", "\(engine.steps) steps")).font(.system(size: 12.5)).monospacedDigit()
             }
@@ -174,7 +182,7 @@ struct ImageGenerationView: View {
                 } else {
                     Button {
                         engine.start(model: URL(fileURLWithPath: modelPath), prompt: engine.prompt,
-                                     size: engine.size, steps: engine.steps, seed: engine.seed)
+                                     size: engine.size, steps: engine.steps, seed: engine.seed, lowMemory: lowMemory)
                     } label: {
                         Label(L("Générer", "Generate"), systemImage: "wand.and.stars")
                     }

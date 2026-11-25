@@ -256,9 +256,10 @@ def require_supported_gpu():
         and "MLXL3_DISABLE_TENSOR_OPS" not in os.environ
         and mx.metal.is_available()
     ):
-        name = mx.device_info()["device_name"]
+        device = mx.device_info()
+        name = device["device_name"]
         if name == "Apple M5" or name.startswith("Apple M5 "):
-            return name
+            return device
     raise RuntimeError(
         "Qwen Image requires an Apple M5 GPU and macOS 26.3 or later with TensorOps enabled."
     )
@@ -282,13 +283,26 @@ def main():
     parser.add_argument("--seed", required=True, type=int)
     parser.add_argument("--steps", type=int, choices=range(2, 51), metavar="2..50", default=40)
     parser.add_argument("--size", type=int, default=512, choices=(512, 768, 1024))
+    parser.add_argument(
+        "--low-memory",
+        action="store_true",
+        help=(
+            "Limit the free Metal buffer cache to 512 MiB at 1024 px on Apple M5 with "
+            "24 GiB of memory. This can increase render time."
+        ),
+    )
     args = parser.parse_args()
     if not args.prompt.strip() or not 0 <= args.seed < 2**32:
         parser.error("Invalid prompt or seed")
-    print(require_supported_gpu(), flush=True)
+    device = require_supported_gpu()
+    print(device["device_name"], flush=True)
     from mflux.callbacks.instances.memory_saver import MemorySaver
 
-    if args.size == 512:
+    if args.size == 512 or (
+        (args.size == 768 or (args.size == 1024 and args.low_memory))
+        and device["device_name"] == "Apple M5"
+        and device.get("memory_size") == 24 * 1024**3
+    ):
         # Limit unused Metal buffers before the worker loads the model.
         mx.set_cache_limit(512 * 1024**2)
     model = build(args.model)

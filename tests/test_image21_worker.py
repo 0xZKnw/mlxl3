@@ -5,10 +5,12 @@ import importlib.util
 import io
 import math
 import os
+import runpy
 import subprocess
 import sys
 import tempfile
 import unittest
+from itertools import product
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
@@ -138,16 +140,39 @@ class ImageWorkerTest(unittest.TestCase):
         self.run_worker("--size", "512")
         self.assertEqual(order.method_calls, [call.limit(512 * 1024**2), call.build(self.root)])
 
-    def test_preserves_allocator_cache_at_larger_sizes(self):
-        for size in (768, 1024):
-            with self.subTest(size=size), patch.object(self.model.vae, "decode", self.decode):
-                self.saver.reset_mock()
-                self.model.callbacks.reset_mock()
-                self.image.size = (size, size)
-                self.run_worker("--size", str(size))
-                self.core.set_cache_limit.assert_not_called()
-                self.assertEqual(self.model.generate_image.call_args.kwargs["width"], size)
-                self.assertEqual(self.model.generate_image.call_args.kwargs["height"], size)
+    def test_allocator_cache_for_image_size_and_hardware(self):
+        gib = 1024**3
+        for gpu, memory, default_sizes, low_memory_sizes in (
+            ("Apple M5", 24 * gib, (512, 768), (512, 768, 1024)),
+            ("Apple M5", 16 * gib, (512,), (512,)),
+            ("Apple M5", 32 * gib, (512,), (512,)),
+            ("Apple M5", None, (512,), (512,)),
+            ("Apple M5 Pro", 24 * gib, (512,), (512,)),
+            ("Apple M5 Max", 24 * gib, (512,), (512,)),
+        ):
+            device = {"device_name": gpu}
+            if memory is not None:
+                device["memory_size"] = memory
+            self.core.device_info.return_value = device
+            for size, low_memory in product((512, 768, 1024), (False, True)):
+                with self.subTest(size=size, gpu=gpu, memory=memory, low_memory=low_memory):
+                    self.core.reset_mock()
+                    self.build.reset_mock()
+                    self.saver.reset_mock()
+                    self.model.callbacks.reset_mock()
+                    self.model.vae.decode = self.decode
+                    self.image.size = (size, size)
+                    order = Mock()
+                    order.attach_mock(self.core.set_cache_limit, "limit")
+                    order.attach_mock(self.build, "build")
+                    flags = ["--low-memory"] if low_memory else []
+                    self.run_worker("--size", str(size), *flags)
+                    self.core.device_info.assert_called_once_with()
+                    capped_sizes = low_memory_sizes if low_memory else default_sizes
+                    expected = [call.limit(512 * 1024**2)] if size in capped_sizes else []
+                    self.assertEqual(order.method_calls, expected + [call.build(self.root)])
+                    self.assertEqual(self.model.generate_image.call_args.kwargs["width"], size)
+                    self.assertEqual(self.model.generate_image.call_args.kwargs["height"], size)
 
     def test_two_steps(self):
         self.run_worker("--steps", "2")
@@ -187,8 +212,9 @@ class ImageWorkerTest(unittest.TestCase):
                 self.worker.platform.mac_ver.return_value = (version, (), "")
                 self.core.device_info.return_value = {"device_name": gpu}
                 self.core.metal.is_available.return_value = metal
-                with self.assertRaisesRegex(RuntimeError, "M5 GPU and macOS 26.3"):
-                    self.run_worker()
+                for flags in ([], ["--low-memory"]):
+                    with self.assertRaisesRegex(RuntimeError, "M5 GPU and macOS 26.3"):
+                        self.run_worker("--size", "1024", *flags)
         self.build.assert_not_called()
         self.core.set_cache_limit.assert_not_called()
 
@@ -196,6 +222,19 @@ class ImageWorkerTest(unittest.TestCase):
         self.core.device_info.return_value = {"device_name": "Apple M5 Max"}
         self.run_worker()
         self.image.save.assert_called_once()
+
+    def test_interpreter_probe_only_prints_python_path(self):
+        script = self.worker.__file__
+        with (
+            patch.object(sys, "argv", [script, "--interpreter"]),
+            contextlib.redirect_stdout(io.StringIO()) as output,
+            self.assertRaises(SystemExit) as cm,
+        ):
+            runpy.run_path(script, run_name="__main__")
+        self.assertEqual(cm.exception.code, 0)
+        self.assertEqual(output.getvalue(), sys.executable + "\n")
+        self.core.device_info.assert_called_once_with()
+        self.core.set_cache_limit.assert_not_called()
 
     def test_rejects_invalid_latent_before_decode(self):
         for values in ([0.1, float("nan")], [float("inf")], [-float("inf")], []):

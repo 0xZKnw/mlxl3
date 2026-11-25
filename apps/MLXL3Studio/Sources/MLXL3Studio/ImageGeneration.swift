@@ -10,9 +10,16 @@ enum Image21Hardware {
         return gpu == "Apple M5" || gpu.hasPrefix("Apple M5 ")
     }
 
-    static let available = supports(gpu: MTLCreateSystemDefaultDevice()?.name,
+    static func supportsLowMemory(gpu: String?, memory: UInt64) -> Bool {
+        gpu == "Apple M5" && memory == 24 * 1_024 * 1_024 * 1_024
+    }
+
+    private static let gpu = MTLCreateSystemDefaultDevice()?.name
+    static let available = supports(gpu: gpu,
                                     os: ProcessInfo.processInfo.operatingSystemVersion,
                                     disabled: ProcessInfo.processInfo.environment["MLXL3_DISABLE_TENSOR_OPS"] != nil)
+    static let lowMemoryAvailable = available && supportsLowMemory(gpu: gpu, memory: ProcessInfo.processInfo.physicalMemory)
+
     static var requirement: String {
         L("Qwen Image nécessite un GPU Apple M5 et macOS 26.3 ou ultérieur avec TensorOps activé.",
           "Qwen Image requires an Apple M5 GPU and macOS 26.3 or later with TensorOps enabled.")
@@ -39,11 +46,14 @@ final class ImageGeneration: ObservableObject {
     private var process: Process?
 
     private let supported: Bool
+    private let lowMemoryAvailable: Bool
     private let worker: (launcher: URL, script: URL)?
 
-    init(supported: Bool = Image21Hardware.available, historyDirectory: URL = GeneratedImageHistory.defaultDirectory,
+    init(supported: Bool = Image21Hardware.available, lowMemoryAvailable: Bool = Image21Hardware.lowMemoryAvailable,
+         historyDirectory: URL = GeneratedImageHistory.defaultDirectory,
          worker: (launcher: URL, script: URL)? = nil) {
         self.supported = supported
+        self.lowMemoryAvailable = lowMemoryAvailable
         self.historyStore = GeneratedImageHistory(directory: historyDirectory)
         self.worker = worker
     }
@@ -70,7 +80,11 @@ final class ImageGeneration: ObservableObject {
         }
     }
 
-    func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32) {
+    func offersLowMemory(at size: Int) -> Bool {
+        supported && lowMemoryAvailable && size == 1024
+    }
+
+    func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32, lowMemory: Bool = false) {
         guard !running else { return }
         running = true
         result = nil
@@ -109,10 +123,10 @@ final class ImageGeneration: ObservableObject {
                 }
                 status = L("Chargement du modèle…", "Loading the model…")
                 let png = work.appendingPathComponent("image.png")
-                try await run(URL(fileURLWithPath: python),
-                              ["-I", "-u", script.path, "--model", model.path, "--prompt=\(prompt)",
-                               "--size", String(size), "--steps", String(steps), "--seed", String(seed), "--output", png.path],
-                              log: log, stdout: log, timeout: 3600, steps: steps)
+                var arguments = ["-I", "-u", script.path, "--model", model.path, "--prompt=\(prompt)",
+                                 "--size", String(size), "--steps", String(steps), "--seed", String(seed), "--output", png.path]
+                if lowMemory && offersLowMemory(at: size) { arguments.append("--low-memory") }
+                try await run(URL(fileURLWithPath: python), arguments, log: log, stdout: log, timeout: 3600, steps: steps)
                 try Task.checkCancellation()
                 let record = try historyStore.save(png: png, prompt: prompt, modelName: model.lastPathComponent,
                                                    size: size, steps: steps, seed: seed)

@@ -35,8 +35,11 @@ struct ImageGenerationCheck {
                 parser.add_argument("--" + key, required=True, type=Path)
             for key in ("prompt", "size", "steps", "seed"):
                 parser.add_argument("--" + key, required=True)
+            parser.add_argument("--low-memory", action="count", default=0)
             args = parser.parse_args()
             (args.model / "last-prompt").write_text(args.prompt, encoding="utf-8")
+            if args.prompt == "--low-memory":
+                raise SystemExit(f"low-memory={args.low_memory}")
             if args.prompt == "corrupt":
                 args.output.write_bytes(b"bad PNG")
             elif args.prompt == "pause":
@@ -48,7 +51,8 @@ struct ImageGenerationCheck {
         for path in [uv, renderer] {
             try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path.path)
         }
-        let engine = ImageGeneration(supported: true, historyDirectory: images, worker: (uv, renderer))
+        let engine = ImageGeneration(supported: true, lowMemoryAvailable: true,
+                                     historyDirectory: images, worker: (uv, renderer))
         func wait(_ predicate: @MainActor () -> Bool) async throws {
             for _ in 0..<500 {
                 if predicate() { return }
@@ -56,6 +60,27 @@ struct ImageGenerationCheck {
             }
             preconditionFailure("Timed out waiting for the isolated image worker")
         }
+        // Read the argument count from the actual child after the interpreter handoff.
+        for (size, expected) in [(512, 0), (768, 0), (1024, 1)] {
+            engine.size = size
+            check(engine.offersLowMemory(at: engine.size) == (expected == 1))
+            var draftLowMemory = true
+            engine.start(model: model, prompt: "--low-memory", size: engine.size, steps: 2, seed: 123, lowMemory: draftLowMemory)
+            draftLowMemory = false
+            engine.size = 512
+            try await wait { !engine.running }
+            check(!draftLowMemory && engine.error == "low-memory=\(expected)")
+        }
+        engine.start(model: model, prompt: "--low-memory", size: 1024, steps: 2, seed: 123)
+        try await wait { !engine.running }
+        check(engine.error == "low-memory=0", "The worker must keep its default without an explicit choice")
+        let otherHardware = ImageGeneration(supported: true, lowMemoryAvailable: false,
+                                            historyDirectory: images, worker: (uv, renderer))
+        check(!otherHardware.offersLowMemory(at: 1024))
+        otherHardware.start(model: model, prompt: "--low-memory", size: 1024, steps: 2, seed: 123, lowMemory: true)
+        try await wait { !otherHardware.running }
+        check(otherHardware.error == "low-memory=0")
+
         await engine.refreshHistory()
         check(engine.history.isEmpty && !engine.isLoadingHistory && engine.historyError == nil)
         check(!fm.fileExists(atPath: images.path), "Opening an empty gallery must not create files")
@@ -143,6 +168,14 @@ struct ImageGenerationCheck {
         }
         for gpu in [nil, "Apple M1", "Apple M2 Pro", "Apple M3 Ultra", "Apple M4 Max", "Apple M50"] as [String?] {
             precondition(!Image21Hardware.supports(gpu: gpu, os: minimum, disabled: false))
+        }
+        let gib: UInt64 = 1_024 * 1_024 * 1_024
+        precondition(Image21Hardware.supportsLowMemory(gpu: "Apple M5", memory: 24 * gib))
+        for gpu in [nil, "Apple M5 Pro", "Apple M5 Max", "Apple M4"] as [String?] {
+            precondition(!Image21Hardware.supportsLowMemory(gpu: gpu, memory: 24 * gib))
+        }
+        for memory in [16 * gib, 32 * gib] {
+            precondition(!Image21Hardware.supportsLowMemory(gpu: "Apple M5", memory: memory))
         }
         let engine = ImageGeneration(supported: true)
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
