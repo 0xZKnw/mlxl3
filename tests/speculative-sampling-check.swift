@@ -46,6 +46,33 @@ extension StudioModel {
     try check(dsparkReady.dsparkSupported == true, "dspark_supported not decoded")
     try check(try JSONDecoder().decode(BridgeEvent.self, from: Data(#"{"type":"ready"}"#.utf8)).dsparkSupported == nil,
               "older engines must leave dspark_supported unknown")
+    // FEAT-2026-11-25-INK2M-DFLASH2-APP: the engine's default (a DFlash2 drafter is installed) drives the
+    // switch until the user chooses, and decides when the drafter is downloaded
+    let dsparkDefaultReady = try JSONDecoder().decode(
+      BridgeEvent.self, from: Data(#"{"type":"ready","dspark_supported":true,"dspark_default":true}"#.utf8))
+    try check(dsparkDefaultReady.dsparkDefault == true, "dspark_default not decoded")
+    try check(dsparkReady.dsparkDefault == nil, "older engines must leave dspark_default unknown")
+    for (preference, engineDefault, expected) in [
+      (Bool?.none, Bool?.none, false), (nil, false, false), (nil, true, true),
+      (true, nil, true), (true, false, true), (true, true, true),
+      (false, nil, false), (false, false, false), (false, true, false),
+    ] {
+      try check(StudioModel.dsparkSwitch(preference: preference, engineDefault: engineDefault) == expected,
+                "switch for preference \(String(describing: preference)), default \(String(describing: engineDefault))")
+    }
+    let wanted = { (type: String?, supported: Bool?, engineDefault: Bool?, preference: Bool?) in
+      StudioModel.dsparkDrafterWanted(modelType: type, supported: supported, engineDefault: engineDefault,
+                                      preference: preference)
+    }
+    try check(wanted("inkling2_loop", true, false, nil), "untouched switch: the drafter is downloaded")
+    try check(wanted("inkling2_loop", true, false, true), "switch on: the drafter is downloaded")
+    try check(!wanted("inkling2_loop", true, false, false), "switch off: nothing is downloaded")
+    try check(!wanted("inkling2_loop", true, true, nil), "drafter installed: nothing to download")
+    try check(!wanted("inkling2_loop", true, nil, nil), "older engine: it could not use the drafter")
+    try check(!wanted("inkling2_loop", nil, false, nil) && !wanted("inkling2_loop", false, false, nil),
+              "no drafter support: nothing is downloaded")
+    try check(!wanted("qwen3_5", true, false, nil) && !wanted(nil, true, false, nil),
+              "only Inkling 2 Mini has this drafter")
     for enabled in [true, false] {
       var request = GenerationRequest(requestID: "r", conversationID: "c", messages: [], maxTokens: 8,
                                       temperature: 1, topK: 0, repetitionPenalty: 1)

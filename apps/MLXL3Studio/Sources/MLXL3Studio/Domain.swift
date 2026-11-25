@@ -180,6 +180,8 @@ struct BridgeEvent: Decodable {
     var mtpSupported: Bool? = nil
     /// The model ships a DSpark drafter the engine can use (Inkling 2, engine 2.0.21+).
     var dsparkSupported: Bool? = nil
+    /// The engine found a DFlash2 drafter for the model, so an omitted `dspark` means on (engine 2.0.32+).
+    var dsparkDefault: Bool? = nil
     var mtpSamplingSupported: Bool? = nil
     var dflashSamplingSupported: Bool? = nil
     var mtpAutoDownloadSupported: Bool? = nil
@@ -257,6 +259,7 @@ struct BridgeEvent: Decodable {
         case dflashTuningKey = "dflash_tuning_key", dflashFamily = "dflash_family"
         case mtpSupported = "mtp_supported"
         case dsparkSupported = "dspark_supported"
+        case dsparkDefault = "dspark_default"
         case mtpSamplingSupported = "mtp_sampling_supported"
         case dflashSamplingSupported = "dflash_sampling_supported"
         case mtpAutoDownloadSupported = "mtp_auto_download_supported"

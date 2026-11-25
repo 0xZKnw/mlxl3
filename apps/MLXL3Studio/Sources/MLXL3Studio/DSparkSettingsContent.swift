@@ -61,7 +61,8 @@ struct DSparkSettingsContent: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Toggle(isOn: Binding(get: { studio.dsparkEnabled }, set: { studio.setDSparkEnabled($0) })) {
+            Toggle(isOn: Binding(get: { studio.dsparkEnabled || studio.dsparkDrafterDownloading },
+                                 set: { studio.setDSparkEnabled($0) })) {
                 Text(L("Activer DSpark", "Enable DSpark")).font(.system(size: 13, weight: .semibold))
             }
             .toggleStyle(.switch)
@@ -79,9 +80,32 @@ struct DSparkSettingsContent: View {
                     .fixedSize(horizontal: false, vertical: true)
                     .accessibilityIdentifier("dspark-latest")
             }
+            if studio.dsparkDrafterDownloading {
+                if studio.dsparkDrafterTotal > 0 {
+                    ProgressView(value: studio.dsparkDrafterCompleted, total: studio.dsparkDrafterTotal)
+                        .accessibilityIdentifier("dspark-drafter-progress")
+                } else {
+                    ProgressView().controlSize(.small)
+                }
+                Text(L("Téléchargement du brouillon DFlash2 (≈ 1 Go). Les réponses restent normales en attendant ; coupe l'interrupteur pour annuler.",
+                       "Downloading the DFlash2 drafter (≈ 1 GB). Answers decode normally meanwhile; turn the switch off to cancel."))
+                    .font(.system(size: 11)).foregroundStyle(StudioTheme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let error = studio.dsparkDrafterError {
+                Text(error).font(.system(size: 11)).foregroundStyle(Color.orange)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .accessibilityIdentifier("dspark-drafter-error")
+                Button(L("Réessayer le téléchargement", "Retry the download")) { studio.retryDSparkDrafter() }
+                    .buttonStyle(StudioControlStyle())
+                    .disabled(studio.isGenerating || !studio.engineState.isReady)
+            }
             Divider()
-            Text(L("Brouillon fourni avec le modèle. La largeur des blocs suit l'acceptation pour ne pas ralentir le décodage.",
-                   "Drafter shipped with the model. The block width follows the acceptance so decoding is not slowed down."))
+            Text(studio.dsparkDefault == true
+                 ? L("Brouillon DFlash2 téléchargé une fois pour ce modèle. La largeur des blocs suit l'acceptation pour ne pas ralentir le décodage.",
+                     "DFlash2 drafter downloaded once for this model. The block width follows the acceptance so decoding is not slowed down.")
+                 : L("Brouillon fourni avec le modèle. La largeur des blocs suit l'acceptation pour ne pas ralentir le décodage.",
+                     "Drafter shipped with the model. The block width follows the acceptance so decoding is not slowed down."))
                 .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                 .fixedSize(horizontal: false, vertical: true)
         }

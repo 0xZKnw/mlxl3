@@ -133,8 +133,20 @@ final class StudioModel: ObservableObject {
     @Published private(set) var mtpSupported: Bool?
     /// The loaded model ships a DSpark drafter (Inkling 2); nil until the engine reports it.
     @Published private(set) var dsparkSupported: Bool?
-    /// DSpark on or off, kept across launches (on by default).
+    /// The speculative drafter on or off. A choice made with the switch is kept across launches; until then it
+    /// follows the engine (`dsparkDefault`: on once Inkling 2 Mini's DFlash2 drafter is installed).
     @Published private(set) var dsparkEnabled = false
+    /// The engine found a DFlash2 drafter for the loaded model; nil until it reports it (older engines never do).
+    @Published private(set) var dsparkDefault: Bool?
+    /// Inkling 2 Mini's DFlash2 drafter (not shipped with the model) is being downloaded in the background.
+    @Published private(set) var dsparkDrafterDownloading = false {
+        didSet { updateModelIdleUnload() }
+    }
+    @Published private(set) var dsparkDrafterCompleted = 0.0
+    @Published private(set) var dsparkDrafterTotal = 0.0
+    @Published private(set) var dsparkDrafterError: String?
+    private var dsparkDrafterTask: Task<Void, Never>?
+    private var dsparkDrafterOperation = UUID()
     /// Reasoning levels the selected model's chat template accepts; nil when it has none.
     @Published private(set) var reasoningSupport: ReasoningSupport?
     /// Level chosen for the selected model (kept per model); nil = the template default.
@@ -717,16 +729,89 @@ final class StudioModel: ObservableObject {
             .flatMap(ReasoningEffort.init(rawValue:))
     }
 
-    /// Turns the DSpark drafter on or off for the next requests and remembers the choice.
+    /// Turns the speculative drafter on or off for the next requests and remembers the choice. Turning it off
+    /// cancels the drafter download; turning it on starts it when the drafter is missing.
     func setDSparkEnabled(_ enabled: Bool) {
         dsparkEnabled = enabled
         preferences.set(enabled, forKey: "studio.dsparkEnabled")
+        if enabled {
+            prepareDSparkDrafter()
+        } else {
+            cancelDSparkDrafter()
+            dsparkDrafterError = nil
+        }
+    }
+
+    /// The user's own choice of the switch; nil while it was never touched.
+    private var dsparkPreference: Bool? { preferences.object(forKey: "studio.dsparkEnabled") as? Bool }
+
+    /// What the switch shows and the next request sends, from the user's choice (`preference`) and the engine's
+    /// default (`engineDefault`: a DFlash2 drafter is installed): the choice when there is one, else the default.
+    nonisolated static func dsparkSwitch(preference: Bool?, engineDefault: Bool?) -> Bool {
+        preference ?? (engineDefault == true)
+    }
+
+    /// Whether the drafter download starts: an Inkling 2 Mini model whose engine reports no DFlash2 drafter
+    /// (`engineDefault == false`; older engines report nothing and cannot use one), unless the user turned
+    /// the acceleration off.
+    nonisolated static func dsparkDrafterWanted(modelType: String?, supported: Bool?, engineDefault: Bool?,
+                                                preference: Bool?) -> Bool {
+        modelType == "inkling2_loop" && supported == true && engineDefault == false && preference != false
+    }
+
+    /// Inkling 2 Mini's DFlash2 drafter is not shipped with the model: unless the user turned the acceleration
+    /// off it is downloaded once in the background (pinned files, `dflash-draft --target`); the engine finds it
+    /// at the next request and the switch then follows the engine default. Answers decode normally meanwhile.
+    private func prepareDSparkDrafter() {
+        guard !isPreview, engineState.isReady, !dsparkDrafterDownloading, let model = selectedModel,
+              Self.dsparkDrafterWanted(modelType: model.modelType, supported: dsparkSupported,
+                                       engineDefault: dsparkDefault, preference: dsparkPreference) else { return }
+        cancelDSparkDrafter()
+        let operation = dsparkDrafterOperation
+        dsparkDrafterError = nil; dsparkDrafterCompleted = 0; dsparkDrafterTotal = 0
+        dsparkDrafterDownloading = true
+        dsparkDrafterTask = Task { [self] in
+            do {
+                let data = try await CLICommand().output(["dflash-draft", "--target", model.path]) { [weak self] line in
+                    guard let self, operation == self.dsparkDrafterOperation,
+                          let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: line), event.type == "progress" else { return }
+                    self.dsparkDrafterCompleted = event.completed ?? self.dsparkDrafterCompleted
+                    self.dsparkDrafterTotal = event.total ?? self.dsparkDrafterTotal
+                }
+                try Task.checkCancellation()
+                guard operation == dsparkDrafterOperation, selectedModel?.path == model.path else { return }
+                guard let event = try? JSONDecoder().decode(DFlashInstallEvent.self, from: data),
+                      event.type == "installed", event.path?.isEmpty == false else { throw MLXL3BridgeError.invalidResponse }
+                dsparkDrafterDownloading = false
+                dsparkDefault = true
+                dsparkEnabled = Self.dsparkSwitch(preference: dsparkPreference, engineDefault: true)
+            } catch is CancellationError { }
+            catch {
+                if operation == dsparkDrafterOperation {
+                    dsparkDrafterDownloading = false
+                    dsparkDrafterError = error.localizedDescription
+                }
+            }
+        }
+    }
+
+    private func cancelDSparkDrafter() {
+        dsparkDrafterOperation = UUID()
+        dsparkDrafterTask?.cancel(); dsparkDrafterTask = nil
+        dsparkDrafterDownloading = false
+    }
+
+    /// Starts the drafter download again after an error.
+    func retryDSparkDrafter() {
+        dsparkDrafterError = nil
+        prepareDSparkDrafter()
     }
 
     private var canAutomaticallyUnloadModel: Bool {
         !isPreview && engineState.isReady && readyInfo != nil && bridge.isRunning
             && !isGenerating && !mcpUpdating && !mtpDownloading
             && !dflashDownloading && !dflashConfigurationPending && !mtpConfigurationPending
+            && !dsparkDrafterDownloading
     }
 
     private func updateModelIdleUnload() {
@@ -1225,6 +1310,8 @@ final class StudioModel: ObservableObject {
         mtpActive = nil
         mtpSupported = nil
         dsparkSupported = nil
+        dsparkDefault = nil
+        cancelDSparkDrafter()
         mtpSamplingSupported = nil
         dflashSamplingSupported = nil
         mtpAutoDownloadSupported = nil
@@ -2204,6 +2291,8 @@ final class StudioModel: ObservableObject {
         mtpActive = nil
         mtpSupported = nil
         dsparkSupported = nil
+        dsparkDefault = nil
+        cancelDSparkDrafter()
         mtpSamplingSupported = nil
         dflashSamplingSupported = nil
         mtpAutoDownloadSupported = nil
@@ -2343,6 +2432,8 @@ final class StudioModel: ObservableObject {
             dflashTuningKey = event.dflashTuningKey
             mtpSupported = event.mtpSupported
             dsparkSupported = event.dsparkSupported
+            dsparkDefault = event.dsparkDefault
+            dsparkEnabled = Self.dsparkSwitch(preference: dsparkPreference, engineDefault: event.dsparkDefault)
             mtpSamplingSupported = event.mtpSamplingSupported
             dflashSamplingSupported = event.dflashSamplingSupported
             mtpAutoDownloadSupported = event.mtpAutoDownloadSupported
@@ -2384,6 +2475,7 @@ final class StudioModel: ObservableObject {
             else if mtpRememberedEnabled && mtpAvailable { setMTPEnabled(true) }
             else if !mtpAvailable { mtpEnabled = false }
             scheduleMTPAutoTune()
+            prepareDSparkDrafter()
         case "mcp_status":
             // Ignore delayed replies for a different workspace/handshake. Older engines
             // may still enable manual Send, but cannot auto-send a regeneration ticket.
