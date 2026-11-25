@@ -15,6 +15,9 @@ final class StudioModel: ObservableObject {
     @Published private(set) var selectedMode: StudioMode = .chat
     @Published private(set) var labSamples: [LabSample] = []
     @Published private(set) var labUsage = LabUsageLedger()
+    let labComparison = LabComparison()
+    private var comparisonObservation: AnyCancellable?
+    private var comparisonDestination: StudioMode?
     private var modeBeforeLab: StudioMode = .chat
     let localServer = LocalServer()
     let decision = DecisionStudio()
@@ -25,7 +28,8 @@ final class StudioModel: ObservableObject {
     private var serverObservation: AnyCancellable?
     private var decisionObservation: AnyCancellable?
     private var bridgeUsesAgentRegistry = false
-    @Published var models: [LocalModel] = []
+    @Published var models: [LocalModel] = [] { didSet { installedComparisonModels = nil } }
+    private var installedComparisonModels: [LocalModel]?
     @Published var selectedModelName: String?
     @Published var conversations: [Conversation] = [Conversation()] {
         didSet { observeSidebarChanges() }
@@ -374,6 +378,7 @@ final class StudioModel: ObservableObject {
         mtpLegacyModelName = selectedModelName
         dflashLegacyModelName = selectedModelName
         bridge.onEvent = { [weak self] event in self?.handle(event) }
+        comparisonObservation = labComparison.$isRunning.dropFirst().sink { [weak self] _ in self?.objectWillChange.send() }
         serverObservation = localServer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         decisionObservation = decision.server.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         decision.prepareForLoad = { [weak self] in await self?.releaseChatModelForDecision() }
@@ -1084,13 +1089,21 @@ final class StudioModel: ObservableObject {
     }
 
     func openModelManager() {
+        guard !labComparison.isRunning else { return }
         if !modelInstallState.isWorking { modelInstallState = .idle }
         showModelManager = true
         refreshModels(autoLoad: false)
     }
 
-    func removeLocalModel(_ model: LocalModel, trashFiles: Bool) {
-        guard !isGenerating, !modelInstallState.isWorking, modelLibrary.downloading == nil else { return }
+    var storageImageModelPath: String? { preferences.string(forKey: "image21ModelDirectory") }
+
+    var storageHasActiveWork: Bool {
+        isGenerating || localServer.active || decision.active || decision.server.active || imageGeneration.running
+            || quantizer.converting || labComparison.isRunning || modeTransition != nil || modelLibrary.downloading != nil
+    }
+
+    func removeLocalModel(_ model: LocalModel, trashFiles: Bool, storagePreview: ModelStorageItem) {
+        guard !storageHasActiveWork, !modelInstallState.isWorking, modelLibrary.discardingStorageID == nil else { return }
         if isPreview {
             models.removeAll { $0.id == model.id }
             return
@@ -1105,6 +1118,15 @@ final class StudioModel: ObservableObject {
                     throw MLXL3BridgeError.commandFailed(L("Le modèle a changé. Actualise la bibliothèque.", "The model changed. Refresh the library."))
                 }
                 if trashFiles {
+                    guard storagePreview.registryName == model.name else { throw MLXL3BridgeError.invalidResponse }
+                    let pending = try JSONDecoder().decode([PendingDownload].self, from: await CLICommand().output(["hub", "pending", ""]))
+                    let image = storageImageModelPath
+                    let inventory = try await Task.detached(priority: .utility) {
+                        try ModelStorageInventory.scan(models: fresh, pending: pending, imageModelPath: image)
+                    }.value
+                    try inventory.validateRemoval(storagePreview)
+                }
+                if trashFiles {
                     let home = FileManager.default.homeDirectoryForCurrentUser
                     let protected = [home.path, "/", "/Applications", "/Users", FileManager.default.currentDirectoryPath]
                         + ["Documents", "Desktop", "Downloads", "Library", "Applications"].map { home.appendingPathComponent($0).path }
@@ -1115,6 +1137,9 @@ final class StudioModel: ObservableObject {
                           FileManager.default.fileExists(atPath: source.appendingPathComponent("quantization_config.json").path) else {
                         throw MLXL3BridgeError.commandFailed(L("Ce dossier ne peut pas être supprimé depuis l’app. Retire seulement l’entrée de la bibliothèque.", "This folder cannot be deleted from the app. Remove only its library entry."))
                     }
+                }
+                guard !storageHasActiveWork else {
+                    throw MLXL3BridgeError.commandFailed(L("Une opération utilise les modèles. Réessaie après sa fin.", "Models are in use. Try again when the operation finishes."))
                 }
                 if selectedModelName == model.name { ejectModel() }
                 if trashFiles { try FileManager.default.trashItem(at: source, resultingItemURL: &trashed) }
@@ -1269,6 +1294,7 @@ final class StudioModel: ObservableObject {
     }
 
     func newConversation() {
+        guard !labComparison.isRunning, modeTransition == nil else { return }
         guard !isGenerating || currentConversation?.agent != true else { return }
         voice.stop()
         if let id = selectedConversationID { drafts[id] = draft }
@@ -2258,7 +2284,7 @@ final class StudioModel: ObservableObject {
         mcpErrors = [:]
         activeRequestID = nil
         activeResponseID = nil
-        let agentMode = selectedMode == .agent
+        let agentMode = selectedMode == .agent || (selectedMode == .lab && modeBeforeLab == .agent)
         let contextLength = savedContextLength
         modelLoadTask = Task { [weak self] in
             guard let self, modelLoadID == operation, !Task.isCancelled else { return }
@@ -2658,13 +2684,91 @@ extension StudioModel {
             && !showWorkspace && !showMCPManager && studioDocument == nil
     }
 
+    var comparisonModels: [LocalModel] {
+        if let installedComparisonModels { return installedComparisonModels.filter { !decision.isDecisionModel($0) } }
+        // NativeChatModel.from_checkpoint's supported text families; decision models use a separate engine.
+        let families: Set<String> = ["qwen4_exp", "gemma4", "bailing_hybrid", "inkling2_loop",
+                                     "lfm3", "lfm3_vl", "lfm2", "lfm2_moe", "qwen3_5", "qwen3_5_moe"]
+        var seen = Set<String>()
+        let candidates = models.filter { model in
+            guard families.contains(model.modelType), model.format.uppercased() == "EXL3", !model.path.isEmpty else { return false }
+            let folder = URL(fileURLWithPath: model.path).standardizedFileURL.resolvingSymlinksInPath()
+            var directory: ObjCBool = false
+            return FileManager.default.fileExists(atPath: folder.path, isDirectory: &directory)
+                && directory.boolValue && seen.insert(folder.path).inserted
+        }
+        installedComparisonModels = candidates
+        return candidates.filter { !decision.isDecisionModel($0) }
+    }
+
+    var comparisonUnavailability: String? {
+        if localServer.active || decision.server.active {
+            return L("Arrête le serveur pour comparer deux modèles.", "Stop the server to compare two models.")
+        }
+        if modelLibrary.discardingStorageID != nil || modelLibrary.downloading != nil || modelInstallState.isWorking
+            || decision.active || imageGeneration.running || quantizer.converting || preparingDocuments || isGenerating
+            || agentStudioBusy || mtpDownloading || dflashDownloading {
+            return L("Attends la fin de l’opération en cours.", "Wait for the current operation to finish.")
+        }
+        if case .loading = engineState {
+            return L("Le modèle est en cours de chargement.", "The model is loading.")
+        }
+        if modeTransition != nil && !labComparison.isRunning {
+            return L("Le moteur change de mode.", "The engine is switching modes.")
+        }
+        return nil
+    }
+
+    func startLabComparison(left: String, right: String, prompt: String, budget: Int) {
+        guard selectedMode == .lab, modeTransition == nil, !labComparison.isRunning else { return }
+        if let reason = comparisonUnavailability { featureError = reason; return }
+        guard !showImages, !showModelManager else { return }
+        installedComparisonModels = nil // A volume may have been disconnected since the picker opened.
+        let installed = comparisonModels
+        guard left != right, let first = installed.first(where: { $0.name == left }),
+              let second = installed.first(where: { $0.name == right }),
+              LabComparison.validPrompt(prompt), (1...4096).contains(budget) else {
+            featureError = L("Vérifie les deux modèles, le prompt (64 Kio maximum) et la limite de sortie.",
+                             "Check the two models, the prompt (64 KiB maximum), and the output limit.")
+            return
+        }
+        let previous = engineState.isReady ? selectedModelName : nil
+        ejectModel()
+        labComparison.start(first, second, prompt: prompt, budget: budget) { [weak self] in
+            await self?.bridge.stopAndWait()
+        }
+        modeTransition = Task {
+            await labComparison.waitUntilStopped()
+            guard !Task.isCancelled else { return }
+            objectWillChange.send()
+            modeTransition = nil
+            if let next = comparisonDestination {
+                comparisonDestination = nil
+                selectMode(next)
+            }
+            // Return the previous resident model to the same conversation and registry.
+            if let previous, selectedModelName == previous, !canEject,
+               selectedMode != .decision, !decision.active, !localServer.active { loadSelectedModel() }
+        }
+    }
+
     func leaveLab() {
         guard selectedMode == .lab else { return }
+        if labComparison.isRunning {
+            comparisonDestination = modeBeforeLab
+            labComparison.cancel()
+            return
+        }
         // Opening Lab keeps the running workspace and its selected conversation alive.
         selectedMode = modeBeforeLab
     }
 
     func selectMode(_ mode: StudioMode) {
+        if selectedMode == .lab, mode != .lab, labComparison.isRunning {
+            comparisonDestination = mode
+            labComparison.cancel()
+            return
+        }
         guard !isGenerating, modeTransition == nil, mode != selectedMode else { return }
         if mode == .lab && !canOpenLab { return }
         if selectedMode == .lab && mode == modeBeforeLab {
@@ -2677,7 +2781,10 @@ extension StudioModel {
             selectedMode = mode
             return
         }
-        if mode == .lab { modeBeforeLab = selectedMode }
+        if mode == .lab {
+            modeBeforeLab = selectedMode
+            installedComparisonModels = nil
+        }
         if mode == .server || mode == .lab { selectedMode = mode; return }
         if selectedMode == .decision || decision.active || decision.server.active {
             // The decision model leaves memory to the chat model.
@@ -2840,6 +2947,8 @@ extension StudioModel {
     }
 
     func stopServices() {
+        labComparison.cancel()
+        comparisonDestination = nil
         cancelPendingRegeneration()
         modelLoadID = UUID()
         modelLoadTask?.cancel(); modelLoadTask = nil

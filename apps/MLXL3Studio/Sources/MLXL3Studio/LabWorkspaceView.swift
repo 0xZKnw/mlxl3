@@ -12,12 +12,13 @@ private extension LabUsagePeriod {
 }
 
 private enum LabPage: String, CaseIterable, Identifiable {
-    case usage, generations, hardware
+    case usage, compare, generations, hardware
     var id: Self { self }
 
     var title: String {
         switch self {
         case .usage: L("Utilisation", "Usage")
+        case .compare: L("Comparer", "Compare")
         case .generations: L("Générations", "Generations")
         case .hardware: L("Ce Mac", "This Mac")
         }
@@ -26,6 +27,7 @@ private enum LabPage: String, CaseIterable, Identifiable {
     var icon: String {
         switch self {
         case .usage: "chart.bar"
+        case .compare: "rectangle.split.2x1"
         case .generations: "clock"
         case .hardware: "desktopcomputer"
         }
@@ -37,6 +39,7 @@ struct LabWorkspaceView: View {
     @Environment(\.locale) private var locale
     @State private var page = LabPage.usage
     @State private var period = LabUsagePeriod.thirtyDays
+    @State private var comparisonDraft = LabComparisonDraft()
     let onBack: () -> Void
 
     var body: some View {
@@ -68,7 +71,7 @@ struct LabWorkspaceView: View {
 
             GeometryReader { geometry in
                 let inset: CGFloat = geometry.size.width < 620 ? 24 : 36
-                let width = min(820, max(0, geometry.size.width - 2 * inset))
+                let width = min(page == .compare ? 940 : 820, max(0, geometry.size.width - 2 * inset))
                 ScrollView {
                     VStack(alignment: .leading, spacing: 30) {
                         heading(width: width)
@@ -79,6 +82,8 @@ struct LabWorkspaceView: View {
                                       responses: LabResponseMeasurements(samples: studio.labSamples, period: period, now: time.date),
                                       width: width)
                             }
+                        case .compare:
+                            LabComparisonView(comparison: studio.labComparison, draft: $comparisonDraft, width: width)
                         case .generations:
                             TimelineView(.everyMinute) { time in
                                 LabGenerationsView(period: period, now: time.date)
@@ -104,9 +109,9 @@ struct LabWorkspaceView: View {
         let layout = wide ? AnyLayout(HStackLayout(alignment: .center, spacing: 20))
             : AnyLayout(VStackLayout(alignment: .leading, spacing: 18))
         return layout {
-            Text(page.title).font(StudioTheme.display(39)).tracking(StudioTheme.displayTracking(-1.2))
+            Text(page == .compare ? L("Comparer les modèles", "Compare models") : page.title).font(StudioTheme.display(39)).tracking(StudioTheme.displayTracking(-1.2))
                 .accessibilityAddTraits(.isHeader)
-            if page != .hardware {
+            if page == .usage || page == .generations {
                 if wide { Spacer(minLength: 0) }
                 Picker(L("Période", "Period"), selection: $period) {
                     ForEach(LabUsagePeriod.allCases) { Text($0.title).tag($0) }
@@ -124,7 +129,7 @@ struct LabWorkspaceView: View {
     }
 
     // Sage identifies generated output in both the legend and the token split.
-    private static let outputColor = Color(nsColor: StudioTheme.adaptiveColor(
+    static let outputColor = Color(nsColor: StudioTheme.adaptiveColor(
         light: StudioTheme.rgb(0x426D57), dark: StudioTheme.rgb(0x9ABCA5)))
 
     static func formattedShare(_ fraction: Double, locale: Locale) -> String {

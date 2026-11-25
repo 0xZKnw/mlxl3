@@ -260,13 +260,25 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
     }
 
-    func generate(_ request: GenerationRequest) throws {
+    func generate(_ request: GenerationRequest, onWriteFailure: (@Sendable (String) -> Void)? = nil) throws {
         guard let process, process.isRunning, let inputPipe else {
             throw MLXL3BridgeError.commandFailed(L("Le moteur MLXL3 n’est pas prêt.", "The MLXL3 engine is not ready."))
         }
         var data = try JSONEncoder().encode(request)
         data.append(0x0A)
-        try inputPipe.fileHandleForWriting.write(contentsOf: data)
+        let input = inputPipe.fileHandleForWriting
+        guard let onWriteFailure else { try input.write(contentsOf: data); return }
+        // A ready worker can stall before reading stdin. Leave the UI watchdog free to
+        // terminate it, and give the writer its own descriptor so stop() can close ours.
+        let descriptor = fcntl(input.fileDescriptor, F_DUPFD_CLOEXEC, 0)
+        guard descriptor >= 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        let writer = FileHandle(fileDescriptor: descriptor, closeOnDealloc: true)
+        guard fcntl(descriptor, F_SETNOSIGPIPE, 1) == 0 else { throw NSError(domain: NSPOSIXErrorDomain, code: Int(errno)) }
+        let frame = data
+        DispatchQueue.global(qos: .userInitiated).async {
+            do { try writer.write(contentsOf: frame) }
+            catch { onWriteFailure(error.localizedDescription) }
+        }
     }
 
     func setMCPEnabled(_ enabled: Bool, requestID: String? = nil) throws {

@@ -83,9 +83,9 @@ struct ModelSelectionMenu: View {
 struct ModelManagerView: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @EnvironmentObject private var studio: StudioModel
-    @State private var discover = false
-    @State private var quantize = false
-    @State private var removal: LocalModel?
+    private enum Page { case library, hub, quantize, storage }
+    @State private var page: Page = .library
+    @State private var storageFocus: ModelStorageFocus?
 
     var body: some View {
         HStack(spacing: 0) {
@@ -98,87 +98,57 @@ struct ModelManagerView: View {
                             .padding(.trailing, 12).padding(.bottom, 22)
                     }
                 VStack(spacing: 3) {
-                    navigation(L("Ma bibliothèque", "My library"), icon: "square.stack", active: !discover && !quantize) {
-                        discover = false
-                        quantize = false
+                    navigation(L("Ma bibliothèque", "My library"), icon: "square.stack", active: page == .library) {
+                        page = .library
                     }
-                    navigation("Hugging Face", icon: "magnifyingglass", active: discover && !quantize) {
-                        discover = true
-                        quantize = false
-                    }
-                    navigation("Quantization Studio", icon: "slider.horizontal.3", active: quantize) {
-                        quantize = true
-                        discover = false
-                    }
+                    navigation("Hugging Face", icon: "magnifyingglass", active: page == .hub) { page = .hub }
+                    navigation("Quantization Studio", icon: "slider.horizontal.3", active: page == .quantize) { page = .quantize }
                 }.padding(.horizontal, 10)
                 Spacer()
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(L("Stockage local", "Local storage")).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                    Text(ByteCountFormatter.string(fromByteCount: studio.models.reduce(0) { $0 + $1.sizeBytes }, countStyle: .file))
-                        .font(StudioTheme.display(27))
-                    Text(L("\(studio.models.count) modèles enregistrés", "\(studio.models.count) registered models"))
-                        .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                }.padding(.horizontal, 22).padding(.bottom, 24)
+                navigation(L("Gérer le stockage", "Manage storage"), icon: "internaldrive", active: page == .storage) {
+                    openStorage()
+                }
+                .accessibilityIdentifier("models.storage")
+                .padding(.horizontal, 10).padding(.bottom, 10)
                 StudioBackButton(action: { studio.showModelManager = false })
                     .padding(.horizontal, 18).padding(.bottom, 18)
             }
             .frame(width: studio.sidebarWidth.points, alignment: .leading)
             .modifier(StudioSidebarSurface())
             Group {
-                if quantize {
-                    QuantizationStudioView(quantizer: studio.quantizer)
-                } else if discover {
-                    HubBrowserView(library: studio.modelLibrary)
-                } else {
-                    installed
+                switch page {
+                case .quantize: QuantizationStudioView(quantizer: studio.quantizer)
+                case .hub: HubBrowserView(library: studio.modelLibrary)
+                case .library: installed
+                case .storage: ModelStorageView(library: studio.modelLibrary, comparison: studio.labComparison, initialFocus: storageFocus)
                 }
             }
             .frame(maxWidth: 880)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .id(quantize ? "quantize" : discover ? "discover" : "library")
+            .id(page)
             .transition(.opacity)
         }
         .foregroundStyle(StudioTheme.ink)
         .background { StudioAurora(animated: true).background(StudioTheme.canvas) }
         .onAppear {
-            if studio.quantizer.converting { quantize = true } else { showHubIfRequested() }
+            if studio.quantizer.converting { page = .quantize } else { showHubIfRequested() }
         }
         .onChange(of: studio.modelManagerShowsHub) { showHubIfRequested() }
         .task { if !studio.isPreview { studio.modelLibrary.refreshPending() } }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .onExitCommand { studio.showModelManager = false }
-        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: [discover, quantize])
-        .confirmationDialog(
-            L("Supprimer ce modèle ?", "Remove this model?"),
-            isPresented: Binding(
-                get: { removal != nil }, set: { if !$0 { removal = nil } }
-            ), titleVisibility: .visible
-        ) {
-            if let model = removal {
-                Button(L("Placer le dossier dans la Corbeille", "Move folder to Trash"), role: .destructive) {
-                    studio.removeLocalModel(model, trashFiles: true)
-                }
-                Button(L("Retirer de la bibliothèque uniquement", "Remove from library only")) {
-                    studio.removeLocalModel(model, trashFiles: false)
-                }
-                Button(L("Annuler", "Cancel"), role: .cancel) { removal = nil }
-            }
-        } message: {
-            if let model = removal {
-                Text(
-                    "\(model.name) · \(model.size)\n\(model.path)\n\n"
-                        + L(
-                            "La Corbeille conserve les fichiers jusqu’à ce que tu la vides.",
-                            "Trash keeps the files until you empty it."))
-            }
-        }
+        .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: page)
+    }
+
+    private func openStorage(_ focus: ModelStorageFocus? = nil) {
+        storageFocus = focus
+        page = .storage
     }
 
     private func showHubIfRequested() {
         guard studio.modelManagerShowsHub else { return }
         studio.modelManagerShowsHub = false
-        quantize = false
-        discover = true
+        page = .hub
     }
 
     private func navigation(_ title: String, icon: String, active: Bool, action: @escaping () -> Void) -> some View {
@@ -218,7 +188,7 @@ struct ModelManagerView: View {
             }
             ScrollView {
                 LazyVStack(spacing: 10) {
-                    PendingDownloadsView(library: studio.modelLibrary)
+                    PendingDownloadsView(library: studio.modelLibrary) { openStorage(.download($0)) }
                     if studio.models.isEmpty {
                         Text(
                             L(
@@ -281,15 +251,14 @@ struct ModelManagerView: View {
                                 .buttonStyle(RoundGlassButtonStyle()).help(L("Afficher dans Finder", "Show in Finder"))
                                 .accessibilityLabel(L("Afficher dans Finder", "Show in Finder"))
                                 Button {
-                                    removal = model
+                                    openStorage(.model(model.name))
                                 } label: {
                                     Image(systemName: "trash").frame(width: 28, height: 25)
                                 }
-                                .buttonStyle(RoundGlassButtonStyle()).help(L("Supprimer le modèle", "Remove model"))
-                                .accessibilityLabel(L("Supprimer le modèle", "Remove model"))
-                                .disabled(
-                                    studio.isGenerating || studio.modelInstallState.isWorking
-                                        || studio.modelLibrary.downloading != nil)
+                                .buttonStyle(RoundGlassButtonStyle()).help(L("Examiner le retrait du modèle", "Review model removal"))
+                                .accessibilityLabel(L("Examiner le retrait du modèle", "Review model removal"))
+                                .disabled(studio.storageHasActiveWork || studio.modelInstallState.isWorking
+                                          || studio.modelLibrary.discardingStorageID != nil)
                             }
                         }.padding(16).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
                             .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(StudioTheme.edge, lineWidth: 0.5) }
@@ -538,7 +507,7 @@ private struct HubBrowserView: View {
 private struct PendingDownloadsView: View {
     @ObservedObject var library: ModelLibrary
     @EnvironmentObject private var studio: StudioModel
-    @State private var removal: PendingDownload?
+    let reviewRemoval: (String) -> Void
     var body: some View {
         ForEach(library.pending) { job in
             VStack(alignment: .leading, spacing: 8) {
@@ -550,18 +519,10 @@ private struct PendingDownloadsView: View {
                     Spacer()
                     Button(L("Reprendre", "Resume")) { library.resume(job, studio: studio) }.disabled(
                         library.downloading != nil)
-                    Button(L("Supprimer les fichiers partiels", "Delete partial files")) { removal = job }.disabled(
-                        library.downloading != nil)
+                    Button(L("Examiner les fichiers partiels…", "Review partial files…")) { reviewRemoval(job.id) }
+                        .disabled(studio.storageHasActiveWork || studio.modelInstallState.isWorking || library.discardingStorageID != nil)
                 }.font(.system(size: 12))
             }.padding(14).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
-        }
-        .confirmationDialog(
-            L(
-                "Supprimer le téléchargement incomplet ? Les octets devront être téléchargés à nouveau.",
-                "Delete the incomplete download? These bytes will need to be downloaded again."),
-            isPresented: Binding(get: { removal != nil }, set: { if !$0 { removal = nil } })
-        ) {
-            Button(L("Supprimer", "Delete"), role: .destructive) { if let removal { library.discard(removal) } }
         }
     }
 }

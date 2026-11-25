@@ -1,7 +1,7 @@
 import Combine
 import Foundation
 
-struct LocalModel: Codable, Hashable, Identifiable {
+struct LocalModel: Codable, Hashable, Identifiable, Sendable {
     let name: String
     let path: String
     let modelType: String
@@ -11,6 +11,7 @@ struct LocalModel: Codable, Hashable, Identifiable {
     let modules: Int
     let addedAt: String
     let size: String
+    var installationID: String? = nil
 
     var id: String { name }
 
@@ -19,6 +20,7 @@ struct LocalModel: Codable, Hashable, Identifiable {
         case modelType = "model_type"
         case sizeBytes = "size_bytes"
         case addedAt = "added_at"
+        case installationID = "installation_id"
     }
 
     var architectureLabel: String {

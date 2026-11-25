@@ -323,7 +323,7 @@ struct QuantizationStudioView: View {
             HStack {
               Button(L("Quantifier…", "Quantize…"), systemImage: "slider.horizontal.3") { start() }
                 .buttonStyle(.borderedProminent).disabled(
-                  quantizer.converting || studio.isGenerating || studio.localServer.active
+                  quantizer.converting || studio.isGenerating || studio.labComparison.isRunning || studio.localServer.active
                     || studio.agentStudioBusy
                     || expert && validate && quantizer.settings.validation.isEmpty)
               if quantizer.converting {
@@ -523,6 +523,7 @@ struct QuantizationStudioView: View {
   }
 
   private func start() {
+    guard !studio.labComparison.isRunning else { return }
     if !expert {
       quantizer.settings = QuantizationSettings()
       quantizer.settings.bits = preset
