@@ -25,13 +25,6 @@ extension StudioModel {
     }
     fileprivate var fixtureRequestID: String? { activeRequestID }
     fileprivate var fixtureBridgeRunning: Bool { bridge.isRunning }
-    fileprivate func fixtureDeadline() {
-        // The only watchdog left (no total limit since 2026-11-23): five silent minutes.
-        let now = ContinuousClock.now
-        generationStartedAt = now - .seconds(3601)
-        generationLastActivity = now - .seconds(301)
-        checkAgentGenerationDeadline(at: now)
-    }
 }
 
 @main struct CompletionNotificationsCheck {
@@ -110,15 +103,15 @@ extension StudioModel {
         try studio.fixtureEvent("{\"type\":\"error\",\"request_id\":\"" + requestID + "\",\"message\":\"fixture failure\"}")
         try await Task.sleep(for: .milliseconds(300))
         check(spy.ids.count == 1, "Failed generation notified")
-        // The main-branch watchdog shares cancellation with the Stop button.
+        // Stop is the only cancellation left (the app has no time limit on a turn).
         // Inject completion synchronously to exercise the signal/completion race.
-        studio.draft = "Deadline race"; studio.send()
-        let deadlineRequest = studio.fixtureRequestID!
-        try studio.fixtureEvent("{\"type\":\"delta\",\"request_id\":\"" + deadlineRequest + "\",\"phase\":\"answer\",\"text\":\"Partial answer\"}")
-        studio.fixtureDeadline()
-        try studio.fixtureEvent("{\"type\":\"complete\",\"request_id\":\"" + deadlineRequest + "\"}")
+        studio.draft = "Stop race"; studio.send()
+        let stopRequest = studio.fixtureRequestID!
+        try studio.fixtureEvent("{\"type\":\"delta\",\"request_id\":\"" + stopRequest + "\",\"phase\":\"answer\",\"text\":\"Partial answer\"}")
+        studio.stopGeneration()
+        try studio.fixtureEvent("{\"type\":\"complete\",\"request_id\":\"" + stopRequest + "\"}")
         try await Task.sleep(for: .milliseconds(300))
-        check(spy.ids.count == 1, "Watchdog cancellation notified on concurrent completion")
+        check(spy.ids.count == 1, "Stop notified on concurrent completion")
         studio.draft = "Full context"; studio.send()
         let fullRequest = studio.fixtureRequestID!
         try studio.fixtureEvent("{\"type\":\"delta\",\"request_id\":\"" + fullRequest + "\",\"phase\":\"answer\",\"text\":\"Partial answer\"}")

@@ -825,15 +825,28 @@ fn parse_http_body(body: &[u8]) -> Result<Value> {
         .context("MCP stream ended without a JSON response")
 }
 
+/// An error the server itself answered (JSON-RPC `error`): the connection is intact.
+#[derive(Debug)]
+struct ServerRefusal(String);
+
+impl std::fmt::Display for ServerRefusal {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "MCP server: {}", self.0)
+    }
+}
+
+impl std::error::Error for ServerRefusal {}
+
 fn rpc_result(message: Value) -> Result<Value> {
     if let Some(error) = message.get("error") {
-        bail!(
-            "MCP server: {}",
+        return Err(ServerRefusal(
             error
                 .get("message")
                 .and_then(Value::as_str)
                 .unwrap_or("request failed")
-        );
+                .to_owned(),
+        )
+        .into());
     }
     message
         .get("result")
@@ -844,6 +857,9 @@ fn rpc_result(message: Value) -> Result<Value> {
 
 pub struct Manager {
     clients: BTreeMap<String, Client>,
+    /// Every server that connected: one whose connection was dropped (a call timed out, was
+    /// cancelled or broke the transport) is connected again at its next call.
+    configs: BTreeMap<String, ServerConfig>,
     pub tools: BTreeMap<String, Tool>,
     pub errors: BTreeMap<String, String>,
     pub enabled: bool,
@@ -853,6 +869,7 @@ impl Manager {
     pub fn disabled() -> Self {
         Self {
             clients: BTreeMap::new(),
+            configs: BTreeMap::new(),
             tools: BTreeMap::new(),
             errors: BTreeMap::new(),
             enabled: false,
@@ -877,42 +894,48 @@ impl Manager {
             if !config.enabled {
                 continue;
             }
-            match connect_server(&config) {
-                Ok((client, raw_tools)) => {
-                    self.clients.insert(server.clone(), client);
-                    for raw in raw_tools {
-                        let Some(name) = raw.get("name").and_then(Value::as_str) else {
-                            continue;
-                        };
-                        let public_name = unique_name(&server, name, &self.tools);
-                        self.tools.insert(
-                            public_name.clone(),
-                            Tool {
-                                server: server.clone(),
-                                name: name.into(),
-                                public_name,
-                                description: raw
-                                    .get("description")
-                                    .and_then(Value::as_str)
-                                    .map(|text| format!("[{server}] {text}"))
-                                    .unwrap_or_else(|| {
-                                        format!("Tool {name} from MCP server {server}.")
-                                    }),
-                                input_schema: raw
-                                    .get("inputSchema")
-                                    .filter(|value| value.is_object())
-                                    .cloned()
-                                    .unwrap_or_else(|| json!({"type":"object","properties":{}})),
-                            },
-                        );
-                    }
-                }
-                Err(error) => {
-                    self.errors.insert(server, error.to_string());
-                }
-            }
+            self.attach(server, &config);
         }
         Ok(())
+    }
+
+    /// Connects one server and offers its tools; a failure is kept in `errors`.
+    fn attach(&mut self, server: String, config: &ServerConfig) {
+        match connect_server(config) {
+            Ok((client, raw_tools)) => {
+                self.clients.insert(server.clone(), client);
+                self.configs.insert(server.clone(), config.clone());
+                for raw in raw_tools {
+                    let Some(name) = raw.get("name").and_then(Value::as_str) else {
+                        continue;
+                    };
+                    let public_name = unique_name(&server, name, &self.tools);
+                    self.tools.insert(
+                        public_name.clone(),
+                        Tool {
+                            server: server.clone(),
+                            name: name.into(),
+                            public_name,
+                            description: raw
+                                .get("description")
+                                .and_then(Value::as_str)
+                                .map(|text| format!("[{server}] {text}"))
+                                .unwrap_or_else(|| {
+                                    format!("Tool {name} from MCP server {server}.")
+                                }),
+                            input_schema: raw
+                                .get("inputSchema")
+                                .filter(|value| value.is_object())
+                                .cloned()
+                                .unwrap_or_else(|| json!({"type":"object","properties":{}})),
+                        },
+                    );
+                }
+            }
+            Err(error) => {
+                self.errors.insert(server, error.to_string());
+            }
+        }
     }
 
     pub fn server_count(&self) -> usize {
@@ -939,18 +962,37 @@ impl Manager {
                 is_error: true,
             };
         };
-        let Some(client) = self.clients.get_mut(&tool.server) else {
-            return ToolResult {
-                text: format!("MCP server unavailable: {}", tool.server),
-                is_error: true,
-            };
-        };
         if !arguments.is_object() {
             return ToolResult {
                 text: "Tool arguments must be an object".into(),
                 is_error: true,
             };
         }
+        // A server dropped by an earlier call (see below) is started again here, so one
+        // timed-out or stopped call does not leave its tools unavailable for the rest of
+        // the session. A fresh process: what the old one kept in memory is gone.
+        if !self.clients.contains_key(&tool.server) {
+            let unavailable = |reason: String| ToolResult {
+                text: format!("MCP server unavailable: {}{reason}", tool.server),
+                is_error: true,
+            };
+            if cancelled.load(Ordering::Relaxed) {
+                return unavailable(String::new());
+            }
+            let Some(config) = self.configs.get(&tool.server) else {
+                return unavailable(String::new());
+            };
+            match connect_server(config) {
+                Ok((client, _)) => {
+                    self.clients.insert(tool.server.clone(), client);
+                }
+                Err(error) => return unavailable(format!(" (it could not be restarted: {error})")),
+            }
+        }
+        let client = self
+            .clients
+            .get_mut(&tool.server)
+            .expect("the client was found or connected above");
         match client.request_cancellable(
             "tools/call",
             json!({"name":tool.name,"arguments":arguments}),
@@ -958,35 +1000,18 @@ impl Manager {
         ) {
             Ok(result) => tool_result(&result),
             Err(error) => {
-                self.clients.remove(&tool.server);
+                // The server answered with an error: it is alive and in step. Anything else
+                // (deadline, Stop, closed or invalid stream) leaves a request in flight:
+                // dropping the client ends its process and whatever it was running.
+                if error.downcast_ref::<ServerRefusal>().is_none() {
+                    self.clients.remove(&tool.server);
+                }
                 ToolResult {
                     text: error.to_string(),
                     is_error: true,
                 }
             }
         }
-    }
-}
-
-/// The manager shared with the turn driver. A call holds the lock for its duration
-/// (bounded by the per-call deadline), so configuration changes wait for it.
-pub struct SharedManager(pub std::sync::Arc<std::sync::Mutex<Manager>>);
-
-impl crate::turn::ToolBox for SharedManager {
-    fn server_of(&self, name: &str) -> String {
-        let manager = self.0.lock().unwrap();
-        manager
-            .tools
-            .get(name)
-            .map(|tool| tool.server.clone())
-            .unwrap_or_default()
-    }
-
-    fn call(&self, name: &str, arguments: Value, cancelled: &AtomicBool) -> ToolResult {
-        self.0
-            .lock()
-            .unwrap()
-            .call_cancellable(name, arguments, cancelled)
     }
 }
 
@@ -1304,6 +1329,154 @@ mod tests {
         });
         drop(client);
         assert!(started.elapsed() < Duration::from_secs(2));
+    }
+
+    /// A complete MCP server: `echo` answers with this process's id; `mode` makes one call
+    /// hang, be refused by the server, or end the process. With a marker path as argument,
+    /// only the first process starts: later ones exit at once.
+    const FIXTURE_SERVER: &str = r#"
+import json, os, sys, time
+marker = sys.argv[1] if len(sys.argv) > 1 else None
+if marker:
+    if os.path.exists(marker):
+        sys.exit(3)
+    open(marker, "w").close()
+for line in sys.stdin:
+    request = json.loads(line)
+    if "id" not in request:
+        continue
+    reply = {"jsonrpc": "2.0", "id": request["id"]}
+    method = request["method"]
+    if method == "initialize":
+        reply["result"] = {"protocolVersion": "2025-06-18", "capabilities": {}}
+    elif method == "tools/list":
+        reply["result"] = {"tools": [{"name": "echo", "inputSchema": {"type": "object"}}]}
+    else:
+        mode = request["params"]["arguments"].get("mode")
+        if mode == "hang":
+            time.sleep(30)
+        if mode == "exit":
+            sys.exit(0)
+        if mode == "refuse":
+            reply["error"] = {"code": -32000, "message": "quota exceeded"}
+        else:
+            reply["result"] = {"content": [{"type": "text", "text": str(os.getpid())}]}
+    print(json.dumps(reply), flush=True)
+"#;
+
+    fn fixture_manager(marker: Option<&Path>) -> Manager {
+        let mut args = vec!["-u".to_owned(), "-c".to_owned(), FIXTURE_SERVER.to_owned()];
+        args.extend(marker.map(|path| path.to_str().unwrap().to_owned()));
+        let config = ServerConfig {
+            command: "python3".into(),
+            args,
+            url: None,
+            ..builtin_exa()
+        };
+        let mut manager = Manager::disabled();
+        manager.enabled = true;
+        manager.attach("fixture".into(), &config);
+        assert_eq!(manager.errors, BTreeMap::new());
+        assert_eq!(manager.server_count(), 1);
+        manager
+    }
+
+    fn echo(manager: &mut Manager, mode: &str) -> ToolResult {
+        manager.call("fixture.echo", json!({"mode": mode}))
+    }
+
+    #[test]
+    fn a_stopped_call_ends_its_server_and_the_next_call_restarts_it() {
+        let mut manager = fixture_manager(None);
+        let first = echo(&mut manager, "ok");
+        assert!(!first.is_error, "{}", first.text);
+        // Stop arrives while the call is running, as SIGUSR1 does in the bridge.
+        let cancelled = AtomicBool::new(false);
+        let started = Instant::now();
+        let stopped = thread::scope(|scope| {
+            scope.spawn(|| {
+                thread::sleep(Duration::from_millis(150));
+                cancelled.store(true, Ordering::Relaxed);
+            });
+            manager.call_cancellable("fixture.echo", json!({"mode":"hang"}), &cancelled)
+        });
+        assert!(
+            stopped.is_error && stopped.text.contains("cancelled"),
+            "{}",
+            stopped.text
+        );
+        assert!(started.elapsed() < Duration::from_secs(5));
+        // While Stop is still set nothing is restarted.
+        let during = manager.call_cancellable("fixture.echo", json!({"mode":"ok"}), &cancelled);
+        assert!(
+            during.is_error && during.text.contains("unavailable"),
+            "{}",
+            during.text
+        );
+        assert_eq!(manager.server_count(), 0);
+        // The next turn's call gets a fresh server instead of "MCP server unavailable".
+        let next = echo(&mut manager, "ok");
+        assert!(!next.is_error, "{}", next.text);
+        assert_ne!(next.text, first.text, "a new process answers");
+        assert_eq!(manager.server_count(), 1);
+        assert_eq!(echo(&mut manager, "ok").text, next.text, "and it is kept");
+    }
+
+    #[test]
+    fn a_dead_server_is_restarted_at_the_next_call() {
+        let mut manager = fixture_manager(None);
+        let first = echo(&mut manager, "ok");
+        let closed = echo(&mut manager, "exit");
+        assert!(closed.is_error, "{}", closed.text);
+        let second = echo(&mut manager, "ok");
+        assert!(!second.is_error, "{}", second.text);
+        assert_ne!(second.text, first.text);
+    }
+
+    #[test]
+    fn an_error_answered_by_the_server_keeps_its_connection() {
+        let mut manager = fixture_manager(None);
+        let first = echo(&mut manager, "ok");
+        let refused = echo(&mut manager, "refuse");
+        assert!(refused.is_error);
+        assert_eq!(refused.text, "MCP server: quota exceeded");
+        assert_eq!(manager.server_count(), 1);
+        assert_eq!(
+            echo(&mut manager, "ok").text,
+            first.text,
+            "same process, same state"
+        );
+    }
+
+    #[test]
+    fn a_server_that_cannot_restart_reports_why_at_every_call() {
+        let folder = tempfile::tempdir().unwrap();
+        let mut manager = fixture_manager(Some(&folder.path().join("started")));
+        assert!(!echo(&mut manager, "ok").is_error);
+        assert!(echo(&mut manager, "exit").is_error);
+        for _ in 0..2 {
+            let result = echo(&mut manager, "ok");
+            assert!(result.is_error);
+            assert!(
+                result
+                    .text
+                    .starts_with("MCP server unavailable: fixture (it could not be restarted: "),
+                "{}",
+                result.text
+            );
+        }
+        assert_eq!(manager.server_count(), 0);
+        // Arguments are still checked first, and an unknown tool never starts anything.
+        assert_eq!(
+            manager.call("fixture.echo", json!([])).text,
+            "Tool arguments must be an object"
+        );
+        assert!(
+            manager
+                .call("fixture.other", json!({}))
+                .text
+                .contains("Unknown MCP tool")
+        );
     }
 
     #[test]

@@ -1512,6 +1512,7 @@ impl DsparkSession {
                 None,
                 &mut |_, _| Ok(()),
                 cancelled,
+                &mut |_| Ok(()),
             )?
             .0)
     }
@@ -1534,6 +1535,7 @@ impl DsparkSession {
         checkpoint: Option<usize>,
         capture: &mut dyn FnMut(DsparkPrefix, &Array) -> Result<()>,
         cancelled: &dyn Fn() -> bool,
+        progress: &mut dyn FnMut(usize) -> Result<()>,
     ) -> Result<(Array, usize)> {
         ensure!(!tokens.is_empty(), "DSpark prefill needs tokens");
         ensure!(
@@ -1600,6 +1602,8 @@ impl DsparkSession {
             crate::prefill_span_end(position, tokens.len(), Self::PREFILL_CHUNK, group)
         {
             ensure!(!cancelled(), "generation cancelled");
+            // tokens already read, before each span: the bridge shows them while a long context is read
+            progress(position)?;
             let chunk = &tokens[position..end];
             let started = Instant::now();
             let (chunk_logits, features) = if chunk.len() > Self::PREFILL_CHUNK {
@@ -4225,6 +4229,7 @@ mod tests {
                 Ok(())
             },
             &|| false,
+            &mut |_| Ok(()),
         )?;
         let mut h = 0xcbf2_9ce4_8422_2325u64;
         fnv_f32(&mut h, &logits.to_f32()?);
