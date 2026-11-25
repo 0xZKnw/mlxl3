@@ -1,0 +1,162 @@
+{
+ "engine": "/private/tmp/claude-501/-Users-justin--claude-spares-spare-nFMnku/0922763b-ca08-415d-86cc-5364e2bf9951/scratchpad/fixed-engine/mlxl3",
+ "helper": "/Applications/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+ "model": "Inkling-2-Mini-EXL3-3.33bpw-5d8cff98",
+ "runs": [
+  {
+   "temperature": 0.7,
+   "calls": [
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "list()"
+     }
+    },
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "search(\"class Game\")"
+     }
+    },
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "read(\"a.txt\")"
+     }
+    },
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "view(\"a.txt\", 1, 5)"
+     }
+    }
+   ],
+   "results": [
+    {
+     "error": false,
+     "text": "Result:\n[\n  \"a.txt\",\n  \"b.txt\",\n  \"src/c.txt\"\n]"
+    },
+    {
+     "error": false,
+     "text": "Result:\n[]"
+    },
+    {
+     "error": false,
+     "text": "Result:\na.txt"
+    },
+    {
+     "error": false,
+     "text": "Result:\n1| a.txt"
+    }
+   ],
+   "unreadable": 0,
+   "read": 4,
+   "stop_reason": "max_tokens"
+  },
+  {
+   "temperature": 0.7,
+   "calls": [
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "list()"
+     }
+    },
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "read('a.txt')"
+     }
+    },
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "read('b.txt'); console.log('---'); read('src/c.txt')"
+     }
+    },
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "glob('*.py'); console.log('---'); glob('**/*.py')"
+     }
+    }
+   ],
+   "results": [
+    {
+     "error": false,
+     "text": "Result:\n[\n  \"a.txt\",\n  \"b.txt\",\n  \"src/c.txt\"\n]"
+    },
+    {
+     "error": false,
+     "text": "Result:\na.txt"
+    },
+    {
+     "error": false,
+     "text": "---"
+    },
+    {
+     "error": false,
+     "text": "---"
+    }
+   ],
+   "unreadable": 0,
+   "read": 4,
+   "stop_reason": "eos"
+  },
+  {
+   "temperature": 0.7,
+   "calls": [
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "const files = list();\nreturn files;"
+     }
+    },
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "return glob(\"**/*.py\");"
+     }
+    },
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "return read(\"a.txt\").slice(0, 500);"
+     }
+    },
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "return {b: read(\"b.txt\").slice(0, 200), c: read(\"src/c.txt\").slice(0, 200)};"
+     }
+    }
+   ],
+   "results": [
+    {
+     "error": false,
+     "text": "Result:\n[\n  \"a.txt\",\n  \"b.txt\",\n  \"src/c.txt\"\n]"
+    },
+    {
+     "error": false,
+     "text": "Result:\n[]"
+    },
+    {
+     "error": false,
+     "text": "Result:\na.txt"
+    },
+    {
+     "error": false,
+     "text": "Result:\n{\n  \"b\": \"b.txt\",\n  \"c\": \"src/c.txt\"\n}"
+    }
+   ],
+   "unreadable": 0,
+   "read": 4,
+   "stop_reason": "max_tokens"
+  }
+ ],
+ "state": "complete",
+ "ready": {
+  "runtime_commit": "b79ef75510e5-dirty",
+  "runtime_version": "2.0.34"
+ }
+}

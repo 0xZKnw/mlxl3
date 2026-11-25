@@ -1,0 +1,38 @@
+[
+ {
+  "mutant": "R1 parser as before the fix (header must end with the JSON name)",
+  "state": "caught",
+  "failed": [
+   "test tool_call::tests::parses_inkling_tool_calls ... FAILED"
+  ]
+ },
+ {
+  "mutant": "R2 any prefix accepted, not a whole leading part",
+  "state": "caught",
+  "failed": [
+   "test tool_call::tests::parses_inkling_tool_calls ... FAILED"
+  ]
+ },
+ {
+  "mutant": "R3 first match chosen when several tools end with the name",
+  "state": "caught",
+  "failed": [
+   "test agent_turn::tests::a_bare_tool_name_runs_the_only_offered_tool_that_ends_with_it ... FAILED",
+   "test tool_call::tests::a_bare_tool_name_stands_for_the_only_offered_tool_that_ends_with_it ... FAILED"
+  ]
+ },
+ {
+  "mutant": "R4 suffix without the dot accepted",
+  "state": "caught",
+  "failed": [
+   "test tool_call::tests::a_bare_tool_name_stands_for_the_only_offered_tool_that_ends_with_it ... FAILED"
+  ]
+ },
+ {
+  "mutant": "R5 bare name not resolved in the loop",
+  "state": "caught",
+  "failed": [
+   "test agent_turn::tests::a_bare_tool_name_runs_the_only_offered_tool_that_ends_with_it ... FAILED"
+  ]
+ }
+]

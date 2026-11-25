@@ -219,12 +219,10 @@ struct ModelManagerView: View {
                         StudioStatusPill(text: L("Chargé", "Loaded"), color: StudioTheme.success)
                     }
                 }
-                Text(
-                    (decision ? L("DÉCISION · ", "DECISION · ") : "")
-                        + "\(model.architectureLabel) · EXL3 · "
-                        + (model.bits.map { String(format: "%.2f BPW", $0) } ?? "—")
-                        + " · " + model.size
-                )
+                // In parts: as one expression it exceeds the type checker's time on CI.
+                let kind: String = decision ? L("DÉCISION · ", "DECISION · ") : ""
+                let bits: String = model.bits.map { String(format: "%.2f BPW", $0) } ?? "—"
+                Text("\(kind)\(model.architectureLabel) · EXL3 · \(bits) · \(model.size)")
                 .font(.system(size: 12)).monospacedDigit().foregroundStyle(StudioTheme.quiet).lineLimit(1)
             }
             Spacer(minLength: 8)
