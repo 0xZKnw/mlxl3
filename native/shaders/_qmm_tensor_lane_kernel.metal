@@ -15,6 +15,9 @@
 #ifndef LANE_BUFFERS
 #define LANE_BUFFERS 1
 #endif
+#ifndef LANE_K3_WINDOW
+#define LANE_K3_WINDOW 0
+#endif
 uint lane = thread_index_in_simdgroup;
 uint column_block = threadgroup_position_in_grid.x;
 uint token_block = threadgroup_position_in_grid.y;
@@ -61,6 +64,15 @@ for (uint group = 0u; group < 2u; ++group) {
     shifts[group] = uint((last_word + 1) * 32 - end);
 }
 
+#if LANE_K3_WINDOW
+// DFLASH2-2026-11-24-INK2M-P4-1e: K = 3 reads the lane's 8 codewords of a tile from one 64-bit window (the QMV's
+// `MLXL3_K3_WINDOW_DECODE` formulas): the same codewords as the two windows of the generic path.
+int k3_bit_end = int((qmv_lane * 8u + 257u) * 3u + 21u);
+int k3_word_end = (k3_bit_end - 1) / 32;
+uint k3_word1 = uint(k3_word_end) % PACKED_U32;
+uint k3_word0 = uint((k3_bit_end - 21 - 16) / 32) % PACKED_U32;
+uint k3_shift = uint((k3_word_end + 1) * 32 - k3_bit_end);
+#endif
 constexpr uint K_TILES = LANE_DEPTH / 16u;
 constexpr uint N_TILES = LANE_COLS / 16u;
 uint steps = INPUT_DIMS / LANE_DEPTH;
@@ -74,6 +86,26 @@ auto decode_step = [&](thread left_type& left, uint step) {
     for (uint ktile = 0u; ktile < K_TILES; ++ktile) {
         #pragma unroll
         for (uint ntile = 0u; ntile < N_TILES; ++ntile) {
+#if LANE_K3_WINDOW
+            {
+                uint tile_k = step * K_TILES + ktile;
+                uint tile_n = column_block * N_TILES + ntile + WEIGHT_TILE_OFFSET;
+                const device uint* words = trellis + (ulong(tile_k) * TILES_N + tile_n) * PACKED_U32;
+                ulong merged = (ulong(words[k3_word0]) << 32) | ulong(words[k3_word1]);
+                uint window7 = uint(merged >> k3_shift);
+                uint window3 = uint(merged >> (k3_shift + 12u));
+                uint base = 8u * K_TILES * ntile + 8u * ktile;
+                left[base + 0u] = half(mlxl3_decode_codeword(window3 >> 9u, 0));
+                left[base + 1u] = half(mlxl3_decode_codeword(window3 >> 6u, 0));
+                left[base + 2u] = half(mlxl3_decode_codeword(window3 >> 3u, 0));
+                left[base + 3u] = half(mlxl3_decode_codeword(window3, 0));
+                left[base + 4u] = half(mlxl3_decode_codeword(window7 >> 9u, 0));
+                left[base + 5u] = half(mlxl3_decode_codeword(window7 >> 6u, 0));
+                left[base + 6u] = half(mlxl3_decode_codeword(window7 >> 3u, 0));
+                left[base + 7u] = half(mlxl3_decode_codeword(window7, 0));
+            }
+            continue;
+#endif
             #pragma unroll
             for (uint group = 0u; group < 2u; ++group) {
                 uint tile_k = step * K_TILES + ktile;

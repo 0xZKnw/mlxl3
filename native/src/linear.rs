@@ -1300,17 +1300,21 @@ pub(crate) fn qmm_tensor_lane(
         None => crate::contracts::tensor_lane_splits(groups, input_dims / lane_depth),
     };
     let buffers = tensor_lane_buffers();
+    // DFLASH2-2026-11-24-INK2M-P4-1e: one 64-bit window per lane and tile for K = 3 (same codewords), opt-in
+    let k3_window = k == 3 && tensor_lane_k3_window();
     let header = format!(
-        "#include <metal_tensor>\n#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\nusing namespace metal;\nusing namespace mpp;\n{}#define K_BITS {k}u\n#define PACKED_U32 {}u\n#define INPUT_DIMS {input_dims}u\n#define OUTPUT_DIMS {output_dims}u\n#define TILES_N {weight_tiles_n}u\n#define WEIGHT_TILE_OFFSET {weight_tile_offset}u\n#define N_SPLITS {splits}u\n#define PADDED_ROWS {padded_rows}u\n#define LANE_COLS {lane_cols}u\n#define LANE_DEPTH {lane_depth}u\n#define LANE_TOKENS {tokens}u\n#define LANE_BUFFERS {buffers}\n",
+        "#include <metal_tensor>\n#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\nusing namespace metal;\nusing namespace mpp;\n#define LANE_K3_WINDOW {}\n{}#define K_BITS {k}u\n#define PACKED_U32 {}u\n#define INPUT_DIMS {input_dims}u\n#define OUTPUT_DIMS {output_dims}u\n#define TILES_N {weight_tiles_n}u\n#define WEIGHT_TILE_OFFSET {weight_tile_offset}u\n#define N_SPLITS {splits}u\n#define PADDED_ROWS {padded_rows}u\n#define LANE_COLS {lane_cols}u\n#define LANE_DEPTH {lane_depth}u\n#define LANE_TOKENS {tokens}u\n#define LANE_BUFFERS {buffers}\n",
+        u8::from(k3_window),
         codebook_header(cb),
         k * 8,
     );
     let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
     let partials = array::metal_kernel(
         &format!(
-            "mlxl3_rs_qmm_tensor_lane_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}_p{padded_rows}_k{splits}_c{lane_cols}_d{lane_depth}_t{tokens}{}{}",
+            "mlxl3_rs_qmm_tensor_lane_{input_dims}_{output_dims}_{k}_{}_s{weight_tiles_n}_o{weight_tile_offset}_p{padded_rows}_k{splits}_c{lane_cols}_d{lane_depth}_t{tokens}{}{}{}",
             cb as u32,
             if buffers == 2 { "_b2" } else { "" },
+            if k3_window { "_k3w" } else { "" },
             tensor_lane_source_tag()
         ),
         &["xhat", "trellis"],
@@ -1684,6 +1688,34 @@ pub(crate) fn with_tensor_lane_target<T>(value: (i32, i32), run: impl FnOnce() -
 }
 
 /// Lane kernel source; tests may apply ablation edits (timing attribution only).
+/// P4-1e: K3 window decode in the transposed TensorOps kernel (`MLXL3_TENSOR_LANE_K3=1`; off by default until
+/// validated on every K3 production path).
+fn tensor_lane_k3_window() -> bool {
+    #[cfg(test)]
+    if let Some(value) = TENSOR_LANE_K3_TEST.with(std::cell::Cell::get) {
+        return value;
+    }
+    static VALUE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(|| std::env::var("MLXL3_TENSOR_LANE_K3").as_deref() == Ok("1"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static TENSOR_LANE_K3_TEST: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_tensor_lane_k3<T>(value: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            TENSOR_LANE_K3_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(TENSOR_LANE_K3_TEST.with(|flag| flag.replace(Some(value))));
+    run()
+}
+
 fn tensor_lane_source() -> String {
     let source = include_str!("../shaders/_qmm_tensor_lane_kernel.metal").to_owned();
     #[cfg(test)]
@@ -2847,6 +2879,8 @@ pub fn expert_mapped(
         false,
         false,
         false,
+        None,
+        None,
     )
 }
 
@@ -2881,12 +2915,490 @@ pub(crate) fn prepared_expert_raw(
         false,
         false,
         lane_order,
+        None,
+        None,
     )
+}
+
+/// DFLASH2-2026-11-24-INK2M-P4-2: `prepared_expert_raw` whose routes flagged in `skip` (`[routes]` u32, from
+/// `expert_tensor_groups`) write zeros; the other routes keep the bits of `prepared_expert_raw`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn prepared_expert_raw_skip(
+    x: &Array,
+    bank: &Array,
+    routes: &Array,
+    skip: &Array,
+    width: i32,
+    projections: i32,
+    projection_stride: i32,
+    k: usize,
+    cb: Codebook,
+) -> Result<Array> {
+    expert_mapped_layout(
+        x,
+        bank,
+        None,
+        None,
+        routes,
+        width,
+        projections,
+        projection_stride,
+        k,
+        cb,
+        true,
+        true,
+        false,
+        false,
+        None,
+        false,
+        false,
+        false,
+        Some(skip),
+        None,
+    )
+}
+
+/// INVARIANT-2026-11-25-INK2M-L3-3: the shared experts of one MoE call, grouped on the GPU: per member count
+/// m = 2, 3, 4 a list `[capacity_m * (m + 1)]` u32 of chunks {m, member routes[m]} (used chunks first, the others
+/// 0; capacity_m = routes / m), and `shared` `[routes]` u32 = 1 for a route of a chunk. An expert chosen by 5..=8
+/// routes gives a chunk of 4 and a chunk of its other routes (a single left-over route is not shared).
+pub(crate) struct ExpertPanel {
+    pub lists: [Array; 3],
+    pub shared: Array,
+    /// The largest member count a chunk can have: an expert is chosen at most once per token row.
+    pub max_members: i32,
+}
+
+/// INVARIANT-2026-11-25-INK2M-L3-3: the `ExpertPanel` of the routes `selected` (`[routes]` u32, `top_k` distinct
+/// experts per token row, 16..=64 routes). Built on the GPU in route order.
+pub(crate) fn expert_panel_plan(selected: &Array, top_k: i32) -> Result<ExpertPanel> {
+    let routes = selected.shape().iter().product::<i32>();
+    ensure!(
+        top_k >= 1
+            && routes % top_k == 0
+            && (2 * top_k..=64).contains(&routes)
+            && routes >= 4
+            && selected.dtype() == Dtype::UInt32,
+        "invalid expert panel routes"
+    );
+    let threads = (routes + 31) / 32 * 32;
+    #[cfg(test)]
+    let mutated = EXPERT_GROUP_MUTATION.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    let mutated = false;
+    let source = r#"
+        threadgroup uint chosen[ROUTES];
+        threadgroup uint firsts[ROUTES];
+        uint r = thread_position_in_threadgroup.x;
+        if (r < ROUTES) chosen[r] = selected[r];
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (r < ROUTES) {
+            uint first = 1u;
+            for (uint q = 0u; q < r; ++q) {
+                if (chosen[q] == chosen[r]) first = 0u;
+            }
+            firsts[r] = first;
+        }
+        threadgroup_barrier(mem_flags::mem_threadgroup);
+        if (r != 0u) return;
+        for (uint q = 0u; q < ROUTES; ++q) shared[q] = 0u;
+        for (uint q = 0u; q < (ROUTES / 2u) * 3u; ++q) pairs[q] = 0u;
+        for (uint q = 0u; q < (ROUTES / 3u) * 4u; ++q) triples[q] = 0u;
+        for (uint q = 0u; q < (ROUTES / 4u) * 5u; ++q) quads[q] = 0u;
+        uint used2 = 0u;
+        uint used3 = 0u;
+        uint used4 = 0u;
+        for (uint q = 0u; q < ROUTES; ++q) {
+            if (firsts[q] == 0u) continue;
+            uint expert = chosen[q];
+            uint members[8];
+            uint count = 0u;
+            for (uint u = q; u < ROUTES; ++u) {
+                if (chosen[u] == expert && count < 8u) {
+                    members[count] = u;
+                    count += 1u;
+                }
+            }
+            uint at = 0u;
+            while (count - at >= 2u) {
+                uint take = min(count - at, 4u);
+                for (uint i = 0u; i < take; ++i) shared[members[at + i]] = 1u;
+                if (take == 4u && !MUTATED) {
+                    quads[used4 * 5u] = 4u;
+                    for (uint i = 0u; i < 4u; ++i) quads[used4 * 5u + 1u + i] = members[at + i];
+                    used4 += 1u;
+                } else if (take >= 3u) {
+                    // (mutation: a chunk of 4 loses its last member, which stays flagged shared)
+                    triples[used3 * 4u] = 3u;
+                    for (uint i = 0u; i < 3u; ++i) triples[used3 * 4u + 1u + i] = members[at + i];
+                    used3 += 1u;
+                } else {
+                    pairs[used2 * 3u] = 2u;
+                    pairs[used2 * 3u + 1u] = members[at];
+                    pairs[used2 * 3u + 2u] = members[at + 1u];
+                    used2 += 1u;
+                }
+                at += take;
+            }
+        }
+    "#;
+    let mut outputs = array::metal_kernel(
+        &format!(
+            "mlxl3_inkling_expert_panel_plan_r{routes}_m{}_v2",
+            u8::from(mutated)
+        ),
+        &["selected"],
+        &["pairs", "triples", "quads", "shared"],
+        &format!(
+            "#define ROUTES {routes}u\n#define MUTATED {}\n",
+            u8::from(mutated)
+        ),
+        source,
+        &[&selected.reshape(&[routes])?],
+        &[
+            vec![routes / 2 * 3],
+            vec![routes / 3 * 4],
+            vec![routes / 4 * 5],
+            vec![routes],
+        ],
+        &[Dtype::UInt32; 4],
+        [threads, 1, 1],
+        [threads, 1, 1],
+    )?;
+    ensure!(outputs.len() == 4, "missing expert panel outputs");
+    let shared = outputs.pop().context("shared")?;
+    let quads = outputs.pop().context("quads")?;
+    let triples = outputs.pop().context("triples")?;
+    let pairs = outputs.pop().context("pairs")?;
+    Ok(ExpertPanel {
+        lists: [pairs, triples, quads],
+        shared,
+        max_members: (routes / top_k).min(4),
+    })
+}
+
+/// INVARIANT-2026-11-25-INK2M-L3-3: `prepared_expert_raw` with the experts of `panel` (`expert_panel_plan`) read
+/// once for their member rows: the routes that are not shared go through the per-route kernel (the shared ones
+/// write zeros), each chunk list through one launch of the exact member count, and the outputs are added (every
+/// route is written by one launch). Inputs in lane order; the same bits as `prepared_expert_raw`.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn prepared_expert_plan_raw(
+    x: &Array,
+    bank: &Array,
+    routes: &Array,
+    panel: &ExpertPanel,
+    width: i32,
+    projections: i32,
+    projection_stride: i32,
+    k: usize,
+    cb: Codebook,
+) -> Result<Array> {
+    expert_mapped_layout(
+        x,
+        bank,
+        None,
+        None,
+        routes,
+        width,
+        projections,
+        projection_stride,
+        k,
+        cb,
+        true,
+        true,
+        false,
+        false,
+        None,
+        false,
+        false,
+        true,
+        Some(&panel.shared),
+        Some(panel),
+    )
+}
+
+/// Rows of one grouped TensorOps tile (the kernel's `LANE_TOKENS`).
+pub(crate) const EXPERT_TENSOR_TOKENS: i32 = 8;
+
+#[cfg(test)]
+thread_local! {
+    /// P4-2 oracle mutation: the grouping drops the last member of every tile.
+    static EXPERT_GROUP_MUTATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+#[cfg(test)]
+pub(crate) fn with_expert_group_mutation<T>(run: impl FnOnce() -> T) -> T {
+    struct Restore;
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            EXPERT_GROUP_MUTATION.with(|flag| flag.set(false));
+        }
+    }
+    let _restore = Restore;
+    EXPERT_GROUP_MUTATION.with(|flag| flag.set(true));
+    run()
+}
+
+/// P4-2: the experts of one MoE call chosen by `min_members..=EXPERT_TENSOR_TOKENS` of its `routes` (`[routes]`
+/// u32, at most 64): `(tile_info [routes / 2 * 2] = {expert, members}, members [routes / 2 * 8] route indices,
+/// shared [routes] = 1 for the routes of a tile)`, computed on the GPU in route order.
+pub(crate) fn expert_tensor_groups(
+    selected: &Array,
+    min_members: i32,
+) -> Result<(Array, Array, Array)> {
+    let routes = selected.shape().iter().product::<i32>();
+    ensure!(
+        (2..=64).contains(&routes)
+            && selected.dtype() == Dtype::UInt32
+            && (2..=EXPERT_TENSOR_TOKENS).contains(&min_members),
+        "invalid grouped expert routes"
+    );
+    let max_tiles = routes / min_members;
+    #[cfg(test)]
+    let mutated = EXPERT_GROUP_MUTATION.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    let mutated = false;
+    let header = format!(
+        "#define ROUTES {routes}u\n#define MAX_TILES {max_tiles}u\n#define MIN_MEMBERS {min_members}u\n#define LANE_TOKENS {EXPERT_TENSOR_TOKENS}u\n#define GROUP_MUTATION {}\n",
+        u8::from(mutated)
+    );
+    let threads = (routes + 31) / 32 * 32;
+    let mut outputs = array::metal_kernel(
+        &format!(
+            "mlxl3_inkling_expert_groups_r{routes}_m{min_members}_t{EXPERT_TENSOR_TOKENS}_x{}_v1",
+            u8::from(mutated)
+        ),
+        &["selected"],
+        &["tile_info", "members", "shared"],
+        &header,
+        include_str!("../shaders/inkling_expert_groups.metal"),
+        &[&selected.reshape(&[routes])?],
+        &[
+            vec![max_tiles * 2],
+            vec![max_tiles * EXPERT_TENSOR_TOKENS],
+            vec![routes],
+        ],
+        &[Dtype::UInt32, Dtype::UInt32, Dtype::UInt32],
+        [threads, 1, 1],
+        [threads, 1, 1],
+    )?;
+    let shared = outputs.pop().context("grouped shared flags")?;
+    let members = outputs.pop().context("grouped members")?;
+    let tile_info = outputs.pop().context("grouped tiles")?;
+    Ok((tile_info, members, shared))
+}
+
+/// P4-2 (not bit-exact): raw products `[routes * projections, output_dims]` FP32 of the routes in the tiles of
+/// `expert_tensor_groups` by the transposed TensorOps kernel (one tile of up to 8 rows per expert and projection,
+/// K3 window decode), zero for the other routes. `x` holds the transformed inputs `[routes * projections, input]`
+/// in natural order (as `prepared_expert_raw` reads them); `bank` is the expert-concatenated trellis.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn expert_tensor_raw(
+    x: &Array,
+    bank: &Array,
+    tile_info: &Array,
+    members: &Array,
+    routes: i32,
+    output_dims: i32,
+    projections: i32,
+    projection_stride_tiles: i32,
+    k: usize,
+    cb: Codebook,
+) -> Result<Array> {
+    ensure!(
+        array::supports_exl3_tensor_ops()?,
+        "grouped TensorOps experts require Apple M5 and macOS 26.3 or newer"
+    );
+    let [rows, input_dims]: [i32; 2] = x
+        .shape()
+        .try_into()
+        .map_err(|_| anyhow::anyhow!("grouped TensorOps expert input must have rank 2"))?;
+    let max_tiles = tile_info.shape()[0] / 2;
+    ensure!(
+        (1..=8).contains(&k)
+            && k != 7
+            && projections >= 1
+            && rows == routes * projections
+            && input_dims % 32 == 0
+            && output_dims % 32 == 0
+            && bank.shape().len() == 3
+            && bank.shape()[0] * 16 == input_dims
+            && bank.shape()[2] == (16 * k) as i32
+            && members.shape() == [max_tiles * EXPERT_TENSOR_TOKENS],
+        "invalid grouped TensorOps expert geometry"
+    );
+    let tiles_n = bank.shape()[1];
+    let tokens = EXPERT_TENSOR_TOKENS;
+    let gathered = max_tiles * projections * tokens;
+    let xg = array::metal_kernel(
+        &format!("mlxl3_inkling_expert_gather_i{input_dims}_p{projections}_t{max_tiles}_v1"),
+        &["x", "tile_info", "members"],
+        &["xg"],
+        &format!(
+            "#define MAX_TILES {max_tiles}u\n#define PROJECTIONS {projections}u\n#define LANE_TOKENS {tokens}u\n#define INPUT_DIMS {input_dims}u\n"
+        ),
+        include_str!("../shaders/inkling_expert_gather.metal"),
+        &[&x.astype(Dtype::Float16)?, tile_info, members],
+        &[vec![gathered, input_dims]],
+        &[Dtype::Float16],
+        [gathered * input_dims, 1, 1],
+        [256, 1, 1],
+    )?
+    .remove(0);
+    let k3_window = k == 3;
+    let header = format!(
+        "#include <metal_tensor>\n#include <MetalPerformancePrimitives/MetalPerformancePrimitives.h>\nusing namespace metal;\nusing namespace mpp;\n#define LANE_K3_WINDOW {}\n{}#define K_BITS {k}u\n#define PACKED_U32 {}u\n#define INPUT_DIMS {input_dims}u\n#define OUTPUT_DIMS {output_dims}u\n#define TILES_N {tiles_n}u\n#define OUTPUT_TILES {}u\n#define PROJ_STRIDE_TILES {projection_stride_tiles}u\n#define PROJECTIONS {projections}u\n#define N_SPLITS 1u\n#define LANE_COLS 32u\n#define LANE_DEPTH 32u\n#define LANE_TOKENS {tokens}u\n#define LANE_BUFFERS 1\n",
+        u8::from(k3_window),
+        codebook_header(cb),
+        k * 8,
+        output_dims / 16,
+    );
+    let words = bank.reshape(&[-1])?.view(Dtype::UInt32)?;
+    Ok(array::metal_kernel_initialized(
+        &format!(
+            "mlxl3_inkling_expert_tensor_i{input_dims}_o{output_dims}_k{k}_c{}_n{tiles_n}_s{projection_stride_tiles}_p{projections}_t{max_tiles}_r{routes}_v1",
+            cb as u32
+        ),
+        &["xg", "trellis", "tile_info", "members"],
+        &["out"],
+        &header,
+        include_str!("../shaders/_expert_tensor_lane_kernel.metal"),
+        &[&xg, &words, tile_info, members],
+        &[vec![rows, output_dims]],
+        &[Dtype::Float32],
+        [output_dims, max_tiles * projections, 1],
+        [32, 1, 1],
+        Some(0.0),
+    )?
+    .remove(0))
 }
 
 struct GroupedRoutes {
     origins: Vec<(i32, Array)>,
     restore: Vec<u32>,
+}
+
+#[cfg(test)]
+thread_local! {
+    /// DFLASH2-2026-11-24-INK2M-P4-1 bench: forces NT of the mapped expert kernel (NT does not change a tile's
+    /// accumulation order, SPEED-2026-11-21-INK2M-P5).
+    static EXPERT_NT_TEST: std::cell::Cell<Option<i32>> = const { std::cell::Cell::new(None) };
+}
+
+/// P4-1 bench: runs `run` with NT of the mapped expert kernel forced to `nt` (`None`: the production rule).
+#[cfg(test)]
+pub(crate) fn with_expert_nt<T>(nt: Option<i32>, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<i32>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            EXPERT_NT_TEST.with(|cell| cell.set(self.0));
+        }
+    }
+    let _restore = Restore(EXPERT_NT_TEST.with(|cell| cell.replace(nt)));
+    run()
+}
+
+/// P4-1 bench: `prepared_expert_raw` with the routes of one expert grouped by up to 4 rows (`MLXL3_GROUPED_ROUTES`,
+/// one launch per group width present): each trellis word is decoded once for the rows of its group. Same
+/// accumulation order per (route, output), so the same raw outputs bit for bit.
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn prepared_expert_grouped_raw(
+    x: &Array,
+    bank: &Array,
+    ids: &[u32],
+    capacity: i32,
+    width: i32,
+    projections: i32,
+    projection_stride: i32,
+    k: usize,
+    cb: Codebook,
+) -> Result<Array> {
+    prepared_expert_grouped_raw_lane(
+        x,
+        bank,
+        ids,
+        capacity,
+        width,
+        projections,
+        projection_stride,
+        k,
+        cb,
+        false,
+    )
+}
+
+/// L3-1 bench: `prepared_expert_grouped_raw` with the inputs in lane order (`routed_inputs_small` /
+/// `glu_down_input` with `lane_order`).
+#[cfg(test)]
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn prepared_expert_grouped_raw_lane(
+    x: &Array,
+    bank: &Array,
+    ids: &[u32],
+    capacity: i32,
+    width: i32,
+    projections: i32,
+    projection_stride: i32,
+    k: usize,
+    cb: Codebook,
+    lane_order: bool,
+) -> Result<Array> {
+    let groups = crate::flash_support::expert_route_groups(ids, capacity)
+        .context("invalid grouped expert routes")?;
+    let mut origins = Vec::new();
+    let mut restore = vec![0; ids.len()];
+    let mut offset = 0;
+    for (group_width, rows) in groups.iter().enumerate() {
+        if rows.is_empty() {
+            continue;
+        }
+        for &row in rows {
+            restore[row as usize] = offset;
+            offset += 1;
+        }
+        origins.push((
+            group_width as i32 + 1,
+            Array::from_u32(rows, &[rows.len() as i32])?,
+        ));
+    }
+    ensure!(
+        offset as usize == ids.len(),
+        "grouped routes do not cover the call"
+    );
+    let selected = Array::from_u32(ids, &[i32::try_from(ids.len())?])?;
+    expert_mapped_layout(
+        x,
+        bank,
+        None,
+        None,
+        &selected,
+        width,
+        projections,
+        projection_stride,
+        k,
+        cb,
+        true,
+        true,
+        false,
+        false,
+        Some(&GroupedRoutes { origins, restore }),
+        false,
+        false,
+        lane_order,
+        None,
+        None,
+    )
+}
+
+/// P4-1 bench: the lane order of the transposed TensorOps kernel for an input of `input` values (the indices
+/// `lane_order_indices` builds where the production geometry allows it).
+#[cfg(test)]
+pub(crate) fn lane_source_indices(input: i32) -> Result<Array> {
+    let values = (0..input)
+        .map(|index| i32::try_from(crate::contracts::exl3_lane_source_index(index as u32)))
+        .collect::<std::result::Result<Vec<_>, _>>()?;
+    Array::from_i32(&values, &[input])
 }
 
 /// CPU-origin indices validated once, before any expert graph is submitted.
@@ -3047,6 +3559,8 @@ pub(crate) fn expert_slots(
         stable_shapes,
         native_prepare,
         false,
+        None,
+        None,
     )
 }
 
@@ -3070,6 +3584,8 @@ fn expert_mapped_layout(
     stable_shapes: bool,
     native_prepare: bool,
     lane_order: bool,
+    skip: Option<&Array>,
+    plan: Option<&ExpertPanel>,
 ) -> Result<Array> {
     codec::check_k(k)?;
     ensure!(k != 7, "mapped K=7 is not supported");
@@ -3166,6 +3682,10 @@ fn expert_mapped_layout(
     } else {
         1
     };
+    #[cfg(test)]
+    if let Some(forced) = EXPERT_NT_TEST.with(std::cell::Cell::get) {
+        nt = forced;
+    }
     if output_tiles % nt != 0 {
         nt = 1;
     }
@@ -3180,9 +3700,23 @@ fn expert_mapped_layout(
         !masked || slot_major,
         "masked experts require slot-major banks"
     );
+    // DFLASH2-2026-11-24-INK2M-P4-1: expert-concatenated banks (Inkling) are grouped too, without lane order
     ensure!(
-        groups.is_none() || (slot_major && !masked && k == 2 && matches!(cb, Codebook::Mul1)),
-        "grouped experts require unmasked K2 MUL1 slot-major banks"
+        groups.is_none()
+            || (!masked && ((slot_major && k == 2 && matches!(cb, Codebook::Mul1)) || !slot_major)),
+        "grouped experts require unmasked K2 MUL1 slot-major banks or expert-concatenated banks"
+    );
+    // DFLASH2-2026-11-24-INK2M-P4-2: routes flagged in `skip` (`[routes]` u32) write zeros
+    ensure!(
+        skip.is_none_or(|flags| {
+            groups.is_none()
+                && !slot_major
+                && !masked
+                && !stable_shapes
+                && flags.dtype() == Dtype::UInt32
+                && flags.shape().iter().product::<i32>() == selected.shape().iter().product::<i32>()
+        }),
+        "skipped expert routes need plain expert-concatenated banks and one flag per route"
     );
     let masked_header = if masked {
         format!(
@@ -3220,6 +3754,11 @@ fn expert_mapped_layout(
             ""
         }
         + &masked_header
+        + if skip.is_some() {
+            "\n#define MLXL3_SKIP_SHARED 1\n"
+        } else {
+            ""
+        }
         + reference_reduction_header(slot_major)
         + &format!(
             "\n#define MLXL3_QMV_NT {nt}u\n#define MLXL3_QMV_SG {simdgroups}u\n#define MLXL3_K_BITS {k}u\n#define MLXL3_K3_WINDOW_DECODE {}\n#define K {k}\n#define CB {}\n#define PACKED_U32 {}\n#define INPUT_DIMS {input_dims}\n#define TILES_K {}\n#define TILES_N {}\n#define N_SPLITS {splits}\n#define LOCAL_OUTPUT_DIMS {}\n#define IDENTITY_MAP 0\n#define EXPERT_MAP 1\n#define OUTPUT_TILES {output_tiles}\n#define ROUTING_REPEAT {projections_per_route}\n#define PROJECTION_STRIDE_TILES {projection_stride_tiles}\n#define MLXL3_SLOT_MAJOR {}\n",
@@ -3233,7 +3772,7 @@ fn expert_mapped_layout(
         );
     let words = trellis.reshape(&[-1])?.view(Dtype::UInt32)?;
     let name = format!(
-        "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}_slots{}{}",
+        "mlxl3_rs_expert_{}_{}_{}_{}_{}_{}_{}_slots{}{}{}{}",
         input_dims,
         output_dims,
         k,
@@ -3247,6 +3786,10 @@ fn expert_mapped_layout(
         } else {
             String::new()
         },
+        if skip.is_some() { "_skip" } else { "" },
+        // INVARIANT-2026-11-24-INK2M-L3-1: the lane order changes the source; two variants of one shape must
+        // not share a cached kernel
+        if lane_order { "_lane" } else { "" },
     );
     let dispatch = |group: Option<(i32, &Array)>| -> Result<Array> {
         let (route_rows, work_tiles) = group.map_or((rows, local_tiles), |(width, origins)| {
@@ -3278,7 +3821,7 @@ fn expert_mapped_layout(
                 &xhat,
                 &words,
                 selected,
-                group.map_or(selected, |(_, origins)| origins),
+                group.map_or(skip.unwrap_or(selected), |(_, origins)| origins),
             ],
             &[vec![splits, route_rows, output_dims]],
             &[Dtype::Float32],
@@ -3293,7 +3836,66 @@ fn expert_mapped_layout(
         )?
         .remove(0))
     };
-    let partials = if let Some(groups) = groups {
+    let partials = if let Some(panel) = plan {
+        // INVARIANT-2026-11-25-INK2M-L3-3
+        ensure!(
+            groups.is_none()
+                && skip.is_some()
+                && lane_order
+                && !slot_major
+                && !masked
+                && !stable_shapes,
+            "the expert panel needs plain expert-concatenated banks, lane-order inputs and its shared flags"
+        );
+        // the routes that are not shared, at the production NT (the shared ones write zeros)
+        let mut total = dispatch(None)?;
+        for (index, list) in panel.lists.iter().enumerate() {
+            let members = index as i32 + 2;
+            if members > panel.max_members {
+                break;
+            }
+            let capacity = list.shape().first().copied().unwrap_or(0) / (members + 1);
+            ensure!(
+                list.dtype() == Dtype::UInt32
+                    && capacity >= 1
+                    && list.shape() == [capacity * (members + 1)],
+                "invalid expert panel list"
+            );
+            // L3-1: 2 output tiles a thread for pairs, 1 for 3 and 4 members (accumulators stay in registers)
+            let panel_nt = if members == 2 && output_tiles % 2 == 0 {
+                2
+            } else {
+                1
+            };
+            let panel_header = format!(
+                "{header}\n#undef MLXL3_QMV_NT\n#define MLXL3_QMV_NT {panel_nt}u\n#undef MLXL3_SKIP_SHARED\n#define MLXL3_SKIP_SHARED 0\n#define MLXL3_GROUPED_ROUTES 1\n#define MLXL3_GROUPED_PLAN 1\n#define MLXL3_PLAN_EXACT 1\n#define MLXL3_QMV_MB {members}u\n#define MLXL3_GROUP_OUTPUT_DIMS {}u\n",
+                rows * output_dims
+            );
+            let work_tiles = capacity * projections_per_route * output_tiles;
+            let part = array::metal_kernel_initialized(
+                &format!("{name}_panel{members}_nt{panel_nt}_c{capacity}"),
+                &["xhat", "trellis", "tile_map", "tile_sub"],
+                &["yhat"],
+                &panel_header,
+                kernel_source,
+                &[&xhat, &words, selected, list],
+                &[vec![splits, rows, output_dims]],
+                &[Dtype::Float32],
+                [
+                    (work_tiles / panel_nt)
+                        .checked_mul(simdgroups * 32)
+                        .context("expert panel grid overflow")?,
+                    1,
+                    splits,
+                ],
+                [simdgroups * 32, 1, 1],
+                Some(0.0),
+            )?
+            .remove(0);
+            total = total.add(&part)?;
+        }
+        total
+    } else if let Some(groups) = groups {
         let parts = groups
             .origins
             .iter()

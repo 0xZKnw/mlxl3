@@ -13,6 +13,27 @@
 #define MLXL3_REFERENCE_ACCUMULATION 0
 #endif
 
+#ifndef MLXL3_SKIP_SHARED
+#define MLXL3_SKIP_SHARED 0
+#endif
+
+// INVARIANT-2026-11-24-INK2M-L3-2: in plan mode (`MLXL3_GROUPED_PLAN`, with `MLXL3_GROUPED_ROUTES`), `tile_sub`
+// holds chunks {members 0..MB, member routes[MB]} built on the GPU; a threadgroup serves one chunk and skips the
+// rows past its member count (loops stay unrolled), reads and writes the member routes' own rows.
+#ifndef MLXL3_GROUPED_PLAN
+#define MLXL3_GROUPED_PLAN 0
+#endif
+// INVARIANT-2026-11-25-INK2M-L3-3: with `MLXL3_PLAN_EXACT` every used chunk has exactly MB members (one launch
+// per member count, chunk lists {MB or 0, member routes[MB]}), so no row is skipped and the loops unroll fully.
+#ifndef MLXL3_PLAN_EXACT
+#define MLXL3_PLAN_EXACT 0
+#endif
+#if MLXL3_GROUPED_PLAN && !MLXL3_PLAN_EXACT
+#define MLXL3_PLAN_SKIP if (batch_row >= plan_members) continue;
+#else
+#define MLXL3_PLAN_SKIP
+#endif
+
             uint tid = thread_position_in_threadgroup.x;
             uint lane = thread_index_in_simdgroup;
             uint simd = simdgroup_index_in_threadgroup;
@@ -67,24 +88,45 @@
             uint compact_rows[MLXL3_QMV_MB];
 #endif
             uint tile_ns[MLXL3_QMV_NT];
+#if MLXL3_GROUPED_PLAN
+            uint plan_members = MLXL3_QMV_MB;
+#endif
+#if MLXL3_GROUPED_ROUTES
+            // DFLASH2-2026-11-24-INK2M-P4-1: first local output tile of this threadgroup (equal to tile_ns[0] for
+            // slot-major banks; expert-concatenated banks hold the expert's offset in tile_ns instead)
+            uint grouped_tile0 = 0u;
+#endif
             if (EXPERT_MAP) {
                 uint groups_per_row = uint(OUTPUT_TILES) / MLXL3_QMV_NT;
                 sub = tile_group / groups_per_row;
                 uint group_in_row = tile_group - sub * groups_per_row;
                 uint route = sub / uint(ROUTING_REPEAT);
                 uint projection = sub - route * uint(ROUTING_REPEAT);
-#if MLXL3_GROUPED_ROUTES
+#if MLXL3_GROUPED_PLAN
+                plan_members = tile_sub[route * (MLXL3_QMV_MB + 1u)];
+                if (plan_members == 0u) {
+                    return;
+                }
+                for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
+                    uint member = tile_sub[route * (MLXL3_QMV_MB + 1u) + 1u + min(batch_row, plan_members - 1u)];
+                    original_rows[batch_row] = member * uint(ROUTING_REPEAT) + projection;
+                    compact_rows[batch_row] = original_rows[batch_row];
+                }
+                sub = original_rows[0];
+                grouped_tile0 = group_in_row * MLXL3_QMV_NT;
+#elif MLXL3_GROUPED_ROUTES
                 for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
                     original_rows[batch_row] = tile_sub[route * MLXL3_QMV_MB + batch_row] * uint(ROUTING_REPEAT) + projection;
                     compact_rows[batch_row] = (route * MLXL3_QMV_MB + batch_row) * uint(ROUTING_REPEAT) + projection;
                 }
                 sub = original_rows[0];
+                grouped_tile0 = group_in_row * MLXL3_QMV_NT;
 #endif
                 uint source_base =
 #if MLXL3_SLOT_MAJOR
                     group_in_row * MLXL3_QMV_NT;
 #else
-                    tile_map[route] * uint(OUTPUT_TILES)
+                    tile_map[sub / uint(ROUTING_REPEAT)] * uint(OUTPUT_TILES)
                     + projection * uint(PROJECTION_STRIDE_TILES)
                     + group_in_row * MLXL3_QMV_NT;
 #endif
@@ -107,6 +149,15 @@
                         IDENTITY_MAP ? tile_offset : tile_map[tile_offset];
                 }
             }
+#if MLXL3_SKIP_SHARED
+            // DFLASH2-2026-11-24-INK2M-P4-2: a route computed by the grouped TensorOps kernel writes zeros here
+            if (tile_sub[sub / uint(ROUTING_REPEAT)] != 0u) {
+                if (tid < 16u * MLXL3_QMV_NT) {
+                    yhat[split * uint(LOCAL_OUTPUT_DIMS) + local_tile * 16u + tid] = 0.0f;
+                }
+                return;
+            }
+#endif
 #if MLXL3_MASKED_SLOTS
             if (tile_map[sub / uint(ROUTING_REPEAT)] >= uint(MLXL3_SLOT_CAPACITY)) {
                 if (tid < 16u * MLXL3_QMV_NT) {
@@ -124,6 +175,7 @@
                 // the same transformed activation row.
                 float x_values[MLXL3_QMV_MB][4];
                 for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
+                    MLXL3_PLAN_SKIP
 #if defined(MLXL3_QMV_LANE_ORDER) && MLXL3_QMV_LANE_ORDER
                     // MLXL3_Q27_LANE_INPUT_PERMUTED
                     half4 x_quad(0);
@@ -135,7 +187,11 @@
 #if MLXL3_BATCH_ROWS
                         + (row_base + batch_row) * uint(GROUPS) * uint(INPUT_DIMS)
 #endif
+#if MLXL3_GROUPED_ROUTES
+                        + original_rows[batch_row] * uint(INPUT_DIMS) + tile_k * 16u
+#else
                         + sub * uint(INPUT_DIMS) + tile_k * 16u
+#endif
                     );
                     x_quad = x_quads[lane & 3u];
 #if MLXL3_BATCH_ROWS
@@ -202,11 +258,22 @@
                     codewords[2] = window3 >> 3u;
                     codewords[1] = window3 >> 6u;
                     codewords[0] = window3 >> 9u;
+#if MLXL3_GROUPED_ROUTES
+                    float decoded8[8];
+                    for (uint j = 0u; j < 8u; ++j) {
+                        decoded8[j] = float(mlxl3_decode_codeword(codewords[j], CB));
+                    }
+#endif
                     for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
+                        MLXL3_PLAN_SKIP
                         for (uint j = 0u; j < 8u; ++j) {
                             acc[batch_row][output_tile][j] = fma(
                                 x_values[batch_row][j & 3u],
+#if MLXL3_GROUPED_ROUTES
+                                decoded8[j],
+#else
                                 float(mlxl3_decode_codeword(codewords[j], CB)),
+#endif
                                 acc[batch_row][output_tile][j]
                             );
                         }
@@ -232,6 +299,7 @@
                         };
 #endif
                         for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
+                            MLXL3_PLAN_SKIP
                             uint j = group * 4u;
                             acc[batch_row][output_tile][j] = fma(
                                 x_values[batch_row][0],
@@ -276,6 +344,7 @@
             }
 
             for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
+                MLXL3_PLAN_SKIP
                 for (uint output_tile = 0u; output_tile < MLXL3_QMV_NT; ++output_tile) {
 #if MLXL3_REFERENCE_ACCUMULATION
                     for (uint j = 0u; j < 8u; ++j) {
@@ -302,6 +371,7 @@
             }
             threadgroup_barrier(mem_flags::mem_threadgroup);
             for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {
+                MLXL3_PLAN_SKIP
                 if (tid < 16u * MLXL3_QMV_NT) {
 #if MLXL3_BATCH_ROWS
                     if (row_base + batch_row >= uint(MLXL3_MATRIX_ROWS)) continue;
@@ -324,7 +394,7 @@
 #if MLXL3_GROUPED_ROUTES
                         split * uint(MLXL3_GROUP_OUTPUT_DIMS)
                         + compact_rows[batch_row] * uint(OUTPUT_TILES) * 16u
-                        + (tile_ns[output_tile] * 16u) + column
+                        + ((grouped_tile0 + output_tile) * 16u) + column
 #else
                         ((row_base + batch_row) * uint(N_SPLITS) + split)
                         * uint(LOCAL_OUTPUT_DIMS)

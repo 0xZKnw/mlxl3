@@ -110,6 +110,8 @@ pub mod hub;
 #[cfg(feature = "mlx")]
 pub mod inkling2;
 #[cfg(feature = "mlx")]
+pub mod inkling2_dflash2;
+#[cfg(feature = "mlx")]
 pub mod inkling2_draft;
 #[cfg(feature = "mlx")]
 pub mod inkling2_lookup;

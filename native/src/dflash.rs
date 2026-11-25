@@ -98,6 +98,13 @@ impl Family {
 pub enum ManagedDraft {
     Packed(Family),
     FlashNext,
+    /// FEAT-2026-11-25-INK2M-DFLASH2-APP: the raw BF16 DFlash2 drafter of Inkling 2 Mini.
+    Inkling2,
+}
+
+/// The Inkling 2 Mini target the managed DFlash2 drafter was trained for.
+fn inkling_target_geometry(hidden: u64, layers: u64, vocabulary: u64) -> bool {
+    hidden == 2304 && layers == 24 && vocabulary == 200_058
 }
 
 fn flash_target_geometry(hidden: u64, layers: u64, vocabulary: u64) -> bool {
@@ -126,6 +133,20 @@ impl ManagedDraft {
             );
             return Ok(Self::FlashNext);
         }
+        if config["model_type"] == "inkling2_loop" {
+            let text = &config["text_config"];
+            ensure!(
+                text["hidden_size"]
+                    .as_u64()
+                    .zip(text["num_hidden_layers"].as_u64())
+                    .zip(text["unpadded_vocab_size"].as_u64())
+                    .is_some_and(|((hidden, layers), vocabulary)| inkling_target_geometry(
+                        hidden, layers, vocabulary
+                    )),
+                "DFlash2 requires the Inkling 2 Mini 2304/24/200058 target"
+            );
+            return Ok(Self::Inkling2);
+        }
         target_family(path).map(Self::Packed)
     }
 
@@ -133,18 +154,21 @@ impl ManagedDraft {
         match self {
             Self::Packed(family) => family.name(),
             Self::FlashNext => "Qwen3.8-Flash-Next-DFlash2-a22a1744",
+            Self::Inkling2 => "Inkling-2-Mini-DFlash2-4f9088ea",
         }
     }
     pub(crate) fn repository(self) -> &'static str {
         match self {
             Self::Packed(family) => family.repository(),
             Self::FlashNext => "incoai/Qwen3.8-Flash-Next-DFlash2",
+            Self::Inkling2 => "incoai/Inkling-2-Mini-DFlash2",
         }
     }
     pub(crate) fn revision(self) -> &'static str {
         match self {
             Self::Packed(family) => family.revision(),
             Self::FlashNext => "a22a1744e85c17364dcc54a6a420af7135d4c7f6",
+            Self::Inkling2 => "4f9088ea66c21f2b99ed657d1941c306b03e84d2",
         }
     }
     pub fn inspect(self, path: &Path) -> Result<PathBuf> {
@@ -171,6 +195,34 @@ impl ManagedDraft {
                     &path,
                     crate::flash_draft_metadata::Kind::Dflash2,
                 )?;
+                Ok(path)
+            }
+            Self::Inkling2 => {
+                let path = path
+                    .canonicalize()
+                    .context("opening the Inkling DFlash2 folder")?;
+                for name in ["config.json", "model.safetensors"] {
+                    ensure!(
+                        path.join(name).symlink_metadata()?.file_type().is_file(),
+                        "Inkling draft file {name} must be a regular file"
+                    );
+                }
+                let mut data = Vec::new();
+                File::open(path.join("config.json"))?
+                    .take(65_537)
+                    .read_to_end(&mut data)?;
+                ensure!(data.len() <= 65_536, "oversized Inkling DFlash2 config");
+                let config: serde_json::Value = serde_json::from_slice(&data)?;
+                let block = &config["dflash_config"];
+                ensure!(
+                    config["hidden_size"] == 2304
+                        && config["num_hidden_layers"] == 5
+                        && config["num_target_layers"] == 48
+                        && block["block_size"] == 8
+                        && block["mask_token_id"] == 200_056
+                        && block["target_layer_ids"] == serde_json::json!([5, 23, 41, 48]),
+                    "this folder is not the Inkling 2 Mini DFlash2 drafter"
+                );
                 Ok(path)
             }
         }

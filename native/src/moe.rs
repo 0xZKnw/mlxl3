@@ -283,6 +283,71 @@ fn routed_inputs(x: &Array, scales: &Array, plan: &RoutePlan, input: i32) -> Res
 const LANE_STORE: &str =
     "((column & ~15u) | (column & 1u) | ((column & 6u) << 1u) | ((column & 8u) >> 2u))";
 
+/// INVARIANT-2026-11-25-INK2M-L3-3: the exact expert panel in invariant verifications (experts shared by several
+/// rows read once; verification of 8 rows measured 13 % faster, the same bits). On by default;
+/// `MLXL3_INKLING_EXPERT_PANEL=0` turns it off.
+pub(crate) fn expert_panel_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(value) = EXPERT_PANEL_TEST.with(std::cell::Cell::get) {
+        return value;
+    }
+    static VALUE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *VALUE
+        .get_or_init(|| panel_setting(std::env::var("MLXL3_INKLING_EXPERT_PANEL").ok().as_deref()))
+}
+
+/// The panel setting of `MLXL3_INKLING_EXPERT_PANEL`: on unless "0".
+fn panel_setting(value: Option<&str>) -> bool {
+    value != Some("0")
+}
+
+#[cfg(test)]
+thread_local! {
+    static EXPERT_PANEL_TEST: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// L3-2 A/B in one process: runs `run` with the expert panel on or off.
+#[cfg(test)]
+pub(crate) fn with_expert_panel<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            EXPERT_PANEL_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(EXPERT_PANEL_TEST.with(|flag| flag.replace(Some(enabled))));
+    run()
+}
+
+/// DFLASH2-2026-11-24-INK2M-P4-2: grouped TensorOps experts for Inkling calls of 2..=8 rows
+/// (`MLXL3_INKLING_EXPERT_TENSOR=1`; off by default: not bit-exact).
+pub(crate) fn expert_tensor_enabled() -> bool {
+    #[cfg(test)]
+    if let Some(value) = EXPERT_TENSOR_TEST.with(std::cell::Cell::get) {
+        return value;
+    }
+    static VALUE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(|| std::env::var("MLXL3_INKLING_EXPERT_TENSOR").as_deref() == Ok("1"))
+}
+
+#[cfg(test)]
+thread_local! {
+    static EXPERT_TENSOR_TEST: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// P4-2 A/B in one process: runs `run` with the grouped TensorOps experts on or off.
+#[cfg(test)]
+pub(crate) fn with_expert_tensor<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            EXPERT_TENSOR_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(EXPERT_TENSOR_TEST.with(|flag| flag.replace(Some(enabled))));
+    run()
+}
+
 fn routed_inputs_small(
     x: &Array,
     scales: &Array,
@@ -1003,6 +1068,30 @@ impl Exl3SwitchGlu {
                 self.k,
                 self.cb == Codebook::Mcg,
             );
+        // INVARIANT-2026-11-24-INK2M-L3-2: Inkling verifications of 2..=8 rows, each expert read once for its rows
+        // (the same bits as the per-route kernel)
+        if !lane_order
+            && (2..=8).contains(&rows)
+            && matches!(self.activation, GluActivation::SoftcapSilu { .. })
+            && self.k != 7
+            && self.down_k != 7
+            && expert_panel_enabled()
+            && crate::inkling2::invariant_call(rows)
+        {
+            return self.forward_panel(x, &selected, scores, rows);
+        }
+        // DFLASH2-2026-11-24-INK2M-P4-2: Inkling calls of 3..=8 rows with the shared experts in TensorOps (opt-in;
+        // 2 rows measured slower)
+        if !lane_order
+            && (3..=8).contains(&rows)
+            && matches!(self.activation, GluActivation::SoftcapSilu { .. })
+            && self.k != 7
+            && self.down_k != 7
+            && expert_tensor_enabled()
+            && array::supports_exl3_tensor_ops()?
+        {
+            return self.forward_tensor_hybrid(x, &selected, scores, rows);
+        }
         let x_gu = routed_inputs_small(
             x,
             &self.gu_suh,
@@ -1044,6 +1133,140 @@ impl Exl3SwitchGlu {
             lane_order,
         )?;
         finish_and_reduce(&down, &self.down_svh.take(&selected, 0)?, scores)
+    }
+
+    /// L3-3: `forward` with the experts chosen by several rows read once for those rows (grouped on the GPU by
+    /// member count, one launch per count; the other routes on the per-route kernel; inputs in lane order): every
+    /// route has the bits of the per-route kernel.
+    fn forward_panel(
+        &self,
+        x: &Array,
+        selected: &Array,
+        scores: &Array,
+        rows: i32,
+    ) -> Result<Array> {
+        let plan = crate::linear::expert_panel_plan(selected, self.top_k)?;
+        let x_gu = routed_inputs_small(
+            x,
+            &self.gu_suh,
+            selected,
+            rows,
+            self.top_k,
+            self.input,
+            true,
+        )?;
+        let gate_up = crate::linear::prepared_expert_plan_raw(
+            &x_gu,
+            &self.gu_trellis,
+            selected,
+            &plan,
+            self.hidden,
+            2,
+            self.experts * self.hidden / 16,
+            self.k,
+            self.cb,
+        )?;
+        let down_input = glu_down_input(
+            &gate_up,
+            &self.gu_svh,
+            &self.down_suh,
+            selected,
+            self.activation,
+            self.logical_hidden,
+            true,
+        )?;
+        let down = crate::linear::prepared_expert_plan_raw(
+            &down_input,
+            &self.down_trellis,
+            selected,
+            &plan,
+            self.input,
+            1,
+            0,
+            self.down_k,
+            self.cb,
+        )?;
+        finish_and_reduce(&down, &self.down_svh.take(selected, 0)?, scores)
+    }
+
+    /// P4-2 (not bit-exact): `forward` with the experts chosen by >= 2 routes of the call computed by one grouped
+    /// TensorOps tile each and the other routes by the current kernel (their bits unchanged); the inputs, the
+    /// SwiGLU step and the reduction are the current ones.
+    fn forward_tensor_hybrid(
+        &self,
+        x: &Array,
+        selected: &Array,
+        scores: &Array,
+        rows: i32,
+    ) -> Result<Array> {
+        let routes = rows * self.top_k;
+        let (tile_info, members, shared) = crate::linear::expert_tensor_groups(selected, 2)?;
+        let x_gu = routed_inputs_small(
+            x,
+            &self.gu_suh,
+            selected,
+            rows,
+            self.top_k,
+            self.input,
+            false,
+        )?;
+        let stride = self.experts * self.hidden / 16;
+        let gate_up = crate::linear::prepared_expert_raw_skip(
+            &x_gu,
+            &self.gu_trellis,
+            selected,
+            &shared,
+            self.hidden,
+            2,
+            stride,
+            self.k,
+            self.cb,
+        )?
+        .add(&crate::linear::expert_tensor_raw(
+            &x_gu,
+            &self.gu_trellis,
+            &tile_info,
+            &members,
+            routes,
+            self.hidden,
+            2,
+            stride,
+            self.k,
+            self.cb,
+        )?)?;
+        let down_input = glu_down_input(
+            &gate_up,
+            &self.gu_svh,
+            &self.down_suh,
+            selected,
+            self.activation,
+            self.logical_hidden,
+            false,
+        )?;
+        let down = crate::linear::prepared_expert_raw_skip(
+            &down_input,
+            &self.down_trellis,
+            selected,
+            &shared,
+            self.input,
+            1,
+            0,
+            self.down_k,
+            self.cb,
+        )?
+        .add(&crate::linear::expert_tensor_raw(
+            &down_input,
+            &self.down_trellis,
+            &tile_info,
+            &members,
+            routes,
+            self.input,
+            1,
+            0,
+            self.down_k,
+            self.cb,
+        )?)?;
+        finish_and_reduce(&down, &self.down_svh.take(selected, 0)?, scores)
     }
 
     pub(crate) fn q36_final_row_bank(&self) -> bool {
@@ -1236,6 +1459,1585 @@ impl Exl3SwitchGlu {
 mod tests {
     use super::*;
     use half::f16;
+
+    /// INVARIANT-2026-11-25-INK2M-L3-3: the expert panel runs unless turned off (`MLXL3_INKLING_EXPERT_PANEL=0`).
+    #[test]
+    fn expert_panel_is_on_unless_zero() {
+        assert!(panel_setting(None));
+        assert!(!panel_setting(Some("0")));
+        assert!(panel_setting(Some("")));
+        assert!(panel_setting(Some("true")));
+        assert!(panel_setting(Some("1")));
+    }
+
+    /// DFLASH2-2026-11-24-INK2M-P4-1 (bench): cost of an expert shared by several rows on the real layer-12 banks.
+    /// (1) Calls of T = 2 / 4 / 8 rows x 8 routes (`distinct`, `real` routes captured from a verification of 8 real
+    /// tokens, `same`): raw gate/up and down products, current kernel (A) against the grouped exact kernel (G, NT
+    /// 1 / 2 / 4), G bit-identical to A. (2) One expert, M = 1..8 rows: full gate and down projections, current
+    /// kernel against the transposed TensorOps kernel (numeric gap recorded). Times per call: 16 independent calls
+    /// per evaluation, median of 15 after 3 warm-ups.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn inkling_expert_sharing_bench() -> Result<()> {
+        use std::time::Instant;
+        const CALLS: usize = 16;
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        // real routes: 8 consecutive real tokens verified after a real 64-token prefix
+        let real_calls: Vec<Vec<u32>> = {
+            let rows: serde_json::Value = serde_json::from_reader(std::fs::File::open(
+                std::env::var("MLXL3_INKLING_ROWS")?,
+            )?)?;
+            let tokens: Vec<u32> = serde_json::from_value(rows["rows"][0]["tokens"].clone())?;
+            ensure!(tokens.len() >= 72, "row too short");
+            let mut model = crate::inkling2::Inkling2::load(&dir)?;
+            let taps = vec![5, 23, 41, model.visit_count()];
+            model.forward_tokens(&tokens[..64])?.eval()?;
+            crate::inkling2::MOE_ROUTES.with(|c| *c.borrow_mut() = Some(Vec::new()));
+            let verified = model.verify(&tokens[64..72], &taps);
+            let captured = crate::inkling2::MOE_ROUTES
+                .with(|c| c.borrow_mut().take())
+                .context("routes")?;
+            verified?.0.eval()?;
+            ensure!(
+                captured.len() == 48,
+                "{} MoE calls captured",
+                captured.len()
+            );
+            [6usize, 18, 30, 42]
+                .iter()
+                .map(|&i| {
+                    ensure!(
+                        captured[i].0 == 8 && captured[i].1.len() == 64,
+                        "captured call shape"
+                    );
+                    Ok(captured[i].1.clone())
+                })
+                .collect::<Result<_>>()?
+        };
+        crate::array::clear_cache()?;
+        let checkpoint = crate::checkpoint::inspect(&dir)?;
+        let (experts, top_k) = (128i32, 8i32);
+        let moe = Exl3SwitchGlu::from_inkling_checkpoint(
+            &checkpoint,
+            "model.llm.layers.12.mlp.experts",
+            experts,
+            top_k,
+            4.0,
+            25.0,
+        )?;
+        ensure!(
+            moe.hidden == 1152 && moe.input == 2304,
+            "unexpected Inkling expert shapes"
+        );
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut next = move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) as u32
+        };
+        let mut random = |rows: i32, cols: i32| -> Result<Array> {
+            let v: Vec<f32> = (0..rows * cols)
+                .map(|_| ((next() % 2001) as f32 / 1000.0 - 1.0) * 0.5)
+                .collect();
+            let a = Array::from_f32(&v, &[rows, cols])?.astype(Dtype::Float16)?;
+            a.eval()?;
+            Ok(a)
+        };
+        // per-call time of `f` over CALLS independent inputs evaluated together
+        let time = |f: &dyn Fn(usize) -> Result<Array>| -> Result<f64> {
+            let mut samples = Vec::new();
+            for rep in 0..18 {
+                let outs = (0..CALLS).map(f).collect::<Result<Vec<_>>>()?;
+                let start = Instant::now();
+                Array::eval_many(&outs.iter().collect::<Vec<_>>())?;
+                if rep >= 3 {
+                    samples.push(start.elapsed().as_secs_f64() * 1e3 / CALLS as f64);
+                }
+            }
+            samples.sort_by(f64::total_cmp);
+            Ok(samples[samples.len() / 2])
+        };
+        let bits = |a: &Array| -> Result<Vec<u32>> {
+            Ok(a.astype(Dtype::Float32)?
+                .to_f32()?
+                .iter()
+                .map(|v| v.to_bits())
+                .collect())
+        };
+        let gu_stride = moe.experts * moe.hidden / 16;
+        let mut report = Vec::new();
+        // (1) production-shaped calls
+        let mut patterns: Vec<(String, usize, Vec<u32>)> = Vec::new();
+        for t in [2usize, 4, 8] {
+            let mut distinct = Vec::new();
+            let mut pick = 0x2545_f491_4f6c_dd1du64.wrapping_add(t as u64);
+            while distinct.len() < t * 8 {
+                pick = pick
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let e = (pick >> 33) as u32 % experts as u32;
+                if !distinct.contains(&e) {
+                    distinct.push(e);
+                }
+            }
+            patterns.push((format!("distinct{t}"), t, distinct));
+            for (i, call) in real_calls.iter().enumerate() {
+                patterns.push((format!("real{t}_{i}"), t, call[..t * 8].to_vec()));
+            }
+            let first = real_calls[0][..8].to_vec();
+            let same: Vec<u32> = (0..t)
+                .flat_map(|r| (0..8).map(move |i| (r, i)))
+                .map(|(r, i)| first[(i + r) % 8])
+                .collect();
+            patterns.push((format!("same{t}"), t, same));
+        }
+        for (name, t, ids) in &patterns {
+            let routes = ids.len() as i32;
+            let distinct = ids.iter().collect::<std::collections::BTreeSet<_>>().len();
+            let xs_gu = (0..CALLS)
+                .map(|_| random(routes * 2, moe.input))
+                .collect::<Result<Vec<_>>>()?;
+            let xs_dn = (0..CALLS)
+                .map(|_| random(routes, moe.hidden))
+                .collect::<Result<Vec<_>>>()?;
+            let selected = Array::from_u32(ids, &[routes])?;
+            let a_gu = |i: usize| {
+                crate::linear::prepared_expert_raw(
+                    &xs_gu[i],
+                    &moe.gu_trellis,
+                    &selected,
+                    moe.hidden,
+                    2,
+                    gu_stride,
+                    moe.k,
+                    moe.cb,
+                    false,
+                )
+            };
+            let a_dn = |i: usize| {
+                crate::linear::prepared_expert_raw(
+                    &xs_dn[i],
+                    &moe.down_trellis,
+                    &selected,
+                    moe.input,
+                    1,
+                    0,
+                    moe.down_k,
+                    moe.cb,
+                    false,
+                )
+            };
+            let g_gu = |i: usize| {
+                crate::linear::prepared_expert_grouped_raw(
+                    &xs_gu[i],
+                    &moe.gu_trellis,
+                    ids,
+                    experts,
+                    moe.hidden,
+                    2,
+                    gu_stride,
+                    moe.k,
+                    moe.cb,
+                )
+            };
+            let g_dn = |i: usize| {
+                crate::linear::prepared_expert_grouped_raw(
+                    &xs_dn[i],
+                    &moe.down_trellis,
+                    ids,
+                    experts,
+                    moe.input,
+                    1,
+                    0,
+                    moe.down_k,
+                    moe.cb,
+                )
+            };
+            // exactness before speed: G against A on two inputs, for every NT
+            for nt in [None, Some(1), Some(2), Some(4)] {
+                for i in [0usize, CALLS - 1] {
+                    let (ra, rg) = (
+                        bits(&a_gu(i)?)?,
+                        crate::linear::with_expert_nt(nt, || bits(&g_gu(i)?))?,
+                    );
+                    ensure!(
+                        ra.len() == (routes * 2 * moe.hidden) as usize && ra == rg,
+                        "{name}: grouped gate/up differs (NT {nt:?})"
+                    );
+                    let (ra, rg) = (
+                        bits(&a_dn(i)?)?,
+                        crate::linear::with_expert_nt(nt, || bits(&g_dn(i)?))?,
+                    );
+                    ensure!(
+                        ra.len() == (routes * moe.input) as usize && ra == rg,
+                        "{name}: grouped down differs (NT {nt:?})"
+                    );
+                }
+            }
+            let a1 = (time(&a_gu)?, time(&a_dn)?);
+            let mut grouped = Vec::new();
+            for nt in [1, 2, 4] {
+                grouped.push((
+                    nt,
+                    crate::linear::with_expert_nt(Some(nt), || time(&g_gu))?,
+                    crate::linear::with_expert_nt(Some(nt), || time(&g_dn))?,
+                ));
+            }
+            let a2 = (time(&a_gu)?, time(&a_dn)?);
+            let current = (a1.0 + a2.0) / 2.0 + (a1.1 + a2.1) / 2.0;
+            let best = grouped
+                .iter()
+                .map(|&(_, gu, dn)| gu + dn)
+                .fold(f64::INFINITY, f64::min);
+            println!(
+                "P4BENCH {name}: rows {t} routes {routes} distinct {distinct} | A gate/up {:.4}/{:.4} down {:.4}/{:.4} ms | G (nt, gate/up, down) {:?} | best G / A {:.3}",
+                a1.0,
+                a2.0,
+                a1.1,
+                a2.1,
+                grouped,
+                best / current
+            );
+            report.push(serde_json::json!({
+                "case": name, "rows": t, "routes": routes, "distinct": distinct,
+                "a_gate_up_ms": [a1.0, a2.0], "a_down_ms": [a1.1, a2.1],
+                "grouped": grouped.iter().map(|&(nt, gu, dn)| serde_json::json!({"nt": nt, "gate_up_ms": gu, "down_ms": dn})).collect::<Vec<_>>(),
+                "best_grouped_over_current": best / current, "bit_identical": true,
+            }));
+        }
+        // (2) one expert, M rows: full projections, current kernel against the transposed TensorOps kernel
+        let tensor_ops = crate::array::supports_exl3_tensor_ops()?;
+        let e = real_calls[0][0];
+        let ei = e as i32;
+        let gate_suh = moe
+            .gu_suh
+            .slice(0, ei, ei + 1)?
+            .slice(1, 0, 1)?
+            .reshape(&[1, moe.input])?;
+        let gate_svh = moe
+            .gu_svh
+            .slice(0, ei, ei + 1)?
+            .slice(1, 0, 1)?
+            .reshape(&[1, moe.hidden])?;
+        let down_suh = moe
+            .down_suh
+            .slice(0, ei, ei + 1)?
+            .reshape(&[1, moe.hidden])?;
+        let down_svh = moe
+            .down_svh
+            .slice(0, ei, ei + 1)?
+            .reshape(&[1, moe.input])?;
+        let (lanes_gu, lanes_dn) = (
+            crate::linear::lane_source_indices(moe.input)?,
+            crate::linear::lane_source_indices(moe.hidden)?,
+        );
+        Array::eval_many(&[
+            &gate_suh, &gate_svh, &down_suh, &down_svh, &lanes_gu, &lanes_dn,
+        ])?;
+        for m in 1..=8i32 {
+            let xs_g = (0..CALLS)
+                .map(|_| random(m, moe.input))
+                .collect::<Result<Vec<_>>>()?;
+            let xs_d = (0..CALLS)
+                .map(|_| random(m, moe.hidden))
+                .collect::<Result<Vec<_>>>()?;
+            let selected = Array::from_u32(&vec![e; m as usize], &[m])?;
+            let rep = |a: &Array, cols: i32| a.broadcast_to(&[m, cols])?.astype(Dtype::Float16);
+            let (gs, gv, ds, dv) = (
+                rep(&gate_suh, moe.input)?,
+                rep(&gate_svh, moe.hidden)?,
+                rep(&down_suh, moe.hidden)?,
+                rep(&down_svh, moe.input)?,
+            );
+            Array::eval_many(&[&gs, &gv, &ds, &dv])?;
+            let cur_g = |i: usize| {
+                crate::linear::expert_mapped(
+                    &xs_g[i],
+                    &moe.gu_trellis,
+                    Some(&gs),
+                    Some(&gv),
+                    &selected,
+                    moe.hidden,
+                    1,
+                    0,
+                    moe.k,
+                    moe.cb,
+                    false,
+                    false,
+                )
+            };
+            let cur_d = |i: usize| {
+                crate::linear::expert_mapped(
+                    &xs_d[i],
+                    &moe.down_trellis,
+                    Some(&ds),
+                    Some(&dv),
+                    &selected,
+                    moe.input,
+                    1,
+                    0,
+                    moe.down_k,
+                    moe.cb,
+                    false,
+                    false,
+                )
+            };
+            let tiles_gu = moe.gu_trellis.shape()[1];
+            let tiles_dn = moe.down_trellis.shape()[1];
+            let ten_g = |i: usize| {
+                crate::linear::qmm_tensor_lane(
+                    &xs_g[i],
+                    &moe.gu_trellis,
+                    &gate_suh.reshape(&[moe.input])?,
+                    &gate_svh.reshape(&[moe.hidden])?,
+                    &lanes_gu,
+                    moe.input,
+                    moe.hidden,
+                    moe.k,
+                    moe.cb,
+                    tiles_gu,
+                    ei * (moe.hidden / 16),
+                )
+            };
+            let ten_d = |i: usize| {
+                crate::linear::qmm_tensor_lane(
+                    &xs_d[i],
+                    &moe.down_trellis,
+                    &down_suh.reshape(&[moe.hidden])?,
+                    &down_svh.reshape(&[moe.input])?,
+                    &lanes_dn,
+                    moe.hidden,
+                    moe.input,
+                    moe.down_k,
+                    moe.cb,
+                    tiles_dn,
+                    ei * (moe.input / 16),
+                )
+            };
+            let c1 = (time(&cur_g)?, time(&cur_d)?);
+            let tensor = if tensor_ops {
+                // numeric gap against the current kernel (F16 words that differ, largest absolute error)
+                let gap = |a: &Array, b: &Array| -> Result<(usize, f32, usize, bool)> {
+                    let (a, b) = (
+                        a.astype(Dtype::Float32)?.to_f32()?,
+                        b.astype(Dtype::Float32)?.to_f32()?,
+                    );
+                    ensure!(a.len() == b.len(), "TensorOps output length");
+                    let differ = a
+                        .iter()
+                        .zip(&b)
+                        .filter(|(x, y)| f16::from_f32(**x) != f16::from_f32(**y))
+                        .count();
+                    let max = a
+                        .iter()
+                        .zip(&b)
+                        .map(|(x, y)| (x - y).abs())
+                        .fold(0f32, f32::max);
+                    Ok((differ, max, a.len(), b.iter().all(|v| v.is_finite())))
+                };
+                let gg = gap(&cur_g(0)?, &ten_g(0)?)?;
+                let gd = gap(&cur_d(0)?, &ten_d(0)?)?;
+                Some((time(&ten_g)?, time(&ten_d)?, gg, gd))
+            } else {
+                None
+            };
+            let c2 = (time(&cur_g)?, time(&cur_d)?);
+            println!(
+                "P4BENCH expert m {m}: current gate {:.4}/{:.4} down {:.4}/{:.4} ms | TensorOps {:?}",
+                c1.0, c2.0, c1.1, c2.1, tensor
+            );
+            report.push(serde_json::json!({
+                "case": format!("expert_m{m}"), "rows": m,
+                "current_gate_ms": [c1.0, c2.0], "current_down_ms": [c1.1, c2.1],
+                "tensor": tensor.map(|(g, d, gg, gd)| serde_json::json!({
+                    "gate_ms": g, "down_ms": d,
+                    "gate_gap": {"f16_differ": gg.0, "max_abs": gg.1, "values": gg.2, "finite": gg.3},
+                    "down_gap": {"f16_differ": gd.0, "max_abs": gd.1, "values": gd.2, "finite": gd.3},
+                })),
+            }));
+        }
+        println!("P4BENCH_JSON {}", serde_json::to_string(&report)?);
+        Ok(())
+    }
+
+    /// INVARIANT-2026-11-24-INK2M-L3-2 oracle: the GPU plan against a host recount (chunks of up to 4 member routes
+    /// per expert in first-route order), and the raw gate/up and down products of the plan mode against the
+    /// per-route kernel bit for bit, T = 2..=8, routes `distinct`, `same` and pseudo-random draws with repeats; a
+    /// mutated plan (last member of full chunks dropped) is detected.
+    #[test]
+    #[ignore = "requires an Apple GPU and MLXL3_INKLING_MODEL"]
+    fn inkling_expert_panel_matches_per_route() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let checkpoint = crate::checkpoint::inspect(&dir)?;
+        let moe = Exl3SwitchGlu::from_inkling_checkpoint(
+            &checkpoint,
+            "model.llm.layers.12.mlp.experts",
+            128,
+            8,
+            4.0,
+            25.0,
+        )?;
+        let mut state = 0x2545_f491_4f6c_dd1du64;
+        let mut uniform = move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) as u32
+        };
+        let bits = |a: &Array| -> Result<Vec<u32>> {
+            Ok(a.astype(Dtype::Float32)?
+                .to_f32()?
+                .iter()
+                .map(|v| v.to_bits())
+                .collect())
+        };
+        let stride = moe.experts * moe.hidden / 16;
+        let mut cases = 0usize;
+        let mut shared_routes = 0usize;
+        let mut mutation_detected = false;
+        for t in 2..=8usize {
+            let mut patterns: Vec<Vec<u32>> = Vec::new();
+            // distinct experts
+            let mut d = Vec::new();
+            while d.len() < t * 8 {
+                let e = uniform() % 128;
+                if !d.contains(&e) {
+                    d.push(e);
+                }
+            }
+            patterns.push(d);
+            // every row on the same 8 experts
+            let first: Vec<u32> = patterns[0][..8].to_vec();
+            patterns.push(
+                (0..t)
+                    .flat_map(|r| (0..8).map(move |i| (r, i)))
+                    .map(|(r, i)| first[(i + r) % 8])
+                    .collect(),
+            );
+            // rows drawing from a small pool (repeats across rows, distinct within a row)
+            for pool in [12u32, 24, 48] {
+                let mut ids = Vec::new();
+                for _ in 0..t {
+                    let mut row = Vec::new();
+                    while row.len() < 8 {
+                        let e = uniform() % pool;
+                        if !row.contains(&e) {
+                            row.push(e);
+                        }
+                    }
+                    ids.extend(row);
+                }
+                patterns.push(ids);
+            }
+            for ids in &patterns {
+                let rows = t as i32;
+                let routes = rows * 8;
+                let selected = Array::from_u32(ids, &[routes])?;
+                // host recount of the plan
+                let plan = crate::linear::expert_panel_plan(&selected, 8)?;
+                let mut lists: [Vec<u32>; 3] = [Vec::new(), Vec::new(), Vec::new()];
+                let mut shared = vec![0u32; ids.len()];
+                for (q, e) in ids.iter().enumerate() {
+                    if ids[..q].contains(e) {
+                        continue;
+                    }
+                    let members: Vec<u32> = (q as u32..ids.len() as u32)
+                        .filter(|&u| ids[u as usize] == *e)
+                        .collect();
+                    let mut at = 0;
+                    while members.len() - at >= 2 {
+                        let take = (members.len() - at).min(4);
+                        lists[take - 2].push(take as u32);
+                        lists[take - 2].extend(&members[at..at + take]);
+                        for &m in &members[at..at + take] {
+                            shared[m as usize] = 1;
+                        }
+                        at += take;
+                    }
+                }
+                ensure!(plan.max_members == rows.min(4), "panel member bound");
+                for (index, expected) in lists.iter_mut().enumerate() {
+                    let m = index + 2;
+                    expected.resize(ids.len() / m * (m + 1), 0);
+                    let got = plan.lists[index].to_u32()?;
+                    ensure!(
+                        got == *expected,
+                        "chunks of {m} differ from the host recount (T {t}): {got:?} vs {expected:?}"
+                    );
+                }
+                ensure!(
+                    plan.shared.to_u32()? == shared,
+                    "shared flags differ from the host recount (T {t})"
+                );
+                shared_routes += shared.iter().sum::<u32>() as usize;
+                let quads = !lists[2].iter().all(|&v| v == 0);
+                // raw products
+                let v: Vec<f32> = (0..rows * moe.input)
+                    .map(|_| ((uniform() % 2001) as f32 / 1000.0 - 1.0) * 0.5)
+                    .collect();
+                let x = Array::from_f32(&v, &[rows, moe.input])?.astype(Dtype::Float16)?;
+                let natural =
+                    routed_inputs_small(&x, &moe.gu_suh, &selected, rows, 8, moe.input, false)?;
+                let lane =
+                    routed_inputs_small(&x, &moe.gu_suh, &selected, rows, 8, moe.input, true)?;
+                let gu = crate::linear::prepared_expert_raw(
+                    &natural,
+                    &moe.gu_trellis,
+                    &selected,
+                    moe.hidden,
+                    2,
+                    stride,
+                    moe.k,
+                    moe.cb,
+                    false,
+                )?;
+                let gu_plan = crate::linear::prepared_expert_plan_raw(
+                    &lane,
+                    &moe.gu_trellis,
+                    &selected,
+                    &plan,
+                    moe.hidden,
+                    2,
+                    stride,
+                    moe.k,
+                    moe.cb,
+                )?;
+                let (a, b) = (bits(&gu)?, bits(&gu_plan)?);
+                ensure!(
+                    a.len() == (routes * 2 * moe.hidden) as usize && a == b,
+                    "T {t}: plan gate/up differs from the per-route kernel"
+                );
+                let dn_natural = glu_down_input(
+                    &gu,
+                    &moe.gu_svh,
+                    &moe.down_suh,
+                    &selected,
+                    moe.activation,
+                    moe.logical_hidden,
+                    false,
+                )?;
+                let dn_lane = glu_down_input(
+                    &gu,
+                    &moe.gu_svh,
+                    &moe.down_suh,
+                    &selected,
+                    moe.activation,
+                    moe.logical_hidden,
+                    true,
+                )?;
+                let dn = crate::linear::prepared_expert_raw(
+                    &dn_natural,
+                    &moe.down_trellis,
+                    &selected,
+                    moe.input,
+                    1,
+                    0,
+                    moe.down_k,
+                    moe.cb,
+                    false,
+                )?;
+                let dn_plan = crate::linear::prepared_expert_plan_raw(
+                    &dn_lane,
+                    &moe.down_trellis,
+                    &selected,
+                    &plan,
+                    moe.input,
+                    1,
+                    0,
+                    moe.down_k,
+                    moe.cb,
+                )?;
+                let (a, b) = (bits(&dn)?, bits(&dn_plan)?);
+                ensure!(
+                    a.len() == (routes * moe.input) as usize && a == b,
+                    "T {t}: plan down differs from the per-route kernel"
+                );
+                cases += 1;
+                if !mutation_detected && quads {
+                    let mutated = crate::linear::with_expert_group_mutation(|| {
+                        crate::linear::expert_panel_plan(&selected, 8)
+                    })?;
+                    let gu_m = crate::linear::prepared_expert_plan_raw(
+                        &lane,
+                        &moe.gu_trellis,
+                        &selected,
+                        &mutated,
+                        moe.hidden,
+                        2,
+                        stride,
+                        moe.k,
+                        moe.cb,
+                    )?;
+                    mutation_detected = bits(&gu_m)? != bits(&gu)?;
+                }
+            }
+        }
+        ensure!(cases == 35, "{cases} cases");
+        ensure!(mutation_detected, "the mutated plan is not detected");
+        ensure!(
+            shared_routes > 500,
+            "only {shared_routes} shared routes exercised"
+        );
+        println!(
+            "L3PANEL all {cases} cases: plan = host recount ({shared_routes} shared routes), products identical to the per-route kernel; mutation detected"
+        );
+        Ok(())
+    }
+
+    /// INVARIANT-2026-11-24-INK2M-L3-1 (bench): on the real layer-12 banks, T = 2 / 4 / 8 rows, routes `real`
+    /// (captured from a verification of 8 real tokens), `distinct` and `same`: the current expert kernel in natural
+    /// order (A) against the same kernel with the inputs in lane order (bits), and the grouped kernel (shared
+    /// experts read once, up to 4 rows) in lane order at NT 1 / 2 / 4 against A (bits, then time per call of the raw
+    /// gate/up + down products; 16 calls per evaluation, median of 15).
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn inkling_expert_lane_grouped_bench() -> Result<()> {
+        use std::time::Instant;
+        const CALLS: usize = 16;
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let real_calls: Vec<Vec<u32>> = {
+            let rows: serde_json::Value = serde_json::from_reader(std::fs::File::open(
+                std::env::var("MLXL3_INKLING_ROWS")?,
+            )?)?;
+            let tokens: Vec<u32> = serde_json::from_value(rows["rows"][0]["tokens"].clone())?;
+            let mut model = crate::inkling2::Inkling2::load(&dir)?;
+            let taps = vec![5, 23, 41, model.visit_count()];
+            model.forward_tokens(&tokens[..64])?.eval()?;
+            crate::inkling2::MOE_ROUTES.with(|c| *c.borrow_mut() = Some(Vec::new()));
+            let verified = model.verify(&tokens[64..72], &taps);
+            let captured = crate::inkling2::MOE_ROUTES
+                .with(|c| c.borrow_mut().take())
+                .context("routes")?;
+            verified?.0.eval()?;
+            ensure!(
+                captured.len() == 48,
+                "{} MoE calls captured",
+                captured.len()
+            );
+            [6usize, 18, 30, 42]
+                .iter()
+                .map(|&i| captured[i].1.clone())
+                .collect()
+        };
+        crate::array::clear_cache()?;
+        let checkpoint = crate::checkpoint::inspect(&dir)?;
+        let moe = Exl3SwitchGlu::from_inkling_checkpoint(
+            &checkpoint,
+            "model.llm.layers.12.mlp.experts",
+            128,
+            8,
+            4.0,
+            25.0,
+        )?;
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut uniform = move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) as u32
+        };
+        let time = |f: &dyn Fn(usize) -> Result<Array>| -> Result<f64> {
+            let mut samples = Vec::new();
+            for rep in 0..18 {
+                let outs = (0..CALLS).map(f).collect::<Result<Vec<_>>>()?;
+                let start = Instant::now();
+                Array::eval_many(&outs.iter().collect::<Vec<_>>())?;
+                if rep >= 3 {
+                    samples.push(start.elapsed().as_secs_f64() * 1e3 / CALLS as f64);
+                }
+            }
+            samples.sort_by(f64::total_cmp);
+            Ok(samples[samples.len() / 2])
+        };
+        let bits = |a: &Array| -> Result<Vec<u32>> {
+            Ok(a.astype(Dtype::Float32)?
+                .to_f32()?
+                .iter()
+                .map(|v| v.to_bits())
+                .collect())
+        };
+        let stride = moe.experts * moe.hidden / 16;
+        let mut report = Vec::new();
+        for t in [2usize, 4, 8] {
+            let mut patterns: Vec<(String, Vec<u32>)> = real_calls
+                .iter()
+                .enumerate()
+                .map(|(i, c)| (format!("real{t}_{i}"), c[..t * 8].to_vec()))
+                .collect();
+            let mut distinct = Vec::new();
+            while distinct.len() < t * 8 {
+                let e = uniform() % 128;
+                if !distinct.contains(&e) {
+                    distinct.push(e);
+                }
+            }
+            patterns.push((format!("distinct{t}"), distinct));
+            let first = real_calls[0][..8].to_vec();
+            patterns.push((
+                format!("same{t}"),
+                (0..t)
+                    .flat_map(|r| (0..8).map(move |i| (r, i)))
+                    .map(|(r, i)| first[(i + r) % 8])
+                    .collect(),
+            ));
+            for (name, ids) in &patterns {
+                let rows = t as i32;
+                let routes = rows * 8;
+                let selected = Array::from_u32(ids, &[routes])?;
+                let xs = (0..CALLS)
+                    .map(|_| {
+                        let v: Vec<f32> = (0..rows * moe.input)
+                            .map(|_| ((uniform() % 2001) as f32 / 1000.0 - 1.0) * 0.5)
+                            .collect();
+                        let x = Array::from_f32(&v, &[rows, moe.input])?.astype(Dtype::Float16)?;
+                        let natural = routed_inputs_small(
+                            &x,
+                            &moe.gu_suh,
+                            &selected,
+                            rows,
+                            8,
+                            moe.input,
+                            false,
+                        )?;
+                        let lane = routed_inputs_small(
+                            &x,
+                            &moe.gu_suh,
+                            &selected,
+                            rows,
+                            8,
+                            moe.input,
+                            true,
+                        )?;
+                        let gu = crate::linear::prepared_expert_raw(
+                            &natural,
+                            &moe.gu_trellis,
+                            &selected,
+                            moe.hidden,
+                            2,
+                            stride,
+                            moe.k,
+                            moe.cb,
+                            false,
+                        )?;
+                        let dn_natural = glu_down_input(
+                            &gu,
+                            &moe.gu_svh,
+                            &moe.down_suh,
+                            &selected,
+                            moe.activation,
+                            moe.logical_hidden,
+                            false,
+                        )?;
+                        let dn_lane = glu_down_input(
+                            &gu,
+                            &moe.gu_svh,
+                            &moe.down_suh,
+                            &selected,
+                            moe.activation,
+                            moe.logical_hidden,
+                            true,
+                        )?;
+                        Array::eval_many(&[&natural, &lane, &dn_natural, &dn_lane])?;
+                        Ok((natural, lane, dn_natural, dn_lane))
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let a = |i: usize| -> Result<Array> {
+                    let (n, _, dn, _) = &xs[i];
+                    let gu = crate::linear::prepared_expert_raw(
+                        n,
+                        &moe.gu_trellis,
+                        &selected,
+                        moe.hidden,
+                        2,
+                        stride,
+                        moe.k,
+                        moe.cb,
+                        false,
+                    )?;
+                    let down = crate::linear::prepared_expert_raw(
+                        dn,
+                        &moe.down_trellis,
+                        &selected,
+                        moe.input,
+                        1,
+                        0,
+                        moe.down_k,
+                        moe.cb,
+                        false,
+                    )?;
+                    Array::concatenate(&[&gu.reshape(&[-1])?, &down.reshape(&[-1])?], 0)
+                };
+                let a_lane = |i: usize| -> Result<Array> {
+                    let (_, l, _, dl) = &xs[i];
+                    let gu = crate::linear::prepared_expert_raw(
+                        l,
+                        &moe.gu_trellis,
+                        &selected,
+                        moe.hidden,
+                        2,
+                        stride,
+                        moe.k,
+                        moe.cb,
+                        true,
+                    )?;
+                    let down = crate::linear::prepared_expert_raw(
+                        dl,
+                        &moe.down_trellis,
+                        &selected,
+                        moe.input,
+                        1,
+                        0,
+                        moe.down_k,
+                        moe.cb,
+                        true,
+                    )?;
+                    Array::concatenate(&[&gu.reshape(&[-1])?, &down.reshape(&[-1])?], 0)
+                };
+                let g_lane = |i: usize| -> Result<Array> {
+                    let (_, l, _, dl) = &xs[i];
+                    let gu = crate::linear::prepared_expert_grouped_raw_lane(
+                        l,
+                        &moe.gu_trellis,
+                        ids,
+                        128,
+                        moe.hidden,
+                        2,
+                        stride,
+                        moe.k,
+                        moe.cb,
+                        true,
+                    )?;
+                    let down = crate::linear::prepared_expert_grouped_raw_lane(
+                        dl,
+                        &moe.down_trellis,
+                        ids,
+                        128,
+                        moe.input,
+                        1,
+                        0,
+                        moe.down_k,
+                        moe.cb,
+                        true,
+                    )?;
+                    Array::concatenate(&[&gu.reshape(&[-1])?, &down.reshape(&[-1])?], 0)
+                };
+                let reference = bits(&a(0)?)?;
+                ensure!(!reference.is_empty(), "{name}: empty output");
+                let lane_same = bits(&a_lane(0)?)? == reference;
+                let mut grouped_same = Vec::new();
+                for nt in [1, 2, 4] {
+                    grouped_same.push(crate::linear::with_expert_nt(
+                        Some(nt),
+                        || -> Result<bool> { Ok(bits(&g_lane(0)?)? == reference) },
+                    )?);
+                }
+                let ta = time(&a)?;
+                let tl = time(&a_lane)?;
+                let mut tg = Vec::new();
+                for nt in [1, 2, 4] {
+                    tg.push((
+                        nt,
+                        crate::linear::with_expert_nt(Some(nt), || time(&g_lane))?,
+                    ));
+                }
+                let ta2 = time(&a)?;
+                let base = (ta + ta2) / 2.0;
+                let best = tg.iter().map(|&(_, v)| v).fold(f64::INFINITY, f64::min);
+                println!(
+                    "L3LANE {name}: lane order identical {lane_same}, grouped identical {grouped_same:?} | A {ta:.4}/{ta2:.4} A-lane {tl:.4} G-lane (nt, ms) {tg:?} | best G-lane / A {:.3}",
+                    best / base
+                );
+                ensure!(lane_same, "{name}: the lane order changes the bits");
+                ensure!(
+                    grouped_same.iter().all(|&v| v),
+                    "{name}: the grouped kernel changes the bits"
+                );
+                report.push(serde_json::json!({"case": name, "a_ms": [ta, ta2], "a_lane_ms": tl,
+                    "g_lane": tg.iter().map(|&(nt, v)| serde_json::json!({"nt": nt, "ms": v})).collect::<Vec<_>>(),
+                    "best_over_a": best / base}));
+            }
+        }
+        println!("L3LANE_JSON {}", serde_json::to_string(&report)?);
+        Ok(())
+    }
+
+    /// DFLASH2-2026-11-24-INK2M-P4-2 oracle and call cost on the real layer-12 banks, T = 2..=8 rows, routes `real`
+    /// (captured from a verification of 8 real tokens), `distinct` and `same`: the grouping against a host recount;
+    /// raw gate/up and down products of the hybrid path against the current kernel: rows of unshared routes equal
+    /// bit for bit, shared rows within 2e-3 relative L2 and finite, skipped rows zero; the whole `forward` with
+    /// the option on against off (relative L2) and its time per call; a mutated grouping (last member dropped) is
+    /// detected.
+    #[test]
+    #[ignore = "requires an Apple M5 GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn inkling_expert_tensor_hybrid_matches_exact() -> Result<()> {
+        use std::time::Instant;
+        const CALLS: usize = 16;
+        ensure!(
+            crate::array::supports_exl3_tensor_ops()?,
+            "TensorOps unavailable"
+        );
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let real_calls: Vec<Vec<u32>> = {
+            let rows: serde_json::Value = serde_json::from_reader(std::fs::File::open(
+                std::env::var("MLXL3_INKLING_ROWS")?,
+            )?)?;
+            let tokens: Vec<u32> = serde_json::from_value(rows["rows"][3]["tokens"].clone())?;
+            ensure!(tokens.len() >= 72, "row too short");
+            let mut model = crate::inkling2::Inkling2::load(&dir)?;
+            let taps = vec![5, 23, 41, model.visit_count()];
+            model.forward_tokens(&tokens[..64])?.eval()?;
+            crate::inkling2::MOE_ROUTES.with(|c| *c.borrow_mut() = Some(Vec::new()));
+            let verified = model.verify(&tokens[64..72], &taps);
+            let captured = crate::inkling2::MOE_ROUTES
+                .with(|c| c.borrow_mut().take())
+                .context("routes")?;
+            verified?.0.eval()?;
+            ensure!(
+                captured.len() == 48,
+                "{} MoE calls captured",
+                captured.len()
+            );
+            [3usize, 21, 37]
+                .iter()
+                .map(|&i| captured[i].1.clone())
+                .collect()
+        };
+        crate::array::clear_cache()?;
+        let checkpoint = crate::checkpoint::inspect(&dir)?;
+        let moe = Exl3SwitchGlu::from_inkling_checkpoint(
+            &checkpoint,
+            "model.llm.layers.12.mlp.experts",
+            128,
+            8,
+            4.0,
+            25.0,
+        )?;
+        let mut state = 0x5851_f42d_4c95_7f2du64;
+        let mut uniform = move || {
+            state = state
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (state >> 33) as u32
+        };
+        let bits = |a: &Array| -> Result<Vec<f32>> { a.astype(Dtype::Float32)?.to_f32() };
+        let relative = |a: &[f32], b: &[f32]| -> f64 {
+            let num: f64 = a.iter().zip(b).map(|(x, y)| f64::from(x - y).powi(2)).sum();
+            let den: f64 = b.iter().map(|y| f64::from(*y).powi(2)).sum();
+            (num / den.max(f64::MIN_POSITIVE)).sqrt()
+        };
+        let time = |f: &dyn Fn(usize) -> Result<Array>| -> Result<f64> {
+            let mut samples = Vec::new();
+            for rep in 0..18 {
+                let outs = (0..CALLS).map(f).collect::<Result<Vec<_>>>()?;
+                let start = Instant::now();
+                Array::eval_many(&outs.iter().collect::<Vec<_>>())?;
+                if rep >= 3 {
+                    samples.push(start.elapsed().as_secs_f64() * 1e3 / CALLS as f64);
+                }
+            }
+            samples.sort_by(f64::total_cmp);
+            Ok(samples[samples.len() / 2])
+        };
+        let mut report = Vec::new();
+        let mut worst_shared = 0f64;
+        for t in 2..=8usize {
+            let mut patterns: Vec<(String, Vec<u32>)> = real_calls
+                .iter()
+                .enumerate()
+                .map(|(i, c)| (format!("real{t}_{i}"), c[..t * 8].to_vec()))
+                .collect();
+            let mut distinct = Vec::new();
+            while distinct.len() < t * 8 {
+                let e = uniform() % 128;
+                if !distinct.contains(&e) {
+                    distinct.push(e);
+                }
+            }
+            patterns.push((format!("distinct{t}"), distinct));
+            let first = real_calls[0][..8].to_vec();
+            patterns.push((
+                format!("same{t}"),
+                (0..t)
+                    .flat_map(|r| (0..8).map(move |i| (r, i)))
+                    .map(|(r, i)| first[(i + r) % 8])
+                    .collect(),
+            ));
+            for (name, ids) in &patterns {
+                let rows = t as i32;
+                let routes = rows * 8;
+                let selected = Array::from_u32(ids, &[routes])?;
+                // the grouping against a host recount
+                let (tile_info, members, shared) =
+                    crate::linear::expert_tensor_groups(&selected, 2)?;
+                let (info, mem, flags) = (tile_info.to_u32()?, members.to_u32()?, shared.to_u32()?);
+                let mut expected_tiles = Vec::new();
+                for (r, e) in ids.iter().enumerate() {
+                    if ids[..r].contains(e) {
+                        continue;
+                    }
+                    let list: Vec<u32> = (0..ids.len() as u32)
+                        .filter(|&q| ids[q as usize] == *e)
+                        .collect();
+                    if list.len() >= 2 {
+                        expected_tiles.push((*e, list));
+                    }
+                }
+                for (q, flag) in flags.iter().enumerate() {
+                    let n = ids.iter().filter(|&&e| e == ids[q]).count();
+                    ensure!(
+                        *flag == u32::from(n >= 2),
+                        "{name}: shared flag of route {q}"
+                    );
+                }
+                let tokens = crate::linear::EXPERT_TENSOR_TOKENS as usize;
+                for (tile, (e, list)) in expected_tiles.iter().enumerate() {
+                    ensure!(
+                        info[2 * tile] == *e && info[2 * tile + 1] as usize == list.len(),
+                        "{name}: tile {tile}"
+                    );
+                    ensure!(
+                        mem[tile * tokens..tile * tokens + list.len()] == list[..],
+                        "{name}: members of tile {tile}"
+                    );
+                }
+                for tile in expected_tiles.len()..info.len() / 2 {
+                    ensure!(
+                        info[2 * tile + 1] == 0,
+                        "{name}: unused tile {tile} is live"
+                    );
+                }
+                let shared_routes = flags.iter().filter(|&&f| f == 1).count();
+                // raw products
+                let x: Vec<f32> = (0..rows * moe.input)
+                    .map(|_| ((uniform() % 2001) as f32 / 1000.0 - 1.0) * 0.5)
+                    .collect();
+                let x = Array::from_f32(&x, &[rows, moe.input])?.astype(Dtype::Float16)?;
+                let x_gu =
+                    routed_inputs_small(&x, &moe.gu_suh, &selected, rows, 8, moe.input, false)?;
+                let stride = moe.experts * moe.hidden / 16;
+                let exact_gu = crate::linear::prepared_expert_raw(
+                    &x_gu,
+                    &moe.gu_trellis,
+                    &selected,
+                    moe.hidden,
+                    2,
+                    stride,
+                    moe.k,
+                    moe.cb,
+                    false,
+                )?;
+                let skip_gu = crate::linear::prepared_expert_raw_skip(
+                    &x_gu,
+                    &moe.gu_trellis,
+                    &selected,
+                    &shared,
+                    moe.hidden,
+                    2,
+                    stride,
+                    moe.k,
+                    moe.cb,
+                )?;
+                let tens_gu = crate::linear::expert_tensor_raw(
+                    &x_gu,
+                    &moe.gu_trellis,
+                    &tile_info,
+                    &members,
+                    routes,
+                    moe.hidden,
+                    2,
+                    stride,
+                    moe.k,
+                    moe.cb,
+                )?;
+                let down_input = glu_down_input(
+                    &exact_gu,
+                    &moe.gu_svh,
+                    &moe.down_suh,
+                    &selected,
+                    moe.activation,
+                    moe.logical_hidden,
+                    false,
+                )?;
+                let exact_dn = crate::linear::prepared_expert_raw(
+                    &down_input,
+                    &moe.down_trellis,
+                    &selected,
+                    moe.input,
+                    1,
+                    0,
+                    moe.down_k,
+                    moe.cb,
+                    false,
+                )?;
+                let skip_dn = crate::linear::prepared_expert_raw_skip(
+                    &down_input,
+                    &moe.down_trellis,
+                    &selected,
+                    &shared,
+                    moe.input,
+                    1,
+                    0,
+                    moe.down_k,
+                    moe.cb,
+                )?;
+                let tens_dn = crate::linear::expert_tensor_raw(
+                    &down_input,
+                    &moe.down_trellis,
+                    &tile_info,
+                    &members,
+                    routes,
+                    moe.input,
+                    1,
+                    0,
+                    moe.down_k,
+                    moe.cb,
+                )?;
+                let mut worst = 0f64;
+                for (label, exact, skip, tens, width, projections) in [
+                    (
+                        "gate_up",
+                        &exact_gu,
+                        &skip_gu,
+                        &tens_gu,
+                        moe.hidden as usize,
+                        2usize,
+                    ),
+                    (
+                        "down",
+                        &exact_dn,
+                        &skip_dn,
+                        &tens_dn,
+                        moe.input as usize,
+                        1usize,
+                    ),
+                ] {
+                    let (e, k, g) = (bits(exact)?, bits(skip)?, bits(tens)?);
+                    ensure!(
+                        e.len() == routes as usize * projections * width
+                            && k.len() == e.len()
+                            && g.len() == e.len(),
+                        "{name} {label}: output sizes"
+                    );
+                    for row in 0..routes as usize * projections {
+                        let span = row * width..(row + 1) * width;
+                        let route = row / projections;
+                        if flags[route] == 0 {
+                            ensure!(
+                                k[span.clone()]
+                                    .iter()
+                                    .zip(&e[span.clone()])
+                                    .all(|(a, b)| a.to_bits() == b.to_bits())
+                                    && g[span.clone()].iter().all(|&v| v == 0.0),
+                                "{name} {label}: unshared row {row} changed"
+                            );
+                        } else {
+                            ensure!(
+                                k[span.clone()].iter().all(|&v| v == 0.0),
+                                "{name} {label}: skipped row {row} not zero"
+                            );
+                            ensure!(
+                                g[span.clone()].iter().all(|v| v.is_finite()),
+                                "{name} {label}: row {row} not finite"
+                            );
+                            let rel = relative(&g[span.clone()], &e[span.clone()]);
+                            ensure!(
+                                rel <= 2e-3,
+                                "{name} {label}: shared row {row} relative error {rel:.2e}"
+                            );
+                            worst = worst.max(rel);
+                        }
+                    }
+                }
+                worst_shared = worst_shared.max(worst);
+                // whole forward, option off and on, and its time
+                let scores: Vec<f32> = (0..routes)
+                    .map(|_| (uniform() % 1000) as f32 / 4000.0 + 0.01)
+                    .collect();
+                let scores = Array::from_f32(&scores, &[rows, 8])?;
+                let route_ids = selected.reshape(&[rows, 8])?;
+                let off =
+                    with_expert_tensor(false, || bits(&moe.forward(&x, &route_ids, &scores)?))?;
+                let on = with_expert_tensor(true, || bits(&moe.forward(&x, &route_ids, &scores)?))?;
+                ensure!(
+                    on.len() == off.len() && on.iter().all(|v| v.is_finite()),
+                    "{name}: forward outputs"
+                );
+                let forward_rel = relative(&on, &off);
+                ensure!(
+                    forward_rel <= 5e-3,
+                    "{name}: forward relative error {forward_rel:.2e}"
+                );
+                let xs = (0..CALLS)
+                    .map(|_| {
+                        let v: Vec<f32> = (0..rows * moe.input)
+                            .map(|_| ((uniform() % 2001) as f32 / 1000.0 - 1.0) * 0.5)
+                            .collect();
+                        let a = Array::from_f32(&v, &[rows, moe.input])?.astype(Dtype::Float16)?;
+                        a.eval()?;
+                        Ok(a)
+                    })
+                    .collect::<Result<Vec<_>>>()?;
+                let run = |i: usize| moe.forward(&xs[i], &route_ids, &scores);
+                let a1 = with_expert_tensor(false, || time(&run))?;
+                let h1 = with_expert_tensor(true, || time(&run))?;
+                let h2 = with_expert_tensor(true, || time(&run))?;
+                let a2 = with_expert_tensor(false, || time(&run))?;
+                println!(
+                    "P4HYBRID {name}: rows {t} shared routes {shared_routes}/{routes} tiles {} | worst shared row {worst:.2e} forward {forward_rel:.2e} | exact {a1:.4}/{a2:.4} hybrid {h1:.4}/{h2:.4} ms ({:.3})",
+                    expected_tiles.len(),
+                    (h1 + h2) / (a1 + a2)
+                );
+                report.push(serde_json::json!({
+                    "case": name, "rows": t, "shared_routes": shared_routes, "tiles": expected_tiles.len(),
+                    "worst_shared_row": worst, "forward_rel": forward_rel,
+                    "exact_ms": [a1, a2], "hybrid_ms": [h1, h2], "ratio": (h1 + h2) / (a1 + a2),
+                }));
+            }
+        }
+        // mutation: the last member of every tile dropped -> its row is never computed
+        {
+            let ids = real_calls[0].clone();
+            let selected = Array::from_u32(&ids, &[64])?;
+            let (tile_info, members, shared) = crate::linear::with_expert_group_mutation(|| {
+                crate::linear::expert_tensor_groups(&selected, 2)
+            })?;
+            let x: Vec<f32> = (0..8 * moe.input)
+                .map(|_| ((uniform() % 2001) as f32 / 1000.0 - 1.0) * 0.5)
+                .collect();
+            let x = Array::from_f32(&x, &[8, moe.input])?.astype(Dtype::Float16)?;
+            let x_gu = routed_inputs_small(&x, &moe.gu_suh, &selected, 8, 8, moe.input, false)?;
+            let stride = moe.experts * moe.hidden / 16;
+            let exact = bits(&crate::linear::prepared_expert_raw(
+                &x_gu,
+                &moe.gu_trellis,
+                &selected,
+                moe.hidden,
+                2,
+                stride,
+                moe.k,
+                moe.cb,
+                false,
+            )?)?;
+            let hybrid = bits(
+                &crate::linear::prepared_expert_raw_skip(
+                    &x_gu,
+                    &moe.gu_trellis,
+                    &selected,
+                    &shared,
+                    moe.hidden,
+                    2,
+                    stride,
+                    moe.k,
+                    moe.cb,
+                )?
+                .add(&crate::linear::expert_tensor_raw(
+                    &x_gu,
+                    &moe.gu_trellis,
+                    &tile_info,
+                    &members,
+                    64,
+                    moe.hidden,
+                    2,
+                    stride,
+                    moe.k,
+                    moe.cb,
+                )?)?,
+            )?;
+            let width = moe.hidden as usize;
+            let detected = (0..128).any(|row| {
+                relative(
+                    &hybrid[row * width..(row + 1) * width],
+                    &exact[row * width..(row + 1) * width],
+                ) > 2e-3
+            });
+            ensure!(detected, "the dropped tile member is not detected");
+            println!("P4HYBRID mutation detected");
+        }
+        println!(
+            "P4HYBRID_JSON {}",
+            serde_json::json!({"worst_shared_row": worst_shared, "cases": report})
+        );
+        Ok(())
+    }
+
+    /// DFLASH2-2026-11-24-INK2M-P4-1b (bench): compute cost of the transposed TensorOps kernel at the scale of one
+    /// MoE call: one `qmm_tensor_lane` launch over D adjacent experts of the real layer-12 banks (gate and up:
+    /// D x 1152 outputs each; down: D x 2304), M = 2 / 4 / 8 rows, against the current raw expert kernel on calls
+    /// of 8 M distinct routes (its cost barely depends on sharing, P4-1). Times per call: 16 independent calls per
+    /// evaluation, median of 15 after 3 warm-ups; order current, TensorOps, current.
+    #[test]
+    #[ignore = "requires an Apple M5 GPU and MLXL3_INKLING_MODEL"]
+    fn inkling_expert_tensor_call_bench() -> Result<()> {
+        use std::time::Instant;
+        const CALLS: usize = 16;
+        ensure!(
+            crate::array::supports_exl3_tensor_ops()?,
+            "TensorOps unavailable"
+        );
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let checkpoint = crate::checkpoint::inspect(&dir)?;
+        let (experts, top_k) = (128i32, 8i32);
+        let moe = Exl3SwitchGlu::from_inkling_checkpoint(
+            &checkpoint,
+            "model.llm.layers.12.mlp.experts",
+            experts,
+            top_k,
+            4.0,
+            25.0,
+        )?;
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut random = |rows: i32, cols: i32| -> Result<Array> {
+            let v: Vec<f32> = (0..rows * cols)
+                .map(|_| {
+                    state = state
+                        .wrapping_mul(6364136223846793005)
+                        .wrapping_add(1442695040888963407);
+                    (((state >> 33) as u32 % 2001) as f32 / 1000.0 - 1.0) * 0.5
+                })
+                .collect();
+            let a = Array::from_f32(&v, &[rows, cols])?.astype(Dtype::Float16)?;
+            a.eval()?;
+            Ok(a)
+        };
+        let time = |f: &dyn Fn(usize) -> Result<Array>| -> Result<f64> {
+            let mut samples = Vec::new();
+            for rep in 0..18 {
+                let outs = (0..CALLS).map(f).collect::<Result<Vec<_>>>()?;
+                let start = Instant::now();
+                Array::eval_many(&outs.iter().collect::<Vec<_>>())?;
+                if rep >= 3 {
+                    samples.push(start.elapsed().as_secs_f64() * 1e3 / CALLS as f64);
+                }
+            }
+            samples.sort_by(f64::total_cmp);
+            Ok(samples[samples.len() / 2])
+        };
+        let bits_of = |a: &Array| -> Result<Vec<u32>> {
+            Ok(a.astype(Dtype::Float32)?
+                .to_f32()?
+                .iter()
+                .map(|v| v.to_bits())
+                .collect())
+        };
+        let gu_stride = moe.experts * moe.hidden / 16;
+        let (tiles_gu, tiles_dn) = (moe.gu_trellis.shape()[1], moe.down_trellis.shape()[1]);
+        let lanes_gu = crate::linear::lane_source_indices(moe.input)?;
+        let lanes_dn = crate::linear::lane_source_indices(moe.hidden)?;
+        let gate_suh = moe
+            .gu_suh
+            .slice(0, 0, 1)?
+            .slice(1, 0, 1)?
+            .reshape(&[moe.input])?;
+        let down_suh = moe.down_suh.slice(0, 0, 1)?.reshape(&[moe.hidden])?;
+        Array::eval_many(&[&lanes_gu, &lanes_dn, &gate_suh, &down_suh])?;
+        let mut report = Vec::new();
+        for m in [2i32, 4, 8] {
+            // current kernel on 8 m distinct routes
+            let mut ids = Vec::new();
+            let mut pick = 0x2545_f491_4f6c_dd1du64.wrapping_add(m as u64);
+            while ids.len() < (m * 8) as usize {
+                pick = pick
+                    .wrapping_mul(6364136223846793005)
+                    .wrapping_add(1442695040888963407);
+                let e = (pick >> 33) as u32 % experts as u32;
+                if !ids.contains(&e) {
+                    ids.push(e);
+                }
+            }
+            let routes = m * 8;
+            let selected = Array::from_u32(&ids, &[routes])?;
+            let xs_gu = (0..CALLS)
+                .map(|_| random(routes * 2, moe.input))
+                .collect::<Result<Vec<_>>>()?;
+            let xs_dn = (0..CALLS)
+                .map(|_| random(routes, moe.hidden))
+                .collect::<Result<Vec<_>>>()?;
+            let a_gu = |i: usize| {
+                crate::linear::prepared_expert_raw(
+                    &xs_gu[i],
+                    &moe.gu_trellis,
+                    &selected,
+                    moe.hidden,
+                    2,
+                    gu_stride,
+                    moe.k,
+                    moe.cb,
+                    false,
+                )
+            };
+            let a_dn = |i: usize| {
+                crate::linear::prepared_expert_raw(
+                    &xs_dn[i],
+                    &moe.down_trellis,
+                    &selected,
+                    moe.input,
+                    1,
+                    0,
+                    moe.down_k,
+                    moe.cb,
+                    false,
+                )
+            };
+            let a1 = (time(&a_gu)?, time(&a_dn)?);
+            let xs_t = (0..CALLS)
+                .map(|_| random(m, moe.input))
+                .collect::<Result<Vec<_>>>()?;
+            let xs_td = (0..CALLS)
+                .map(|_| random(m, moe.hidden))
+                .collect::<Result<Vec<_>>>()?;
+            let mut tensor = Vec::new();
+            let mut single = Vec::new();
+            for d in [8i32, 16, 26, 32, 39, 64] {
+                if d > m * 8 {
+                    continue;
+                }
+                let gate_svh = moe
+                    .gu_svh
+                    .slice(0, 0, d)?
+                    .slice(1, 0, 1)?
+                    .reshape(&[d * moe.hidden])?;
+                let up_svh = moe
+                    .gu_svh
+                    .slice(0, 0, d)?
+                    .slice(1, 1, 2)?
+                    .reshape(&[d * moe.hidden])?;
+                let down_svh = moe.down_svh.slice(0, 0, d)?.reshape(&[d * moe.input])?;
+                Array::eval_many(&[&gate_svh, &up_svh, &down_svh])?;
+                // gate and up of experts 0..d (adjacent in the bank), one launch each
+                let t_gu = |i: usize| -> Result<Array> {
+                    let gate = crate::linear::qmm_tensor_lane(
+                        &xs_t[i],
+                        &moe.gu_trellis,
+                        &gate_suh,
+                        &gate_svh,
+                        &lanes_gu,
+                        moe.input,
+                        d * moe.hidden,
+                        moe.k,
+                        moe.cb,
+                        tiles_gu,
+                        0,
+                    )?;
+                    let up = crate::linear::qmm_tensor_lane(
+                        &xs_t[i],
+                        &moe.gu_trellis,
+                        &gate_suh,
+                        &up_svh,
+                        &lanes_gu,
+                        moe.input,
+                        d * moe.hidden,
+                        moe.k,
+                        moe.cb,
+                        tiles_gu,
+                        experts * moe.hidden / 16,
+                    )?;
+                    Array::concatenate(&[&gate, &up], 1)
+                };
+                let t_dn = |i: usize| {
+                    crate::linear::qmm_tensor_lane(
+                        &xs_td[i],
+                        &moe.down_trellis,
+                        &down_suh,
+                        &down_svh,
+                        &lanes_dn,
+                        moe.hidden,
+                        d * moe.input,
+                        moe.down_k,
+                        moe.cb,
+                        tiles_dn,
+                        0,
+                    )
+                };
+                let out = t_gu(0)?;
+                ensure!(
+                    out.shape() == [m, 2 * d * moe.hidden],
+                    "TensorOps gate/up shape {:?}",
+                    out.shape()
+                );
+                let dn = t_dn(0)?;
+                ensure!(
+                    dn.shape() == [m, d * moe.input],
+                    "TensorOps down shape {:?}",
+                    dn.shape()
+                );
+                ensure!(
+                    out.astype(Dtype::Float32)?
+                        .to_f32()?
+                        .iter()
+                        .all(|v| v.is_finite())
+                        && dn
+                            .astype(Dtype::Float32)?
+                            .to_f32()?
+                            .iter()
+                            .all(|v| v.is_finite()),
+                    "TensorOps outputs not finite"
+                );
+                // P4-1d: the same compute as gate + up of d experts in one launch (2 d adjacent gate experts)
+                let gate2_svh = moe
+                    .gu_svh
+                    .slice(0, 0, 2 * d)?
+                    .slice(1, 0, 1)?
+                    .reshape(&[2 * d * moe.hidden])?;
+                gate2_svh.eval()?;
+                let t_g2 = |i: usize| {
+                    crate::linear::qmm_tensor_lane(
+                        &xs_t[i],
+                        &moe.gu_trellis,
+                        &gate_suh,
+                        &gate2_svh,
+                        &lanes_gu,
+                        moe.input,
+                        2 * d * moe.hidden,
+                        moe.k,
+                        moe.cb,
+                        tiles_gu,
+                        0,
+                    )
+                };
+                if 2 * d <= experts {
+                    // P4-1e: the K3 window decode gives the same outputs bit for bit, then its time
+                    let plain = crate::linear::with_tensor_lane_k3(false, || bits_of(&t_g2(0)?))?;
+                    let window = crate::linear::with_tensor_lane_k3(true, || bits_of(&t_g2(0)?))?;
+                    ensure!(
+                        plain.len() == (m * 2 * d * moe.hidden) as usize && plain == window,
+                        "K3 window decode changes the TensorOps outputs (rows {m}, experts {d})"
+                    );
+                    single.push((
+                        d,
+                        crate::linear::with_tensor_lane_k3(false, || time(&t_g2))?,
+                        crate::linear::with_tensor_lane_k3(true, || time(&t_g2))?,
+                        crate::linear::with_tensor_lane_k3(false, || time(&t_g2))?,
+                    ));
+                }
+                tensor.push((d, time(&t_gu)?, time(&t_dn)?));
+            }
+            let a2 = (time(&a_gu)?, time(&a_dn)?);
+            let current = (a1.0 + a2.0) / 2.0 + (a1.1 + a2.1) / 2.0;
+            println!(
+                "P4SINGLE rows {m}: one launch over 2 d gate experts (d, ms generic, ms K3 window, ms generic) {single:?}; current gate/up per route {:.5} ms",
+                (a1.0 + time(&a_gu)?) / 2.0 / f64::from(routes)
+            );
+            println!(
+                "P4TENSOR rows {m}: current (routes {routes}) gate/up {:.4}/{:.4} down {:.4}/{:.4} ms | TensorOps (experts, gate/up, down) {:?} | ratios {:?}",
+                a1.0,
+                a2.0,
+                a1.1,
+                a2.1,
+                tensor,
+                tensor
+                    .iter()
+                    .map(|&(d, gu, dn)| (d, (gu + dn) / current))
+                    .collect::<Vec<_>>()
+            );
+            report.push(serde_json::json!({
+                "rows": m, "current_gate_up_ms": [a1.0, a2.0], "current_down_ms": [a1.1, a2.1],
+                "tensor": tensor.iter().map(|&(d, gu, dn)| serde_json::json!({"experts": d, "gate_up_ms": gu, "down_ms": dn, "over_current": (gu + dn) / current})).collect::<Vec<_>>(),
+            }));
+        }
+        println!("P4TENSOR_JSON {}", serde_json::to_string(&report)?);
+        Ok(())
+    }
 
     /// DSPARK-2026-11-23-INK2M-MTPLX-C0 (diagnostic): GPU wall time of each stage of
     /// `Exl3SwitchGlu::forward` on the real Inkling 2 Mini expert banks (layer 12 of `MLXL3_INKLING_MODEL`) for

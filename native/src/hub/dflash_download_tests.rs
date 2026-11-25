@@ -502,3 +502,62 @@ fn retained_size_does_not_follow_symlink_cycles() {
     symlink(directory.path(), directory.path().join("cycle")).unwrap();
     assert_eq!(directory_bytes(directory.path()), 5);
 }
+
+/// FEAT-2026-11-25-INK2M-DFLASH2-APP: the Inkling drafter's published metadata is accepted only at its pins
+/// (repository, revision, both files with their sizes, the weights' LFS checksum), and its managed folder holds
+/// the pinned files alone.
+#[test]
+fn published_inkling_metadata_accepts_its_pins_only() {
+    let draft = ManagedDraft::Inkling2;
+    assert_eq!(
+        DFLASH_INKLING_PINNED[0],
+        (
+            "config.json",
+            1311,
+            "d094e435eb939e01fca6297f637c5af35e3da4b552f8e1ab0a181cd278a1cefa"
+        )
+    );
+    assert_eq!(
+        DFLASH_INKLING_PINNED[1],
+        (
+            "model.safetensors",
+            989_975_616,
+            "217980ab00d116693fa5946df7bbfd967caf5fac1f529afd541fbd470ddb54ee"
+        )
+    );
+    let mut original = metadata(&DFLASH_INKLING_PINNED);
+    original["id"] = serde_json::json!(draft.repository());
+    original["sha"] = serde_json::json!(draft.revision());
+    let parsed = || serde_json::from_value::<RepoInfo>(original.clone()).unwrap();
+    published_dflash_matches(&parsed(), draft, &DFLASH_INKLING_PINNED).unwrap();
+    // the Flash pins or identity never pass for the Inkling drafter
+    assert!(
+        published_dflash_matches(&parsed(), ManagedDraft::FlashNext, &DFLASH_INKLING_PINNED)
+            .is_err()
+    );
+    assert!(published_dflash_matches(&parsed(), draft, &DFLASH_FLASH_PINNED).is_err());
+    for case in 0..6 {
+        let mut changed = original.clone();
+        match case {
+            0 => changed["id"] = serde_json::json!("unrelated/repository"),
+            1 => changed["sha"] = serde_json::json!("0".repeat(40)),
+            2 => changed["siblings"][1]["lfs"] = Value::Null,
+            3 => changed["siblings"][1]["lfs"]["sha256"] = serde_json::json!("0".repeat(64)),
+            4 => changed["siblings"][1]["size"] = serde_json::json!(989_975_615u64),
+            _ => {
+                changed["siblings"].as_array_mut().unwrap().pop();
+            }
+        }
+        let parsed: RepoInfo = serde_json::from_value(changed).unwrap();
+        assert!(
+            published_dflash_matches(&parsed, draft, &DFLASH_INKLING_PINNED).is_err(),
+            "invalid pin case {case} accepted"
+        );
+    }
+    let folder = tempfile::tempdir().unwrap();
+    fs::write(folder.path().join("config.json"), b"{}").unwrap();
+    fs::write(folder.path().join("model.safetensors"), b"weights").unwrap();
+    managed_dflash_entries(folder.path(), draft, &DFLASH_INKLING_PINNED).unwrap();
+    fs::write(folder.path().join("extra.py"), b"print()").unwrap();
+    assert!(managed_dflash_entries(folder.path(), draft, &DFLASH_INKLING_PINNED).is_err());
+}

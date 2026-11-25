@@ -1965,6 +1965,7 @@ fn run(cli: Cli) -> Result<()> {
                         mlxl3_native::hub::download_dflash(family, progress)?
                     }
                     ManagedDraft::FlashNext => mlxl3_native::hub::download_flash_dflash(progress)?,
+                    ManagedDraft::Inkling2 => mlxl3_native::hub::download_inkling_dflash(progress)?,
                 }
             };
             println!("{}", json!({"type":"installed", "path":path}));
@@ -2100,7 +2101,7 @@ enum NativeChatModel {
     /// be loaded on demand (`mtp.safetensors` present and DSpark not disabled).
     Inkling(
         Box<mlxl3_native::inkling2::Inkling2>,
-        Option<Box<mlxl3_native::inkling2_draft::Inkling2Draft>>,
+        Option<Box<mlxl3_native::inkling2_draft::InklingDrafter>>,
         Option<std::path::PathBuf>,
     ),
     Lfm2(mlxl3_native::lfm2::Lfm2),
@@ -2163,7 +2164,74 @@ fn inkling_has_drafter(model: &NativeChatModel) -> bool {
     matches!(
         model,
         NativeChatModel::Inkling(_, Some(_), _) | NativeChatModel::Inkling(_, _, Some(_))
-    )
+    ) || (matches!(model, NativeChatModel::Inkling(..)) && inkling_dflash2_source().is_some())
+}
+
+/// The directory of the loaded Inkling 2 model (set when it loads), where a DFlash2 drafter is looked for.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+static INKLING_MODEL_DIR: std::sync::Mutex<Option<std::path::PathBuf>> =
+    std::sync::Mutex::new(None);
+
+/// DFLASH2-2026-11-24-INK2M-P0: the DFlash2 drafter directory that replaces DSpark for Inkling 2 Mini (its
+/// `config.json` present): `MLXL3_INKLING_DFLASH2` when set, else (DECISION-2026-11-25-INK2M-DFLASH2-ON)
+/// `dflash2/` inside the model directory, `Inkling-2-Mini-DFlash2/` beside it, or the managed download.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_dflash2_source() -> Option<std::path::PathBuf> {
+    let model = INKLING_MODEL_DIR
+        .lock()
+        .ok()
+        .and_then(|directory| directory.clone());
+    inkling_dflash2_source_in(std::env::var_os("MLXL3_INKLING_DFLASH2"), model.as_deref())
+        // FEAT-2026-11-25-INK2M-DFLASH2-APP: the drafter the app downloads (`dflash-draft --target`)
+        .or_else(|| {
+            std::env::var_os("MLXL3_INKLING_DFLASH2")
+                .is_none()
+                .then(mlxl3_native::hub::installed_inkling_dflash)
+                .flatten()
+        })
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_dflash2_source_in(
+    flag: Option<std::ffi::OsString>,
+    model: Option<&std::path::Path>,
+) -> Option<std::path::PathBuf> {
+    let valid = |dir: &std::path::PathBuf| dir.join("config.json").is_file();
+    if let Some(flag) = flag {
+        // an explicit directory is the only one tried (an empty value turns the lookup off)
+        return Some(std::path::PathBuf::from(flag)).filter(valid);
+    }
+    let model = model?;
+    [
+        Some(model.join("dflash2")),
+        model
+            .parent()
+            .map(|parent| parent.join("Inkling-2-Mini-DFlash2")),
+    ]
+    .into_iter()
+    .flatten()
+    .find(valid)
+}
+
+/// DECISION-2026-11-25-INK2M-DFLASH2-ON: the speculative choice of a bridge request: its `dspark` field when
+/// present, else on when a DFlash2 drafter is available (`dflash2`) unless `MLXL3_INKLING_DFLASH2_DEFAULT`
+/// (`flag`) is `0`. The official DSpark drafter stays opt-in (DECISION-2026-11-22-INK2M-DSPARK-OFF).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn inkling_speculation_requested(
+    requested: Option<bool>,
+    dflash2: bool,
+    flag: Option<&str>,
+) -> bool {
+    requested.unwrap_or(dflash2 && flag != Some("0"))
+}
+
+/// A boolean field that may be omitted (`None`) but not null.
+#[cfg(feature = "chat")]
+#[cfg_attr(not(feature = "mlx"), allow(dead_code))]
+fn present_bool<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> std::result::Result<Option<bool>, D::Error> {
+    bool::deserialize(deserializer).map(Some)
 }
 
 /// SPEED-INK2M-P6a: Inkling 2 is warmed up at load unless `MLXL3_INKLING_WARMUP=0`.
@@ -2225,6 +2293,9 @@ impl NativeChatModel {
                 let drafter_source = (checkpoint.path.join("mtp.safetensors").is_file()
                     && inkling_dspark_enabled())
                 .then(|| checkpoint.path.clone());
+                if let Ok(mut directory) = INKLING_MODEL_DIR.lock() {
+                    *directory = Some(checkpoint.path.clone());
+                }
                 // SPEED-INK2M-P6a: pay the Metal kernel compilation while loading, not on the first
                 // request (`MLXL3_INKLING_WARMUP=0` skips it)
                 if inkling_warmup_enabled() {
@@ -2389,7 +2460,7 @@ impl NativeChatModel {
             Self::Inkling(model, draft, _) => {
                 model.reset();
                 if let Some(draft) = draft {
-                    draft.reset();
+                    mlxl3_native::inkling2_draft::BlockDrafter::reset(draft.as_mut());
                 }
             }
             Self::Lfm2(model) => model.reset(),
@@ -2410,18 +2481,39 @@ impl NativeChatModel {
             *draft = None;
             return Ok(false);
         }
-        let Some(path) = source.as_ref().filter(|_| draft.is_none()) else {
+        if draft.is_some() {
+            return Ok(false);
+        }
+        // DFLASH2-2026-11-24-INK2M-P0: DFlash2 replaces DSpark when its directory is given
+        if let Some(dir) = inkling_dflash2_source() {
+            let mut loaded = mlxl3_native::inkling2_dflash2::Inkling2Dflash2::load(&dir, target)
+                .context("loading the Inkling DFlash2 drafter")?;
+            // DFLASH2-2026-11-24-INK2M-P3c: every width compiled while loading, opt-in
+            // (`MLXL3_INKLING_DFLASH2_WARMUP=1`): +1.5 s on the first request without a measured decode gain
+            if inkling_warmup_enabled()
+                && std::env::var("MLXL3_INKLING_DFLASH2_WARMUP").as_deref() == Ok("1")
+            {
+                let widths = mlxl3_native::inkling2_draft::BlockDrafter::max_proposals(&loaded);
+                mlxl3_native::inkling2_draft::warm_up_drafter(target, &mut loaded, widths)
+                    .context("warming up the Inkling DFlash2 drafter")?;
+            }
+            *draft = Some(Box::new(
+                mlxl3_native::inkling2_draft::InklingDrafter::Dflash2(loaded),
+            ));
+            return Ok(true);
+        }
+        let Some(path) = source.as_ref() else {
             return Ok(false);
         };
-        let mut loaded = Box::new(
-            mlxl3_native::inkling2_draft::Inkling2Draft::load(path, target)
-                .context("loading the Inkling DSpark drafter")?,
-        );
+        let mut loaded = mlxl3_native::inkling2_draft::Inkling2Draft::load(path, target)
+            .context("loading the Inkling DSpark drafter")?;
         if inkling_warmup_enabled() {
-            mlxl3_native::inkling2_draft::warm_up(target, Some(loaded.as_mut()))
+            mlxl3_native::inkling2_draft::warm_up(target, Some(&mut loaded))
                 .context("warming up the Inkling DSpark drafter")?;
         }
-        *draft = Some(loaded);
+        *draft = Some(Box::new(
+            mlxl3_native::inkling2_draft::InklingDrafter::Dspark(loaded),
+        ));
         Ok(true)
     }
 
@@ -2538,11 +2630,12 @@ struct BridgeRequest {
     mtp_head_path: String,
     #[serde(default = "default_mtp_depth")]
     mtp_depth: usize,
-    /// Inkling 2 DSpark drafter; off unless a request turns it on (DECISION-2026-11-22-INK2M-DSPARK-OFF:
-    /// at temperature 1 plain decoding is as fast).
-    #[serde(default)]
+    /// Inkling 2 speculative decoding. Omitted: on when a DFlash2 drafter is available
+    /// (DECISION-2026-11-25-INK2M-DFLASH2-ON), off with the official DSpark drafter alone
+    /// (DECISION-2026-11-22-INK2M-DSPARK-OFF: at temperature 1 plain decoding is as fast).
+    #[serde(default, deserialize_with = "present_bool")]
     #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
-    dspark: bool,
+    dspark: Option<bool>,
     /// SPEED-2026-11-23-INK2M-MAYA LK: Inkling 2 prompt lookup without a drafter; omitted = on unless
     /// `MLXL3_INKLING_LOOKUP=0` (DECISION-2026-11-23-INK2M-LOOKUP-ON).
     #[serde(default)]
@@ -3001,20 +3094,65 @@ fn bridge_inkling_lookup_follows_the_request_then_the_flag() -> Result<()> {
 #[cfg(all(test, feature = "mlx", feature = "chat"))]
 #[test]
 fn bridge_dspark_is_opt_in_and_scoped_to_one_request() -> Result<()> {
-    // DECISION-2026-11-22-INK2M-DSPARK-OFF: a request without the field decodes plainly
+    // DECISION-2026-11-22-INK2M-DSPARK-OFF: a request without the field decodes plainly with the official
+    // drafter; DECISION-2026-11-25-INK2M-DFLASH2-ON: it speculates when a DFlash2 drafter is available
     let current = || DSPARK_REQUESTED.with(std::cell::Cell::get);
     let legacy: BridgeRequest = serde_json::from_value(json!({"type":"generate"}))?;
-    assert!(
-        !legacy.dspark,
-        "older apps and other clients get plain decoding"
-    );
+    assert_eq!(legacy.dspark, None, "an omitted field is not a choice");
+    assert!(!inkling_speculation_requested(None, false, None));
+    assert!(inkling_speculation_requested(None, true, None));
+    assert!(inkling_speculation_requested(None, true, Some("1")));
+    assert!(!inkling_speculation_requested(None, true, Some("0")));
+    assert!(!inkling_speculation_requested(Some(false), true, None));
+    assert!(inkling_speculation_requested(Some(true), false, Some("0")));
     assert!(!current(), "no request: off");
+    // the drafter directory: the flag alone when set, else inside or beside the model directory
+    let root = tempfile::tempdir()?;
+    let model = root.path().join("Inkling-2-Mini-EXL3");
+    std::fs::create_dir_all(&model)?;
+    assert_eq!(inkling_dflash2_source_in(None, Some(&model)), None);
+    assert_eq!(inkling_dflash2_source_in(None, None), None);
+    let beside = root.path().join("Inkling-2-Mini-DFlash2");
+    std::fs::create_dir_all(&beside)?;
+    assert_eq!(
+        inkling_dflash2_source_in(None, Some(&model)),
+        None,
+        "no config.json yet"
+    );
+    std::fs::write(beside.join("config.json"), "{}")?;
+    assert_eq!(
+        inkling_dflash2_source_in(None, Some(&model)),
+        Some(beside.clone())
+    );
+    let inside = model.join("dflash2");
+    std::fs::create_dir_all(&inside)?;
+    std::fs::write(inside.join("config.json"), "{}")?;
+    assert_eq!(
+        inkling_dflash2_source_in(None, Some(&model)),
+        Some(inside.clone())
+    );
+    assert_eq!(
+        inkling_dflash2_source_in(Some(beside.clone().into_os_string()), Some(&model)),
+        Some(beside)
+    );
+    assert_eq!(
+        inkling_dflash2_source_in(Some(std::ffi::OsString::new()), Some(&model)),
+        None,
+        "an empty flag turns the lookup off"
+    );
+    assert_eq!(
+        inkling_dflash2_source_in(
+            Some(root.path().join("missing").into_os_string()),
+            Some(&model)
+        ),
+        None
+    );
     for enabled in [false, true] {
         let request: BridgeRequest =
             serde_json::from_value(json!({"type":"generate", "dspark":enabled}))?;
-        assert_eq!(request.dspark, enabled);
+        assert_eq!(request.dspark, Some(enabled));
         {
-            let _dspark = DsparkRequest::set(request.dspark);
+            let _dspark = DsparkRequest::set(enabled);
             assert_eq!(current(), enabled);
         }
         assert!(!current(), "the next request starts from the default (off)");
@@ -3070,6 +3208,9 @@ enum CacheState {
     Qwen(mlxl3_native::qwen35::QwenSnapshot),
     /// SPEED-2026-11-23-INK2M-MAYA PC: Inkling 2 resumes its live state at the saved boundary.
     Inkling(mlxl3_native::inkling2::InklingPrefix),
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D1: the same with DSpark, the drafter's context included. Only the
+    /// DSpark prefill resumes it (its chunks differ from the plain prefill's).
+    InklingDspark(mlxl3_native::inkling2_draft::DsparkPrefix),
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -3078,6 +3219,7 @@ impl CacheState {
         match self {
             Self::Qwen(state) => state.retained_bytes(),
             Self::Inkling(prefix) => prefix.retained_bytes(),
+            Self::InklingDspark(prefix) => prefix.retained_bytes(),
         }
     }
 }
@@ -3178,6 +3320,31 @@ impl PromptCache {
         saved.within_budget()
     }
 
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D1: saves a DSpark prefill state taken at `tokens.len()`.
+    fn capture_dspark(
+        conversation: &str,
+        tokens: &[u32],
+        prefix: mlxl3_native::inkling2_draft::DsparkPrefix,
+        logits: &mlxl3_native::array::Array,
+    ) -> Result<Option<Self>> {
+        anyhow::ensure!(
+            usize::try_from(prefix.offset()).ok() == Some(tokens.len()),
+            "DSpark prefix position differs from its token history"
+        );
+        if !inkling_prompt_cache() || prompt_cache_budget()? == 0 {
+            return Ok(None);
+        }
+        Self {
+            conversation: conversation.to_owned(),
+            tokens: tokens.to_vec(),
+            state: CacheState::InklingDspark(prefix),
+            logits: logits.compact_for_cache()?,
+            draft: None,
+            mtp: None,
+        }
+        .within_budget()
+    }
+
     fn within_budget(self) -> Result<Option<Self>> {
         let budget = prompt_cache_budget()?;
         let fits = mlxl3_native::memory_policy::cache_fits(
@@ -3222,6 +3389,64 @@ fn q36_moe_group() -> Result<usize> {
     })
 }
 
+/// DSPARK-2026-11-24-INK2M-MAYA2-D1: the DSpark prefill with the prompt cache. A DSpark prefix of the same
+/// conversation that starts the prompt is resumed (target, drafter context and last features), the rest is
+/// prefilled by the cold prefill's chunks, and the state at the prompt's last chunk boundary is saved for the
+/// next turn (`MLXL3_INKLING_PROMPT_CACHE=0` or a zero budget: every turn prefills from scratch, as before).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[allow(clippy::too_many_arguments)]
+fn prefill_dspark_round(
+    session: &mut mlxl3_native::inkling2_draft::DsparkSession,
+    target: &mut mlxl3_native::inkling2::Inkling2,
+    drafter: &mut mlxl3_native::inkling2_draft::InklingDrafter,
+    tokens: &[u32],
+    images: &[mlxl3_native::lfm3::PreparedImage],
+    cache: &mut Option<PromptCache>,
+    conversation: &str,
+    reuse: bool,
+    cancelled: &AtomicBool,
+) -> Result<(mlxl3_native::array::Array, usize)> {
+    const CHUNK: usize = mlxl3_native::inkling2_draft::DsparkSession::PREFILL_CHUNK;
+    // a state computed from image features is neither resumed nor saved for a later turn
+    let reuse = reuse && images.is_empty() && inkling_prompt_cache();
+    let previous = cache.take().filter(|saved| {
+        reuse
+            && saved.conversation == conversation
+            && saved.draft.is_none()
+            && saved.mtp.is_none()
+            && matches!(saved.state, CacheState::InklingDspark(_))
+            && mlxl3_native::reusable_prefix_len(&saved.tokens, tokens, CHUNK) > 0
+    });
+    let resume = match previous {
+        Some(PromptCache {
+            state: CacheState::InklingDspark(prefix),
+            logits,
+            ..
+        }) => Some((prefix, logits)),
+        _ => None,
+    };
+    let checkpoint = (reuse && prompt_cache_budget()? > 0)
+        .then_some(tokens.len() / CHUNK * CHUNK)
+        .filter(|&boundary| boundary > 0);
+    let mut saved = None;
+    let (logits, cached) = session.prefill_resumable(
+        target,
+        drafter,
+        tokens,
+        images,
+        resume,
+        checkpoint,
+        &mut |prefix, logits| {
+            let boundary = usize::try_from(prefix.offset())?;
+            saved = PromptCache::capture_dspark(conversation, &tokens[..boundary], prefix, logits)?;
+            Ok(())
+        },
+        &|| cancelled.load(Ordering::Relaxed),
+    )?;
+    *cache = saved;
+    Ok((logits, cached))
+}
+
 #[cfg(all(feature = "mlx", feature = "chat"))]
 #[allow(clippy::too_many_arguments)]
 fn prefill_round(
@@ -3260,6 +3485,7 @@ fn prefill_round(
             && saved.conversation == conversation
             && saved.mtp.is_none()
             && saved.draft.is_some() == draft.is_some()
+            && !matches!(saved.state, CacheState::InklingDspark(_))
             && mlxl3_native::reusable_prefix_len(&saved.tokens, tokens, chunk_size) > 0
     });
     let mut cached = 0;
@@ -3277,7 +3503,7 @@ fn prefill_round(
                 && target.resume_prefix(prefix)?
             {
                 if let Some(draft) = draft {
-                    draft.reset();
+                    mlxl3_native::inkling2_draft::BlockDrafter::reset(draft.as_mut());
                 }
                 cached = saved_tokens.len();
                 logits = Some(saved_logits);
@@ -4664,11 +4890,19 @@ fn bridge_generate_round(
                 && draft.is_none()
                 && DSPARK_REQUESTED.with(std::cell::Cell::get) =>
         {
-            let session = mlxl3_native::inkling2_draft::DsparkSession::new(
-                drafter,
-                mlxl3_native::inkling2_draft::DsparkSession::DEFAULT_WIDTH,
-            )?;
-            let session = if inkling_sampled_drafts(&sampler) {
+            // DFLASH2-2026-11-24-INK2M-P0: DFlash2 drafts up to its whole block (7), DSpark keeps width 3
+            let dflash2 = matches!(
+                drafter.as_ref(),
+                mlxl3_native::inkling2_draft::InklingDrafter::Dflash2(_)
+            );
+            let width = if dflash2 {
+                mlxl3_native::inkling2_draft::BlockDrafter::max_proposals(drafter.as_ref())
+            } else {
+                mlxl3_native::inkling2_draft::DsparkSession::DEFAULT_WIDTH
+            };
+            let session =
+                mlxl3_native::inkling2_draft::DsparkSession::new(drafter.as_ref(), width)?;
+            let session = if !dflash2 && inkling_sampled_drafts(&sampler) {
                 session.with_sampled_drafts(sampler.temperature, draft_noise_seed(*random))?
             } else {
                 session
@@ -4684,15 +4918,54 @@ fn bridge_generate_round(
                 }
                 None => session,
             };
-            // DSPARK-INK2M-P4: adaptive width by default; `MLXL3_INKLING_DSPARK_ADAPTIVE=0` keeps width 3
+            // DSPARK-2026-11-24-INK2M-MAYA2-D5: the prompt lookup in the same controller, under the lookup's own
+            // request field and flag (on by default)
+            let session = if inkling_lookup_requested(
+                LOOKUP_REQUESTED.with(std::cell::Cell::get),
+                std::env::var("MLXL3_INKLING_LOOKUP").ok().as_deref(),
+            ) {
+                session.with_lookup(&tokens)
+            } else {
+                session
+            };
+            // DSPARK-INK2M-P4: adaptive width by default; `MLXL3_INKLING_DSPARK_ADAPTIVE=0` keeps the fixed width
+            // (3 for DSpark, the whole block of 7 for DFlash2)
             Some(
                 if std::env::var("MLXL3_INKLING_DSPARK_ADAPTIVE").as_deref() != Ok("0") {
-                    let policy = inkling_width_policy(
-                        std::env::var("MLXL3_INKLING_DSPARK_POLICY").ok().as_deref(),
-                        target.precision().dense_bits,
-                        sampler.is_greedy(),
-                        mlxl3_native::inkling2_draft::DsparkSession::DEFAULT_WIDTH,
-                    )?;
+                    let policy = if dflash2 {
+                        // DFLASH2-2026-11-25-INK2M-F2/F3: the measured table (`=f2`, `=p2`: the earlier ones)
+                        let policy = mlxl3_native::inkling2_draft::WidthPolicy::measured(
+                            mlxl3_native::inkling2_draft::WidthPolicy::dflash2_costs(
+                                std::env::var("MLXL3_INKLING_DFLASH2_COSTS").ok().as_deref(),
+                            ),
+                            width,
+                        )?;
+                        // DFLASH2-2026-11-24-INK2M-P3 (3): full-width probes rejected as the default (long
+                        // prompts lose ≈ 10 %); `MLXL3_INKLING_DFLASH2_PROBE=full` keeps them as an option
+                        // DFLASH2-2026-11-25-INK2M-F3: probes in a row after a kept probe
+                        let policy =
+                            if mlxl3_native::inkling2_draft::WidthPolicy::probe_streak_setting(
+                                std::env::var("MLXL3_INKLING_DFLASH2_STREAK")
+                                    .ok()
+                                    .as_deref(),
+                            ) {
+                                policy.with_probe_streak()
+                            } else {
+                                policy
+                            };
+                        if std::env::var("MLXL3_INKLING_DFLASH2_PROBE").as_deref() == Ok("full") {
+                            policy.with_full_probes()
+                        } else {
+                            policy
+                        }
+                    } else {
+                        inkling_width_policy(
+                            std::env::var("MLXL3_INKLING_DSPARK_POLICY").ok().as_deref(),
+                            target.precision().dense_bits,
+                            sampler.is_greedy(),
+                            mlxl3_native::inkling2_draft::DsparkSession::DEFAULT_WIDTH,
+                        )?
+                    };
                     session.with_adaptive_width(policy)?
                 } else {
                     session
@@ -4740,11 +5013,19 @@ fn bridge_generate_round(
             if let (Some(session), NativeChatModel::Inkling(target, Some(drafter), _)) =
                 (dspark.as_mut(), &mut *model)
             {
-                let logits =
-                    session.prefill_with_images(target, drafter, &tokens, &images, &|| {
-                        cancelled.load(Ordering::Relaxed)
-                    })?;
-                (logits, None, 0)
+                // DSPARK-2026-11-24-INK2M-MAYA2-D1: the prompt cache with DSpark
+                let (logits, cached) = prefill_dspark_round(
+                    session,
+                    target,
+                    drafter.as_mut(),
+                    &tokens,
+                    &images,
+                    cache,
+                    conversation,
+                    reuse,
+                    cancelled,
+                )?;
+                (logits, None, cached)
             } else if let Some(head) = mtp.as_deref_mut() {
                 match head {
                     ChatMtpHead::Qwen(head) => {
@@ -5078,7 +5359,7 @@ fn bridge_generate_round(
                     };
                     dflash_next = Some(session.advance(
                         target,
-                        drafter,
+                        drafter.as_mut(),
                         next,
                         context_limit,
                         budget - generated.len(),
@@ -5987,6 +6268,11 @@ fn native_bridge(
         "dflash_tuning_key":dflash_tuning_key,
         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)) || flash_speculative,
         "dspark_supported":inkling_has_drafter(&model),
+        "dspark_default":inkling_speculation_requested(
+            None,
+            matches!(&model, NativeChatModel::Inkling(..)) && inkling_dflash2_source().is_some(),
+            std::env::var("MLXL3_INKLING_DFLASH2_DEFAULT").ok().as_deref(),
+        ),
         "mtp_sampling_supported":true,
         "mtp_auto_download_supported":mtp_auto_download_supported,
         "mtp_configure_supported":true,
@@ -6364,8 +6650,18 @@ fn native_bridge(
                         proposals,
                         draft_path,
                     )?;
+                    // DECISION-2026-11-25-INK2M-DFLASH2-ON: an omitted field follows the DFlash2 drafter
                     #[cfg(feature = "mlx")]
-                    if request.dspark
+                    let dspark = inkling_speculation_requested(
+                        request.dspark,
+                        matches!(model, NativeChatModel::Inkling(..))
+                            && inkling_dflash2_source().is_some(),
+                        std::env::var("MLXL3_INKLING_DFLASH2_DEFAULT")
+                            .ok()
+                            .as_deref(),
+                    );
+                    #[cfg(feature = "mlx")]
+                    if dspark
                         && inkling_has_drafter(&model)
                         && !matches!(model, NativeChatModel::Inkling(_, Some(_), _))
                     {
@@ -6375,12 +6671,12 @@ fn native_bridge(
                         }))?;
                     }
                     #[cfg(feature = "mlx")]
-                    if let Err(error) = model.prepare_inkling_drafter(request.dspark) {
+                    if let Err(error) = model.prepare_inkling_drafter(dspark) {
                         // the round decodes plainly; the source stays known for a later request
                         eprintln!("DSpark drafter unavailable: {error:#}");
                     }
                     #[cfg(feature = "mlx")]
-                    let _dspark = DsparkRequest::set(request.dspark);
+                    let _dspark = DsparkRequest::set(dspark);
                     let _lookup = LookupRequest::set(request.lookup);
                     let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;
                     bridge_generate(
@@ -6419,7 +6715,7 @@ fn native_bridge(
                 let keep_inkling = matches!(
                     &prompt_cache,
                     Some(PromptCache {
-                        state: CacheState::Inkling(_),
+                        state: CacheState::Inkling(_) | CacheState::InklingDspark(_),
                         ..
                     })
                 );

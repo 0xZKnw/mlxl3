@@ -131,3 +131,103 @@ fn flash_inspection_rejects_symlink_files_and_never_accepts_packed_abi() {
             .is_err()
     );
 }
+
+fn inkling() -> Value {
+    json!({"model_type":"inkling2_loop","text_config":{"hidden_size":2304,"num_hidden_layers":24,"vocab_size":201024,"unpadded_vocab_size":200058}})
+}
+
+fn inkling_draft() -> Value {
+    json!({"model_type":"qwen3","hidden_size":2304,"num_hidden_layers":5,"num_target_layers":48,"vocab_size":201024,
+        "dflash_config":{"block_size":8,"mask_token_id":200056,"target_layer_ids":[5,23,41,48]}})
+}
+
+/// FEAT-2026-11-25-INK2M-DFLASH2-APP: the Inkling 2 Mini target selects its pinned raw drafter by geometry alone.
+#[test]
+fn inkling_target_selection_uses_geometry_and_pins_the_drafter() {
+    let directory = target(&inkling());
+    let kind = ManagedDraft::from_target(directory.path()).unwrap();
+    assert_eq!(kind, ManagedDraft::Inkling2);
+    assert_eq!(kind.name(), "Inkling-2-Mini-DFlash2-4f9088ea");
+    assert_eq!(kind.repository(), "incoai/Inkling-2-Mini-DFlash2");
+    assert_eq!(kind.revision(), "4f9088ea66c21f2b99ed657d1941c306b03e84d2");
+    for (key, value) in [
+        ("hidden_size", json!(2560)),
+        ("num_hidden_layers", json!(48)),
+        ("unpadded_vocab_size", json!(201024)),
+        ("unpadded_vocab_size", Value::Null),
+    ] {
+        let mut other = inkling();
+        other["text_config"][key] = value;
+        let directory = target(&other);
+        assert!(
+            ManagedDraft::from_target(directory.path())
+                .unwrap_err()
+                .to_string()
+                .contains("Inkling 2 Mini"),
+            "{key} accepted"
+        );
+    }
+}
+
+#[test]
+fn inkling_inspection_checks_the_drafter_config_and_regular_files() {
+    let draft = target(&inkling_draft());
+    // the weights are missing
+    assert!(ManagedDraft::Inkling2.inspect(draft.path()).is_err());
+    fs::write(draft.path().join("model.safetensors"), b"weights").unwrap();
+    assert_eq!(
+        ManagedDraft::Inkling2.inspect(draft.path()).unwrap(),
+        draft.path().canonicalize().unwrap()
+    );
+    for (key, value) in [
+        ("hidden_size", json!(2560)),
+        ("num_hidden_layers", json!(8)),
+        ("num_target_layers", json!(24)),
+    ] {
+        let mut other = inkling_draft();
+        other[key] = value;
+        let directory = target(&other);
+        fs::write(directory.path().join("model.safetensors"), b"weights").unwrap();
+        assert!(
+            ManagedDraft::Inkling2.inspect(directory.path()).is_err(),
+            "{key} accepted"
+        );
+    }
+    for (key, value) in [
+        ("block_size", json!(16)),
+        ("mask_token_id", json!(248070)),
+        ("target_layer_ids", json!([5, 23, 41])),
+    ] {
+        let mut other = inkling_draft();
+        other["dflash_config"][key] = value;
+        let directory = target(&other);
+        fs::write(directory.path().join("model.safetensors"), b"weights").unwrap();
+        assert!(
+            ManagedDraft::Inkling2.inspect(directory.path()).is_err(),
+            "{key} accepted"
+        );
+    }
+    // a Flash Next drafter folder or a symlinked file is refused
+    let flash_draft = target(&flash());
+    fs::write(flash_draft.path().join("model.safetensors"), b"weights").unwrap();
+    assert!(ManagedDraft::Inkling2.inspect(flash_draft.path()).is_err());
+    let outside = tempfile::tempdir().unwrap();
+    fs::write(outside.path().join("sentinel"), b"preserve").unwrap();
+    let linked = target(&inkling_draft());
+    symlink(
+        outside.path().join("sentinel"),
+        linked.path().join("model.safetensors"),
+    )
+    .unwrap();
+    assert!(
+        ManagedDraft::Inkling2
+            .inspect(linked.path())
+            .unwrap_err()
+            .to_string()
+            .contains("regular file")
+    );
+    assert_eq!(
+        fs::read(outside.path().join("sentinel")).unwrap(),
+        b"preserve"
+    );
+}

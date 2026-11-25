@@ -36,6 +36,20 @@ const DFLASH_FILES: [&str; 7] = [
     "draft/model.bin",
 ];
 
+/// FEAT-2026-11-25-INK2M-DFLASH2-APP: `incoai/Inkling-2-Mini-DFlash2` at `ManagedDraft::Inkling2.revision()`.
+const DFLASH_INKLING_PINNED: [(&str, u64, &str); 2] = [
+    (
+        "config.json",
+        1311,
+        "d094e435eb939e01fca6297f637c5af35e3da4b552f8e1ab0a181cd278a1cefa",
+    ),
+    (
+        "model.safetensors",
+        989_975_616,
+        "217980ab00d116693fa5946df7bbfd967caf5fac1f529afd541fbd470ddb54ee",
+    ),
+];
+
 const DFLASH_FLASH_PINNED: [(&str, u64, &str); 2] = [
     (
         "config.json",
@@ -740,6 +754,20 @@ pub fn download_flash_dflash(progress: impl FnMut(u64, u64)) -> Result<PathBuf> 
     download_managed_dflash(crate::dflash::ManagedDraft::FlashNext, progress)
 }
 
+/// FEAT-2026-11-25-INK2M-DFLASH2-APP: the raw BF16 DFlash2 drafter of Inkling 2 Mini, pinned like the Flash one.
+pub fn download_inkling_dflash(progress: impl FnMut(u64, u64)) -> Result<PathBuf> {
+    download_managed_dflash(crate::dflash::ManagedDraft::Inkling2, progress)
+}
+
+/// The managed Inkling 2 Mini DFlash2 drafter when it is installed (its `config.json` present; the files were
+/// checked against their pins when installed, and the loader validates the weights).
+pub fn installed_inkling_dflash() -> Option<PathBuf> {
+    let directory = managed_drafts_path()
+        .ok()?
+        .join(crate::dflash::ManagedDraft::Inkling2.name());
+    directory.join("config.json").is_file().then_some(directory)
+}
+
 fn download_managed_dflash(
     draft: crate::dflash::ManagedDraft,
     progress: impl FnMut(u64, u64),
@@ -747,6 +775,7 @@ fn download_managed_dflash(
     let files = match draft {
         crate::dflash::ManagedDraft::Packed(family) => pinned_dflash_files(family),
         crate::dflash::ManagedDraft::FlashNext => &DFLASH_FLASH_PINNED,
+        crate::dflash::ManagedDraft::Inkling2 => &DFLASH_INKLING_PINNED,
     };
     let cancelled = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGTERM, Arc::clone(&cancelled))?;
@@ -835,7 +864,7 @@ fn managed_dflash_entries(
     draft: crate::dflash::ManagedDraft,
     files: &[(&str, u64, &str)],
 ) -> Result<()> {
-    if draft == crate::dflash::ManagedDraft::FlashNext {
+    if !matches!(draft, crate::dflash::ManagedDraft::Packed(_)) {
         for entry in fs::read_dir(directory)? {
             let entry = entry?;
             ensure!(

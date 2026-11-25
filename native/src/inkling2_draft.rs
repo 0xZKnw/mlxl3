@@ -108,13 +108,54 @@ struct DraftAttention {
     eps: f32,
 }
 
-#[derive(Default)]
-struct DraftCache {
+#[derive(Default, Clone)]
+pub(crate) struct DraftCache {
     /// `[1, Hkv, S, D]` FP16 context keys (RoPE applied) and values.
-    keys: Option<Array>,
-    values: Option<Array>,
+    pub(crate) keys: Option<Array>,
+    pub(crate) values: Option<Array>,
     /// Absolute position of the next context token.
-    offset: i32,
+    pub(crate) offset: i32,
+}
+
+impl DraftCache {
+    /// D1: the cache with its views copied to their own rows (same values).
+    pub(crate) fn compacted(&self) -> Result<Self> {
+        let compact = |a: &Option<Array>| a.as_ref().map(Array::compact_for_cache).transpose();
+        Ok(Self {
+            keys: compact(&self.keys)?,
+            values: compact(&self.values)?,
+            offset: self.offset,
+        })
+    }
+}
+
+/// DSPARK-2026-11-24-INK2M-MAYA2-D1: the drafter's context caches at a prefill chunk boundary
+/// (`Inkling2Draft::context_snapshot`).
+pub struct DraftContext {
+    pub(crate) caches: Vec<DraftCache>,
+}
+
+impl DraftContext {
+    /// Absolute position of the next context token (the same in every layer).
+    pub fn offset(&self) -> Option<i32> {
+        self.caches.first().map(|c| c.offset)
+    }
+
+    /// Bytes these caches keep alive.
+    pub fn retained_bytes(&self) -> Result<usize> {
+        let mut bytes = 0usize;
+        for a in self
+            .caches
+            .iter()
+            .flat_map(|c| [&c.keys, &c.values])
+            .flatten()
+        {
+            bytes = bytes
+                .checked_add(a.retained_bytes()?)
+                .context("DSpark context size overflow")?;
+        }
+        Ok(bytes)
+    }
 }
 
 impl DraftAttention {
@@ -460,6 +501,42 @@ impl Inkling2Draft {
         }
     }
 
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D1: the context caches now. `append_context` concatenates into new
+    /// arrays and never writes a saved one, so these references keep the values of the capture point; views
+    /// that retain a larger buffer (the windowed layers' slices) are copied to their own rows (same values).
+    pub fn context_snapshot(&self) -> Result<DraftContext> {
+        let compact = |a: &Option<Array>| a.as_ref().map(Array::compact_for_cache).transpose();
+        Ok(DraftContext {
+            caches: self
+                .caches
+                .iter()
+                .map(|c| {
+                    Ok(DraftCache {
+                        keys: compact(&c.keys)?,
+                        values: compact(&c.values)?,
+                        offset: c.offset,
+                    })
+                })
+                .collect::<Result<_>>()?,
+        })
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D1: back to the context caches of `saved` (from this drafter).
+    pub fn restore_context(&mut self, saved: &DraftContext) -> Result<()> {
+        ensure!(
+            saved.caches.len() == self.caches.len(),
+            "DSpark context of another drafter"
+        );
+        for (live, saved) in self.caches.iter_mut().zip(&saved.caches) {
+            *live = DraftCache {
+                keys: saved.keys.as_ref().map(Array::try_clone).transpose()?,
+                values: saved.values.as_ref().map(Array::try_clone).transpose()?,
+                offset: saved.offset,
+            };
+        }
+        Ok(())
+    }
+
     /// `rms_norm(sum_j alpha[row, j] * feature_j)`, features `[T, taps * D]` FP32 -> `[T, D]`.
     fn mix(&self, features: &Array, row: usize, norm: &Array) -> Result<Array> {
         let rows = features.shape()[0];
@@ -508,7 +585,34 @@ impl Inkling2Draft {
         count: usize,
     ) -> Result<Array> {
         Ok(self
-            .propose_with(target, anchor, last_feature, count, None)?
+            .propose_with(target, anchor, last_feature, count, DraftDraw::Best)?
+            .0)
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D2: proposals coupled to the target's draws: proposal i is
+    /// `inkling2::coupled_pick` of its logits with row i of the block's Gumbel `noise` `[1 + count, V_target]`
+    /// (the noise `inkling2::decide_coupled` draws row i of the verification with). `[count]` u32, lazy.
+    pub fn propose_coupled(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+        temperature: f32,
+        noise: &Array,
+    ) -> Result<Array> {
+        ensure!(
+            noise.shape().len() == 2 && noise.shape()[0] == count as i32 + 1,
+            "coupled DSpark proposals need one noise row per verified row"
+        );
+        Ok(self
+            .propose_with(
+                target,
+                anchor,
+                last_feature,
+                count,
+                DraftDraw::Coupled(temperature, noise),
+            )?
             .0)
     }
 
@@ -533,7 +637,7 @@ impl Inkling2Draft {
             anchor,
             last_feature,
             count,
-            Some((temperature, seed)),
+            DraftDraw::Seeded(temperature, seed),
         )?;
         Ok((
             tokens,
@@ -548,19 +652,20 @@ impl Inkling2Draft {
         last_feature: &Array,
         count: usize,
     ) -> Result<(Array, Array, Array)> {
-        let (tokens, x, base, _) = self.propose_with(target, anchor, last_feature, count, None)?;
+        let (tokens, x, base, _) =
+            self.propose_with(target, anchor, last_feature, count, DraftDraw::Best)?;
         Ok((tokens, x, base))
     }
 
-    /// Greedy proposals when `sampled` is `None`, Gumbel-max draws from softmax(logits / T) with noise
-    /// seeded by `seed + position` otherwise (then also the stacked draft logits).
+    /// Proposals under `draw`: the draft's best tokens, Gumbel-max draws from softmax(logits / T) with noise
+    /// seeded by `seed + position` (then also the stacked draft logits), or coupled draws.
     fn propose_with(
         &self,
         target: &Inkling2,
         anchor: &Array,
         last_feature: &Array,
         count: usize,
-        sampled: Option<(f32, u64)>,
+        draw: DraftDraw<'_>,
     ) -> Result<(Array, Array, Array, Option<Array>)> {
         ensure!(
             count >= 1 && count < self.config.block_size,
@@ -614,7 +719,11 @@ impl Inkling2Draft {
         let mut state = Array::zeros_dtype(&[1, rank], Dtype::Float32)?;
         let mut previous = anchor.try_clone()?;
         let mut tokens = Vec::with_capacity(count);
-        let mut rows = Vec::with_capacity(if sampled.is_some() { count } else { 0 });
+        let mut rows = Vec::with_capacity(if matches!(draw, DraftDraw::Seeded(..)) {
+            count
+        } else {
+            0
+        });
         for i in 0..count as i32 {
             let inputs = Array::concatenate(
                 &[
@@ -643,12 +752,15 @@ impl Inkling2Draft {
             .add(&self.fold_bias)?
             .astype(Dtype::Float32)?;
             let logits = base.slice(0, i, i + 1)?.add(&bias)?.softcap(self.softcap)?;
-            previous = match sampled {
-                None => logits.argmax()?,
-                Some((temperature, seed)) => {
+            previous = match draw {
+                DraftDraw::Best => logits.argmax()?,
+                DraftDraw::Seeded(temperature, seed) => {
                     let previous = gumbel_draw(&logits, temperature, seed.wrapping_add(i as u64))?;
                     rows.push(logits);
                     previous
+                }
+                DraftDraw::Coupled(temperature, noise) => {
+                    crate::inkling2::coupled_pick(&logits, temperature, &noise.slice(0, i, i + 1)?)?
                 }
             };
             tokens.push(previous.try_clone()?);
@@ -662,6 +774,17 @@ impl Inkling2Draft {
         };
         Ok((tokens, x, base, rows))
     }
+}
+
+/// How `propose_with` turns each position's draft logits into a proposal.
+#[derive(Clone, Copy)]
+enum DraftDraw<'a> {
+    /// the draft's argmax
+    Best,
+    /// DSPARK-INK2M-P3: `(temperature, seed)`, a draw from the draft law with its own noise
+    Seeded(f32, u64),
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D2: `(temperature, noise [1 + count, V_target])`, the target's noise
+    Coupled(f32, &'a Array),
 }
 
 /// SPEED-INK2M-P6a: runs every kernel shape a generation uses once (long prefill on the TensorOps
@@ -705,6 +828,48 @@ pub fn warm_up(target: &mut Inkling2, draft: Option<&mut Inkling2Draft>) -> Resu
         draft.reset();
     }
     target.reset();
+    crate::array::synchronize()?;
+    crate::array::clear_cache()
+}
+
+/// DFLASH2-2026-11-24-INK2M-P3c: compiles the GPU path of the blocks with proposals of `draft` for every width
+/// `1..=widths` (drafter kernels, the target's verification of `1 + w` rows, the greedy and T = 1 decisions)
+/// while loading, so no Metal kernel is compiled on the first block of a width during decoding. Leaves the target
+/// and the drafter reset.
+pub fn warm_up_drafter<D: BlockDrafter + ?Sized>(
+    target: &mut Inkling2,
+    draft: &mut D,
+    widths: usize,
+) -> Result<()> {
+    // ordinary text token ids, inside every vocabulary of the family (as `warm_up`)
+    let tokens: Vec<u32> = (0..72u32).map(|i| 1000 + 37 * i).collect();
+    let widths = widths.min(draft.max_proposals());
+    ensure!(tokens.len() > widths + 1, "warm-up prompt too short");
+    let taps = draft.taps().to_vec();
+    target.reset();
+    draft.reset();
+    let (_, features) = target.forward_with_features(&tokens, &taps)?;
+    draft.append_context(&features)?;
+    let rows = features.shape()[0];
+    let mut last = features.slice(0, rows - 1, rows)?;
+    for (width, &token) in tokens.iter().enumerate().skip(1).take(widths) {
+        let anchor = Array::from_u32(&[token], &[1])?;
+        let proposals = draft.propose(target, &anchor, &last, width)?;
+        let block = Array::concatenate(&[&anchor, &proposals], 0)?;
+        let (logits, features) = target.verify_device(&block, &taps)?;
+        for rule in [
+            crate::inkling2::DrawRule::Greedy,
+            crate::inkling2::DrawRule::Softmax(1.0),
+        ] {
+            crate::inkling2::decide_block(&logits, &proposals, rule, 1, 2)?.to_u32()?;
+        }
+        target.commit(1)?;
+        let first = features.slice(0, 0, 1)?;
+        draft.append_context(&first)?;
+        last = first;
+    }
+    target.reset();
+    draft.reset();
     crate::array::synchronize()?;
     crate::array::clear_cache()
 }
@@ -762,6 +927,242 @@ pub(crate) fn fold_from_head(
     Ok((fold, fold_bias))
 }
 
+/// DFLASH2-2026-11-24-INK2M-P0: what a block session needs from its drafter (DSpark or DFlash2): its taps, its
+/// context of committed target features (and its D1 snapshot), and the proposals after an anchor.
+pub trait BlockDrafter {
+    fn name(&self) -> &'static str;
+    fn taps(&self) -> &[usize];
+    fn max_proposals(&self) -> usize;
+    fn reset(&mut self);
+    /// Feeds committed target features `[Tc, taps * D]` (token order).
+    fn append_context(&mut self, features: &Array) -> Result<()>;
+    fn context_snapshot(&self) -> Result<DraftContext>;
+    fn restore_context(&mut self, saved: &DraftContext) -> Result<()>;
+    /// Deterministic proposals after `anchor` (`[1]` u32): `[count]` u32. `last_feature` `[1, taps * D]`: the
+    /// features of the last committed token (drafters that keep their own context may ignore it).
+    fn propose(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+    ) -> Result<Array>;
+    /// DSPARK-INK2M-P3 proposals drawn from the draft law (with their draft logits), when supported.
+    fn propose_sampled(
+        &self,
+        _target: &Inkling2,
+        _anchor: &Array,
+        _last_feature: &Array,
+        _count: usize,
+        _temperature: f32,
+        _seed: u64,
+    ) -> Result<(Array, Array)> {
+        anyhow::bail!("{} drafter has no sampled proposals", self.name())
+    }
+    /// D2 proposals coupled to the target's noise, when supported (`supports_coupling`).
+    fn propose_coupled(
+        &self,
+        _target: &Inkling2,
+        _anchor: &Array,
+        _last_feature: &Array,
+        _count: usize,
+        _temperature: f32,
+        _noise: &Array,
+    ) -> Result<Array> {
+        anyhow::bail!("{} drafter has no coupled proposals", self.name())
+    }
+    fn supports_coupling(&self) -> bool {
+        false
+    }
+    /// DFLASH2-2026-11-24-INK2M-S3: proposals drawn from the drafter's own law at `temperature`, with that law,
+    /// for the ratio rule (`inkling2::decide_ratio`), when supported (`supports_ratio`).
+    fn propose_ratio(
+        &self,
+        _target: &Inkling2,
+        _anchor: &Array,
+        _last_feature: &Array,
+        _count: usize,
+        _temperature: f32,
+        _seed: u64,
+    ) -> Result<RatioProposals> {
+        anyhow::bail!("{} drafter has no ratio-rule proposals", self.name())
+    }
+    fn supports_ratio(&self) -> bool {
+        false
+    }
+}
+
+/// DFLASH2-2026-11-24-INK2M-S3: `count` proposals drawn from the drafter's law and that law, on the GPU:
+/// `tokens` `[k]` u32, each row's candidates `[k, C]` u32 and their probabilities `q` `[k, C]` FP32 (row i
+/// conditioned on the proposals before it), and `chosen` `[k]` FP32 = q of each proposal.
+pub struct RatioProposals {
+    pub tokens: Array,
+    pub candidates: Array,
+    pub q: Array,
+    pub chosen: Array,
+}
+
+impl BlockDrafter for Inkling2Draft {
+    fn name(&self) -> &'static str {
+        "dspark"
+    }
+    fn taps(&self) -> &[usize] {
+        Inkling2Draft::taps(self)
+    }
+    fn max_proposals(&self) -> usize {
+        Inkling2Draft::max_proposals(self)
+    }
+    fn reset(&mut self) {
+        Inkling2Draft::reset(self)
+    }
+    fn append_context(&mut self, features: &Array) -> Result<()> {
+        Inkling2Draft::append_context(self, features)
+    }
+    fn context_snapshot(&self) -> Result<DraftContext> {
+        Inkling2Draft::context_snapshot(self)
+    }
+    fn restore_context(&mut self, saved: &DraftContext) -> Result<()> {
+        Inkling2Draft::restore_context(self, saved)
+    }
+    fn propose(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+    ) -> Result<Array> {
+        Inkling2Draft::propose(self, target, anchor, last_feature, count)
+    }
+    fn propose_sampled(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+        temperature: f32,
+        seed: u64,
+    ) -> Result<(Array, Array)> {
+        Inkling2Draft::propose_sampled(self, target, anchor, last_feature, count, temperature, seed)
+    }
+    fn propose_coupled(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+        temperature: f32,
+        noise: &Array,
+    ) -> Result<Array> {
+        Inkling2Draft::propose_coupled(
+            self,
+            target,
+            anchor,
+            last_feature,
+            count,
+            temperature,
+            noise,
+        )
+    }
+    fn supports_coupling(&self) -> bool {
+        true
+    }
+}
+
+/// DFLASH2-2026-11-24-INK2M-P0: the drafter the bridge loaded for Inkling 2 Mini (kept in a `Box` by the bridge;
+/// both variants are about a kilobyte of handles).
+#[allow(clippy::large_enum_variant)]
+pub enum InklingDrafter {
+    Dspark(Inkling2Draft),
+    Dflash2(crate::inkling2_dflash2::Inkling2Dflash2),
+}
+
+macro_rules! drafter_dispatch {
+    ($self:ident, $d:ident => $e:expr) => {
+        match $self {
+            InklingDrafter::Dspark($d) => $e,
+            InklingDrafter::Dflash2($d) => $e,
+        }
+    };
+}
+
+impl BlockDrafter for InklingDrafter {
+    fn name(&self) -> &'static str {
+        drafter_dispatch!(self, d => BlockDrafter::name(d))
+    }
+    fn taps(&self) -> &[usize] {
+        drafter_dispatch!(self, d => BlockDrafter::taps(d))
+    }
+    fn max_proposals(&self) -> usize {
+        drafter_dispatch!(self, d => BlockDrafter::max_proposals(d))
+    }
+    fn reset(&mut self) {
+        drafter_dispatch!(self, d => BlockDrafter::reset(d))
+    }
+    fn append_context(&mut self, features: &Array) -> Result<()> {
+        drafter_dispatch!(self, d => BlockDrafter::append_context(d, features))
+    }
+    fn context_snapshot(&self) -> Result<DraftContext> {
+        drafter_dispatch!(self, d => BlockDrafter::context_snapshot(d))
+    }
+    fn restore_context(&mut self, saved: &DraftContext) -> Result<()> {
+        drafter_dispatch!(self, d => BlockDrafter::restore_context(d, saved))
+    }
+    fn propose(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+    ) -> Result<Array> {
+        drafter_dispatch!(self, d => BlockDrafter::propose(d, target, anchor, last_feature, count))
+    }
+    fn propose_sampled(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+        temperature: f32,
+        seed: u64,
+    ) -> Result<(Array, Array)> {
+        drafter_dispatch!(self, d => BlockDrafter::propose_sampled(
+            d, target, anchor, last_feature, count, temperature, seed
+        ))
+    }
+    fn propose_coupled(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+        temperature: f32,
+        noise: &Array,
+    ) -> Result<Array> {
+        drafter_dispatch!(self, d => BlockDrafter::propose_coupled(
+            d, target, anchor, last_feature, count, temperature, noise
+        ))
+    }
+    fn supports_coupling(&self) -> bool {
+        drafter_dispatch!(self, d => BlockDrafter::supports_coupling(d))
+    }
+    fn propose_ratio(
+        &self,
+        target: &Inkling2,
+        anchor: &Array,
+        last_feature: &Array,
+        count: usize,
+        temperature: f32,
+        seed: u64,
+    ) -> Result<RatioProposals> {
+        drafter_dispatch!(self, d => BlockDrafter::propose_ratio(
+            d, target, anchor, last_feature, count, temperature, seed
+        ))
+    }
+    fn supports_ratio(&self) -> bool {
+        drafter_dispatch!(self, d => BlockDrafter::supports_ratio(d))
+    }
+}
+
 /// DSpark in the Desktop bridge: one draft block per anchor, the verified tokens delivered one per call
 /// (the bridge emits each before asking for the next). Acceptance is exact: greedy rows use the bridge's
 /// own argmax rule, sampled rows the point-mass rejection rule of `sampling` (each delivered token has the
@@ -791,7 +1192,116 @@ pub struct DsparkSession {
     /// DSPARK-2026-11-23-INK2M-MTPLX-A3: a GPU-decided block submits the drafter's proposals before building
     /// the verification (`MLXL3_INKLING_DSPARK_OVERLAP=0` submits both together).
     overlap: bool,
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D2: sampled blocks with proposals draw the drafter's proposals with the
+    /// noise of the target's own draws at their positions (`MLXL3_INKLING_DSPARK_COUPLE=1`; otherwise the
+    /// point rule).
+    couple: bool,
+    /// DFLASH2-2026-11-24-INK2M-S3: sampled blocks with proposals use the ratio rule of Splash (proposals drawn
+    /// from the drafter's law, kept with min(1, p / q), residual draw) when the drafter supports it
+    /// (on by default since the user's decision of 2026-11-25; `MLXL3_INKLING_DRAFT_RATIO=0` keeps the point rule
+    /// or the coupling); it takes precedence over the coupling.
+    ratio: bool,
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D5: prompt lookup in the same controller (`with_lookup`).
+    lookup: Option<LookupSource>,
     pub stats: SpecStats,
+}
+
+/// DSPARK-2026-11-24-INK2M-MAYA2-D5: the prompt lookup of a DSpark session: the text so far (prompt and
+/// delivered tokens) and the lookup's own width policy (acceptance, probes, block costs of LK).
+struct LookupSource {
+    index: crate::speculative::NgramIndex,
+    policy: crate::inkling2_lookup::LookupPolicy,
+    /// Shadow observation: a proposal the lookup had where no lookup block ran, and how many of the tokens
+    /// delivered since matched it.
+    shadow: Option<(Vec<u32>, usize)>,
+}
+
+impl LookupSource {
+    /// Reads the delivered `token`: the text grows, and a pending shadow proposal is compared with it; at its
+    /// first mismatch, or once matched to its end, the lookup's acceptance observes it as a block of its length.
+    fn read(&mut self, token: u32) {
+        self.index.push(token);
+        if let Some((proposal, matched)) = self.shadow.as_mut() {
+            if proposal.get(*matched) == Some(&token) {
+                *matched += 1;
+                if *matched == proposal.len() {
+                    self.policy.observe(proposal.len(), proposal.len());
+                    self.shadow = None;
+                }
+            } else {
+                self.policy.observe(proposal.len(), *matched);
+                self.shadow = None;
+            }
+        }
+    }
+
+    /// Starts a shadow observation of `proposal` unless one is pending.
+    fn shadow(&mut self, proposal: &[u32]) {
+        if self.shadow.is_none() && !proposal.is_empty() {
+            self.shadow = Some((proposal.to_vec(), 0));
+        }
+    }
+}
+
+const LOOKUP_MAX_WIDTH: usize = crate::inkling2_lookup::MAX_WIDTH;
+const LOOKUP_MIN_MATCH: usize = crate::inkling2_lookup::MIN_MATCH;
+
+#[cfg(test)]
+thread_local! {
+    /// D5 oracle mutation: lookup proposals delivered without the target's decision.
+    static D5_MUTATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// D5 oracle: every lookup proposal runs as a block of its whole length (policies bypassed).
+    static D5_FORCE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// D5 oracle record of each GPU-decided lookup block, filled while set.
+    static D5_RECORD: std::cell::RefCell<Option<Vec<LookupRecord>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+/// D5 oracle: (proposals, argmax of every verified row, accepted, token) of one lookup block.
+#[cfg(test)]
+type LookupRecord = (Vec<u32>, Vec<u32>, usize, u32);
+
+/// DSPARK-2026-11-24-INK2M-MAYA2-D1: what a DSpark prefill holds at a prompt chunk boundary, for the next
+/// turn of the same conversation: the target's committed prefix, the drafter's context and the tap
+/// features of the boundary's last row (the next block's `last_feature` when nothing is left to prefill).
+pub struct DsparkPrefix {
+    target: crate::inkling2::InklingPrefix,
+    context: DraftContext,
+    last_feature: Array,
+}
+
+impl DsparkPrefix {
+    pub fn offset(&self) -> i32 {
+        self.target.offset()
+    }
+
+    /// Bytes this prefix keeps alive beyond the live state.
+    pub fn retained_bytes(&self) -> Result<usize> {
+        self.target
+            .retained_bytes()?
+            .checked_add(self.context.retained_bytes()?)
+            .and_then(|b| b.checked_add(self.last_feature.retained_bytes().ok()?))
+            .context("DSpark prefix size overflow")
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    /// D1 oracle mutations: 1 = the drafter keeps its live context on resume, 2 = the resumed session keeps
+    /// its own last feature.
+    static D1_MUTATION: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+}
+
+/// DSPARK-2026-11-24-INK2M-MAYA2-D2: the coupled rule only when `value` is "1" (an option: its preregistered
+/// criterion was not met on code; first-proposal acceptance +6 points in D2-DIAG).
+pub fn coupling_setting(value: Option<&str>) -> bool {
+    value == Some("1")
+}
+
+/// DFLASH2-2026-11-24-INK2M-S3: the ratio rule of `MLXL3_INKLING_DRAFT_RATIO`, on unless "0" (default since the
+/// user's decision of 2026-11-25).
+pub fn ratio_setting(value: Option<&str>) -> bool {
+    value != Some("0")
 }
 
 /// DSPARK-2026-11-23-INK2M-MTPLX-A: GPU decision of blocks with proposals unless `value` is "0".
@@ -817,7 +1327,7 @@ impl DsparkSession {
     pub const DEFAULT_WIDTH: usize = 3;
     pub const PREFILL_CHUNK: usize = 128;
 
-    pub fn new(draft: &Inkling2Draft, width: usize) -> Result<Self> {
+    pub fn new<D: BlockDrafter + ?Sized>(draft: &D, width: usize) -> Result<Self> {
         ensure!(
             width >= 1 && width <= draft.max_proposals(),
             "DSpark width outside the trained block"
@@ -835,8 +1345,12 @@ impl DsparkSession {
             decided: None,
             device_rounds: false,
             overlap: false,
+            couple: false,
+            ratio: false,
+            lookup: None,
             stats: SpecStats {
                 accepted_at: vec![0; width],
+                drafter: draft.name(),
                 ..SpecStats::default()
             },
         })
@@ -879,6 +1393,9 @@ impl DsparkSession {
                 .ok()
                 .as_deref(),
         );
+        self.couple =
+            coupling_setting(std::env::var("MLXL3_INKLING_DSPARK_COUPLE").ok().as_deref());
+        self.ratio = ratio_setting(std::env::var("MLXL3_INKLING_DRAFT_RATIO").ok().as_deref());
         self
     }
 
@@ -887,6 +1404,57 @@ impl DsparkSession {
     pub fn with_overlap(mut self, enabled: bool) -> Self {
         self.overlap = enabled;
         self
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D5: proposals copied from the text (`prompt`, then every delivered token)
+    /// compete with the drafter's at each block (Project Maya's `SpecCtl::pick`): the lookup's block runs when
+    /// its expected tokens per cost beat the drafter policy's choice. Without it the session is unchanged.
+    pub fn with_lookup(mut self, prompt: &[u32]) -> Self {
+        self.lookup = Some(LookupSource {
+            index: crate::speculative::NgramIndex::new(prompt),
+            policy: crate::inkling2_lookup::LookupPolicy::new(),
+            shadow: None,
+        });
+        self
+    }
+
+    /// Whether the prompt lookup takes part in this session.
+    pub fn looks_up(&self) -> bool {
+        self.lookup.is_some()
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D2: whether sampled GPU-decided blocks couple the drafter's proposals
+    /// to the target's draws (shared Gumbel noise) instead of the point rule.
+    pub fn with_coupling(mut self, enabled: bool) -> Self {
+        self.couple = enabled;
+        self
+    }
+
+    /// DFLASH2-2026-11-24-INK2M-S3: whether sampled GPU-decided blocks use the ratio rule (drafters that support
+    /// it).
+    pub fn with_ratio(mut self, enabled: bool) -> Self {
+        self.ratio = enabled;
+        self
+    }
+
+    /// Whether the next sampled block with proposals uses the ratio rule (when its drafter supports it).
+    pub fn ratio_rule(&self) -> bool {
+        self.device_rounds()
+            && self.ratio
+            && matches!(
+                self.device.as_ref().map(|d| d.rule),
+                Some(crate::inkling2::DrawRule::Softmax(_))
+            )
+    }
+
+    /// Whether the next sampled block with proposals uses the coupled rule.
+    pub fn couples(&self) -> bool {
+        self.device_rounds()
+            && self.couple
+            && matches!(
+                self.device.as_ref().map(|d| d.rule),
+                Some(crate::inkling2::DrawRule::Softmax(_))
+            )
     }
 
     /// DSPARK-2026-11-23-INK2M-MTPLX-A: whether blocks with proposals are decided on the GPU (only with a GPU
@@ -914,10 +1482,10 @@ impl DsparkSession {
 
     /// Resets both models and prefills `tokens` by chunks, giving the drafter its context. Returns the
     /// logits of the last prompt row `[1, 1, vocab]`.
-    pub fn prefill(
+    pub fn prefill<D: BlockDrafter + ?Sized>(
         &mut self,
         target: &mut Inkling2,
-        draft: &mut Inkling2Draft,
+        draft: &mut D,
         tokens: &[u32],
         cancelled: &dyn Fn() -> bool,
     ) -> Result<Array> {
@@ -926,25 +1494,106 @@ impl DsparkSession {
 
     /// `prefill` of a prompt whose image placeholders read the features of `images`
     /// (`Inkling2::prepare_images`).
-    pub fn prefill_with_images(
+    pub fn prefill_with_images<D: BlockDrafter + ?Sized>(
         &mut self,
         target: &mut Inkling2,
-        draft: &mut Inkling2Draft,
+        draft: &mut D,
         tokens: &[u32],
         images: &[crate::lfm3::PreparedImage],
         cancelled: &dyn Fn() -> bool,
     ) -> Result<Array> {
+        Ok(self
+            .prefill_resumable(
+                target,
+                draft,
+                tokens,
+                images,
+                None,
+                None,
+                &mut |_, _| Ok(()),
+                cancelled,
+            )?
+            .0)
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D1: `prefill_with_images` that first goes back to `resume` (a prefix of
+    /// `tokens` at a chunk boundary, taken by this session type from this same state lineage, with the logits
+    /// of its last row), then prefills the rest by the same chunks a cold prefill uses, so every value is the
+    /// cold prefill's. When the target refuses the prefix, both models are reset and the whole prompt is
+    /// prefilled as before. `capture` receives the state and logits at `checkpoint` (a chunk boundary within
+    /// `tokens`), including when the resumed prefix already ends there. Returns the last row's logits and the
+    /// number of resumed tokens.
+    #[allow(clippy::too_many_arguments)]
+    pub fn prefill_resumable<D: BlockDrafter + ?Sized>(
+        &mut self,
+        target: &mut Inkling2,
+        draft: &mut D,
+        tokens: &[u32],
+        images: &[crate::lfm3::PreparedImage],
+        resume: Option<(DsparkPrefix, Array)>,
+        checkpoint: Option<usize>,
+        capture: &mut dyn FnMut(DsparkPrefix, &Array) -> Result<()>,
+        cancelled: &dyn Fn() -> bool,
+    ) -> Result<(Array, usize)> {
         ensure!(!tokens.is_empty(), "DSpark prefill needs tokens");
+        ensure!(
+            checkpoint.is_none_or(|c| c > 0 && c <= tokens.len() && c % Self::PREFILL_CHUNK == 0),
+            "DSpark checkpoint must be a chunk boundary of the prompt"
+        );
         let t = Instant::now();
-        target.reset();
-        target.prepare_images(tokens, images)?;
-        draft.reset();
         self.pending.clear();
         self.expected = None;
         self.ahead = None;
         self.decided = None;
+        let mut start = 0;
         let mut logits = None;
-        for chunk in tokens.chunks(Self::PREFILL_CHUNK) {
+        if let Some((prefix, saved_logits)) = resume {
+            let offset = usize::try_from(prefix.target.offset())?;
+            ensure!(
+                images.is_empty()
+                    && offset > 0
+                    && offset <= tokens.len()
+                    && offset % Self::PREFILL_CHUNK == 0
+                    && prefix.context.offset() == Some(prefix.target.offset()),
+                "invalid DSpark prefix"
+            );
+            let DsparkPrefix {
+                target: saved,
+                context,
+                last_feature,
+            } = prefix;
+            if target.resume_prefix(saved)? {
+                #[cfg(test)]
+                let restore = !matches!(D1_MUTATION.with(std::cell::Cell::get), 1);
+                #[cfg(not(test))]
+                let restore = true;
+                if restore {
+                    draft.restore_context(&context)?;
+                }
+                #[cfg(test)]
+                let last_feature = if D1_MUTATION.with(std::cell::Cell::get) == 2 {
+                    self.last_feature.take().unwrap_or(last_feature)
+                } else {
+                    last_feature
+                };
+                self.last_feature = Some(last_feature);
+                start = offset;
+                logits = Some(saved_logits);
+            }
+        }
+        if start == 0 {
+            target.reset();
+            draft.reset();
+        }
+        target.prepare_images(tokens, images)?;
+        if start > 0 && checkpoint == Some(start) {
+            capture(
+                self.prefix(target, draft)?,
+                logits.as_ref().context("resumed logits")?,
+            )?;
+        }
+        let mut position = start;
+        for chunk in tokens[start..].chunks(Self::PREFILL_CHUNK) {
             ensure!(!cancelled(), "generation cancelled");
             let started = Instant::now();
             let (chunk_logits, features) = target.forward_with_features(chunk, &self.taps)?;
@@ -961,18 +1610,42 @@ impl DsparkSession {
             let rows = chunk.len() as i32;
             self.last_feature = Some(features.slice(0, rows - 1, rows)?);
             logits = Some(chunk_logits);
+            position += chunk.len();
+            if checkpoint == Some(position) {
+                capture(
+                    self.prefix(target, draft)?,
+                    logits.as_ref().context("chunk logits")?,
+                )?;
+            }
         }
         self.stats.prefill_ms += t.elapsed().as_secs_f64() * 1e3;
-        logits.context("empty DSpark prefill")
+        Ok((logits.context("empty DSpark prefill")?, start))
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D1: the committed state of a prefill at a chunk boundary.
+    fn prefix<D: BlockDrafter + ?Sized>(
+        &self,
+        target: &Inkling2,
+        draft: &D,
+    ) -> Result<DsparkPrefix> {
+        Ok(DsparkPrefix {
+            target: target.prefix_snapshot()?,
+            context: draft.context_snapshot()?,
+            last_feature: self
+                .last_feature
+                .as_ref()
+                .context("DSpark prefix without context")?
+                .compact_for_cache()?,
+        })
     }
 
     /// `next`: the token the caller just delivered. Returns the token after it, running a draft block
     /// when nothing verified is left. `remaining` >= 1 tokens may still be delivered; `context_limit`
     /// bounds the target positions.
-    pub fn advance(
+    pub fn advance<D: BlockDrafter + ?Sized>(
         &mut self,
         target: &mut Inkling2,
-        draft: &mut Inkling2Draft,
+        draft: &mut D,
         next: u32,
         context_limit: usize,
         remaining: usize,
@@ -985,13 +1658,32 @@ impl DsparkSession {
                 "DSpark session out of step (delivered {next}, expected {expected})"
             );
         }
+        // D5: the lookup reads every delivered token (and its pending shadow proposal is checked against it)
+        if let Some(lookup) = self.lookup.as_mut() {
+            lookup.read(next);
+        }
         if let Some(token) = self.pending.pop_front() {
             self.expected = Some(token);
             return Ok(token);
         }
         // SPEED-INK2M-P14: the block anchored on `next` already ran (submitted before `next` was read)
         if let Some(after) = self.ahead.take() {
-            return self.deliver(target, draft, after, context_limit, remaining);
+            // D5: a lookup proposal at `next` can only be counted as missed
+            let likely = match self.lookup.as_mut() {
+                Some(lookup) => {
+                    let found = lookup
+                        .index
+                        .lookup_min(LOOKUP_MAX_WIDTH, LOOKUP_MIN_MATCH)
+                        .map(<[u32]>::to_vec);
+                    if let Some(found) = &found {
+                        lookup.policy.missed();
+                        lookup.shadow(found);
+                    }
+                    found.is_some()
+                }
+                None => false,
+            };
+            return self.deliver(target, draft, after, context_limit, remaining, likely);
         }
         // `next` is the anchor: the target has not seen it yet
         let offset = usize::try_from(target.offset())?;
@@ -1000,11 +1692,44 @@ impl DsparkSession {
             Some(width) => width,
             None => self.next_width(),
         };
-        let count = width.min(remaining - 1).min(context_limit - offset - 1);
+        let room = (remaining - 1).min(context_limit - offset - 1);
+        let count = width.min(room);
+        // DSPARK-2026-11-24-INK2M-MAYA2-D5: the lookup's block when it is worth more than the drafter's choice
+        let found: Vec<u32> = match self.lookup.as_mut() {
+            Some(lookup) if room > 0 => lookup
+                .index
+                .lookup_min(LOOKUP_MAX_WIDTH.min(room), LOOKUP_MIN_MATCH)
+                .map(<[u32]>::to_vec)
+                .unwrap_or_default(),
+            _ => Vec::new(),
+        };
+        #[cfg(test)]
+        if D5_FORCE.with(std::cell::Cell::get) && !found.is_empty() {
+            return self.lookup_block(target, draft, next, &found, choose);
+        }
+        if !found.is_empty() {
+            let drafter_value = match &self.policy {
+                Some(policy) if count > 0 => policy.expected_tokens(count) / policy.cost(count),
+                _ => 1.0,
+            };
+            let lookup = self.lookup.as_mut().context("lookup")?;
+            let lookup_width = lookup.policy.choose(found.len()).min(found.len());
+            if lookup_width > 0 {
+                let value = lookup.policy.expected_tokens(lookup_width)
+                    / crate::inkling2_lookup::BLOCK_COSTS[lookup_width];
+                // a probe of the lookup (value <= 1) runs only where the drafter would take a plain step
+                if value > drafter_value || (value <= 1.0 && count == 0) {
+                    return self.lookup_block(target, draft, next, &found[..lookup_width], choose);
+                }
+            }
+            // not run: its proposal is checked against what the session delivers instead
+            lookup.shadow(&found);
+        }
+        let likely = !found.is_empty();
         if count == 0 && self.device.is_some() {
             let anchor = Array::from_u32(&[next], &[1])?;
             let after = self.device_block(target, draft, &anchor)?;
-            return self.deliver(target, draft, after, context_limit, remaining);
+            return self.deliver(target, draft, after, context_limit, remaining, likely);
         }
         let last_feature = self
             .last_feature
@@ -1024,6 +1749,7 @@ impl DsparkSession {
                 accepted,
                 token,
                 features,
+                false,
                 false,
             )?;
             self.stats.device.finish_ms += finish.elapsed().as_secs_f64() * 1e3;
@@ -1090,7 +1816,93 @@ impl DsparkSession {
             token,
             features,
             committed,
+            false,
         )
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D5: a block of the lookup's `proposals` after the anchor `next`: verified with
+    /// the drafter's taps (its context follows the kept rows), decided on the GPU when the session draws there
+    /// (`inkling2::decide_block`: the greedy equality or the sampled point rule, both exact for deterministic
+    /// proposals), else by the caller's `choose`. Counted in the lookup's statistics and acceptance only.
+    fn lookup_block<D: BlockDrafter + ?Sized>(
+        &mut self,
+        target: &mut Inkling2,
+        draft: &mut D,
+        next: u32,
+        proposals: &[u32],
+        choose: &mut BlockChoice<'_>,
+    ) -> Result<u32> {
+        ensure!(!proposals.is_empty(), "empty lookup block");
+        if let Some(lookup) = self.lookup.as_mut() {
+            // this block observes the lookup itself: no shadow over the same tokens
+            lookup.shadow = None;
+        }
+        let started = Instant::now();
+        let mut block = Vec::with_capacity(1 + proposals.len());
+        block.push(next);
+        block.extend(proposals);
+        let (accepted, token, features) = match self.device.as_mut() {
+            Some(device) if self.device_rounds => {
+                let rule = device.rule;
+                let noise_seed = device.seeds.next_seed();
+                let uniform_seed = device.seeds.next_seed();
+                let ids = Array::from_u32(&block, &[block.len() as i32])?;
+                let given = Array::from_u32(proposals, &[proposals.len() as i32])?;
+                let (logits, features) = target.verify_device(&ids, &self.taps)?;
+                let packet =
+                    crate::inkling2::decide_block(&logits, &given, rule, noise_seed, uniform_seed)?
+                        .to_u32()?;
+                ensure!(
+                    packet.len() == 2 + proposals.len() && packet[2..] == *proposals,
+                    "invalid lookup decision packet {packet:?}"
+                );
+                #[cfg(test)]
+                D5_RECORD.with(|record| -> Result<()> {
+                    if let Some(record) = record.borrow_mut().as_mut() {
+                        let shape = logits.shape();
+                        let rows = logits
+                            .reshape(&[shape[1], shape[2]])?
+                            .log_probs()?
+                            .argmax()?
+                            .to_u32()?;
+                        record.push((proposals.to_vec(), rows, packet[0] as usize, packet[1]));
+                    }
+                    Ok(())
+                })?;
+                (usize::try_from(packet[0])?, packet[1], features)
+            }
+            _ => {
+                let (logits, features) = target.verify(&block, &self.taps)?;
+                let (accepted, token) = choose(proposals, None, &logits)?;
+                (accepted, token, features)
+            }
+        };
+        #[cfg(test)]
+        let (accepted, token) = if D5_MUTATION.with(std::cell::Cell::get) {
+            // mutation: every lookup proposal delivered, whatever the target chose
+            (proposals.len(), token)
+        } else {
+            (accepted, token)
+        };
+        let vocab = u32::try_from(target.unpadded_vocab())?;
+        ensure!(
+            accepted <= proposals.len() && token < vocab,
+            "invalid lookup decision ({accepted} of {}, token {token})",
+            proposals.len()
+        );
+        let first = self.finish_block(
+            target,
+            draft,
+            started,
+            proposals.to_vec(),
+            accepted,
+            token,
+            features,
+            false,
+            true,
+        )?;
+        self.stats.lookup_ms += started.elapsed().as_secs_f64() * 1e3;
+        Ok(first)
     }
 
     /// DSPARK-2026-11-23-INK2M-MTPLX-A: one block of `count` >= 1 proposals with nothing read on the way:
@@ -1098,14 +1910,16 @@ impl DsparkSession {
     /// from them, the decision (`inkling2::decide_block`, the session's GPU rule) runs after it, and the
     /// packet is the only read. Returns the proposals, the accepted count, the token after them and the
     /// verified features; nothing is committed yet.
-    fn device_round(
+    fn device_round<D: BlockDrafter + ?Sized>(
         &mut self,
         target: &mut Inkling2,
-        draft: &Inkling2Draft,
+        draft: &D,
         next: u32,
         last_feature: &Array,
         count: usize,
     ) -> Result<(Vec<u32>, usize, u32, Array)> {
+        let ratio = self.ratio_rule() && draft.supports_ratio();
+        let couple = !ratio && self.couples() && draft.supports_coupling();
         let device = self
             .device
             .as_mut()
@@ -1113,9 +1927,41 @@ impl DsparkSession {
         let rule = device.rule;
         let noise_seed = device.seeds.next_seed();
         let uniform_seed = device.seeds.next_seed();
+        // S3: the drafter's own noise, a third independent seed (only for ratio blocks: the other rules keep their
+        // seed sequence)
+        let draft_seed = if ratio { device.seeds.next_seed() } else { 0 };
         let t0 = Instant::now();
         let anchor = Array::from_u32(&[next], &[1])?;
-        let proposals = draft.propose(target, &anchor, last_feature, count)?;
+        // D2: one standard Gumbel row per verified row, shared by the drafter's proposals and the target's
+        // draws; a new seed every block
+        let coupled = match rule {
+            crate::inkling2::DrawRule::Softmax(temperature) if couple => Some((
+                temperature,
+                Array::gumbel_noise(&[count as i32 + 1, target.unpadded_vocab()], noise_seed)?,
+            )),
+            _ => None,
+        };
+        let ratio_draw = match rule {
+            crate::inkling2::DrawRule::Softmax(temperature) if ratio => Some((
+                temperature,
+                draft.propose_ratio(
+                    target,
+                    &anchor,
+                    last_feature,
+                    count,
+                    temperature,
+                    draft_seed,
+                )?,
+            )),
+            _ => None,
+        };
+        let proposals = match (&ratio_draw, &coupled) {
+            (Some((_, drawn)), _) => drawn.tokens.clone(),
+            (None, Some((temperature, noise))) => {
+                draft.propose_coupled(target, &anchor, last_feature, count, *temperature, noise)?
+            }
+            (None, None) => draft.propose(target, &anchor, last_feature, count)?,
+        };
         if self.overlap {
             // A3: the drafter runs on the GPU while the verification graph is built
             proposals.async_eval()?;
@@ -1124,8 +1970,28 @@ impl DsparkSession {
         let t1 = Instant::now();
         let (logits, features) = target.verify_device(&block, &self.taps)?;
         let t2 = Instant::now();
-        let packet =
-            crate::inkling2::decide_block(&logits, &proposals, rule, noise_seed, uniform_seed)?;
+        let packet = match (&ratio_draw, &coupled) {
+            (Some((temperature, drawn)), _) => {
+                self.stats.ratio_blocks += 1;
+                crate::inkling2::decide_ratio(
+                    &logits,
+                    &proposals,
+                    &drawn.candidates,
+                    &drawn.q,
+                    &drawn.chosen,
+                    *temperature,
+                    noise_seed,
+                    uniform_seed,
+                )?
+            }
+            (None, Some((temperature, noise))) => {
+                self.stats.coupled_blocks += 1;
+                crate::inkling2::decide_coupled(&logits, &proposals, *temperature, noise)?
+            }
+            (None, None) => {
+                crate::inkling2::decide_block(&logits, &proposals, rule, noise_seed, uniform_seed)?
+            }
+        };
         let t3 = Instant::now();
         let packet = packet.to_u32()?;
         let t4 = Instant::now();
@@ -1157,16 +2023,17 @@ impl DsparkSession {
     /// The end of a block: commit of the kept rows (unless the forward already committed them), the drafter's
     /// context, statistics and the delivery queue. Returns the first token to deliver.
     #[allow(clippy::too_many_arguments)]
-    fn finish_block(
+    fn finish_block<D: BlockDrafter + ?Sized>(
         &mut self,
         target: &mut Inkling2,
-        draft: &mut Inkling2Draft,
+        draft: &mut D,
         block_started: Instant,
         proposals: Vec<u32>,
         accepted: usize,
         token: u32,
         features: Array,
         committed: bool,
+        from_lookup: bool,
     ) -> Result<u32> {
         let t = Instant::now();
         if !committed {
@@ -1175,6 +2042,26 @@ impl DsparkSession {
         draft.append_context(&features.slice(0, 0, accepted as i32 + 1)?)?;
         self.last_feature = Some(features.slice(0, accepted as i32, accepted as i32 + 1)?);
         self.stats.commit_ms += t.elapsed().as_secs_f64() * 1e3;
+        if from_lookup {
+            // D5: the lookup's own acceptance and counters; the drafter's estimates do not move
+            if let Some(lookup) = self.lookup.as_mut() {
+                lookup.policy.observe(proposals.len(), accepted);
+            }
+            self.stats.lookup_blocks += 1;
+            self.stats.lookup_proposed += proposals.len();
+            self.stats.lookup_accepted += accepted;
+            if self.stats.lookup_width_blocks.len() <= proposals.len() {
+                self.stats
+                    .lookup_width_blocks
+                    .resize(proposals.len() + 1, 0);
+            }
+            self.stats.lookup_width_blocks[proposals.len()] += 1;
+            self.pending.extend(&proposals[..accepted]);
+            self.pending.push_back(token);
+            let first = self.pending.pop_front().context("empty lookup block")?;
+            self.expected = Some(first);
+            return Ok(first);
+        }
         self.stats.blocks += 1;
         self.stats.proposed += proposals.len();
         self.stats.accepted += accepted;
@@ -1206,10 +2093,10 @@ impl DsparkSession {
 
     /// SPEED-INK2M-P14: a width-0 block anchored on `anchor` (`[1]` on the GPU), committed, its token drawn
     /// on the GPU (lazy; submitted without waiting when pipelined).
-    fn device_block(
+    fn device_block<D: BlockDrafter + ?Sized>(
         &mut self,
         target: &mut Inkling2,
-        draft: &mut Inkling2Draft,
+        draft: &mut D,
         anchor: &Array,
     ) -> Result<Array> {
         let device = self
@@ -1245,17 +2132,26 @@ impl DsparkSession {
     /// SPEED-INK2M-P14: delivers `after`, the token after the anchor of the block that just ran (`remaining`
     /// counts it). When pipelined and a token will follow it, the next block's width is drawn first: a
     /// width-0 block is submitted before `after` is read, otherwise the width is kept for `advance`.
-    fn deliver(
+    fn deliver<D: BlockDrafter + ?Sized>(
         &mut self,
         target: &mut Inkling2,
-        draft: &mut Inkling2Draft,
+        draft: &mut D,
         after: Array,
         context_limit: usize,
         remaining: usize,
+        likely: bool,
     ) -> Result<u32> {
         let pipelined = self.device.as_ref().is_some_and(|d| d.pipelined);
         let offset = usize::try_from(target.offset())?;
-        if pipelined && remaining >= 2 && offset < context_limit {
+        let hold = self
+            .lookup
+            .as_ref()
+            .is_some_and(|lookup| lookup.policy.wants_block(likely));
+        if hold && pipelined && remaining >= 2 && offset < context_limit {
+            // D5: the token before `after` had a lookup proposal and a lookup block would pay: wait for
+            // `after` so the lookup can read it (the next `advance` decides)
+            self.stats.lookup_held += 1;
+        } else if pipelined && remaining >= 2 && offset < context_limit {
             let width = self.next_width();
             if width.min(remaining - 2).min(context_limit - offset - 1) == 0 {
                 self.ahead = Some(self.device_block(target, draft, &after)?);
@@ -1292,6 +2188,9 @@ pub struct WidthPolicy {
     /// `PROBE_EVERY` blocks (P4)
     narrow_probes: bool,
     blocks: usize,
+    /// DFLASH2-2026-11-25-INK2M-F3: a probe whose proposals were all kept is followed by another probe (gap 1)
+    /// instead of waiting 8 to 64 blocks; a probe with a rejection keeps the P10c rule (gap at least `PROBE_EVERY`)
+    streak: bool,
     /// P10c: blocks between probes, blocks since the last probe, and whether the last block was a probe
     probe_gap: usize,
     since_probe: usize,
@@ -1312,6 +2211,40 @@ impl WidthPolicy {
     /// Same, greedy rows (argmax of every verified row; width-0 cost = the bridge greedy AR step). Measured
     /// only: greedy sessions keep the P4c costs, this table lost 2.2 % on short greedy answers (P10b).
     pub const GREEDY_8BIT_COSTS: [f64; 4] = [1.0, 1.62, 1.95, 2.22];
+    /// DFLASH2-2026-11-24-INK2M-P2 (c): block of `w` DFlash2 proposals over a plain step, measured at the bridge
+    /// (R3-vision, gencode T = 1, 8-bit drafter with the GPU selector: 36.2 ms plain; 97.7 / 95.4 / 101.3 / 122.4 /
+    /// 150.4 / 134.7 ms at widths 1 / 3 / 4 / 5 / 6 / 7 over 45 / 28 / 87 / 16 / 13 / 8 blocks), fitted as
+    /// 82.5 + 6.7 w ms (least squares weighted by blocks) since the raw means do not grow with the width.
+    pub const DFLASH2_COSTS_P2: [f64; 8] = [1.0, 2.46, 2.65, 2.83, 3.02, 3.2, 3.39, 3.57];
+    /// DFLASH2-2026-11-25-INK2M-F2: the same blocks after S4 (the context backlog no longer rides on every block):
+    /// 37.2 ms plain and 66.5 / 118.1 / 128.4 / 149.6 ms at widths 1 / 5 / 6 / 7 over 6 / 9 / 19 / 111 blocks
+    /// (bridge, R3-vision, gencode T = 1, ratio rule), fitted as 52 + 13.9 w ms = 1.40 + 0.375 w plain steps.
+    pub const DFLASH2_COSTS_F2: [f64; 8] = [1.0, 1.775, 2.15, 2.525, 2.9, 3.275, 3.65, 4.025];
+    /// DFLASH2-2026-11-25-INK2M-F3: the block means of 12 bridge passes with the whole block (F1), at least 139
+    /// blocks a width: 35.5 ms plain and 61.1 / 72.8 / 83.7 / 96.5 / 108.8 / 123.6 / 140.7 ms at widths 1..=7.
+    pub const DFLASH2_COSTS_F3: [f64; 8] = [1.0, 1.72, 2.05, 2.36, 2.72, 3.06, 3.48, 3.96];
+
+    /// INVARIANT-2026-11-25-INK2M-L3-3: the F3 means less the harness gain of the expert panel on a verification
+    /// of w + 1 rows (1.4 / 3.3 / 4.2 / 7.2 / 11.2 / 16.1 / 16.5 ms). Bridge blocks with the panel then measured
+    /// 1.60-1.64 / 1.92 / 2.16 / 2.46 / 2.70-2.74 / 3.03-3.09 / 3.44-3.48 steps; this table against the F3 one with
+    /// the panel: 37.6 against 34.9 tok/s (gencode T = 1, 4 passes each). The default.
+    pub const DFLASH2_COSTS: [f64; 8] = [1.0, 1.68, 1.96, 2.24, 2.52, 2.75, 3.03, 3.5];
+
+    /// Setting of `MLXL3_INKLING_DFLASH2_COSTS`: "p2" the table measured before S4, "f2" the F2 fit, "f3" the
+    /// means measured without the expert panel, else the current one (with the panel; "l3" names it too).
+    pub fn dflash2_costs(value: Option<&str>) -> &'static [f64; 8] {
+        match value {
+            Some("p2") => &Self::DFLASH2_COSTS_P2,
+            Some("f2") => &Self::DFLASH2_COSTS_F2,
+            Some("f3") => &Self::DFLASH2_COSTS_F3,
+            _ => &Self::DFLASH2_COSTS,
+        }
+    }
+
+    /// F3 setting of `MLXL3_INKLING_DFLASH2_STREAK`: probes in a row after a kept probe unless "0".
+    pub fn probe_streak_setting(value: Option<&str>) -> bool {
+        value != Some("0")
+    }
 
     /// P4c setting: linear FP16 costs, full-width probes.
     pub fn new(max_width: usize) -> Self {
@@ -1319,6 +2252,7 @@ impl WidthPolicy {
             acceptance: vec![Self::PRIOR; max_width],
             costs: (0..=max_width).map(Self::linear_cost).collect(),
             narrow_probes: false,
+            streak: false,
             blocks: 0,
             probe_gap: Self::PROBE_EVERY,
             since_probe: 0,
@@ -1342,11 +2276,25 @@ impl WidthPolicy {
             acceptance: vec![Self::PRIOR; max_width],
             costs: costs.to_vec(),
             narrow_probes: true,
+            streak: false,
             blocks: 0,
             probe_gap: Self::PROBE_EVERY,
             since_probe: 0,
             probing: false,
         })
+    }
+
+    /// DFLASH2-2026-11-24-INK2M-P3 (3): the full width every `PROBE_EVERY` blocks (P4 probes) with these costs, so
+    /// the far positions keep being observed when the best width is narrow.
+    pub fn with_full_probes(mut self) -> Self {
+        self.narrow_probes = false;
+        self
+    }
+
+    /// DFLASH2-2026-11-25-INK2M-F3: probes in a row while their proposals are all kept.
+    pub fn with_probe_streak(mut self) -> Self {
+        self.streak = true;
+        self
     }
 
     pub fn max_width(&self) -> usize {
@@ -1426,8 +2374,12 @@ impl WidthPolicy {
         // P10c: a probe after which plain steps stay best doubles the gap; one that makes DSpark pay
         // again resets it
         if std::mem::take(&mut self.probing) {
-            self.probe_gap = if self.best() == 0 {
-                (self.probe_gap * 2).min(Self::PROBE_MAX)
+            self.probe_gap = if self.streak && width > 0 && accepted >= width {
+                // F3: a kept probe pays for itself; the next block probes again
+                1
+            } else if self.best() == 0 {
+                // at least PROBE_EVERY again after a streak (the gap was 1)
+                (self.probe_gap * 2).clamp(Self::PROBE_EVERY, Self::PROBE_MAX)
             } else {
                 Self::PROBE_EVERY
             };
@@ -1467,6 +2419,37 @@ pub struct SpecStats {
     /// DSPARK-2026-11-23-INK2M-MTPLX-A3: host-side split of the blocks decided on the GPU.
     #[serde(skip_serializing_if = "DeviceRoundTimes::is_empty")]
     pub device: DeviceRoundTimes,
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D2: blocks with proposals decided by the coupled rule.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub coupled_blocks: usize,
+    /// DFLASH2-2026-11-24-INK2M-S3: blocks with proposals decided by the ratio rule.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub ratio_blocks: usize,
+    /// DFLASH2-2026-11-24-INK2M-P0: the drafter of the session (`dspark` or `dflash2`).
+    #[serde(skip_serializing_if = "str::is_empty")]
+    pub drafter: &'static str,
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D5: lookup blocks (not counted in `blocks`), their proposals and
+    /// accepted proposals, blocks by width, steps not run ahead so a lookup could follow, and their wall time.
+    #[serde(skip_serializing_if = "is_zero")]
+    pub lookup_blocks: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub lookup_proposed: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub lookup_accepted: usize,
+    #[serde(skip_serializing_if = "is_zero")]
+    pub lookup_held: usize,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub lookup_width_blocks: Vec<usize>,
+    #[serde(skip_serializing_if = "is_zero_ms")]
+    pub lookup_ms: f64,
+}
+
+fn is_zero_ms(value: &f64) -> bool {
+    *value == 0.0
+}
+
+fn is_zero(value: &usize) -> bool {
+    *value == 0
 }
 
 /// DSPARK-2026-11-23-INK2M-MTPLX-A3: where the host spends a GPU-decided block (sums, ms): building the
@@ -1978,6 +2961,209 @@ mod tests {
         Ok(())
     }
 
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D2: the coupled rule is on only for exactly "1".
+    #[test]
+    fn ratio_setting_is_on_unless_zero() {
+        assert!(!ratio_setting(Some("0")));
+        for value in [None, Some("1"), Some(""), Some("true")] {
+            assert!(ratio_setting(value), "{value:?}");
+        }
+    }
+
+    /// DFLASH2-2026-11-24-INK2M-S3: `inkling2::decide_ratio` keeps the target's law whatever the drafter proposes.
+    /// Fixed target rows p_i over 24 tokens, drafter rows q_i over 16 of them (drawn per row, some tokens of p
+    /// outside every candidate set), proposals drawn from q_i on the host, 40 000 blocks per case: for each position
+    /// i, the token delivered at i among the blocks that reach it against p_i = softmax(row i / T) (chi-square
+    /// below the 0.999 quantile, 23 degrees of freedom); the share of first proposals kept is sum min(p_0, q_0)
+    /// within 0.01; the mutation that keeps every proposal is detected.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn decide_ratio_follows_the_target_law() -> Result<()> {
+        use crate::inkling2::{RATIO_MUTATION, decide_ratio};
+        const V: usize = 24;
+        const C: usize = 16;
+        const BLOCKS: usize = 40_000;
+        const BATCH: usize = 1_000;
+        let mut rng = 0x2545_f491_4f6c_dd1du64;
+        let mut next = move || {
+            rng ^= rng << 13;
+            rng ^= rng >> 7;
+            rng ^= rng << 17;
+            ((rng >> 11) as f64 + 0.5) / (1u64 << 53) as f64
+        };
+        // target rows in [-2, 2]; drafter rows: 16 distinct candidates, scores in [-2, 2]
+        let p_rows: Vec<Vec<f32>> = (0..4)
+            .map(|_| (0..V).map(|_| (next() * 4.0 - 2.0) as f32).collect())
+            .collect();
+        let mut q_sets = Vec::new();
+        for _ in 0..3 {
+            let mut ids: Vec<u32> = (0..V as u32).collect();
+            for i in (1..V).rev() {
+                let j = (next() * (i + 1) as f64) as usize % (i + 1);
+                ids.swap(i, j);
+            }
+            ids.truncate(C);
+            let scores: Vec<f64> = (0..C).map(|_| next() * 4.0 - 2.0).collect();
+            q_sets.push((ids, scores));
+        }
+        let softmax = |row: &[f64], t: f64| -> Vec<f64> {
+            let top = row.iter().fold(f64::NEG_INFINITY, |m, &v| m.max(v / t));
+            let w: Vec<f64> = row.iter().map(|&v| (v / t - top).exp()).collect();
+            let total: f64 = w.iter().sum();
+            w.iter().map(|x| x / total).collect()
+        };
+        let p_law = |i: usize, t: f64| {
+            softmax(
+                &p_rows[i].iter().map(|&v| f64::from(v)).collect::<Vec<_>>(),
+                t,
+            )
+        };
+        let chi2_bound = |df: f64| {
+            let z = 3.090_232_306;
+            df * (1.0 - 2.0 / (9.0 * df) + z * (2.0 / (9.0 * df)).sqrt()).powi(3)
+        };
+        let mut law_check = |k: usize, t: f32, seed: u64| -> Result<(bool, f64, f64)> {
+            let q_laws: Vec<Vec<f64>> = q_sets[..k]
+                .iter()
+                .map(|(_, s)| softmax(s, f64::from(t)))
+                .collect();
+            let mut cand = Vec::new();
+            let mut q = Vec::new();
+            for (i, (ids, _)) in q_sets[..k].iter().enumerate() {
+                cand.extend(ids);
+                q.extend(q_laws[i].iter().map(|&v| v as f32));
+            }
+            let cand = Array::from_u32(&cand, &[k as i32, C as i32])?;
+            let q_arr = Array::from_f32(&q, &[k as i32, C as i32])?;
+            let flat: Vec<f32> = p_rows[..=k].iter().flatten().copied().collect();
+            let logits = Array::from_f32(&flat, &[1, k as i32 + 1, V as i32])?;
+            let mut counts = vec![vec![0f64; V]; k + 1];
+            let (mut first_kept, mut kept) = (0usize, 0usize);
+            for batch in 0..BLOCKS / BATCH {
+                let mut blocks = Vec::with_capacity(BATCH);
+                for b in 0..BATCH {
+                    let mut x = Vec::with_capacity(k);
+                    let mut chosen = Vec::with_capacity(k);
+                    for (i, law) in q_laws.iter().enumerate() {
+                        let u = next();
+                        let mut acc = 0.0;
+                        let mut c = C - 1;
+                        for (j, &w) in law.iter().enumerate() {
+                            acc += w;
+                            if u < acc {
+                                c = j;
+                                break;
+                            }
+                        }
+                        x.push(q_sets[i].0[c]);
+                        chosen.push(q[i * C + c]);
+                    }
+                    let proposals = Array::from_u32(&x, &[k as i32])?;
+                    let chosen = Array::from_f32(&chosen, &[k as i32])?;
+                    let block_seed = seed + 2 * (batch * BATCH + b) as u64;
+                    let packet = decide_ratio(
+                        &logits,
+                        &proposals,
+                        &cand,
+                        &q_arr,
+                        &chosen,
+                        t,
+                        block_seed,
+                        block_seed + 1,
+                    )?;
+                    blocks.push((packet, x));
+                }
+                Array::eval_many(&blocks.iter().map(|(p, _)| p).collect::<Vec<_>>())?;
+                for (packet, x) in &blocks {
+                    let p = packet.to_u32()?;
+                    ensure!(
+                        p.len() == 2 + k
+                            && p[2..] == x[..]
+                            && (p[0] as usize) <= k
+                            && (p[1] as usize) < V,
+                        "invalid packet {p:?}"
+                    );
+                    let a = p[0] as usize;
+                    kept += a;
+                    first_kept += usize::from(a > 0);
+                    for (i, row) in counts.iter_mut().enumerate().take(a + 1) {
+                        let token = if i < a { x[i] } else { p[1] };
+                        row[token as usize] += 1.0;
+                    }
+                }
+            }
+            let mut ok = true;
+            for (i, row) in counts.iter().enumerate() {
+                let law = p_law(i, f64::from(t));
+                let reached: f64 = row.iter().sum();
+                if reached < 2_000.0 {
+                    continue;
+                }
+                let chi2: f64 = (0..V)
+                    .map(|j| (row[j] - law[j] * reached).powi(2) / (law[j] * reached))
+                    .sum();
+                let bound = chi2_bound((V - 1) as f64);
+                println!(
+                    "S3 k={k} T={t} position {i}: reached {reached}, chi2 {chi2:.2} bound {bound:.2}"
+                );
+                ok &= chi2 < bound;
+            }
+            // expected share of first proposals kept: sum over the candidates of min(p_0, q_0)
+            let p0 = p_law(0, f64::from(t));
+            let expected: f64 = q_sets[0]
+                .0
+                .iter()
+                .zip(&q_laws[0])
+                .map(|(&id, &w)| p0[id as usize].min(w))
+                .sum();
+            let rate = first_kept as f64 / BLOCKS as f64;
+            println!(
+                "S3 k={k} T={t}: first proposal kept {rate:.4} (sum min(p, q) {expected:.4}), {:.3} of the proposals",
+                kept as f64 / (BLOCKS * k) as f64
+            );
+            Ok((ok, rate, expected))
+        };
+        for (k, t, seed) in [
+            (2usize, 1.0f32, 11u64),
+            (3, 0.7, 2_000_011),
+            (3, 1.3, 4_000_011),
+        ] {
+            let (ok, rate, expected) = law_check(k, t, seed)?;
+            ensure!(
+                ok,
+                "ratio decisions do not follow the target law (k={k}, T={t})"
+            );
+            ensure!(
+                (rate - expected).abs() < 0.01,
+                "first proposal kept {rate} instead of {expected} (k={k}, T={t})"
+            );
+        }
+        RATIO_MUTATION.with(|m| m.set(true));
+        let mutated = law_check(3, 1.0, 9_000_011);
+        RATIO_MUTATION.with(|m| m.set(false));
+        let (ok, _, _) = mutated?;
+        ensure!(
+            !ok,
+            "the mutation that keeps every proposal was not detected"
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn coupling_setting_is_off_unless_one() {
+        assert!(coupling_setting(Some("1")));
+        for value in [
+            None,
+            Some("0"),
+            Some(""),
+            Some("true"),
+            Some("01"),
+            Some(" 1"),
+        ] {
+            assert!(!coupling_setting(value), "{value:?}");
+        }
+    }
+
     /// DSPARK-2026-11-23-INK2M-MTPLX-A: GPU decisions are on unless the setting is exactly "0".
     #[test]
     fn device_rounds_setting_is_on_unless_zero() {
@@ -2060,6 +3246,130 @@ mod tests {
     /// acceptance measured in P10a (0.45 / 0.4 / 0.35) the policy stays on plain steps and probes at width
     /// 1 after 8, 16, 32 then every 64 blocks; at the greedy code acceptance of P4b (0.84 / 0.82 / 0.85) it
     /// uses the full width; acceptance back after rejections resets the gap; costs are validated.
+    /// DFLASH2-2026-11-25-INK2M-F2/F3 and INVARIANT-2026-11-25-INK2M-L3-3: the DFlash2 tables are valid measured
+    /// tables; the default is the one with the expert panel, cheaper than the F3 means at every width; with the
+    /// prior a block of at least 3 proposals is the best start; the earlier tables stay selectable.
+    #[test]
+    fn dflash2_costs_follow_the_bridge_means() {
+        let costs = WidthPolicy::dflash2_costs(None);
+        assert_eq!(costs, &WidthPolicy::DFLASH2_COSTS);
+        assert_eq!(
+            WidthPolicy::dflash2_costs(Some("")),
+            &WidthPolicy::DFLASH2_COSTS
+        );
+        assert_eq!(
+            WidthPolicy::dflash2_costs(Some("l3")),
+            &WidthPolicy::DFLASH2_COSTS
+        );
+        assert_eq!(
+            WidthPolicy::dflash2_costs(Some("p2")),
+            &WidthPolicy::DFLASH2_COSTS_P2
+        );
+        assert_eq!(
+            WidthPolicy::dflash2_costs(Some("f2")),
+            &WidthPolicy::DFLASH2_COSTS_F2
+        );
+        assert_eq!(
+            WidthPolicy::dflash2_costs(Some("f3")),
+            &WidthPolicy::DFLASH2_COSTS_F3
+        );
+        for (w, &cost) in WidthPolicy::DFLASH2_COSTS_F2.iter().enumerate().skip(1) {
+            assert!((cost - (1.40 + 0.375 * w as f64)).abs() < 1e-9, "width {w}");
+        }
+        for (w, &cost) in WidthPolicy::DFLASH2_COSTS_F3.iter().enumerate().skip(1) {
+            // the means measured without the panel stay within 0.1 step of their fit 1.28 + 0.373 w
+            assert!((cost - (1.28 + 0.373 * w as f64)).abs() < 0.1, "width {w}");
+        }
+        for (with, without) in costs.iter().zip(&WidthPolicy::DFLASH2_COSTS_F3).skip(1) {
+            assert!(with < without, "the panel makes every block cheaper");
+        }
+        for table in [
+            &WidthPolicy::DFLASH2_COSTS_P2,
+            &WidthPolicy::DFLASH2_COSTS_F2,
+            &WidthPolicy::DFLASH2_COSTS_F3,
+        ] {
+            assert!(WidthPolicy::measured(table, 7).is_ok());
+        }
+        let policy = WidthPolicy::measured(costs, 7).unwrap();
+        assert!(policy.best() >= 3, "best start {}", policy.best());
+        assert_eq!(
+            WidthPolicy::measured(&WidthPolicy::DFLASH2_COSTS_F3, 7)
+                .unwrap()
+                .best(),
+            3
+        );
+        let mut one = WidthPolicy::measured(costs, 1).unwrap();
+        one.acceptance = vec![0.69];
+        assert_eq!(one.best(), 1);
+        one.acceptance = vec![0.67];
+        assert_eq!(one.best(), 0);
+    }
+
+    /// DFLASH2-2026-11-25-INK2M-F3: from width 0, a probe whose proposal is kept is followed by another probe at
+    /// the next block; a probe with a rejection doubles the gap as before; without the option a kept probe
+    /// still doubles the gap while the best width stays 0 (P10c unchanged).
+    #[test]
+    fn probe_streak_follows_kept_probes() {
+        assert!(WidthPolicy::probe_streak_setting(None));
+        assert!(WidthPolicy::probe_streak_setting(Some("1")));
+        assert!(!WidthPolicy::probe_streak_setting(Some("0")));
+        let costs = WidthPolicy::dflash2_costs(None);
+        let low = || {
+            let mut p = WidthPolicy::measured(costs, 7).unwrap();
+            p.acceptance = vec![0.1; 7];
+            p
+        };
+        // the first probe comes after PROBE_EVERY blocks of the best width (0)
+        let to_probe = |p: &mut WidthPolicy| {
+            let mut plain = 0;
+            loop {
+                let w = p.next_width();
+                if w > 0 {
+                    return (plain, w);
+                }
+                p.observe(0, 0);
+                plain += 1;
+                assert!(plain < 200, "no probe");
+            }
+        };
+        let mut streak = low().with_probe_streak();
+        assert_eq!(to_probe(&mut streak), (WidthPolicy::PROBE_EVERY - 1, 1));
+        streak.observe(1, 1);
+        assert_eq!(streak.best(), 0);
+        assert_eq!(streak.probe_gap(), 1);
+        assert_eq!(
+            streak.next_width(),
+            1,
+            "a kept probe is followed by a probe"
+        );
+        streak.observe(1, 0);
+        // a rejection after the streak: back to the first gap, then doubled by the next rejected probe
+        assert_eq!(streak.probe_gap(), WidthPolicy::PROBE_EVERY);
+        assert_eq!(to_probe(&mut streak).0, WidthPolicy::PROBE_EVERY - 1);
+        streak.observe(1, 0);
+        assert_eq!(streak.probe_gap(), 2 * WidthPolicy::PROBE_EVERY);
+        // kept probes in a row bring the estimate back: the best width leaves 0 and the gap returns to 8
+        let mut climb = low().with_probe_streak();
+        to_probe(&mut climb);
+        let mut probes = 0;
+        loop {
+            climb.observe(1, 1);
+            probes += 1;
+            if climb.best() > 0 {
+                break;
+            }
+            assert_eq!(climb.next_width(), 1);
+            assert!(probes < 40, "the estimate does not recover");
+        }
+        assert!(probes <= 12, "{probes} kept probes to recover");
+        // P10c without the option: the gap doubles after a kept probe while the best width stays 0
+        let mut plain = low();
+        assert_eq!(to_probe(&mut plain), (WidthPolicy::PROBE_EVERY - 1, 1));
+        plain.observe(1, 1);
+        assert_eq!(plain.probe_gap(), 2 * WidthPolicy::PROBE_EVERY);
+        assert_eq!(plain.next_width(), 0);
+    }
+
     #[test]
     fn measured_width_policy_probes_one_past_the_best_width() {
         let costs = WidthPolicy::SAMPLED_8BIT_COSTS;
@@ -2156,10 +3466,11 @@ mod tests {
         let mut draft = Inkling2Draft::load(&dir, &target)?;
         let limit = usize::try_from(target.context_limit())?;
         type Run = (Vec<u32>, usize, usize, Vec<usize>);
-        // DSPARK-2026-11-23-INK2M-MTPLX-A: `device` = (pipelined, seed, blocks with proposals decided on the GPU)
+        // DSPARK-2026-11-23-INK2M-MTPLX-A: `device` = (pipelined, seed, blocks with proposals decided on the GPU,
+        // DSPARK-2026-11-24-INK2M-MAYA2-D2 coupled sampled blocks)
         let mut run = |sampler: Sampler,
                        adaptive: bool,
-                       device: Option<(bool, u64, bool)>|
+                       device: Option<(bool, u64, bool, bool)>|
          -> Result<Run> {
             let policy = if adaptive {
                 WidthPolicy::new(DsparkSession::DEFAULT_WIDTH)
@@ -2168,14 +3479,19 @@ mod tests {
             };
             let mut session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?
                 .with_adaptive_width(policy)?;
-            if let Some((pipelined, seed, rounds)) = device {
+            if let Some((pipelined, seed, rounds, couple)) = device {
                 let rule = DrawRule::for_sampler(&sampler).context("no GPU rule")?;
                 session = session
                     .with_device_draw(rule, DrawSeeds::new(seed), pipelined)
-                    .with_device_rounds(rounds);
+                    .with_device_rounds(rounds)
+                    .with_coupling(couple);
                 ensure!(
                     session.device_rounds() == rounds,
                     "device rounds not applied"
+                );
+                ensure!(
+                    session.couples() == (rounds && couple && !sampler.is_greedy()),
+                    "coupling not applied"
                 );
             }
             let logits = session.prefill(&mut target, &mut draft, &prompt, &|| false)?;
@@ -2221,6 +3537,10 @@ mod tests {
                 out.push(next);
             }
             let s = &session.stats;
+            ensure!(
+                (s.coupled_blocks > 0) == session.couples(),
+                "coupled blocks counted without the coupled rule, or the reverse"
+            );
             Ok((out, s.blocks, s.accepted, s.width_blocks.clone()))
         };
         let greedy = Sampler::greedy();
@@ -2236,8 +3556,9 @@ mod tests {
                 "both block kinds must run"
             );
             for rounds in [false, true] {
-                let sync = run(greedy, adaptive, Some((false, 9, rounds)))?;
-                let ahead = run(greedy, adaptive, Some((true, 9, rounds)))?;
+                // greedy: coupling never applies
+                let sync = run(greedy, adaptive, Some((false, 9, rounds, true)))?;
+                let ahead = run(greedy, adaptive, Some((true, 9, rounds, true)))?;
                 ensure!(
                     sync == host,
                     "greedy device session (synchronous, GPU rounds {rounds}) differs from the host session"
@@ -2246,19 +3567,34 @@ mod tests {
                     ahead == host,
                     "greedy device session (one step ahead, GPU rounds {rounds}) differs from the host session"
                 );
-                let sync = run(sampled, adaptive, Some((false, 9, rounds)))?;
-                let ahead = run(sampled, adaptive, Some((true, 9, rounds)))?;
+                // D2: the point rule (coupling off) keeps its synchronous = one step ahead equality
+                let point_sync = run(sampled, adaptive, Some((false, 9, rounds, false)))?;
+                let point_ahead = run(sampled, adaptive, Some((true, 9, rounds, false)))?;
+                ensure!(
+                    point_ahead == point_sync,
+                    "T = 1 point-rule sessions (GPU rounds {rounds}) differ between synchronous and one step ahead"
+                );
+                let sync = run(sampled, adaptive, Some((false, 9, rounds, true)))?;
+                let ahead = run(sampled, adaptive, Some((true, 9, rounds, true)))?;
                 println!(
-                    "T=1 adaptive={adaptive} rounds={rounds}: blocks {} accepted {} widths {:?}",
-                    sync.1, sync.2, sync.3
+                    "T=1 adaptive={adaptive} rounds={rounds}: blocks {} accepted {} widths {:?} (point rule: blocks {} accepted {} widths {:?})",
+                    sync.1, sync.2, sync.3, point_sync.1, point_sync.2, point_sync.3
                 );
                 ensure!(
                     ahead == sync,
                     "T = 1 device sessions (GPU rounds {rounds}) differ between synchronous and one step ahead"
                 );
-                ensure!(sync.3[0] > 0, "no width-0 block at T = 1");
+                // both block kinds compared: with the coupled rule the adaptive policy may keep every block wide
+                // (acceptance is higher), so width 0 is required of the point rule there and of every run where
+                // the measured costs keep width 0 between probes
                 ensure!(
-                    sync.3[1..].iter().sum::<usize>() > 0,
+                    point_sync.3[0] > 0,
+                    "no width-0 block at T = 1 (point rule)"
+                );
+                ensure!(adaptive || sync.3[0] > 0, "no width-0 block at T = 1");
+                ensure!(
+                    sync.3[1..].iter().sum::<usize>() > 0
+                        && point_sync.3[1..].iter().sum::<usize>() > 0,
                     "no block with proposals ran at T = 1"
                 );
                 // where width 0 dominates (between probes), the GPU draw picks most tokens: another seed must
@@ -2266,7 +3602,7 @@ mod tests {
                 if !adaptive {
                     ensure!(sync.3[0] * 2 > sync.1, "width 0 does not dominate");
                     ensure!(
-                        run(sampled, adaptive, Some((true, 10, rounds)))?.0 != sync.0,
+                        run(sampled, adaptive, Some((true, 10, rounds, true)))?.0 != sync.0,
                         "the seed does not change the tokens"
                     );
                 }
@@ -2788,6 +4124,781 @@ mod tests {
             "vocab": target.unpadded_vocab()});
         std::fs::write(out.join("meta.json"), serde_json::to_string_pretty(&meta)?)?;
         println!("{meta}");
+        Ok(())
+    }
+
+    fn fnv_f32(hash: &mut u64, values: &[f32]) {
+        for v in values {
+            for b in v.to_bits().to_le_bytes() {
+                *hash ^= u64::from(b);
+                *hash = hash.wrapping_mul(0x100_0000_01b3);
+            }
+        }
+    }
+
+    /// Real token rows of `MLXL3_INKLING_ROWS` (`rows.json` of the local reference), concatenated.
+    fn text_rows() -> Result<Vec<u32>> {
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let mut tokens = Vec::new();
+        for row in rows["rows"].as_array().context("rows")? {
+            let row: Vec<u32> = serde_json::from_value(row["tokens"].clone())?;
+            tokens.extend(row);
+        }
+        ensure!(!tokens.is_empty(), "no tokens in MLXL3_INKLING_ROWS");
+        Ok(tokens)
+    }
+
+    /// Fingerprint of the drafter's context caches (every key and value, and the offsets).
+    fn context_hash(draft: &Inkling2Draft) -> Result<u64> {
+        let mut hash = 0xcbf2_9ce4_8422_2325u64;
+        for cache in &draft.caches {
+            for a in [&cache.keys, &cache.values].into_iter().flatten() {
+                fnv_f32(&mut hash, &a.astype(Dtype::Float32)?.to_f32()?);
+            }
+            fnv_f32(&mut hash, &[cache.offset as f32]);
+        }
+        Ok(hash)
+    }
+
+    /// One prefill and its greedy DSpark decode at the fixed width 3, CPU choice: everything that depends
+    /// on the state (last logits, drafter context, last features, then every verified row and token).
+    #[derive(Debug, PartialEq)]
+    struct D1Run {
+        cached: usize,
+        logits: u64,
+        context: u64,
+        last_feature: u64,
+        decode: u64,
+        tokens: Vec<u32>,
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn d1_run(
+        session: &mut DsparkSession,
+        target: &mut Inkling2,
+        draft: &mut Inkling2Draft,
+        prompt: &[u32],
+        resume: Option<(DsparkPrefix, Array)>,
+        checkpoint: Option<usize>,
+        saved: &mut Option<(DsparkPrefix, Array)>,
+        steps: usize,
+    ) -> Result<D1Run> {
+        let limit = usize::try_from(target.context_limit())?;
+        let (logits, cached) = session.prefill_resumable(
+            target,
+            draft,
+            prompt,
+            &[],
+            resume,
+            checkpoint,
+            &mut |prefix, logits| {
+                *saved = Some((prefix, logits.try_clone()?));
+                Ok(())
+            },
+            &|| false,
+        )?;
+        let mut h = 0xcbf2_9ce4_8422_2325u64;
+        fnv_f32(&mut h, &logits.to_f32()?);
+        let logits_hash = h;
+        let context = context_hash(draft)?;
+        let mut h = 0xcbf2_9ce4_8422_2325u64;
+        fnv_f32(
+            &mut h,
+            &session
+                .last_feature
+                .as_ref()
+                .context("no last feature")?
+                .to_f32()?,
+        );
+        let last_feature = h;
+        let mut decode = 0xcbf2_9ce4_8422_2325u64;
+        let mut next = logits.chat_greedy_ids()?[0];
+        let mut tokens = vec![next];
+        while tokens.len() < steps {
+            let mut choose = |proposals: &[u32],
+                              _: Option<&[Vec<f32>]>,
+                              verified: &Array|
+             -> Result<(usize, u32)> {
+                fnv_f32(&mut decode, &verified.to_f32()?);
+                let a = crate::speculative::greedy_accept(proposals, &verified.chat_greedy_ids()?)
+                    .context("invalid greedy acceptance")?;
+                Ok((a.accepted_draft_tokens, a.target_token))
+            };
+            next = session.advance(
+                target,
+                draft,
+                next,
+                limit,
+                steps - tokens.len(),
+                &mut choose,
+            )?;
+            tokens.push(next);
+        }
+        Ok(D1Run {
+            cached,
+            logits: logits_hash,
+            context,
+            last_feature,
+            decode,
+            tokens,
+        })
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D1: a DSpark prompt resumed from the previous turn's prefix (after that
+    /// turn decoded with DSpark) gives a cold DSpark prefill's last logits, drafter context and last features to
+    /// the bit, and then the same verified rows and tokens over a greedy decode, before and past the 1 024-row
+    /// windows; a prompt equal to the saved prefix resumes everything (saved logits and last features). The two
+    /// mutations (live drafter context, the session's own last features) must differ, a prefix of another lineage
+    /// must be refused (cold prefill), and the prefix must fit the default prompt cache budget.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn dspark_prompt_cache_resume_matches_cold_prefill() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let mut target = Inkling2::load(&dir)?;
+        let mut draft = Inkling2Draft::load(&dir, &target)?;
+        let vocab = target.unpadded_vocab() as u32;
+        let text: Vec<u32> = text_rows()?.into_iter().map(|t| t % vocab).collect();
+        const ANSWER: usize = 40;
+        const STEPS: usize = 48;
+        // (first prompt length, extra tokens after the answer; 0 = the next prompt is the saved prefix itself)
+        for (first, extra) in [(300usize, 199usize), (1300, 199), (256, 0)] {
+            ensure!(text.len() >= first + extra + 2, "not enough tokens");
+            let boundary = first / 128 * 128;
+            // turn 1: prefill with the capture, then a DSpark decode; returns the prefix and the next prompt
+            let turn1 = |target: &mut Inkling2,
+                         draft: &mut Inkling2Draft,
+                         session: &mut DsparkSession|
+             -> Result<((DsparkPrefix, Array), Vec<u32>)> {
+                let mut saved = None;
+                let run = d1_run(
+                    session,
+                    target,
+                    draft,
+                    &text[..first],
+                    None,
+                    Some(boundary),
+                    &mut saved,
+                    ANSWER,
+                )?;
+                ensure!(run.cached == 0, "turn 1 resumed");
+                let saved = saved.context("no DSpark prefix captured")?;
+                ensure!(saved.0.offset() as usize == boundary, "prefix offset");
+                let prompt = if extra == 0 {
+                    text[..first].to_vec()
+                } else {
+                    let mut p = text[..first].to_vec();
+                    p.extend(&run.tokens);
+                    p.extend(&text[first + 1..first + 1 + extra]);
+                    p
+                };
+                Ok((saved, prompt))
+            };
+            let mut session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?;
+            let (prefix, prompt) = turn1(&mut target, &mut draft, &mut session)?;
+            let retained = prefix.0.retained_bytes()?;
+            println!(
+                "first {first}: prefix at {boundary} retains {retained} bytes (drafter context {})",
+                prefix.0.context.retained_bytes()?
+            );
+            ensure!(
+                retained <= crate::memory_policy::DEFAULT_PROMPT_CACHE_BYTES,
+                "the DSpark prefix exceeds the default prompt cache budget"
+            );
+            let checkpoint = prompt.len() / 128 * 128;
+            // turn 2 resumed in a new session (as the bridge does), with the capture of the next boundary
+            let mut next_prefix = None;
+            let mut resumed_session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?;
+            let resumed = d1_run(
+                &mut resumed_session,
+                &mut target,
+                &mut draft,
+                &prompt,
+                Some(prefix),
+                Some(checkpoint),
+                &mut next_prefix,
+                STEPS,
+            )?;
+            ensure!(resumed.cached == boundary, "turn 2 did not resume");
+            let next_prefix = next_prefix.context("no prefix captured after the resume")?;
+            ensure!(
+                next_prefix.0.offset() as usize == checkpoint,
+                "recaptured offset"
+            );
+            // the same prompt from scratch
+            let mut unused = None;
+            let mut cold_session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?;
+            let cold = d1_run(
+                &mut cold_session,
+                &mut target,
+                &mut draft,
+                &prompt,
+                None,
+                None,
+                &mut unused,
+                STEPS,
+            )?;
+            println!(
+                "first {first}: prompt {} tokens, resumed {}, cold {:?}",
+                prompt.len(),
+                resumed.cached,
+                (cold.logits, cold.context, cold.last_feature, cold.decode)
+            );
+            ensure!(
+                D1Run {
+                    cached: 0,
+                    ..resumed
+                } == cold,
+                "resumed DSpark prefill differs from the cold prefill"
+            );
+            // a prefix of another lineage (the cold prefill reset the target since): refused, cold prefill
+            let mut unused = None;
+            let mut refused_session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?;
+            let refused = d1_run(
+                &mut refused_session,
+                &mut target,
+                &mut draft,
+                &prompt,
+                Some(next_prefix),
+                None,
+                &mut unused,
+                STEPS,
+            )?;
+            ensure!(
+                refused == cold,
+                "a refused prefix did not prefill from scratch"
+            );
+            // mutations, each from a fresh turn 1 whose session is reused for turn 2
+            for mutation in [1u8, 2] {
+                if mutation == 2 && extra != 0 {
+                    // the next chunk replaces the last features: only a fully resumed prompt reads them
+                    continue;
+                }
+                let mut session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?;
+                let (prefix, prompt) = turn1(&mut target, &mut draft, &mut session)?;
+                D1_MUTATION.with(|m| m.set(mutation));
+                let mut unused = None;
+                let mutated = d1_run(
+                    &mut session,
+                    &mut target,
+                    &mut draft,
+                    &prompt,
+                    Some(prefix),
+                    None,
+                    &mut unused,
+                    STEPS,
+                );
+                D1_MUTATION.with(|m| m.set(0));
+                let mutated = mutated?;
+                println!(
+                    "first {first}: mutation {mutation}: context {} last feature {} decode {}",
+                    mutated.context != cold.context,
+                    mutated.last_feature != cold.last_feature,
+                    mutated.decode != cold.decode
+                );
+                ensure!(
+                    D1Run {
+                        cached: 0,
+                        ..mutated
+                    } != cold,
+                    "mutation {mutation} not detected"
+                );
+            }
+        }
+        Ok(())
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D2: the coupled decision delivers draws of the target law at every position,
+    /// whatever the drafter proposes. Fixed target rows p_i and drafter rows q_i over 6 tokens, proposals drawn by
+    /// `coupled_pick` with the block's noise, 40 000 blocks per case: for each position i, the token delivered at
+    /// i among the blocks that reach it against p_i = softmax(log_softmax(row i) / T) (Pearson chi-square below
+    /// the 0.999 quantile per position); with q = p every proposal is kept (the drafter and the target read the
+    /// same noise row); the mutation that keeps every proposal is detected.
+    #[test]
+    #[ignore = "requires an Apple GPU"]
+    fn decide_coupled_follows_the_target_law() -> Result<()> {
+        use crate::inkling2::{COUPLE_MUTATION, coupled_pick, decide_coupled};
+        const BLOCKS: usize = 40_000;
+        const BATCH: usize = 1_000;
+        let p_rows: [[f32; 6]; 4] = [
+            [2.0, 1.0, 0.5, 0.0, -1.0, -3.0],
+            [-0.5, 1.5, 0.2, 1.0, -2.0, 0.0],
+            [0.3, -1.0, 2.5, 0.0, 1.0, -0.5],
+            [1.0, 0.0, -0.5, 2.0, 0.5, -1.0],
+        ];
+        let q_rows: [[f32; 6]; 3] = [
+            [1.5, 1.6, 0.0, 0.2, -0.5, -2.0],
+            [0.0, 1.0, 0.8, 1.2, -1.0, 0.3],
+            [0.8, -0.2, 1.8, 0.4, 0.6, 0.0],
+        ];
+        let softmax = |row: &[f32], t: f32| -> Vec<f64> {
+            let max = row
+                .iter()
+                .fold(f64::NEG_INFINITY, |m, &v| m.max(f64::from(v)));
+            let lse = max
+                + row
+                    .iter()
+                    .map(|&v| (f64::from(v) - max).exp())
+                    .sum::<f64>()
+                    .ln();
+            let scaled: Vec<f64> = row
+                .iter()
+                .map(|&v| (f64::from(v) - lse) / f64::from(t))
+                .collect();
+            let top = scaled.iter().fold(f64::NEG_INFINITY, |m, &v| m.max(v));
+            let w: Vec<f64> = scaled.iter().map(|&v| (v - top).exp()).collect();
+            let total: f64 = w.iter().sum();
+            w.iter().map(|x| x / total).collect()
+        };
+        // one block: (packet, proposals) for k proposals from the q rows (or the p rows when `same`)
+        let block = |k: usize, t: f32, same: bool, seed: u64| -> Result<(Array, Array)> {
+            let noise = Array::gumbel_noise(&[k as i32 + 1, 6], seed)?;
+            let mut picks = Vec::with_capacity(k);
+            for i in 0..k {
+                let row: &[f32] = if same { &p_rows[i] } else { &q_rows[i] };
+                picks.push(coupled_pick(
+                    &Array::from_f32(row, &[1, 6])?,
+                    t,
+                    &noise.slice(0, i as i32, i as i32 + 1)?,
+                )?);
+            }
+            let proposals = Array::concatenate(&picks.iter().collect::<Vec<_>>(), 0)?;
+            let flat: Vec<f32> = p_rows[..=k].iter().flatten().copied().collect();
+            let logits = Array::from_f32(&flat, &[1, k as i32 + 1, 6])?;
+            Ok((decide_coupled(&logits, &proposals, t, &noise)?, proposals))
+        };
+        let chi2_bound = |df: f64| {
+            let z = 3.090_232_306;
+            df * (1.0 - 2.0 / (9.0 * df) + z * (2.0 / (9.0 * df)).sqrt()).powi(3)
+        };
+        // per position i: counts of the delivered token among the blocks reaching i
+        let law_check = |k: usize, t: f32, seed: u64| -> Result<(bool, f64)> {
+            let mut counts = vec![[0f64; 6]; k + 1];
+            let mut accepted = 0usize;
+            for batch in 0..BLOCKS / BATCH {
+                let blocks = (0..BATCH)
+                    .map(|i| block(k, t, false, seed + (batch * BATCH + i) as u64))
+                    .collect::<Result<Vec<_>>>()?;
+                Array::eval_many(&blocks.iter().map(|(p, _)| p).collect::<Vec<_>>())?;
+                for (packet, proposals) in &blocks {
+                    let p = packet.to_u32()?;
+                    let x = proposals.to_u32()?;
+                    ensure!(
+                        p.len() == 2 + k && p[2..] == x[..] && (p[0] as usize) <= k && p[1] < 6,
+                        "invalid packet {p:?}"
+                    );
+                    let a = p[0] as usize;
+                    accepted += a;
+                    for (i, row) in counts.iter_mut().enumerate().take(a + 1) {
+                        let token = if i < a { x[i] } else { p[1] };
+                        row[token as usize] += 1.0;
+                    }
+                }
+            }
+            let mut ok = true;
+            for (i, row) in counts.iter().enumerate() {
+                let law = softmax(&p_rows[i], t);
+                let reached: f64 = row.iter().sum();
+                if reached < 200.0 {
+                    continue;
+                }
+                let chi2: f64 = (0..6)
+                    .map(|j| (row[j] - law[j] * reached).powi(2) / (law[j] * reached))
+                    .sum();
+                let bound = chi2_bound(5.0);
+                println!(
+                    "k={k} T={t} position {i}: reached {reached}, chi2 {chi2:.2} bound {bound:.2}"
+                );
+                ok &= chi2 < bound;
+            }
+            Ok((ok, accepted as f64 / (BLOCKS * k) as f64))
+        };
+        for (k, t, seed) in [
+            (2usize, 1.0f32, 11u64),
+            (3, 0.7, 2_000_011),
+            (3, 1.3, 4_000_011),
+        ] {
+            let (ok, rate) = law_check(k, t, seed)?;
+            println!("k={k} T={t}: kept {rate:.3} of the proposals");
+            ensure!(
+                ok,
+                "coupled decisions do not follow the target law (k={k}, T={t})"
+            );
+            // q = p: the drafter's coupled picks are the target's draws, every proposal is kept
+            for i in 0..200u64 {
+                let (packet, _) = block(k, t, true, seed + 7_000_000 + i)?;
+                let p = packet.to_u32()?;
+                ensure!(p[0] as usize == k, "q = p, a proposal was rejected: {p:?}");
+            }
+        }
+        COUPLE_MUTATION.with(|m| m.set(true));
+        let mutated = law_check(3, 1.0, 9_000_011);
+        COUPLE_MUTATION.with(|m| m.set(false));
+        let (ok, rate) = mutated?;
+        println!("mutation (every proposal kept): law ok {ok}, kept {rate:.3}");
+        ensure!(
+            !ok,
+            "the mutation that keeps every proposal was not detected"
+        );
+        Ok(())
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D2-DIAG: acceptance of the first proposal under each rule at T = 1, on the same
+    /// real text (teacher forcing, no sampling variance between rules): rows en0, fr0, code0, chat0, fr1, code1 of
+    /// `MLXL3_INKLING_ROWS`, 64 prefix tokens then 192 positions each; at every position the drafter's logits q of
+    /// its first proposal (true prefix) and the target's row p of the next token. Point rule: p(argmax q), exact.
+    /// Coupled with drafter temperature share tau: the share of 256 Gumbel draws G where argmax(log p + G) =
+    /// argmax(q / tau + G). Prints the means per row and over all positions.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn coupling_acceptance_by_rule() -> Result<()> {
+        const PREFIX: usize = 64;
+        const POSITIONS: usize = 192;
+        const DRAWS: i32 = 256;
+        let taus = [1.0f32, 0.7, 0.5, 0.3];
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let mut target = Inkling2::load(&dir)?;
+        let mut draft = Inkling2Draft::load(&dir, &target)?;
+        let vocab = target.unpadded_vocab();
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let rows = rows["rows"].as_array().context("rows")?;
+        let (mut all_point, mut all_coupled, mut all_n) = (0f64, vec![0f64; taus.len()], 0usize);
+        let mut seed = 0x5eed_u64;
+        for index in [0usize, 3, 6, 9, 4, 7] {
+            let name = rows[index]["name"].as_str().unwrap_or("?").to_owned();
+            let tokens: Vec<u32> =
+                serde_json::from_value::<Vec<u32>>(rows[index]["tokens"].clone())?
+                    .into_iter()
+                    .map(|t| t % vocab as u32)
+                    .collect();
+            ensure!(
+                tokens.len() > PREFIX + POSITIONS + 1,
+                "row {name} too short"
+            );
+            let mut session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?;
+            session.prefill(&mut target, &mut draft, &tokens[..PREFIX], &|| false)?;
+            let mut last = session.last_feature.take().context("no last feature")?;
+            let (mut point, mut coupled) = (0f64, vec![0f64; taus.len()]);
+            for j in PREFIX..PREFIX + POSITIONS {
+                let anchor = Array::from_u32(&[tokens[j]], &[1])?;
+                let (_, q) = draft.propose_sampled(&target, &anchor, &last, 1, 1.0, seed)?;
+                let (logits, features) =
+                    target.forward_with_features(&tokens[j..j + 1], &self_taps(&draft))?;
+                let log_p = logits.reshape(&[1, vocab])?.log_probs()?;
+                let q = q.reshape(&[1, vocab])?.astype(Dtype::Float32)?;
+                // point rule: p of the drafter's best token
+                let best = q.argmax()?.to_u32()?[0] as usize;
+                let row = log_p.to_f32()?;
+                point += f64::from(row[best]).exp();
+                // coupled: one noise for every tau
+                let noise = Array::gumbel_noise(&[DRAWS, vocab], seed ^ 0xc0ff_ee00)?;
+                let target_draws = log_p.add(&noise)?.argmax()?.to_u32()?;
+                for (slot, &tau) in coupled.iter_mut().zip(&taus) {
+                    let draft_draws = q.scalar_mul(1.0 / tau)?.add(&noise)?.argmax()?.to_u32()?;
+                    let same = target_draws
+                        .iter()
+                        .zip(&draft_draws)
+                        .filter(|(a, b)| a == b)
+                        .count();
+                    *slot += same as f64 / f64::from(DRAWS);
+                }
+                draft.append_context(&features)?;
+                last = features;
+                seed += 1;
+            }
+            let n = POSITIONS as f64;
+            println!(
+                "D2DIAG {name}: point {:.4} coupled {}",
+                point / n,
+                taus.iter()
+                    .zip(&coupled)
+                    .map(|(t, c)| format!("tau {t}: {:.4}", c / n))
+                    .collect::<Vec<_>>()
+                    .join(", ")
+            );
+            all_point += point;
+            for (a, c) in all_coupled.iter_mut().zip(&coupled) {
+                *a += c;
+            }
+            all_n += POSITIONS;
+        }
+        let n = all_n as f64;
+        println!(
+            "D2DIAG total ({all_n} positions): point {:.4} coupled {}",
+            all_point / n,
+            taus.iter()
+                .zip(&all_coupled)
+                .map(|(t, c)| format!("tau {t}: {:.4}", c / n))
+                .collect::<Vec<_>>()
+                .join(", ")
+        );
+        Ok(())
+    }
+
+    fn self_taps(draft: &Inkling2Draft) -> Vec<usize> {
+        draft.taps().to_vec()
+    }
+
+    /// DSPARK-2026-11-24-INK2M-MAYA2-D5: a DSpark session with the prompt lookup, on a prompt whose end copies its
+    /// start (300 real tokens, then their first 40 again). Greedy, decided on the GPU, one step ahead: lookup
+    /// blocks run and a forced AR replay of the delivered tokens finds every token the argmax of its AR row; the
+    /// mutation that delivers lookup proposals without the target's decision is found by the same replay. T = 1:
+    /// synchronous = one step ahead (same seed, same tokens), lookup blocks included.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn dspark_lookup_session() -> Result<()> {
+        use crate::inkling2::{DrawRule, DrawSeeds};
+        use crate::sampling::{Draw, History, Sampler};
+        const TOKENS: usize = 160;
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let mut target = Inkling2::load(&dir)?;
+        let mut draft = Inkling2Draft::load(&dir, &target)?;
+        let vocab = target.unpadded_vocab() as u32;
+        let text: Vec<u32> = text_rows()?.into_iter().map(|t| t % vocab).collect();
+        let mut prompt = text[..300].to_vec();
+        prompt.extend(&text[..40]);
+        // the forced lookup runs on the same start without the copy: its 3-token matches are often wrong
+        let plain = text[..300].to_vec();
+        let limit = usize::try_from(target.context_limit())?;
+        let run = |target: &mut Inkling2,
+                   draft: &mut Inkling2Draft,
+                   prompt: &[u32],
+                   sampler: Sampler,
+                   lookup: bool,
+                   pipelined: bool,
+                   seed: u64|
+         -> Result<(Vec<u32>, SpecStats)> {
+            let rule = DrawRule::for_sampler(&sampler).context("no GPU rule")?;
+            let mut session = DsparkSession::new(draft, DsparkSession::DEFAULT_WIDTH)?
+                .with_adaptive_width(WidthPolicy::measured(
+                    &WidthPolicy::SAMPLED_8BIT_COSTS,
+                    DsparkSession::DEFAULT_WIDTH,
+                )?)?
+                .with_device_draw(rule, DrawSeeds::new(seed), pipelined)
+                .with_device_rounds(true)
+                .with_coupling(false);
+            if lookup {
+                session = session.with_lookup(prompt);
+            }
+            ensure!(session.looks_up() == lookup, "lookup not applied");
+            let logits = session.prefill(target, draft, prompt, &|| false)?;
+            let history = History::default();
+            let mut random = seed ^ 0x9e37_79b9;
+            let mut next = if sampler.is_greedy() {
+                logits.chat_greedy_ids()?[0]
+            } else {
+                Draw {
+                    sampler,
+                    history: &history,
+                    random: &mut random,
+                }
+                .sample_last_row(&logits)?
+            };
+            let mut out = vec![next];
+            while out.len() < TOKENS {
+                let mut choose = |proposals: &[u32],
+                                  _: Option<&[Vec<f32>]>,
+                                  verified: &Array|
+                 -> Result<(usize, u32)> {
+                    let acceptance = if sampler.is_greedy() {
+                        crate::speculative::greedy_accept(proposals, &verified.chat_greedy_ids()?)
+                            .context("invalid greedy acceptance")?
+                    } else {
+                        Draw {
+                            sampler,
+                            history: &history,
+                            random: &mut random,
+                        }
+                        .speculative_accept_logits(proposals, verified)?
+                    };
+                    Ok((acceptance.accepted_draft_tokens, acceptance.target_token))
+                };
+                next =
+                    session.advance(target, draft, next, limit, TOKENS - out.len(), &mut choose)?;
+                out.push(next);
+            }
+            Ok((out, session.stats.clone()))
+        };
+        // the differences of a forced AR replay of `tokens`: (position, AR max - delivered logit, rank)
+        let replay = |target: &mut Inkling2,
+                      prompt: &[u32],
+                      tokens: &[u32]|
+         -> Result<Vec<(usize, f32, usize)>> {
+            target.reset();
+            let mut row = target.forward_tokens(prompt)?;
+            let mut differences = Vec::new();
+            for (i, &token) in tokens.iter().enumerate() {
+                let best = row.chat_greedy_ids()?[0];
+                if best != token {
+                    let values = row.reshape(&[-1])?.to_f32()?;
+                    let got = values[token as usize];
+                    let rank = values.iter().filter(|&&v| v > got).count();
+                    differences.push((i, values[best as usize] - got, rank));
+                }
+                if i + 1 < tokens.len() {
+                    row = target.forward(token)?;
+                }
+            }
+            Ok(differences)
+        };
+        let greedy = Sampler::greedy();
+        let sampled = Sampler::new(1.0, 0, 1.0, 1.0, 0.0)?;
+        let (tokens, stats) = run(&mut target, &mut draft, &prompt, greedy, true, true, 5)?;
+        let drafter_wide: usize = stats.width_blocks.iter().skip(1).sum();
+        println!(
+            "D5 greedy: lookup blocks {} accepted {}/{} widths {:?} held {}; drafter blocks {} wide {} accepted {}/{}",
+            stats.lookup_blocks,
+            stats.lookup_accepted,
+            stats.lookup_proposed,
+            stats.lookup_width_blocks,
+            stats.lookup_held,
+            stats.blocks,
+            drafter_wide,
+            stats.accepted,
+            stats.proposed
+        );
+        ensure!(
+            stats.lookup_blocks > 0 && stats.lookup_accepted > 0,
+            "no lookup block was kept"
+        );
+        let copy_differences = replay(&mut target, &prompt, &tokens)?;
+        println!("D5 greedy replay (copy): differences {copy_differences:?}");
+        // every proposal run as a full lookup block on the text without the copy (rejections), recorded
+        D5_FORCE.with(|m| m.set(true));
+        D5_RECORD.with(|r| *r.borrow_mut() = Some(Vec::new()));
+        let forced = run(&mut target, &mut draft, &plain, greedy, true, true, 5);
+        let record = D5_RECORD
+            .with(|r| r.borrow_mut().take())
+            .unwrap_or_default();
+        D5_MUTATION.with(|m| m.set(true));
+        let mutated = run(&mut target, &mut draft, &plain, greedy, true, true, 5);
+        D5_MUTATION.with(|m| m.set(false));
+        D5_FORCE.with(|m| m.set(false));
+        let (forced, forced_stats) = forced?;
+        let (mutated, _) = mutated?;
+        println!(
+            "D5 forced: lookup blocks {} accepted {}/{} widths {:?}",
+            forced_stats.lookup_blocks,
+            forced_stats.lookup_accepted,
+            forced_stats.lookup_proposed,
+            forced_stats.lookup_width_blocks
+        );
+        ensure!(
+            forced_stats.lookup_blocks > 0
+                && forced_stats.lookup_accepted < forced_stats.lookup_proposed,
+            "the forced lookup ran no block with a rejection"
+        );
+        // (a) the rule itself, without tolerance: kept proposals and the token are the verified rows' argmax
+        ensure!(
+            record.len() == forced_stats.lookup_blocks,
+            "lookup blocks not all recorded"
+        );
+        for (proposals, rows, accepted, token) in &record {
+            let keep = proposals
+                .iter()
+                .zip(rows)
+                .take_while(|(p, r)| p == r)
+                .count();
+            ensure!(
+                *accepted == keep && *token == rows[keep],
+                "lookup block {proposals:?} rows {rows:?}: accepted {accepted}, token {token}"
+            );
+        }
+        println!(
+            "D5 forced rule: {} lookup blocks follow their verified rows",
+            record.len()
+        );
+        // (b) the reference: DSpark without the lookup at the fixed width 3 on the same text
+        let reference = {
+            let rule = DrawRule::Greedy;
+            let mut session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?
+                .with_device_draw(rule, DrawSeeds::new(5), true)
+                .with_device_rounds(true)
+                .with_coupling(false);
+            let logits = session.prefill(&mut target, &mut draft, &plain, &|| false)?;
+            let mut next = logits.chat_greedy_ids()?[0];
+            let mut out = vec![next];
+            while out.len() < TOKENS {
+                let mut choose = |proposals: &[u32],
+                                  _: Option<&[Vec<f32>]>,
+                                  verified: &Array|
+                 -> Result<(usize, u32)> {
+                    let a =
+                        crate::speculative::greedy_accept(proposals, &verified.chat_greedy_ids()?)
+                            .context("invalid greedy acceptance")?;
+                    Ok((a.accepted_draft_tokens, a.target_token))
+                };
+                next = session.advance(
+                    &mut target,
+                    &mut draft,
+                    next,
+                    limit,
+                    TOKENS - out.len(),
+                    &mut choose,
+                )?;
+                out.push(next);
+            }
+            out
+        };
+        let reference_differences = replay(&mut target, &plain, &reference)?;
+        let forced_differences = replay(&mut target, &plain, &forced)?;
+        let mutated_differences = replay(&mut target, &plain, &mutated)?;
+        println!(
+            "D5 reference (drafter only, width 3) replay: differences {reference_differences:?}"
+        );
+        println!("D5 forced replay: differences {forced_differences:?}");
+        println!(
+            "D5 mutation replay: {} differences",
+            mutated_differences.len()
+        );
+        let reference_max = reference_differences
+            .iter()
+            .map(|d| d.1)
+            .fold(0f32, f32::max);
+        let bound = if reference_differences.is_empty() {
+            0.25
+        } else {
+            reference_max
+        };
+        ensure!(
+            forced_differences
+                .iter()
+                .chain(&copy_differences)
+                .all(|&(_, gap, rank)| rank == 1 && gap <= bound),
+            "lookup differences beyond the reference (bound {bound}): {forced_differences:?} {copy_differences:?}"
+        );
+        if reference_differences.is_empty() {
+            ensure!(
+                forced_differences.len() + copy_differences.len() <= 2,
+                "more lookup differences than the fallback bound"
+            );
+            println!("D5: reference without differences, fallback bound used (non conclusive)");
+        }
+        // (c) the mutation
+        ensure!(
+            mutated_differences.len() >= 10
+                && mutated_differences.len() >= 3 * forced_differences.len(),
+            "the unverified lookup mutation was not detected"
+        );
+        // T = 1: synchronous = one step ahead, lookup included
+        let (sync, sync_stats) = run(&mut target, &mut draft, &prompt, sampled, true, false, 11)?;
+        let (ahead, ahead_stats) = run(&mut target, &mut draft, &prompt, sampled, true, true, 11)?;
+        println!(
+            "D5 T=1: lookup blocks {} accepted {}/{} (ahead: {} {}/{}, held {})",
+            sync_stats.lookup_blocks,
+            sync_stats.lookup_accepted,
+            sync_stats.lookup_proposed,
+            ahead_stats.lookup_blocks,
+            ahead_stats.lookup_accepted,
+            ahead_stats.lookup_proposed,
+            ahead_stats.lookup_held
+        );
+        ensure!(sync_stats.lookup_blocks > 0, "no lookup block at T = 1");
+        ensure!(
+            sync == ahead,
+            "T = 1 lookup sessions differ between synchronous and one step ahead"
+        );
         Ok(())
     }
 }

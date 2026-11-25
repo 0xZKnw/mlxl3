@@ -31,12 +31,12 @@ thread_local! {
 
 /// Routes of one MoE call: rows and the `[rows, top_k]` expert ids.
 #[cfg(test)]
-type MoeRoutes = Vec<(usize, Vec<u32>)>;
+pub(crate) type MoeRoutes = Vec<(usize, Vec<u32>)>;
 
 #[cfg(test)]
 thread_local! {
     /// SPEED-2026-11-22-INK2M-P11 D3 (tests only): when set, every MoE call appends its routes `[rows, top_k]`.
-    static MOE_ROUTES: std::cell::RefCell<Option<MoeRoutes>> = const { std::cell::RefCell::new(None) };
+    pub(crate) static MOE_ROUTES: std::cell::RefCell<Option<MoeRoutes>> = const { std::cell::RefCell::new(None) };
 }
 
 #[cfg(test)]
@@ -53,6 +53,154 @@ fn capture_routes(selected: &Array) -> Result<()> {
 #[cfg(not(test))]
 #[inline(always)]
 fn capture_routes(_selected: &Array) -> Result<()> {
+    Ok(())
+}
+
+/// INVARIANT-2026-11-24-INK2M-L1L4: verifications of 2..=16 rows compute every row as the 1-row path does, so a
+/// verification row has the bits of the AR step (on by default; `MLXL3_INKLING_INVARIANT=0` restores the batched
+/// products, whose rows differ from the AR steps by rounding).
+pub(crate) fn invariant_rows() -> bool {
+    #[cfg(test)]
+    if let Some(value) = INVARIANT_TEST.with(std::cell::Cell::get) {
+        return value;
+    }
+    static VALUE: std::sync::OnceLock<bool> = std::sync::OnceLock::new();
+    *VALUE.get_or_init(|| std::env::var("MLXL3_INKLING_INVARIANT").as_deref() != Ok("0"))
+}
+
+/// The rows of `x` (`[rows, ...]`) through `f` one at a time, concatenated: the 1-row arithmetic for each row.
+fn per_row(x: &Array, f: impl Fn(&Array) -> Result<Array>) -> Result<Array> {
+    let rows = x.shape()[0];
+    let outs = (0..rows)
+        .map(|r| f(&x.slice(0, r, r + 1)?))
+        .collect::<Result<Vec<_>>>()?;
+    Array::concatenate(&outs.iter().collect::<Vec<_>>(), 0)
+}
+
+thread_local! {
+    /// Set while a verification (`run` without commit) builds its graph: the invariant rows apply only there, so
+    /// the prefill and the AR steps keep their bits.
+    static VERIFY_SCOPE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Whether a call of `rows` rows takes the invariant per-row path: a verification of 2..=16 rows with the option.
+pub(crate) fn invariant_call(rows: i32) -> bool {
+    (2..=16).contains(&rows) && VERIFY_SCOPE.with(std::cell::Cell::get) && invariant_rows()
+}
+
+/// The verification scope while it lives (the previous value restored on drop, also on error).
+struct VerifyScope(bool);
+
+impl VerifyScope {
+    fn enter(verify: bool) -> Self {
+        Self(VERIFY_SCOPE.with(|flag| flag.replace(verify)))
+    }
+}
+
+impl Drop for VerifyScope {
+    fn drop(&mut self) {
+        VERIFY_SCOPE.with(|flag| flag.set(self.0));
+    }
+}
+
+/// INVARIANT-2026-11-24-INK2M-L1L4 (L1): `x @ dequant(w)^T` for the rows of `x` (`[M, K]`, M <= 16) in one launch,
+/// each row with exactly the arithmetic of MLX 0.32.2's 1-row affine product (`qmv_fast` when N % 8 == 0 and K is a
+/// multiple of the fast block, `qmv` otherwise), the weights read once per block for all rows; `None` outside
+/// that domain (other bits or dtypes, N < 8, K not a multiple of the group).
+fn qmv_rows(
+    x: &Array,
+    w: &Array,
+    scales: &Array,
+    biases: &Array,
+    group: i32,
+    bits: i32,
+) -> Result<Option<Array>> {
+    let &[rows, k] = x.shape() else {
+        return Ok(None);
+    };
+    let &[n, groups] = scales.shape() else {
+        return Ok(None);
+    };
+    if !matches!(bits, 4 | 8)
+        || !(1..=16).contains(&rows)
+        || n < 8
+        || groups * group != k
+        || !matches!(group, 32 | 64 | 128)
+        || scales.dtype() != Dtype::Float16
+        || biases.dtype() != Dtype::Float16
+        || biases.shape() != scales.shape()
+        || w.dtype() != Dtype::UInt32
+        || w.shape() != [n, k * bits / 32]
+    {
+        return Ok(None);
+    }
+    let fast = n % 8 == 0 && k % (if bits == 8 { 256 } else { 512 }) == 0;
+    if !fast && k % (32 / bits * 32) != 0 && k < 32 / bits * 32 {
+        return Ok(None);
+    }
+    let blocks = (n + 7) / 8;
+    let header = format!(
+        "#define BITS {bits}\n#define GROUP {group}\n#define IN_DIMS {k}\n#define OUT_DIMS {n}\n#define ROWS {rows}\n#define FAST {}\n",
+        u8::from(fast)
+    );
+    let out = crate::array::metal_kernel(
+        &format!(
+            "mlxl3_inkling_qmv_rows_b{bits}_g{group}_k{k}_n{n}_r{rows}_f{}_v1",
+            u8::from(fast)
+        ),
+        &["w", "scales", "biases", "x"],
+        &["y"],
+        &header,
+        include_str!("../shaders/inkling_qmv_rows.metal"),
+        &[w, scales, biases, &x.astype(Dtype::Float16)?],
+        &[vec![rows, n]],
+        &[Dtype::Float16],
+        [64, blocks, 1],
+        [64, 1, 1],
+    )?
+    .remove(0);
+    Ok(Some(out))
+}
+
+#[cfg(test)]
+thread_local! {
+    static INVARIANT_TEST: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+/// Runs `run` with the invariant rows on or off (tests).
+#[cfg(test)]
+pub(crate) fn with_invariant_rows<T>(enabled: bool, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<bool>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            INVARIANT_TEST.with(|flag| flag.set(self.0));
+        }
+    }
+    let _restore = Restore(INVARIANT_TEST.with(|flag| flag.replace(Some(enabled))));
+    run()
+}
+
+#[cfg(test)]
+thread_local! {
+    /// INVARIANT-2026-11-24-INK2M-L1L4 (tests only): when set, the forward appends (stage, value) at every stage
+    /// point, rows on axis 0.
+    pub(crate) static STAGES: std::cell::RefCell<Option<Vec<(&'static str, Array)>>> =
+        const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(test)]
+fn stage(label: &'static str, value: &Array) -> Result<()> {
+    STAGES.with(|cell| {
+        if let Some(stages) = cell.borrow_mut().as_mut() {
+            stages.push((label, value.try_clone()?));
+        }
+        Ok(())
+    })
+}
+
+#[cfg(not(test))]
+#[inline(always)]
+fn stage(_label: &'static str, _value: &Array) -> Result<()> {
     Ok(())
 }
 
@@ -355,6 +503,24 @@ impl Linear {
                 .matmul(&w.slice(1, 0, 1)?.reshape(&[1, w.shape()[0]])?)?
                 .reshape(&[rows, w.shape()[0]]);
         }
+        if x.shape().len() == 2 && invariant_call(x.shape()[0]) {
+            if let Self::Affine {
+                w,
+                scales,
+                biases,
+                bits,
+                group,
+            } = self
+                && let Some(out) = qmv_rows(x, w, scales, biases, *group, *bits)?
+            {
+                return Ok(out);
+            }
+            return per_row(x, |row| self.forward_rows(row));
+        }
+        self.forward_rows(x)
+    }
+
+    fn forward_rows(&self, x: &Array) -> Result<Array> {
         match self {
             Self::Dense(p) => p.forward(x),
             Self::Affine {
@@ -571,6 +737,10 @@ impl Dense {
     }
 
     fn forward(&self, x: &Array) -> Result<Array> {
+        // INVARIANT-2026-11-24-INK2M-L1L4: MLX's matmul changes kernels with the row count
+        if x.shape().len() == 2 && invariant_call(x.shape()[0]) {
+            return per_row(x, |row| row.astype(Dtype::Float16)?.matmul(&self.weight_t));
+        }
         x.astype(Dtype::Float16)?.matmul(&self.weight_t)
     }
 }
@@ -679,6 +849,271 @@ thread_local! {
     static ROUTER_TAIL_MUTATE: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// Paired A/B timing (`fusion_ab_profile`): P17 steps turned off on this thread (`Some("")` = none off).
     static P17_TEST_OFF: std::cell::RefCell<Option<String>> = const { std::cell::RefCell::new(None) };
+}
+
+/// INVARIANT-2026-11-24-INK2M-L1L4 (L2): a 1-row kernel source applied to row `mrow = threadgroup_position_in_grid.y`
+/// of `[rows, ...]` buffers by offsetting its buffer indices only (`edits`: (from, to) text replacements), so
+/// every row runs the exact operations of the 1-row kernel.
+fn rows_source(source: &str, edits: &[(&str, &str)]) -> Result<String> {
+    let mut out = format!("    const int mrow = int(threadgroup_position_in_grid.y);\n{source}");
+    for (from, to) in edits {
+        ensure!(out.contains(from), "row edit `{from}` does not apply");
+        out = out.replace(from, to);
+    }
+    Ok(out)
+}
+
+impl Moe {
+    /// L2: router logits, selected experts and scores of every row of `x` (`[rows, hidden]` F16) with the 1-row
+    /// kernels (F3 logits, RT tail) launched once over the rows; `None` outside their domain.
+    fn route_rows(&self, x: &Array) -> Result<Option<(Array, Array, Array)>> {
+        let Some(w) = &self.router_bf16 else {
+            return Ok(None);
+        };
+        if !p17("f3") || !p17("rt") {
+            return Ok(None);
+        }
+        let &[experts, hid] = w.shape() else {
+            return Ok(None);
+        };
+        let &[rows, xh] = x.shape() else {
+            return Ok(None);
+        };
+        if xh != hid
+            || x.dtype() != Dtype::Float16
+            || experts != 128
+            || hid <= 64
+            || hid < 16 * experts
+            || self.bias.shape() != [128]
+            || self.bias.dtype() != Dtype::Float32
+            || self.top_k != 8
+            || !(self.scale.is_finite() && self.scale > 0.0)
+        {
+            return Ok(None);
+        }
+        let key = [
+            i64::from(experts),
+            i64::from(hid),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ];
+        let logits_kernel =
+            crate::array::prepared_kernel("inkling_router_logits_rows", key, || {
+                let source = rows_source(
+                    &ROUTER_SOURCE.replace("HID", &hid.to_string()),
+                    &[
+                        ("x[bn + t]", &format!("x[mrow * {hid} + bn + t]")),
+                        (
+                            "out[out_row + tm]",
+                            &format!("out[mrow * {experts} + out_row + tm]"),
+                        ),
+                    ],
+                )
+                .expect("router rows source");
+                crate::array::PreparedKernel::new(
+                    &format!("inkling_router_logits_rows_{experts}_{hid}"),
+                    &["x", "w"],
+                    &["out"],
+                    "",
+                    &source,
+                )
+            })?;
+        let logits = logits_kernel
+            .run(
+                &[x, w],
+                &[&[rows, experts]],
+                &[Dtype::Float32],
+                [256 * (experts / 4), rows, 1],
+                [256, 1, 1],
+            )?
+            .pop()
+            .context("router logits rows")?;
+        let bits = self.scale.to_bits();
+        let tail_key = [i64::from(bits), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+        let tail_kernel =
+            crate::array::prepared_kernel("inkling_router_tail_rows", tail_key, || {
+                let source = rows_source(
+                    &ROUTER_TAIL_SOURCE
+                        .replace(
+                            "SUM_ORDER",
+                            "for (uint r = 0u; r < TOP_K; ++r) { total = chosen[r] + total; }",
+                        )
+                        .replace("EXPERTS", "128u")
+                        .replace("TOP_K", "8u")
+                        .replace("SCALE", &format!("as_type<float>({bits}u)")),
+                    &[
+                        (
+                            "float x = logits[tid];",
+                            "float x = logits[mrow * 128 + tid];",
+                        ),
+                        (
+                            "indices[rank] = winner;",
+                            "indices[mrow * 8 + rank] = winner;",
+                        ),
+                        ("scores[rank] =", "scores[mrow * 8 + rank] ="),
+                    ],
+                )
+                .expect("router tail rows source");
+                crate::array::PreparedKernel::new(
+                    &format!("inkling_router_tail_rows_{bits:08x}"),
+                    &["logits", "bias"],
+                    &["indices", "scores"],
+                    "",
+                    &source,
+                )
+            })?;
+        let mut out = tail_kernel.run(
+            &[&logits, &self.bias],
+            &[&[rows, 8], &[rows, 8]],
+            &[Dtype::UInt32, Dtype::Float32],
+            [128, rows, 1],
+            [128, 1, 1],
+        )?;
+        let scores = out.pop().context("router tail rows scores")?;
+        let selected = out.pop().context("router tail rows indices")?;
+        Ok(Some((logits, selected, scores)))
+    }
+}
+
+impl MessageGate {
+    /// L2: the F2 gate of every row (`[rows, hid]` F32 inputs) with the two 1-row kernels launched once over the
+    /// rows; `None` outside their domain.
+    fn forward_fused_rows(
+        &self,
+        hidden: &Array,
+        hidden_norm: &Array,
+        message_norm: &Array,
+        message: &Array,
+    ) -> Result<Option<Array>> {
+        let (Some(forget), Some(gain)) = (&self.forget_bf16, &self.gain_bf16) else {
+            return Ok(None);
+        };
+        if !p17("f2") || !fused() {
+            return Ok(None);
+        }
+        let &[hid, rank] = forget.shape() else {
+            return Ok(None);
+        };
+        let rows = hidden.shape()[0];
+        let f32_rows = |a: &Array| a.shape() == [rows, hid] && a.dtype() == Dtype::Float32;
+        let down = &self.down.weight_t;
+        if rank != 64
+            || hid % 32 != 0
+            || 2 * hid < 16 * rank
+            || !(f32_rows(hidden)
+                && f32_rows(hidden_norm)
+                && f32_rows(message_norm)
+                && f32_rows(message))
+            || down.shape() != [2 * hid, rank]
+            || down.dtype() != Dtype::Float16
+        {
+            return Ok(None);
+        }
+        let key = [
+            i64::from(hid),
+            i64::from(rank),
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+            0,
+        ];
+        let down_kernel = crate::array::prepared_kernel("inkling_gate_down_rows", key, || {
+            let source = rows_source(
+                GATE_DOWN_SOURCE,
+                &[
+                    (
+                        "k < HID ? hn[k] : mn[k - HID]",
+                        "k < HID ? hn[mrow * HID + k] : mn[mrow * HID + k - HID]",
+                    ),
+                    (
+                        "out[out_row + tm] =",
+                        &format!("out[mrow * {rank} + out_row + tm] ="),
+                    ),
+                ],
+            )
+            .map(|source| source.replace("HID", &hid.to_string()))
+            .expect("gate down rows source");
+            crate::array::PreparedKernel::new(
+                &format!("inkling_gate_down_rows_{hid}_{rank}"),
+                &["hn", "mn", "w"],
+                &["out"],
+                "",
+                &source,
+            )
+        })?;
+        let weights = down.transpose(&[1, 0])?;
+        let states = down_kernel
+            .run(
+                &[hidden_norm, message_norm, &weights],
+                &[&[rows, rank]],
+                &[Dtype::Float32],
+                [256 * (rank / 4), rows, 1],
+                [256, 1, 1],
+            )?
+            .pop()
+            .context("gate states rows")?;
+        let tail_kernel = crate::array::prepared_kernel("inkling_gate_tail_rows", key, || {
+            let source = rows_source(
+                &GATE_TAIL_SOURCE.replace("RANK", &rank.to_string()),
+                &[
+                    (
+                        "v[t] = s[bn + t];",
+                        &format!("v[t] = s[mrow * {rank} + bn + t];"),
+                    ),
+                    (
+                        "const float hv = h[row];",
+                        &format!("const float hv = h[mrow * {hid} + row];"),
+                    ),
+                    (
+                        "const float c = tg * m[row];",
+                        &format!("const float c = tg * m[mrow * {hid} + row];"),
+                    ),
+                    ("out[row] = o;", &format!("out[mrow * {hid} + row] = o;")),
+                ],
+            )
+            .expect("gate tail rows source");
+            crate::array::PreparedKernel::new(
+                &format!("inkling_gate_tail_rows_{hid}_{rank}"),
+                &["s", "f", "g", "h", "m"],
+                &["out"],
+                "",
+                &source,
+            )
+        })?;
+        let out = tail_kernel
+            .run(
+                &[&states, forget, gain, hidden, message],
+                &[&[rows, hid]],
+                &[Dtype::Float32],
+                [32 * (hid / 32), rows, 1],
+                [32, 1, 1],
+            )?
+            .pop()
+            .context("gate output rows")?;
+        Ok(Some(out))
+    }
 }
 
 /// SPEED-INK2M-P17 F1: one token, one query (`[1, D]` FP32) over `N` sources (`[1, D]` FP32) in one kernel.
@@ -1574,32 +2009,36 @@ impl Attention {
         capture_dense_input(self.layer, 0, hq)?;
         capture_dense_input(self.layer, 1, hk)?;
         capture_dense_input(self.layer, 2, hv)?;
+        let k_proj = self.k.forward(hk)?;
+        let v_proj = self.v.forward(hv)?;
+        stage("a.k_proj", &k_proj)?;
+        stage("a.v_proj", &v_proj)?;
         let (k, v, k_state, v_state) = match &self.conv {
             KvConv::Static { k, v } => {
-                let (ko, ks) = k.forward(&self.k.forward(hk)?, state.conv[0].as_ref())?;
-                let (vo, vs) = v.forward(&self.v.forward(hv)?, state.conv[1].as_ref())?;
+                let (ko, ks) = k.forward(&k_proj, state.conv[0].as_ref())?;
+                let (vo, vs) = v.forward(&v_proj, state.conv[1].as_ref())?;
                 (ko, vo, ks, vs)
             }
             KvConv::Dynamic { k, v } => {
-                let (ko, ks) = k.forward(&self.k.forward(hk)?, hk, state.conv[0].as_ref())?;
-                let (vo, vs) = v.forward(&self.v.forward(hv)?, hv, state.conv[1].as_ref())?;
+                let (ko, ks) = k.forward(&k_proj, hk, state.conv[0].as_ref())?;
+                let (vo, vs) = v.forward(&v_proj, hv, state.conv[1].as_ref())?;
                 (ko, vo, ks, vs)
             }
         };
+        stage("a.k_conv", &k)?;
+        stage("a.v_conv", &v)?;
         let tau = self.tau(start, time)?;
+        let q_proj = self.q.forward(hq)?;
+        let r_proj = self.r.forward(hq)?;
+        stage("a.q_proj", &q_proj)?;
+        stage("a.r_proj", &r_proj)?;
         let mut q = l2_clip(
-            &self
-                .q
-                .forward(hq)?
-                .reshape(&[time, self.heads, self.head_dim])?,
+            &q_proj.reshape(&[time, self.heads, self.head_dim])?,
             Some(&self.q_scale),
             self.qk_clip,
         )?;
         let mut rel = l2_clip(
-            &self
-                .r
-                .forward(hq)?
-                .reshape(&[time, self.heads, self.d_rel])?,
+            &r_proj.reshape(&[time, self.heads, self.d_rel])?,
             Some(&self.rel_scale),
             self.rel_clip,
         )?;
@@ -1607,6 +2046,8 @@ impl Attention {
             q = q.mul(tau)?;
             rel = rel.mul(tau)?;
         }
+        stage("a.q", &q)?;
+        stage("a.rel", &rel)?;
         let k = l2_clip(
             &k.reshape(&[time, self.kv_heads, self.head_dim])?,
             None,
@@ -1615,6 +2056,8 @@ impl Attention {
         let v = v
             .reshape(&[time, self.kv_heads, self.head_dim])?
             .rms_norm_without_weight(self.eps)?;
+        stage("a.k", &k)?;
+        stage("a.v", &v)?;
         let q = heads_first(&q.astype(Dtype::Float16)?, time, self.heads, self.head_dim)?;
         let k = heads_first(
             &k.astype(Dtype::Float16)?,
@@ -1648,6 +2091,7 @@ impl Attention {
             );
         }
         let profiles = rel.matmul(&self.rel_proj)?;
+        stage("a.profiles", &profiles)?;
         let profiles = if one {
             profiles.reshape(&[self.heads, self.extent])?
         } else {
@@ -1656,6 +2100,7 @@ impl Attention {
                 .reshape(&[self.heads, time * self.extent])?
         };
         let sink_raw = self.sink.forward(hq)?;
+        stage("a.sink", &sink_raw)?;
         let mut bias = if ablated("bias") {
             Array::zeros_dtype(&[self.heads, time, plan.keys], Dtype::Float32)?
         } else {
@@ -1709,7 +2154,9 @@ impl Attention {
                 .transpose(&[1, 0, 2])?
                 .reshape(&[time, self.heads * self.head_dim])?
         };
+        stage("a.sdpa", &attended)?;
         let gate_raw = self.gate.forward(hq)?;
+        stage("a.gate_raw", &gate_raw)?;
         // SPEED-INK2M-P17 F5: one row: casts, sigmoid and product in one kernel
         let gated = if one
             && p17("f5")
@@ -1727,6 +2174,7 @@ impl Attention {
         state.pending_conv[0] = Some(k_state);
         state.pending_conv[1] = Some(v_state);
         capture_dense_input(self.layer, 3, &gated)?;
+        stage("a.gated", &gated)?;
         self.o.forward(&gated)
     }
 
@@ -1923,6 +2371,27 @@ impl MessageGate {
     ) -> Result<Array> {
         if ablated("gates") {
             return hidden.try_clone();
+        }
+        // INVARIANT-2026-11-24-INK2M-L1L4: every row through the 1-row gate (its fused kernels over the rows, or
+        // one row at a time outside their domain)
+        let rows = hidden.shape()[0];
+        if invariant_call(rows) {
+            let message_norm = message.rms_norm_without_weight(self.eps)?;
+            if let Some(out) =
+                self.forward_fused_rows(hidden, hidden_norm, &message_norm, message)?
+            {
+                return Ok(out);
+            }
+            let outs = (0..rows)
+                .map(|r| {
+                    self.forward_normed(
+                        &hidden.slice(0, r, r + 1)?,
+                        &hidden_norm.slice(0, r, r + 1)?,
+                        &message.slice(0, r, r + 1)?,
+                    )
+                })
+                .collect::<Result<Vec<_>>>()?;
+            return Array::concatenate(&outs.iter().collect::<Vec<_>>(), 0);
         }
         let message_norm = message.rms_norm_without_weight(self.eps)?;
         if let Some(out) = self.forward_fused(hidden, hidden_norm, &message_norm, message)? {
@@ -2450,10 +2919,8 @@ impl Moe {
 }
 
 impl Moe {
-    fn forward(&self, x: &Array) -> Result<Array> {
-        if ablated("moe") {
-            return x.scalar_mul(0.0);
-        }
+    /// Router logits `[rows, experts]`, selected experts and scores `[rows, top_k]`.
+    fn route(&self, x: &Array) -> Result<(Array, Array, Array)> {
         let logits = match self.router_logits_fused(x)? {
             Some(logits) => logits,
             None => x.astype(Dtype::Float32)?.matmul(&self.router_t)?,
@@ -2462,6 +2929,38 @@ impl Moe {
             Some(routes) => routes,
             None => router::grouped_topk_biased(&logits, &self.bias, self.top_k, 1, 1, self.scale)?,
         };
+        Ok((logits, selected, scores))
+    }
+
+    fn forward(&self, x: &Array) -> Result<Array> {
+        if ablated("moe") {
+            return x.scalar_mul(0.0);
+        }
+        let (logits, selected, scores) = if invariant_call(x.shape()[0]) {
+            // INVARIANT-2026-11-24-INK2M-L1L4 (L2): every row routed by the 1-row router (its kernels over the
+            // rows, or one row at a time outside their domain)
+            match self.route_rows(x)? {
+                Some(routes) => routes,
+                None => {
+                    let rows = x.shape()[0];
+                    let mut parts = (Vec::new(), Vec::new(), Vec::new());
+                    for r in 0..rows {
+                        let (l, s, c) = self.route(&x.slice(0, r, r + 1)?)?;
+                        parts.0.push(l);
+                        parts.1.push(s);
+                        parts.2.push(c);
+                    }
+                    let join =
+                        |v: &Vec<Array>| Array::concatenate(&v.iter().collect::<Vec<_>>(), 0);
+                    (join(&parts.0)?, join(&parts.1)?, join(&parts.2)?)
+                }
+            }
+        } else {
+            self.route(x)?
+        };
+        stage("m.logits", &logits)?;
+        stage("m.selected", &selected)?;
+        stage("m.scores", &scores)?;
         capture_routes(&selected)?;
         if ablated("experts") {
             // keep the router in the graph, drop the expert kernels
@@ -2640,7 +3139,9 @@ impl Layer {
     ) -> Result<Array> {
         let time = hidden.shape()[0];
         let dims = hidden.shape()[1];
+        stage("in", hidden)?;
         let normed_input = hidden.rms_norm_without_weight(self.eps)?;
+        stage("normed_input", &normed_input)?;
         let inputs: Vec<Array> = match &self.attention_query {
             Some(queries) => {
                 let mut sources: Vec<&Array> = blocks.iter().collect();
@@ -2713,10 +3214,16 @@ impl Layer {
                 )
             }
         };
+        stage("dinput0", &inputs[0])?;
+        stage("hq", &hq)?;
+        stage("hk", &hk)?;
+        stage("hv", &hv)?;
         let attended = self.attention.forward(&hq, &hk, &hv, start, plan, state)?;
+        stage("attention", &attended)?;
         let (attended, conv_state) = self
             .post_attention_conv
             .forward(&attended, state.conv[2].as_ref())?;
+        stage("post_attention_conv", &attended)?;
         state.pending_conv[2] = Some(conv_state);
         let residual = if self.block_boundary {
             blocks.push(normed_input);
@@ -2733,14 +3240,20 @@ impl Layer {
                 .mlp
                 .forward(&mlp_input, &message(3)?.context("message")?)?;
         }
-        let mlp = self.moe.forward(
-            &mlp_input
-                .rms_norm(&self.post_attention_norm, self.eps)?
-                .astype(Dtype::Float16)?,
-        )?;
+        stage("residual", &residual)?;
+        stage("mlp_input", &mlp_input)?;
+        let moe_in = mlp_input
+            .rms_norm(&self.post_attention_norm, self.eps)?
+            .astype(Dtype::Float16)?;
+        stage("moe_in", &moe_in)?;
+        let mlp = self.moe.forward(&moe_in)?;
+        stage("moe_out", &mlp)?;
         let (mlp, conv_state) = self.post_mlp_conv.forward(&mlp, state.conv[3].as_ref())?;
+        stage("post_mlp_conv", &mlp)?;
         state.pending_conv[3] = Some(conv_state);
-        residual.add(&mlp)
+        let out = residual.add(&mlp)?;
+        stage("out", &out)?;
+        Ok(out)
     }
 }
 
@@ -2964,18 +3477,13 @@ pub fn decide_block(
     let log_probs = logits.reshape(&[rows, vocab])?.log_probs()?;
     let defines = format!("#define ROWS {rows}\n#define PROPOSALS {k}\n#define VOCAB {vocab}\n");
     let packet = match rule {
-        DrawRule::Greedy => crate::array::metal_kernel(
-            &format!("mlxl3_inkling_dspark_decide_greedy_v1_k{k}"),
-            &["top", "proposals"],
-            &["packet"],
-            &defines,
-            DECIDE_GREEDY_SOURCE,
-            &[&log_probs.argmax()?.astype(Dtype::UInt32)?, proposals],
-            &[vec![2 + k]],
-            &[Dtype::UInt32],
-            [1, 1, 1],
-            [1, 1, 1],
-        )?,
+        DrawRule::Greedy => {
+            return decide_equal(
+                &log_probs.argmax()?.astype(Dtype::UInt32)?,
+                proposals,
+                &defines,
+            );
+        }
         DrawRule::Softmax(temperature) => {
             ensure!(
                 temperature.is_finite() && temperature > 0.0,
@@ -3017,6 +3525,344 @@ pub fn decide_block(
     .pop()
     .context("missing DSpark decision packet")?;
     Ok(packet)
+}
+
+/// The packet of a block whose verified rows chose `top` (`[1 + k]` u32): proposals kept while they equal
+/// their row's choice, then the next row's choice (`DECIDE_GREEDY_SOURCE`).
+fn decide_equal(top: &Array, proposals: &Array, defines: &str) -> Result<Array> {
+    let k = proposals.shape()[0];
+    ensure!(
+        top.shape() == [k + 1] && top.dtype() == Dtype::UInt32,
+        "decide_equal expects [1 + k] u32 choices"
+    );
+    crate::array::metal_kernel(
+        &format!("mlxl3_inkling_dspark_decide_greedy_v1_k{k}"),
+        &["top", "proposals"],
+        &["packet"],
+        defines,
+        DECIDE_GREEDY_SOURCE,
+        &[top, proposals],
+        &[vec![2 + k]],
+        &[Dtype::UInt32],
+        [1, 1, 1],
+        [1, 1, 1],
+    )?
+    .pop()
+    .context("missing DSpark decision packet")
+}
+
+/// DSPARK-2026-11-24-INK2M-MAYA2-D2: the coupled decision of a sampled DSpark block. `noise` `[1 + k, vocab]`
+/// is the block's standard Gumbel noise, the one the drafter drew its proposals with (`coupled_pick`). Row i
+/// chooses `t_i = argmax(log_probs_i / T + noise_i)`, one draw from softmax(log_probs_i / T) (the operations
+/// of `draw_rows`); proposals are kept while they equal their row's draw and the token after them is the
+/// next row's draw. Row i's logits depend on the noise of rows < i only (through the proposals before it), so
+/// every delivered token has the law of an ordinary draw from its row, whatever the drafter proposed. Returns
+/// the lazy packet `[2 + k]` u32 of `decide_block`.
+pub fn decide_coupled(
+    logits: &Array,
+    proposals: &Array,
+    temperature: f32,
+    noise: &Array,
+) -> Result<Array> {
+    let shape = logits.shape();
+    ensure!(
+        shape.len() == 3 && shape[0] == 1 && shape[1] >= 2 && shape[2] >= 2,
+        "decide_coupled expects [1, 1 + k, vocab] logits with k >= 1"
+    );
+    let (rows, vocab) = (shape[1], shape[2]);
+    let k = rows - 1;
+    ensure!(
+        proposals.shape() == [k] && proposals.dtype() == Dtype::UInt32,
+        "decide_coupled expects [k] u32 proposals"
+    );
+    ensure!(
+        noise.shape() == [rows, vocab] && noise.dtype() == Dtype::Float32,
+        "decide_coupled expects [1 + k, vocab] FP32 noise"
+    );
+    ensure!(
+        temperature.is_finite() && temperature > 0.0,
+        "a coupled decision needs a positive finite temperature"
+    );
+    let log_probs = logits.reshape(&[rows, vocab])?.log_probs()?;
+    let scores = if temperature == 1.0 {
+        log_probs
+    } else {
+        log_probs.scalar_mul(1.0 / temperature)?
+    };
+    #[cfg(test)]
+    if COUPLE_MUTATION.with(std::cell::Cell::get) {
+        // mutation: every proposal is kept, the drafter's draws are delivered as the target's
+        let top = Array::concatenate(
+            &[
+                proposals,
+                &scores
+                    .add(noise)?
+                    .argmax()?
+                    .astype(Dtype::UInt32)?
+                    .slice(0, k, k + 1)?,
+            ],
+            0,
+        )?;
+        let defines =
+            format!("#define ROWS {rows}\n#define PROPOSALS {k}\n#define VOCAB {vocab}\n");
+        return decide_equal(&top, proposals, &defines);
+    }
+    let top = scores.add(noise)?.argmax()?.astype(Dtype::UInt32)?;
+    let defines = format!("#define ROWS {rows}\n#define PROPOSALS {k}\n#define VOCAB {vocab}\n");
+    decide_equal(&top, proposals, &defines)
+}
+
+#[cfg(test)]
+thread_local! {
+    /// DFLASH2-2026-11-24-INK2M-S3 test mutation: `decide_ratio` keeps every proposal.
+    pub(crate) static RATIO_MUTATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Per verified row of a ratio block: argmax over the vocabulary of log r(v) + noise(v), r = max(p - q, 0) on
+/// the row's candidates and r = p elsewhere (the residual of the rejection of its proposal; the bonus row has no
+/// candidates: r = p), the plain draw argmax(log p + noise) and log p at the proposal. `log_probs` normalized at
+/// the temperature. One threadgroup of `DECIDE_THREADS` a row; ties go to the lowest index.
+const RATIO_ROWS_SOURCE: &str = r#"
+    const uint row = threadgroup_position_in_grid.y;
+    const uint tid = thread_position_in_threadgroup.x;
+    const uint lane = thread_index_in_simdgroup;
+    const uint sg = simdgroup_index_in_threadgroup;
+    const bool drafted = row < uint(PROPOSALS);
+    uint cand[CANDIDATES];
+    float qc[CANDIDATES];
+    for (uint c = 0u; c < uint(CANDIDATES); ++c) {
+        cand[c] = drafted ? candidates[row * uint(CANDIDATES) + c] : 0xffffffffu;
+        qc[c] = drafted ? q[row * uint(CANDIDATES) + c] : 0.0f;
+    }
+    const device float* s = log_probs + size_t(row) * uint(VOCAB);
+    const device float* g = noise + size_t(row) * uint(VOCAB);
+    float rv = -INFINITY;
+    uint ri = 0xffffffffu;
+    float pv = -INFINITY;
+    uint pi = 0xffffffffu;
+    for (uint j = tid; j < uint(VOCAB); j += uint(THREADS)) {
+        const float lp = s[j];
+        const float key = lp + g[j];
+        if (pi == 0xffffffffu || key > pv) {
+            pv = key;
+            pi = j;
+        }
+        float r = lp;
+        for (uint c = 0u; c < uint(CANDIDATES); ++c) {
+            if (cand[c] == j) {
+                const float d = metal::exp(lp) - qc[c];
+                r = d > 0.0f ? metal::log(d) : -INFINITY;
+            }
+        }
+        const float rk = r + g[j];
+        if (rk > -INFINITY && (ri == 0xffffffffu || rk > rv)) {
+            rv = rk;
+            ri = j;
+        }
+    }
+    for (ushort offset = 16; offset > 0; offset >>= 1) {
+        const float orv = simd_shuffle_down(rv, offset);
+        const uint ori = simd_shuffle_down(ri, offset);
+        const float opv = simd_shuffle_down(pv, offset);
+        const uint opi = simd_shuffle_down(pi, offset);
+        if (lane + offset < 32u) {
+            if (ori != 0xffffffffu && (ri == 0xffffffffu || orv > rv || (orv == rv && ori < ri))) {
+                rv = orv;
+                ri = ori;
+            }
+            if (opi != 0xffffffffu && (pi == 0xffffffffu || opv > pv || (opv == pv && opi < pi))) {
+                pv = opv;
+                pi = opi;
+            }
+        }
+    }
+    threadgroup float srv[32];
+    threadgroup uint sri[32];
+    threadgroup float spv[32];
+    threadgroup uint spi[32];
+    if (lane == 0u) {
+        srv[sg] = rv;
+        sri[sg] = ri;
+        spv[sg] = pv;
+        spi[sg] = pi;
+    }
+    threadgroup_barrier(mem_flags::mem_threadgroup);
+    if (tid == 0u) {
+        float tr = srv[0];
+        uint tri = sri[0];
+        float tp = spv[0];
+        uint tpi = spi[0];
+        for (uint i = 1u; i < uint(THREADS) / 32u; ++i) {
+            if (sri[i] != 0xffffffffu && (tri == 0xffffffffu || srv[i] > tr || (srv[i] == tr && sri[i] < tri))) {
+                tr = srv[i];
+                tri = sri[i];
+            }
+            if (spi[i] != 0xffffffffu && (tpi == 0xffffffffu || spv[i] > tp || (spv[i] == tp && spi[i] < tpi))) {
+                tp = spv[i];
+                tpi = spi[i];
+            }
+        }
+        residual[row] = tri;
+        plain[row] = tpi;
+        at[row] = drafted ? s[proposals[row]] : -INFINITY;
+    }
+"#;
+
+/// The ratio block's decision in one thread: proposal i is kept when U_i q_i(x_i) < p_i(x_i) (probability
+/// min(1, p / q)); at the first rejection the token is that row's residual draw (its plain draw if the residual is
+/// numerically empty), after every proposal the bonus row's draw. `packet` = [accepted, token, proposals...].
+const RATIO_DECIDE_SOURCE: &str = r#"
+    uint accepted = uint(PROPOSALS);
+    for (uint i = 0u; i < uint(PROPOSALS); ++i) {
+        if (RATIO_KEEP_ALL == 0 && !(metal::log(coins[i]) + metal::log(chosen[i]) < at[i])) {
+            accepted = i;
+            break;
+        }
+    }
+    uint token = plain[accepted];
+    if (accepted < uint(PROPOSALS) && residual[accepted] != 0xffffffffu) {
+        token = residual[accepted];
+    }
+    packet[0] = accepted;
+    packet[1] = token;
+    for (uint i = 0u; i < uint(PROPOSALS); ++i) {
+        packet[2u + i] = proposals[i];
+    }
+"#;
+
+/// DFLASH2-2026-11-24-INK2M-S3: the ratio rule of IncoAI Splash for a sampled block (speculative sampling of a
+/// chain of draws): proposal i, drawn from the drafter's law q_i over its candidates (`candidates` `[k, C]`, `q`
+/// `[k, C]`, `chosen` = q_i(x_i) `[k]`; row i conditioned on the proposals before it), is kept with probability
+/// min(1, p_i(x_i) / q_i(x_i)) (`uniform_seed`); at the first rejection the token is drawn from the residual
+/// max(p_i - q_i, 0) (`noise_seed`), after every proposal from the bonus row. p_i = softmax(logits_i / T) of
+/// `logits` `[1, 1 + k, vocab]`. Every delivered token has the law of an ordinary draw from its row, whatever the
+/// drafter proposed, provided the proposals were drawn from `q`. Returns the lazy packet `[2 + k]` u32 of
+/// `decide_block`.
+#[allow(clippy::too_many_arguments)]
+pub fn decide_ratio(
+    logits: &Array,
+    proposals: &Array,
+    candidates: &Array,
+    q: &Array,
+    chosen: &Array,
+    temperature: f32,
+    noise_seed: u64,
+    uniform_seed: u64,
+) -> Result<Array> {
+    let shape = logits.shape();
+    ensure!(
+        shape.len() == 3 && shape[0] == 1 && shape[1] >= 2 && shape[2] >= 2,
+        "decide_ratio expects [1, 1 + k, vocab] logits with k >= 1"
+    );
+    let (rows, vocab) = (shape[1], shape[2]);
+    let k = rows - 1;
+    let c = candidates.shape().get(1).copied().unwrap_or(0);
+    ensure!(
+        proposals.shape() == [k] && proposals.dtype() == Dtype::UInt32,
+        "decide_ratio expects [k] u32 proposals"
+    );
+    ensure!(
+        (1..=32).contains(&c)
+            && candidates.shape() == [k, c]
+            && candidates.dtype() == Dtype::UInt32
+            && q.shape() == [k, c]
+            && q.dtype() == Dtype::Float32
+            && chosen.shape() == [k]
+            && chosen.dtype() == Dtype::Float32,
+        "decide_ratio expects [k, C] u32 candidates, [k, C] FP32 q and [k] FP32 chosen (C <= 32)"
+    );
+    ensure!(
+        temperature.is_finite() && temperature > 0.0,
+        "a ratio decision needs a positive finite temperature"
+    );
+    let scaled = logits.reshape(&[rows, vocab])?.astype(Dtype::Float32)?;
+    let scaled = if temperature == 1.0 {
+        scaled
+    } else {
+        scaled.scalar_mul(1.0 / temperature)?
+    };
+    let log_probs = scaled.log_probs()?;
+    let noise = Array::gumbel_noise(&[rows, vocab], noise_seed)?;
+    let defines = format!(
+        "#define ROWS {rows}\n#define PROPOSALS {k}\n#define VOCAB {vocab}\n#define CANDIDATES {c}\n"
+    );
+    let mut reduced = crate::array::metal_kernel(
+        &format!("mlxl3_inkling_dflash2_ratio_rows_v1_r{rows}_v{vocab}_c{c}"),
+        &["log_probs", "noise", "candidates", "q", "proposals"],
+        &["residual", "plain", "at"],
+        &format!("{defines}#define THREADS {DECIDE_THREADS}\n"),
+        RATIO_ROWS_SOURCE,
+        &[&log_probs, &noise, candidates, q, proposals],
+        &[vec![rows], vec![rows], vec![rows]],
+        &[Dtype::UInt32, Dtype::UInt32, Dtype::Float32],
+        [DECIDE_THREADS, rows, 1],
+        [DECIDE_THREADS, 1, 1],
+    )?;
+    ensure!(reduced.len() == 3, "missing ratio decision rows");
+    let at = reduced.pop().context("at")?;
+    let plain = reduced.pop().context("plain")?;
+    let residual = reduced.pop().context("residual")?;
+    let coins = Array::random_uniform(&[k], uniform_seed)?;
+    #[cfg(test)]
+    let keep_all = RATIO_MUTATION.with(std::cell::Cell::get);
+    #[cfg(not(test))]
+    let keep_all = false;
+    crate::array::metal_kernel(
+        &format!(
+            "mlxl3_inkling_dflash2_ratio_decide_v1_k{k}_m{}",
+            u8::from(keep_all)
+        ),
+        &["residual", "plain", "at", "coins", "chosen", "proposals"],
+        &["packet"],
+        &format!("{defines}#define RATIO_KEEP_ALL {}\n", u8::from(keep_all)),
+        RATIO_DECIDE_SOURCE,
+        &[&residual, &plain, &at, &coins, chosen, proposals],
+        &[vec![2 + k]],
+        &[Dtype::UInt32],
+        [1, 1, 1],
+        [1, 1, 1],
+    )?
+    .pop()
+    .context("missing ratio decision packet")
+}
+
+/// DSPARK-2026-11-24-INK2M-MAYA2-D2: the drafter's coupled proposal at one position: `[1]` u32
+/// `argmax(logits / T + noise[..V])` over its `[1, V]` logits, with the noise row `[1, V_target]` the target
+/// draws that position with (`decide_coupled`).
+pub fn coupled_pick(logits: &Array, temperature: f32, noise_row: &Array) -> Result<Array> {
+    let shape = logits.shape();
+    ensure!(
+        shape.len() == 2 && shape[0] == 1,
+        "coupled_pick expects [1, vocab] logits"
+    );
+    ensure!(
+        noise_row.shape().len() == 2
+            && noise_row.shape()[0] == 1
+            && noise_row.shape()[1] >= shape[1],
+        "coupled_pick noise narrower than the draft vocabulary"
+    );
+    ensure!(
+        temperature.is_finite() && temperature > 0.0,
+        "a coupled proposal needs a positive finite temperature"
+    );
+    let scores = logits.astype(Dtype::Float32)?;
+    let scores = if temperature == 1.0 {
+        scores
+    } else {
+        scores.scalar_mul(1.0 / temperature)?
+    };
+    let noise = if noise_row.shape()[1] == shape[1] {
+        noise_row.try_clone()?
+    } else {
+        noise_row.slice(1, 0, shape[1])?
+    };
+    scores.add(&noise)?.argmax()?.astype(Dtype::UInt32)
+}
+
+#[cfg(test)]
+thread_local! {
+    /// D2 oracle mutation: the coupled decision keeps every proposal.
+    pub(crate) static COUPLE_MUTATION: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
 }
 
 /// Seeds of successive GPU draws: splitmix64 of a Weyl sequence started at `seed`.
@@ -3844,6 +4690,8 @@ impl Inkling2 {
         commit: bool,
         asynchronous: bool,
     ) -> Result<(Array, Option<Array>)> {
+        // INVARIANT-2026-11-24-INK2M-L1L4: the invariant rows apply to verifications (no commit) only
+        let _verify_scope = VerifyScope::enter(!commit);
         let started = Instant::now();
         #[cfg(test)]
         let cpu_started = thread_cpu();
@@ -6389,6 +7237,849 @@ mod tests {
             })
             .collect();
         println!("VERIFY_COST_BY_OVERLAP {}", serde_json::to_string(&report)?);
+        Ok(())
+    }
+
+    /// DFLASH2-2026-11-24-INK2M-P4-2 quality (TENSOR-C1 protocol, 8-row blocks): rows 0..12 of `MLXL3_INKLING_ROWS`
+    /// (en / fr / code / chat x 3), 64 tokens of prefix, then 48 teacher-forced verifications of 8 rows (384
+    /// positions per row); an exact pass keeps its FP32 log-probs on the GPU, then the grouped TensorOps experts
+    /// (`MLXL3_INKLING_EXPERT_TENSOR` path) on the same tokens: per position KL(p_exact || p_hybrid), argmax
+    /// disagreement and the log-likelihood of the next token (perplexity). Control: a second exact pass of row 0
+    /// gives KL 0 and no disagreement.
+    #[test]
+    #[ignore = "requires an Apple M5 GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn expert_tensor_verify_quality() -> Result<()> {
+        const PREFIX: usize = 64;
+        const BLOCKS: usize = 48;
+        const T: usize = 8;
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let taps: Vec<usize> = vec![5, 23, 41, model.visit_count()];
+        let vocab = model.unpadded_vocab();
+        let mut report = Vec::new();
+        let (mut all_kl, mut all_max, mut all_dis, mut all_n) = (0f64, 0f64, 0usize, 0usize);
+        let (mut all_nll_e, mut all_nll_h) = (0f64, 0f64);
+        for index in 0..12usize {
+            let name = rows["rows"][index]["name"]
+                .as_str()
+                .unwrap_or("?")
+                .to_owned();
+            let tokens: Vec<u32> = serde_json::from_value(rows["rows"][index]["tokens"].clone())?;
+            let tokens: Vec<u32> = tokens.into_iter().map(|t| t % vocab as u32).collect();
+            ensure!(tokens.len() > PREFIX + BLOCKS * T, "row {name} too short");
+            let mut pass = |hybrid: bool| -> Result<Vec<Array>> {
+                crate::moe::with_expert_tensor(hybrid, || -> Result<Vec<Array>> {
+                    model.reset();
+                    model.forward_tokens(&tokens[..PREFIX])?.eval()?;
+                    let mut out = Vec::with_capacity(BLOCKS);
+                    for b in 0..BLOCKS {
+                        let block = &tokens[PREFIX + b * T..PREFIX + (b + 1) * T];
+                        let (logits, _) = model.verify(block, &taps)?;
+                        model.commit(T)?;
+                        let lp = logits
+                            .reshape(&[T as i32, -1])?
+                            .slice(1, 0, vocab)?
+                            .astype(Dtype::Float32)?
+                            .log_probs()?;
+                        lp.eval()?;
+                        out.push(lp);
+                    }
+                    Ok(out)
+                })
+            };
+            let exact = pass(false)?;
+            let compare = |other: &[Array]| -> Result<(Vec<f64>, usize, f64, f64)> {
+                let (mut kls, mut dis, mut nll_e, mut nll_h) = (Vec::new(), 0usize, 0f64, 0f64);
+                for (b, (p, q)) in exact.iter().zip(other).enumerate() {
+                    let kl = p.exp()?.mul(&p.sub(q)?)?.sum(1, false)?.to_f32()?;
+                    ensure!(
+                        kl.len() == T && kl.iter().all(|v| v.is_finite()),
+                        "KL values"
+                    );
+                    kls.extend(kl.iter().map(|&v| f64::from(v.max(0.0))));
+                    let (ap, aq) = (p.argmax()?.to_u32()?, q.argmax()?.to_u32()?);
+                    ensure!(ap.len() == T && aq.len() == T, "argmax shapes");
+                    dis += ap.iter().zip(&aq).filter(|(a, b)| a != b).count();
+                    let next: Vec<u32> = (0..T)
+                        .map(|i| i as u32 * vocab as u32 + tokens[PREFIX + b * T + i + 1])
+                        .collect();
+                    let idx = Array::from_u32(&next, &[T as i32])?;
+                    let le = p.reshape(&[-1])?.take(&idx, 0)?.to_f32()?;
+                    let lh = q.reshape(&[-1])?.take(&idx, 0)?.to_f32()?;
+                    nll_e -= le.iter().map(|&v| f64::from(v)).sum::<f64>();
+                    nll_h -= lh.iter().map(|&v| f64::from(v)).sum::<f64>();
+                }
+                Ok((kls, dis, nll_e, nll_h))
+            };
+            if index == 0 {
+                let control = pass(false)?;
+                let (kls, dis, _, _) = compare(&control)?;
+                let max = kls.iter().cloned().fold(0f64, f64::max);
+                println!(
+                    "P4QUALITY control {name}: exact vs exact KL max {max:.3e}, disagreements {dis}"
+                );
+                ensure!(
+                    max == 0.0 && dis == 0,
+                    "the exact passes differ: the harness is not deterministic"
+                );
+            }
+            let hybrid = pass(true)?;
+            let (kls, dis, nll_e, nll_h) = compare(&hybrid)?;
+            let n = kls.len();
+            let mean = kls.iter().sum::<f64>() / n as f64;
+            let max = kls.iter().cloned().fold(0f64, f64::max);
+            let (ppl_e, ppl_h) = ((nll_e / n as f64).exp(), (nll_h / n as f64).exp());
+            println!(
+                "P4QUALITY {name}: positions {n} KL mean {mean:.3e} max {max:.3e} disagreements {dis} perplexity {ppl_e:.4} -> {ppl_h:.4}"
+            );
+            report.push(serde_json::json!({
+                "row": name, "positions": n, "kl_mean": mean, "kl_max": max, "disagreements": dis,
+                "perplexity_exact": ppl_e, "perplexity_hybrid": ppl_h,
+            }));
+            all_kl += kls.iter().sum::<f64>();
+            all_max = all_max.max(max);
+            all_dis += dis;
+            all_n += n;
+            all_nll_e += nll_e;
+            all_nll_h += nll_h;
+        }
+        println!(
+            "P4QUALITY total: positions {all_n} KL mean {:.3e} max {all_max:.3e} disagreements {all_dis} ({:.2} %) perplexity {:.4} -> {:.4}",
+            all_kl / all_n as f64,
+            100.0 * all_dis as f64 / all_n as f64,
+            (all_nll_e / all_n as f64).exp(),
+            (all_nll_h / all_n as f64).exp()
+        );
+        println!("P4QUALITY_JSON {}", serde_json::to_string(&report)?);
+        Ok(())
+    }
+
+    /// INVARIANT-2026-11-24-INK2M-L1L4 (L1 probe): for the dense projections of layer 0, the head, the gates'
+    /// `Dense` and a dynamic convolution's `weight_proj`, at M = 2 / 4 / 8 rows: the rows as a batch of 1-row
+    /// products (`[M, 1, K]`) against the 1-row products (bits), and the time per call of the current batched
+    /// product, the per-row loop and the `[M, 1, K]` form (16 calls per evaluation, median of 15).
+    #[test]
+    #[ignore = "requires an Apple GPU and MLXL3_INKLING_MODEL"]
+    fn invariant_batched_vector_probe() -> Result<()> {
+        const CALLS: usize = 16;
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let model = Inkling2::load(Path::new(&model_dir))?;
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut random = |rows: i32, cols: i32| -> Result<Array> {
+            let v: Vec<f32> = (0..rows * cols)
+                .map(|_| {
+                    state = state
+                        .wrapping_mul(6364136223846793005)
+                        .wrapping_add(1442695040888963407);
+                    (((state >> 33) as u32 % 2001) as f32 / 1000.0 - 1.0) * 0.5
+                })
+                .collect();
+            let a = Array::from_f32(&v, &[rows, cols])?.astype(Dtype::Float16)?;
+            a.eval()?;
+            Ok(a)
+        };
+        let time = |f: &dyn Fn(usize) -> Result<Array>| -> Result<f64> {
+            let mut samples = Vec::new();
+            for rep in 0..18 {
+                let outs = (0..CALLS).map(f).collect::<Result<Vec<_>>>()?;
+                let start = Instant::now();
+                Array::eval_many(&outs.iter().collect::<Vec<_>>())?;
+                if rep >= 3 {
+                    samples.push(start.elapsed().as_secs_f64() * 1e3 / CALLS as f64);
+                }
+            }
+            samples.sort_by(f64::total_cmp);
+            Ok(samples[samples.len() / 2])
+        };
+        let bits = |a: &Array| -> Result<Vec<u32>> {
+            Ok(a.astype(Dtype::Float32)?
+                .to_f32()?
+                .iter()
+                .map(|v| v.to_bits())
+                .collect())
+        };
+        // every distinct 8-bit product shape of the model: the attention projections of all layers, the head
+        let mut linears: Vec<(String, &Linear)> = Vec::new();
+        for (i, layer) in model.layers.iter().enumerate() {
+            let a = &layer.attention;
+            for (label, l) in [
+                ("q", &a.q),
+                ("k", &a.k),
+                ("v", &a.v),
+                ("r", &a.r),
+                ("o", &a.o),
+                ("gate", &a.gate),
+                ("sink", &a.sink),
+            ] {
+                linears.push((format!("l{i}.{label}"), l));
+            }
+        }
+        linears.push((
+            "head".to_owned(),
+            model.head_q.as_ref().context("8-bit head")?,
+        ));
+        let mut seen = std::collections::BTreeSet::new();
+        let mut report = Vec::new();
+        let mut checked = 0usize;
+        for (label, linear) in &linears {
+            let Linear::Affine {
+                w,
+                scales,
+                biases,
+                bits: b,
+                group,
+            } = linear
+            else {
+                continue;
+            };
+            let k = scales.shape()[1] * *group;
+            let n = scales.shape()[0];
+            let fresh = seen.insert((k, n, *b, *group));
+            for m in 1..=8i32 {
+                let x = random(m, k)?;
+                let single = per_row(&x, |r| linear.forward_rows(r))?;
+                let twin = qmv_rows(&x, w, scales, biases, *group, *b)?
+                    .context("twin outside its domain")?;
+                ensure!(twin.shape() == single.shape(), "{label} m {m}: twin shape");
+                let (t, s1) = (bits(&twin)?, bits(&single)?);
+                ensure!(t.len() == (m * n) as usize, "{label} m {m}: twin size");
+                let differ = t.iter().zip(&s1).filter(|(a, b)| a != b).count();
+                ensure!(
+                    differ == 0,
+                    "{label} (K {k}, N {n}, {b} bits, group {group}) m {m}: {differ} values differ from the 1-row product"
+                );
+                checked += 1;
+                if fresh && matches!(m, 2 | 4 | 8) {
+                    let xs = (0..CALLS)
+                        .map(|_| random(m, k))
+                        .collect::<Result<Vec<_>>>()?;
+                    let current = |i: usize| linear.forward_rows(&xs[i]);
+                    let rows = |i: usize| per_row(&xs[i], |r| linear.forward_rows(r));
+                    let twin_f = |i: usize| -> Result<Array> {
+                        qmv_rows(&xs[i], w, scales, biases, *group, *b)?.context("twin")
+                    };
+                    let (tc, ts, tt) = (time(&current)?, time(&rows)?, time(&twin_f)?);
+                    println!(
+                        "L1TWIN {label} K {k} N {n}: m {m} identical | current {tc:.4} per-row {ts:.4} twin {tt:.4} ms"
+                    );
+                    report.push(
+                        serde_json::json!({"product": label, "k": k, "n": n, "rows": m,
+                        "current_ms": tc, "per_row_ms": ts, "twin_ms": tt}),
+                    );
+                }
+            }
+        }
+        println!("L1TWIN all {checked} (product, rows) cases identical to the 1-row products");
+        println!("L1TWIN_JSON {}", serde_json::to_string(&report)?);
+        Ok(())
+    }
+
+    /// INVARIANT-2026-11-24-INK2M-L1L4 oracle: with `MLXL3_INKLING_INVARIANT`, every row of `verify` (logits and
+    /// tap features) equals the AR step on the same state bit for bit, and so does the step after `commit` (the
+    /// committed states): rows en0 / fr0 / code0 / chat0, prefixes of 64 and 300 real tokens, blocks of 2, 3, 5
+    /// and 8 tokens. The same comparison with the option off must find differences (the harness can fail).
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn verify_matches_ar_bitwise() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = model.unpadded_vocab() as u32;
+        let taps: Vec<usize> = vec![5, 23, 41, model.visit_count()];
+        let bits = |a: &Array| -> Result<Vec<u32>> {
+            Ok(a.astype(Dtype::Float32)?
+                .to_f32()?
+                .iter()
+                .map(|v| v.to_bits())
+                .collect())
+        };
+        let mut checked = 0usize;
+        let mut baseline_differs = 0usize;
+        for index in [0usize, 3, 6, 9] {
+            let name = rows["rows"][index]["name"]
+                .as_str()
+                .unwrap_or("?")
+                .to_owned();
+            let tokens: Vec<u32> = serde_json::from_value(rows["rows"][index]["tokens"].clone())?;
+            let tokens: Vec<u32> = tokens.into_iter().map(|t| t % vocab).collect();
+            for prefix in [64usize, 300] {
+                for t in [2usize, 3, 5, 8] {
+                    let block = &tokens[prefix..prefix + t];
+                    let after = tokens[prefix + t];
+                    // AR: one forward per token, then the next step
+                    model.reset();
+                    model.forward_tokens(&tokens[..prefix])?.eval()?;
+                    let mut ar_logits = Vec::new();
+                    let mut ar_features = Vec::new();
+                    for &token in block {
+                        let (l, f) = model.forward_with_features(&[token], &taps)?;
+                        ar_logits.push(bits(&l)?);
+                        ar_features.push(bits(&f)?);
+                    }
+                    let ar_next = bits(&model.forward(after)?)?;
+                    // (logit rows, feature rows, the step after commit), as bits
+                    type VerifyBits = (Vec<Vec<u32>>, Vec<Vec<u32>>, Vec<u32>);
+                    let run = |model: &mut Inkling2, invariant: bool| -> Result<VerifyBits> {
+                        with_invariant_rows(invariant, || {
+                            model.reset();
+                            model.forward_tokens(&tokens[..prefix])?.eval()?;
+                            let (logits, features) = model.verify(block, &taps)?;
+                            let rows_l = (0..t as i32)
+                                .map(|j| {
+                                    bits(&logits.reshape(&[t as i32, -1])?.slice(0, j, j + 1)?)
+                                })
+                                .collect::<Result<Vec<_>>>()?;
+                            let rows_f = (0..t as i32)
+                                .map(|j| bits(&features.slice(0, j, j + 1)?))
+                                .collect::<Result<Vec<_>>>()?;
+                            model.commit(t)?;
+                            let next = bits(&model.forward(after)?)?;
+                            Ok((rows_l, rows_f, next))
+                        })
+                    };
+                    let (vl, vf, vn) = run(&mut model, true)?;
+                    for j in 0..t {
+                        ensure!(
+                            !vl[j].is_empty() && vl[j].len() == ar_logits[j].len(),
+                            "{name} prefix {prefix} T {t}: logits row {j} size"
+                        );
+                        ensure!(
+                            vl[j] == ar_logits[j],
+                            "{name} prefix {prefix} T {t}: logits row {j} differ from AR"
+                        );
+                        ensure!(
+                            vf[j] == ar_features[j],
+                            "{name} prefix {prefix} T {t}: features row {j} differ from AR"
+                        );
+                    }
+                    ensure!(
+                        vn == ar_next,
+                        "{name} prefix {prefix} T {t}: the step after commit differs from AR"
+                    );
+                    checked += 1;
+                    if t == 8 {
+                        let (bl, _, _) = run(&mut model, false)?;
+                        baseline_differs += usize::from((0..t).any(|j| bl[j] != ar_logits[j]));
+                    }
+                    println!(
+                        "INVARIANT {name} prefix {prefix} T {t}: verify == AR (logits, features, next step)"
+                    );
+                }
+            }
+        }
+        ensure!(checked == 32, "{checked} cases checked");
+        ensure!(
+            baseline_differs > 0,
+            "the option-off baseline never differs: the comparison cannot fail"
+        );
+        println!(
+            "INVARIANT all {checked} cases identical; option off differs in {baseline_differs}/8 cases at T = 8"
+        );
+        Ok(())
+    }
+
+    /// INVARIANT-2026-11-24-INK2M-L1L4 cost: median wall time of `verify` (evaluated) for T = 1..=8 after a real
+    /// 64-token prefix, option off / on / on / off (7 timed repetitions after 2 warm-ups per cell).
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn invariant_verify_cost() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let tokens: Vec<u32> = serde_json::from_value(rows["rows"][6]["tokens"].clone())?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = model.unpadded_vocab() as u32;
+        let tokens: Vec<u32> = tokens.into_iter().map(|t| t % vocab).collect();
+        let taps: Vec<usize> = vec![5, 23, 41, model.visit_count()];
+        let mut cells = Vec::new();
+        for t in 1..=8usize {
+            let mut arms = Vec::new();
+            for invariant in [false, true, true, false] {
+                let mut times = Vec::new();
+                with_invariant_rows(invariant, || -> Result<()> {
+                    for rep in 0..9 {
+                        model.reset();
+                        model.forward_tokens(&tokens[..64])?.eval()?;
+                        let block = &tokens[64 + rep..64 + rep + t];
+                        let start = Instant::now();
+                        let (logits, _) = model.verify(block, &taps)?;
+                        logits.eval()?;
+                        let ms = start.elapsed().as_secs_f64() * 1e3;
+                        model.commit(t)?;
+                        if rep >= 2 {
+                            times.push(ms);
+                        }
+                    }
+                    Ok(())
+                })?;
+                arms.push(quantiles(times).1);
+            }
+            println!(
+                "INVCOST rows {t}: off {:.2} / {:.2} invariant {:.2} / {:.2} ms",
+                arms[0], arms[3], arms[1], arms[2]
+            );
+            cells.push(serde_json::json!({"rows": t, "off_ms": [arms[0], arms[3]], "invariant_ms": [arms[1], arms[2]]}));
+        }
+        println!("INVCOST_JSON {}", serde_json::to_string(&cells)?);
+        Ok(())
+    }
+
+    /// INVARIANT-2026-11-24-INK2M-L3-2 cost: median wall time of `verify` (evaluated) for T = 1..=8 after a real
+    /// 64-token prefix: batched products (invariant off), invariant without the expert panel, invariant with it;
+    /// order off / no panel / panel / panel / no panel / off, 7 timed repetitions after 2 warm-ups per cell.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn expert_panel_verify_cost() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let tokens: Vec<u32> = serde_json::from_value(rows["rows"][6]["tokens"].clone())?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = model.unpadded_vocab() as u32;
+        let tokens: Vec<u32> = tokens.into_iter().map(|t| t % vocab).collect();
+        let taps: Vec<usize> = vec![5, 23, 41, model.visit_count()];
+        let mut cells = Vec::new();
+        for t in 1..=8usize {
+            let mut arms = std::collections::BTreeMap::<&str, Vec<f64>>::new();
+            for (label, invariant, panel) in [
+                ("off", false, false),
+                ("invariant", true, false),
+                ("panel", true, true),
+                ("panel", true, true),
+                ("invariant", true, false),
+                ("off", false, false),
+            ] {
+                let mut times = Vec::new();
+                with_invariant_rows(invariant, || {
+                    crate::moe::with_expert_panel(panel, || -> Result<()> {
+                        for rep in 0..9 {
+                            model.reset();
+                            model.forward_tokens(&tokens[..64])?.eval()?;
+                            let block = &tokens[64 + rep..64 + rep + t];
+                            let start = Instant::now();
+                            let (logits, _) = model.verify(block, &taps)?;
+                            logits.eval()?;
+                            let ms = start.elapsed().as_secs_f64() * 1e3;
+                            model.commit(t)?;
+                            if rep >= 2 {
+                                times.push(ms);
+                            }
+                        }
+                        Ok(())
+                    })
+                })?;
+                arms.entry(label).or_default().push(quantiles(times).1);
+            }
+            println!(
+                "PANELCOST rows {t}: off {:.2?} invariant {:.2?} panel {:.2?} ms",
+                arms["off"], arms["invariant"], arms["panel"]
+            );
+            cells.push(serde_json::json!({"rows": t, "off_ms": arms["off"], "invariant_ms": arms["invariant"], "panel_ms": arms["panel"]}));
+        }
+        println!("PANELCOST_JSON {}", serde_json::to_string(&cells)?);
+        Ok(())
+    }
+
+    /// INVARIANT-2026-11-24-INK2M-L1L4 (D): stage by stage, row j of an 8-token `verify` against AR step j (same
+    /// prefix, same states): for every stage occurrence in execution order, the rows whose bits differ and the
+    /// largest absolute difference; prints every differing stage of the first visits and the first differing
+    /// stage of each visit (`MLXL3_INKLING_ROWS` row 6, prefix 64; `INVARIANT_BLOCK` rows, default 8).
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn verify_stage_divergence() -> Result<()> {
+        let t: usize = std::env::var("INVARIANT_BLOCK")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(8);
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let tokens: Vec<u32> = serde_json::from_value(rows["rows"][6]["tokens"].clone())?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = model.unpadded_vocab() as u32;
+        let tokens: Vec<u32> = tokens.into_iter().map(|t| t % vocab).collect();
+        let taps: Vec<usize> = vec![5, 23, 41, model.visit_count()];
+        let capture = |run: &mut dyn FnMut() -> Result<()>| -> Result<Vec<(&'static str, Array)>> {
+            STAGES.with(|c| *c.borrow_mut() = Some(Vec::new()));
+            let result = run();
+            let stages = STAGES.with(|c| c.borrow_mut().take()).context("stages")?;
+            result?;
+            Ok(stages)
+        };
+        model.reset();
+        model.forward_tokens(&tokens[..64])?.eval()?;
+        let block = tokens[64..64 + t].to_vec();
+        let invariant = std::env::var("INVARIANT_MODE").as_deref() != Ok("0");
+        let verified = with_invariant_rows(invariant, || {
+            capture(&mut || {
+                let (logits, features) = model.verify(&block, &taps)?;
+                Array::eval_many(&[&logits, &features])
+            })
+        })?;
+        model.reset();
+        model.forward_tokens(&tokens[..64])?.eval()?;
+        let mut steps = Vec::new();
+        for &token in &block {
+            steps.push(capture(&mut || model.forward(token)?.eval())?);
+        }
+        ensure!(
+            steps.iter().all(|s| s.len() == verified.len()),
+            "stage counts differ: verify {} AR {:?}",
+            verified.len(),
+            steps.iter().map(Vec::len).collect::<Vec<_>>()
+        );
+        let mut visit = 0usize;
+        let mut first_by_visit: Vec<(usize, &'static str)> = Vec::new();
+        let mut printed = 0usize;
+        let mut differing_labels = std::collections::BTreeMap::<&'static str, usize>::new();
+        for (index, (label, batched)) in verified.iter().enumerate() {
+            if *label == "in" && index > 0 {
+                visit += 1;
+            }
+            let mut rows_differ = 0usize;
+            let mut max = 0f32;
+            for (j, step) in steps.iter().enumerate() {
+                ensure!(
+                    step[index].0 == *label,
+                    "stage order differs at {index}: {label} vs {}",
+                    step[index].0
+                );
+                let a = batched
+                    .slice(0, j as i32, j as i32 + 1)?
+                    .astype(Dtype::Float32)?
+                    .to_f32()?;
+                let b = step[index].1.astype(Dtype::Float32)?.to_f32()?;
+                ensure!(
+                    a.len() == b.len(),
+                    "{label}: shapes differ ({} vs {})",
+                    a.len(),
+                    b.len()
+                );
+                let differ = a
+                    .iter()
+                    .zip(&b)
+                    .filter(|(x, y)| x.to_bits() != y.to_bits())
+                    .count();
+                if differ > 0 {
+                    rows_differ += 1;
+                    max = max.max(
+                        a.iter()
+                            .zip(&b)
+                            .map(|(x, y)| (x - y).abs())
+                            .fold(0f32, f32::max),
+                    );
+                }
+            }
+            if rows_differ > 0 {
+                *differing_labels.entry(label).or_default() += 1;
+                if first_by_visit.last().is_none_or(|&(v, _)| v != visit) {
+                    first_by_visit.push((visit, label));
+                }
+                if printed < 40 {
+                    println!(
+                        "STAGEDIFF visit {visit} {label}: {rows_differ}/{t} rows differ, max {max:.3e}"
+                    );
+                    printed += 1;
+                }
+            }
+        }
+        println!("STAGEFIRST {first_by_visit:?}");
+        println!("STAGELABELS {differing_labels:?}");
+        Ok(())
+    }
+
+    /// DIAG-2026-11-24-INK2M-VERIFY-INVARIANCE: which components give a row of an 8-row call different bits from the
+    /// same row computed alone: the dense projections of layer 0's attention, the head, the MoE of layer 12 (router
+    /// and experts), and the whole verification (row j of an 8-token `verify` against AR step j).
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn verify_row_invariance_by_component() -> Result<()> {
+        const T: i32 = 8;
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let tokens: Vec<u32> = serde_json::from_value(rows["rows"][6]["tokens"].clone())?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = model.unpadded_vocab() as u32;
+        let tokens: Vec<u32> = tokens.into_iter().map(|t| t % vocab).collect();
+        let mut state = 0x9e37_79b9_7f4a_7c15u64;
+        let mut random = |rows: i32, cols: i32| -> Result<Array> {
+            let v: Vec<f32> = (0..rows * cols)
+                .map(|_| {
+                    state = state
+                        .wrapping_mul(6364136223846793005)
+                        .wrapping_add(1442695040888963407);
+                    (((state >> 33) as u32 % 2001) as f32 / 1000.0 - 1.0) * 0.5
+                })
+                .collect();
+            Array::from_f32(&v, &[rows, cols])?.astype(Dtype::Float16)
+        };
+        // (values that differ in bits, values, largest absolute difference) of a batched call against row by row
+        let gap = |batched: &Array, single: &[Array]| -> Result<(usize, usize, f32)> {
+            let b = batched.astype(Dtype::Float32)?.to_f32()?;
+            let s = Array::concatenate(&single.iter().collect::<Vec<_>>(), 0)?
+                .astype(Dtype::Float32)?
+                .to_f32()?;
+            ensure!(
+                b.len() == s.len() && !b.is_empty(),
+                "invariance shapes differ"
+            );
+            let differ = b
+                .iter()
+                .zip(&s)
+                .filter(|(x, y)| x.to_bits() != y.to_bits())
+                .count();
+            let max = b
+                .iter()
+                .zip(&s)
+                .map(|(x, y)| (x - y).abs())
+                .fold(0f32, f32::max);
+            Ok((differ, b.len(), max))
+        };
+        let input_of = |l: &Linear| -> Result<i32> {
+            Ok(match l {
+                Linear::Dense(p) => p.dense_weight().context("dense weight")?.shape()[1],
+                Linear::Affine { scales, group, .. } => scales.shape()[1] * *group,
+            })
+        };
+        let mut report = Vec::new();
+        let attention = &model.layers[0].attention;
+        for (label, linear) in [
+            ("q", &attention.q),
+            ("k", &attention.k),
+            ("v", &attention.v),
+            ("r", &attention.r),
+            ("o", &attention.o),
+            ("gate", &attention.gate),
+            ("sink", &attention.sink),
+        ] {
+            let x = random(T, input_of(linear)?)?;
+            let batched = linear.forward(&x)?;
+            let single = (0..T)
+                .map(|i| linear.forward(&x.slice(0, i, i + 1)?))
+                .collect::<Result<Vec<_>>>()?;
+            let (differ, n, max) = gap(&batched, &single)?;
+            println!("INVARIANCE dense {label}: {differ}/{n} values differ, max {max:.3e}");
+            report.push(serde_json::json!({"component": format!("dense_{label}"), "differ": differ, "values": n, "max": max}));
+        }
+        {
+            let x = random(T, model.hidden)?;
+            let batched = model.head_scores(&x)?;
+            let single = (0..T)
+                .map(|i| model.head_scores(&x.slice(0, i, i + 1)?))
+                .collect::<Result<Vec<_>>>()?;
+            let (differ, n, max) = gap(&batched, &single)?;
+            println!("INVARIANCE head: {differ}/{n} values differ, max {max:.3e}");
+            report.push(
+                serde_json::json!({"component": "head", "differ": differ, "values": n, "max": max}),
+            );
+        }
+        {
+            let moe = &model.layers[12].moe;
+            let x = random(T, model.hidden)?;
+            let batched = moe.forward(&x)?;
+            let single = (0..T)
+                .map(|i| moe.forward(&x.slice(0, i, i + 1)?))
+                .collect::<Result<Vec<_>>>()?;
+            let (differ, n, max) = gap(&batched, &single)?;
+            println!(
+                "INVARIANCE moe (router + experts): {differ}/{n} values differ, max {max:.3e}"
+            );
+            report.push(
+                serde_json::json!({"component": "moe", "differ": differ, "values": n, "max": max}),
+            );
+        }
+        {
+            let taps: Vec<usize> = vec![5, 23, 41, model.visit_count()];
+            model.reset();
+            model.forward_tokens(&tokens[..64])?.eval()?;
+            let (logits, _) = model.verify(&tokens[64..64 + T as usize], &taps)?;
+            let batched = logits.reshape(&[T, -1])?;
+            batched.eval()?;
+            model.reset();
+            model.forward_tokens(&tokens[..64])?.eval()?;
+            let mut single = Vec::new();
+            for i in 0..T as usize {
+                let l = model.forward(tokens[64 + i])?.reshape(&[1, -1])?;
+                l.eval()?;
+                single.push(l);
+            }
+            for i in 0..T {
+                let (differ, n, max) = gap(
+                    &batched.slice(0, i, i + 1)?,
+                    &single[i as usize..i as usize + 1],
+                )?;
+                println!(
+                    "INVARIANCE verify row {i} vs AR step {i}: {differ}/{n} logits differ, max {max:.3e}"
+                );
+                report.push(serde_json::json!({"component": format!("verify_row{i}"), "differ": differ, "values": n, "max": max}));
+            }
+        }
+        println!("INVARIANCE_JSON {}", serde_json::to_string(&report)?);
+        Ok(())
+    }
+
+    /// DFLASH2-2026-11-24-INK2M-P4-2c reference: the protocol of `expert_tensor_verify_quality` between the exact
+    /// verification in 8-row blocks and the exact step-by-step decoding (one `forward` per token, teacher forcing):
+    /// the gap of the exact batched path itself, to compare with the hybrid's.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn verify_batching_reference_quality() -> Result<()> {
+        const PREFIX: usize = 64;
+        const BLOCKS: usize = 48;
+        const T: usize = 8;
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let taps: Vec<usize> = vec![5, 23, 41, model.visit_count()];
+        let vocab = model.unpadded_vocab();
+        let mut report = Vec::new();
+        let (mut all_kl, mut all_max, mut all_dis, mut all_n) = (0f64, 0f64, 0usize, 0usize);
+        let (mut all_nll_v, mut all_nll_a) = (0f64, 0f64);
+        for index in 0..12usize {
+            let name = rows["rows"][index]["name"]
+                .as_str()
+                .unwrap_or("?")
+                .to_owned();
+            let tokens: Vec<u32> = serde_json::from_value(rows["rows"][index]["tokens"].clone())?;
+            let tokens: Vec<u32> = tokens.into_iter().map(|t| t % vocab as u32).collect();
+            ensure!(tokens.len() > PREFIX + BLOCKS * T, "row {name} too short");
+            let lp = |logits: &Array, rows: i32| -> Result<Array> {
+                let lp = logits
+                    .reshape(&[rows, -1])?
+                    .slice(1, 0, vocab)?
+                    .astype(Dtype::Float32)?
+                    .log_probs()?;
+                lp.eval()?;
+                Ok(lp)
+            };
+            model.reset();
+            model.forward_tokens(&tokens[..PREFIX])?.eval()?;
+            let mut verified = Vec::with_capacity(BLOCKS);
+            for b in 0..BLOCKS {
+                let (logits, _) =
+                    model.verify(&tokens[PREFIX + b * T..PREFIX + (b + 1) * T], &taps)?;
+                model.commit(T)?;
+                verified.push(lp(&logits, T as i32)?);
+            }
+            model.reset();
+            model.forward_tokens(&tokens[..PREFIX])?.eval()?;
+            let mut stepped = Vec::with_capacity(BLOCKS);
+            for b in 0..BLOCKS {
+                let mut block = Vec::with_capacity(T);
+                for i in 0..T {
+                    block.push(lp(&model.forward(tokens[PREFIX + b * T + i])?, 1)?);
+                }
+                let joined = Array::concatenate(&block.iter().collect::<Vec<_>>(), 0)?;
+                joined.eval()?;
+                stepped.push(joined);
+            }
+            let (mut kls, mut dis, mut nll_v, mut nll_a) = (Vec::new(), 0usize, 0f64, 0f64);
+            for (b, (p, q)) in stepped.iter().zip(&verified).enumerate() {
+                ensure!(p.shape() == q.shape(), "log-prob shapes differ");
+                let kl = p.exp()?.mul(&p.sub(q)?)?.sum(1, false)?.to_f32()?;
+                ensure!(
+                    kl.len() == T && kl.iter().all(|v| v.is_finite()),
+                    "KL values"
+                );
+                kls.extend(kl.iter().map(|&v| f64::from(v.max(0.0))));
+                let (ap, aq) = (p.argmax()?.to_u32()?, q.argmax()?.to_u32()?);
+                dis += ap.iter().zip(&aq).filter(|(a, b)| a != b).count();
+                let next: Vec<u32> = (0..T)
+                    .map(|i| i as u32 * vocab as u32 + tokens[PREFIX + b * T + i + 1])
+                    .collect();
+                let idx = Array::from_u32(&next, &[T as i32])?;
+                nll_a -= p
+                    .reshape(&[-1])?
+                    .take(&idx, 0)?
+                    .to_f32()?
+                    .iter()
+                    .map(|&v| f64::from(v))
+                    .sum::<f64>();
+                nll_v -= q
+                    .reshape(&[-1])?
+                    .take(&idx, 0)?
+                    .to_f32()?
+                    .iter()
+                    .map(|&v| f64::from(v))
+                    .sum::<f64>();
+            }
+            let n = kls.len();
+            let mean = kls.iter().sum::<f64>() / n as f64;
+            let max = kls.iter().cloned().fold(0f64, f64::max);
+            println!(
+                "P4REFERENCE {name}: positions {n} KL(step || verify8) mean {mean:.3e} max {max:.3e} disagreements {dis} perplexity step {:.4} verify8 {:.4}",
+                (nll_a / n as f64).exp(),
+                (nll_v / n as f64).exp()
+            );
+            report.push(serde_json::json!({"row": name, "kl_mean": mean, "kl_max": max, "disagreements": dis,
+                "perplexity_step": (nll_a / n as f64).exp(), "perplexity_verify8": (nll_v / n as f64).exp()}));
+            all_kl += kls.iter().sum::<f64>();
+            all_max = all_max.max(max);
+            all_dis += dis;
+            all_n += n;
+            all_nll_v += nll_v;
+            all_nll_a += nll_a;
+        }
+        println!(
+            "P4REFERENCE total: positions {all_n} KL mean {:.3e} max {all_max:.3e} disagreements {all_dis} ({:.2} %) perplexity step {:.4} verify8 {:.4}",
+            all_kl / all_n as f64,
+            100.0 * all_dis as f64 / all_n as f64,
+            (all_nll_a / all_n as f64).exp(),
+            (all_nll_v / all_n as f64).exp()
+        );
+        println!("P4REFERENCE_JSON {}", serde_json::to_string(&report)?);
+        Ok(())
+    }
+
+    /// DFLASH2-2026-11-24-INK2M-P4-2 cost: median wall time of `verify` (evaluated) for T = 1..=8 rows after the same
+    /// real 64-token prefix, exact / hybrid / hybrid / exact, 7 timed repetitions after 2 warm-ups per cell.
+    #[test]
+    #[ignore = "requires an Apple M5 GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn expert_tensor_verify_cost() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let rows: serde_json::Value =
+            serde_json::from_reader(File::open(std::env::var("MLXL3_INKLING_ROWS")?)?)?;
+        let tokens: Vec<u32> = serde_json::from_value(rows["rows"][6]["tokens"].clone())?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = model.unpadded_vocab() as u32;
+        let tokens: Vec<u32> = tokens.into_iter().map(|t| t % vocab).collect();
+        let taps: Vec<usize> = vec![5, 23, 41, model.visit_count()];
+        let mut cells = Vec::new();
+        for t in 1..=8usize {
+            let mut arms = Vec::new();
+            for hybrid in [false, true, true, false] {
+                let mut times = Vec::new();
+                crate::moe::with_expert_tensor(hybrid, || -> Result<()> {
+                    for rep in 0..9 {
+                        model.reset();
+                        model.forward_tokens(&tokens[..64])?.eval()?;
+                        let block = &tokens[64 + rep..64 + rep + t];
+                        let start = Instant::now();
+                        let (logits, _) = model.verify(block, &taps)?;
+                        logits.eval()?;
+                        let ms = start.elapsed().as_secs_f64() * 1e3;
+                        model.commit(t)?;
+                        if rep >= 2 {
+                            times.push(ms);
+                        }
+                    }
+                    Ok(())
+                })?;
+                let (_, median, _) = quantiles(times);
+                arms.push(median);
+            }
+            println!(
+                "P4COST rows {t}: exact {:.2} / {:.2} hybrid {:.2} / {:.2} ms",
+                arms[0], arms[3], arms[1], arms[2]
+            );
+            cells.push(serde_json::json!({"rows": t, "exact_ms": [arms[0], arms[3]], "hybrid_ms": [arms[1], arms[2]]}));
+        }
+        println!("P4COST_JSON {}", serde_json::to_string(&cells)?);
         Ok(())
     }
 
