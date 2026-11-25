@@ -89,41 +89,39 @@ struct ModelManagerView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                StudioSidebarHeader(title: L("Modèles", "Models"))
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .overlay(alignment: .bottomTrailing) {
-                        // Lives in the header row instead of floating under the navigation.
-                        DownloadNotificationButton(library: studio.modelLibrary)
-                            .padding(.trailing, 12).padding(.bottom, 22)
-                    }
-                VStack(spacing: 3) {
-                    navigation(L("Ma bibliothèque", "My library"), icon: "square.stack", active: !discover && !quantize) {
+            StudioPageSidebar(title: L("Modèles", "Models"), onBack: { studio.showModelManager = false }) {
+                StudioNavList {
+                    StudioNavRow(icon: "square.stack", title: L("Ma bibliothèque", "My library"), selected: !discover && !quantize,
+                                 badge: studio.models.isEmpty ? nil : "\(studio.models.count)") {
                         discover = false
                         quantize = false
                     }
-                    navigation("Hugging Face", icon: "magnifyingglass", active: discover && !quantize) {
+                    StudioNavRow(icon: "magnifyingglass", title: "Hugging Face", selected: discover && !quantize) {
                         discover = true
                         quantize = false
                     }
-                    navigation("Quantization Studio", icon: "slider.horizontal.3", active: quantize) {
+                    StudioNavRow(icon: "slider.horizontal.3", title: "Quantization Studio", selected: quantize) {
                         quantize = true
                         discover = false
                     }
-                }.padding(.horizontal, 10)
-                Spacer()
-                VStack(alignment: .leading, spacing: 6) {
-                    Text(L("Stockage local", "Local storage")).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+                }
+            } footer: {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L("Stockage local", "Local storage")).font(.system(size: 11.5)).foregroundStyle(StudioTheme.quiet)
                     Text(ByteCountFormatter.string(fromByteCount: studio.models.reduce(0) { $0 + $1.sizeBytes }, countStyle: .file))
-                        .font(StudioTheme.display(27))
+                        .font(.system(size: 17, weight: .semibold)).monospacedDigit()
                     Text(L("\(studio.models.count) modèles enregistrés", "\(studio.models.count) registered models"))
-                        .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                }.padding(.horizontal, 22).padding(.bottom, 24)
-                StudioBackButton(action: { studio.showModelManager = false })
-                    .padding(.horizontal, 18).padding(.bottom, 18)
+                        .font(.system(size: 11.5)).foregroundStyle(StudioTheme.quiet)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 18).padding(.bottom, 12)
+                .accessibilityElement(children: .combine)
             }
-            .frame(width: studio.sidebarWidth.points, alignment: .leading)
-            .modifier(StudioSidebarSurface())
+            .overlay(alignment: .topTrailing) {
+                // Lives in the header row instead of floating under the navigation.
+                DownloadNotificationButton(library: studio.modelLibrary)
+                    .padding(.trailing, 10).padding(.top, 38)
+            }
             Group {
                 if quantize {
                     QuantizationStudioView(quantizer: studio.quantizer)
@@ -181,128 +179,119 @@ struct ModelManagerView: View {
         discover = true
     }
 
-    private func navigation(_ title: String, icon: String, active: Bool, action: @escaping () -> Void) -> some View {
-        Button(action: action) {
-            HStack(spacing: 11) {
-                Image(systemName: icon).frame(width: 18)
-                Text(title)
-                Spacer(minLength: 0)
-            }
-            .font(.system(size: 13, weight: active ? .semibold : .regular))
-            .padding(.horizontal, 12).frame(height: 36)
-
-        }.buttonStyle(StudioControlStyle(emphasized: active))
-            .accessibilityAddTraits(active ? .isSelected : [])
-    }
+    private var working: Bool { studio.isGenerating || studio.modelInstallState.isWorking }
 
     private var installed: some View {
         VStack(alignment: .leading, spacing: 18) {
-            HStack {
-                VStack(alignment: .leading, spacing: 5) {
-                    StudioPanelHeader(title: L("Ma bibliothèque", "My library"), detail: L("Modèles EXL3 sur ce Mac.", "EXL3 models on this Mac."))
-                }
-                Spacer()
+            StudioPageHeader(title: L("Ma bibliothèque", "My library"), detail: L("Modèles EXL3 sur ce Mac.", "EXL3 models on this Mac.")) {
                 Button(action: studio.importModelFolder) {
                     Label(L("Importer un dossier", "Import folder"), systemImage: "folder.badge.plus")
-                        .padding(10)
                 }
-                .buttonStyle(GlassPillButtonStyle())
-                .disabled(studio.modelInstallState.isWorking || studio.isGenerating)
-                Button {
+                .buttonStyle(.studio)
+                .disabled(working)
+                StudioIconButton(icon: "arrow.clockwise", label: L("Actualiser", "Refresh")) {
                     studio.refreshModels(autoLoad: false)
-                } label: {
-                    Image(systemName: "arrow.clockwise").frame(width: 30, height: 30)
                 }
-                .buttonStyle(RoundGlassButtonStyle()).help(L("Actualiser", "Refresh"))
-                .accessibilityLabel(L("Actualiser", "Refresh"))
+            }
+            switch studio.modelInstallState {
+            case .idle: EmptyView()
+            case .working(let text): StudioNotice(text: text)
+            case .succeeded(let text): StudioNotice(kind: .success, text: text)
+            case .failed(let text): StudioNotice(kind: .warning, text: text)
             }
             ScrollView {
                 LazyVStack(spacing: 10) {
                     PendingDownloadsView(library: studio.modelLibrary)
                     if studio.models.isEmpty {
-                        Text(
-                            L(
+                        StudioEmptyState(
+                            icon: "square.stack",
+                            title: L("Aucun modèle installé", "No models installed"),
+                            detail: L(
                                 "Aucun modèle installé. Téléchargez un modèle EXL3 ou importez un dossier.",
                                 "No models installed. Download an EXL3 model or import a folder.")
-                        )
-                        .foregroundStyle(StudioTheme.quiet).padding(.vertical, 50)
+                        ) {
+                            Button(L("Parcourir Hugging Face", "Browse Hugging Face")) {
+                                discover = true
+                                quantize = false
+                            }
+                            .buttonStyle(.studio(.primary))
+                            Button(L("Importer un dossier", "Import folder"), action: studio.importModelFolder)
+                                .buttonStyle(.studio).disabled(working)
+                        }
+                        .studioCard(padding: 0)
                     }
                     ForEach(studio.models) { model in
-                        VStack(alignment: .leading, spacing: 13) {
-                            HStack(alignment: .top, spacing: 12) {
-                                Image(systemName: "cube.transparent").font(.system(size: 24, weight: .ultraLight))
-                                    .foregroundStyle(StudioTheme.quiet).frame(width: 34, height: 34)
-                                VStack(alignment: .leading, spacing: 6) {
-                                    Text(model.name).font(.system(size: 14, weight: .medium)).textSelection(.enabled)
-                                    Text(
-                                        (studio.isDecisionModel(model) ? L("DÉCISION · ", "DECISION · ") : "")
-                                            + "\(model.architectureLabel) · EXL3 · "
-                                            + (model.bits.map { String(format: "%.2f BPW", $0) } ?? "—")
-                                    )
-                                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                                }
-                                Spacer()
-                                Text(model.size).font(StudioTheme.display(18))
-                            }
-                            HStack(spacing: 10) {
-                                if studio.isDecisionModel(model) {
-                                    Button { studio.openInDecision(model) } label: {
-                                        Label(L("Ouvrir dans Décision", "Open in Decision"), systemImage: "checklist.checked")
-                                            .font(.system(size: 12, weight: .medium))
-                                            .padding(.horizontal, 12).frame(height: 26)
-                                    }
-                                    .buttonStyle(GlassPillButtonStyle())
-                                    .disabled(studio.isGenerating || studio.modelInstallState.isWorking)
-                                    .accessibilityIdentifier("library.openDecision")
-                                } else if studio.loadedModel?.name == model.name {
-                                    Label(L("Chargé", "Loaded"), systemImage: "checkmark.circle").font(
-                                        .system(size: 12)
-                                    ).foregroundStyle(StudioTheme.secondary)
-                                } else {
-                                    Button { studio.selectModel(model.name) } label: {
-                                        Text(L("Charger", "Load")).font(.system(size: 12, weight: .medium))
-                                            .padding(.horizontal, 12).frame(height: 26)
-                                    }
-                                    .buttonStyle(GlassPillButtonStyle())
-                                        .disabled(studio.isGenerating || studio.modelInstallState.isWorking)
-                                }
-                                Spacer()
-                                Button { studio.relocateModel(model) } label: {
-                                    Text(L("Relocaliser", "Locate folder")).font(.system(size: 12))
-                                        .padding(.horizontal, 10).frame(height: 26)
-                                }
-                                    .buttonStyle(StudioControlStyle()).disabled(
-                                        studio.isGenerating || studio.modelInstallState.isWorking)
-                                Button {
-                                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: model.path)])
-                                } label: {
-                                    Image(systemName: "folder").frame(width: 28, height: 25)
-                                }
-                                .buttonStyle(RoundGlassButtonStyle()).help(L("Afficher dans Finder", "Show in Finder"))
-                                .accessibilityLabel(L("Afficher dans Finder", "Show in Finder"))
-                                Button {
-                                    removal = model
-                                } label: {
-                                    Image(systemName: "trash").frame(width: 28, height: 25)
-                                }
-                                .buttonStyle(RoundGlassButtonStyle()).help(L("Supprimer le modèle", "Remove model"))
-                                .accessibilityLabel(L("Supprimer le modèle", "Remove model"))
-                                .disabled(
-                                    studio.isGenerating || studio.modelInstallState.isWorking
-                                        || studio.modelLibrary.downloading != nil)
-                            }
-                        }.padding(16).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
-                            .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(StudioTheme.edge, lineWidth: 0.5) }
+                        modelRow(model)
                     }
                 }
             }
-            switch studio.modelInstallState {
-            case .idle: EmptyView()
-            case .working(let text), .succeeded(let text):
-                Text(text).font(.caption).foregroundStyle(StudioTheme.secondary)
-            case .failed(let text): Text(text).font(.caption).foregroundStyle(.orange).textSelection(.enabled)
+        }.padding(.horizontal, 32).padding(.top, 40).padding(.bottom, 24).frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func modelRow(_ model: LocalModel) -> some View {
+        let loaded = studio.loadedModel?.name == model.name
+        let decision = studio.isDecisionModel(model)
+        return HStack(alignment: .center, spacing: 13) {
+            Image(systemName: decision ? "checklist.checked" : "cube.transparent")
+                .font(.system(size: 17, weight: .light))
+                .foregroundStyle(loaded ? StudioTheme.ink : StudioTheme.secondary)
+                .frame(width: 38, height: 38)
+                .background(StudioTheme.contrast.opacity(0.055), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                .accessibilityHidden(true)
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 8) {
+                    Text(model.name).font(.system(size: 14, weight: .medium)).lineLimit(1).truncationMode(.middle)
+                        .textSelection(.enabled)
+                    if loaded {
+                        StudioStatusPill(text: L("Chargé", "Loaded"), color: StudioTheme.success)
+                    }
+                }
+                Text(
+                    (decision ? L("DÉCISION · ", "DECISION · ") : "")
+                        + "\(model.architectureLabel) · EXL3 · "
+                        + (model.bits.map { String(format: "%.2f BPW", $0) } ?? "—")
+                        + " · " + model.size
+                )
+                .font(.system(size: 12)).monospacedDigit().foregroundStyle(StudioTheme.quiet).lineLimit(1)
             }
-        }.padding(.horizontal, 28).padding(.vertical, 36).frame(maxWidth: .infinity, maxHeight: .infinity)
+            Spacer(minLength: 8)
+            if decision {
+                Button { studio.openInDecision(model) } label: {
+                    Label(L("Ouvrir dans Décision", "Open in Decision"), systemImage: "checklist.checked")
+                }
+                .buttonStyle(.studio)
+                .disabled(working)
+                .accessibilityIdentifier("library.openDecision")
+            } else if !loaded {
+                Button(L("Charger", "Load")) { studio.selectModel(model.name) }
+                    .buttonStyle(.studio)
+                    .disabled(working)
+            }
+            Menu {
+                Button(L("Afficher dans Finder", "Show in Finder"), systemImage: "folder") {
+                    NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: model.path)])
+                }
+                Button(L("Relocaliser", "Locate folder"), systemImage: "arrow.triangle.branch") { studio.relocateModel(model) }
+                    .disabled(working)
+                Divider()
+                Button(L("Supprimer le modèle", "Remove model"), systemImage: "trash", role: .destructive) { removal = model }
+                    .disabled(working || studio.modelLibrary.downloading != nil)
+            } label: {
+                Image(systemName: "ellipsis").font(.system(size: 13, weight: .medium))
+                    .frame(width: 28, height: 28).contentShape(Rectangle())
+            }
+            .menuStyle(.button).buttonStyle(StudioRowStyle()).menuIndicator(.hidden).fixedSize()
+            .help(L("Actions du modèle", "Model actions"))
+            .accessibilityLabel(L("Actions pour ", "Actions for ") + model.name)
+        }
+        .studioCard(padding: 14)
+        .contextMenu {
+            Button(L("Afficher dans Finder", "Show in Finder"), systemImage: "folder") {
+                NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: model.path)])
+            }
+            Button(L("Supprimer le modèle", "Remove model"), systemImage: "trash", role: .destructive) { removal = model }
+                .disabled(working || studio.modelLibrary.downloading != nil)
+        }
     }
 }
 
@@ -315,72 +304,86 @@ private struct HubBrowserView: View {
             if let detail = library.detail {
                 details(detail)
             } else {
-                StudioPanelHeader(title: "Hugging Face", detail: L("Modèles EXL3 et téléchargements.", "EXL3 models and downloads."))
-                HStack(spacing: 10) {
-                    Image(systemName: "magnifyingglass").foregroundStyle(StudioTheme.quiet)
+                StudioPageHeader(title: "Hugging Face", detail: L("Modèles EXL3 et téléchargements.", "EXL3 models and downloads.")) {
+                    StudioIconButton(icon: "arrow.clockwise", label: L("Actualiser", "Refresh"), action: library.refresh)
+                }
+                HStack(spacing: 9) {
+                    Image(systemName: "magnifyingglass").font(.system(size: 13)).foregroundStyle(StudioTheme.quiet)
                     TextField(L("Rechercher sur Hugging Face…", "Search Hugging Face…"), text: $library.query)
                         .textFieldStyle(.plain).onSubmit { library.search() }
-                    if library.searching { ProgressView().controlSize(.regular) }
-                    Text("EXL3").font(.system(size: 12, weight: .medium)).tracking(1).foregroundStyle(StudioTheme.quiet)
-                }.padding(12).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
-                HStack {
-                    Text(
-                        L(
-                            "Recherche EXL3 · affinez par nom ou auteur/dépôt.",
-                            "EXL3 search · refine by name or owner/repository.")
-                    )
-                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
-                    Spacer()
-                    Button(action: library.refresh) { Image(systemName: "arrow.clockwise") }.help(
-                        L("Actualiser", "Refresh"))
+                    if library.searching { ProgressView().controlSize(.small) }
+                    Text("EXL3").font(.system(size: 11, weight: .semibold)).foregroundStyle(StudioTheme.quiet)
+                        .padding(.horizontal, 6).frame(height: 20)
+                        .background(StudioTheme.contrast.opacity(0.07), in: RoundedRectangle(cornerRadius: 5, style: .continuous))
                 }
+                .studioField()
+                .help(L(
+                    "Recherche EXL3 · affinez par nom ou auteur/dépôt.",
+                    "EXL3 search · refine by name or owner/repository."))
                 ScrollView {
                     LazyVStack(alignment: .leading, spacing: 0) {
                         if library.query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                             recommendedCards.padding(.bottom, 24)
+                            if !library.results.isEmpty {
+                                StudioSectionTitle(title: L("Tous les modèles EXL3", "All EXL3 models"))
+                                    .padding(.bottom, 9)
+                            }
                         }
-                        ForEach(library.results) { model in
-                            Button {
-                                library.open(model.id)
-                            } label: {
-                                HStack(spacing: 14) {
-                                    VStack(alignment: .leading, spacing: 5) {
-                                        Text(model.id.split(separator: "/").last.map(String.init) ?? model.id).font(
-                                            .system(size: 13, weight: .medium)
-                                        ).lineLimit(2)
-                                        Text(model.id.split(separator: "/").first.map(String.init) ?? "").font(
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(library.results.enumerated()), id: \.element.id) { index, model in
+                                if index > 0 {
+                                    Rectangle().fill(StudioTheme.edge.opacity(0.7)).frame(height: 0.5).accessibilityHidden(true)
+                                }
+                                Button {
+                                    library.open(model.id)
+                                } label: {
+                                    HStack(spacing: 14) {
+                                        VStack(alignment: .leading, spacing: 4) {
+                                            Text(model.id.split(separator: "/").last.map(String.init) ?? model.id).font(
+                                                .system(size: 13, weight: .medium)
+                                            ).lineLimit(2).multilineTextAlignment(.leading)
+                                            Text(model.id.split(separator: "/").first.map(String.init) ?? "").font(
+                                                .system(size: 12)
+                                            ).foregroundStyle(StudioTheme.quiet)
+                                        }
+                                        Spacer()
+                                        if model.gated {
+                                            Image(systemName: "lock").font(.system(size: 11)).foregroundStyle(StudioTheme.quiet)
+                                                .help(L("Accès restreint", "Gated repository"))
+                                        }
+                                        Label(model.downloads.formatted(), systemImage: "arrow.down").font(
                                             .system(size: 12)
-                                        ).foregroundStyle(StudioTheme.quiet)
-                                    }
-                                    Spacer()
-                                    if model.gated { Image(systemName: "lock").font(.caption) }
-                                    Label(model.downloads.formatted(), systemImage: "arrow.down").font(
-                                        .system(size: 12)
-                                    ).foregroundStyle(StudioTheme.quiet)
-                                    Image(systemName: "chevron.right").font(.system(size: 12))
-                                }.padding(.vertical, 16).padding(.horizontal, 10).frame(
-                                    maxWidth: .infinity, alignment: .leading
-                                ).contentShape(Rectangle())
-                            }.buttonStyle(StudioControlStyle())
-                            Divider().overlay(StudioTheme.edge)
+                                        ).monospacedDigit().foregroundStyle(StudioTheme.quiet)
+                                        Image(systemName: "chevron.right").font(.system(size: 10, weight: .semibold))
+                                            .foregroundStyle(StudioTheme.quiet)
+                                    }.padding(.vertical, 12).padding(.horizontal, 14).frame(
+                                        maxWidth: .infinity, alignment: .leading
+                                    ).contentShape(Rectangle())
+                                }.buttonStyle(StudioRowStyle(radius: 0))
+                            }
                         }
+                        .clipShape(RoundedRectangle(cornerRadius: StudioPageMetrics.card, style: .continuous))
+                        .studioCard(padding: 0)
+                        .opacity(library.results.isEmpty ? 0 : 1)
                         if library.results.isEmpty && !library.searching && library.error == nil {
-                            Text(
-                                L(
+                            StudioEmptyState(
+                                icon: "magnifyingglass",
+                                title: L("Aucun résultat", "No results"),
+                                detail: L(
                                     "Aucun résultat. Essayez un autre nom ou un dépôt exact.",
-                                    "No results. Try another name or an exact repository.")
-                            )
-                            .font(.callout).foregroundStyle(StudioTheme.quiet).padding(.vertical, 40)
+                                    "No results. Try another name or an exact repository."))
                         }
                         if library.results.count >= 60 {
                             Button(L("Afficher plus de résultats", "Show more results"), action: library.moreResults)
+                                .buttonStyle(.studio)
                                 .disabled(library.searching || library.results.count >= 600)
+                                .frame(maxWidth: .infinity).padding(.top, 12)
                         }
                     }
                 }
             }
-            if let error = library.error { Text(error).font(.caption).foregroundStyle(.orange).textSelection(.enabled) }
-        }.padding(.horizontal, 28).padding(.vertical, 36).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+            if let error = library.error { StudioNotice(kind: .warning, text: error) }
+        }.padding(.horizontal, 32).padding(.top, 40).padding(.bottom, 24).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
             .overlay {
                 if library.loadingDetail {
                     ProgressView().padding(20).background(
@@ -393,10 +396,10 @@ private struct HubBrowserView: View {
 
     private var recommendedCards: some View {
         VStack(alignment: .leading, spacing: 12) {
-            StudioCaption(french: "Recommandés", english: "Recommended")
+            StudioSectionTitle(title: L("Recommandés", "Recommended"), icon: "sparkles")
             ForEach(ModelLibrary.recommendedFamilies) { family in
-              VStack(alignment: .leading, spacing: 10) {
-                Text(family.id).font(.system(size: 14, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
+              VStack(alignment: .leading, spacing: 9) {
+                Text(family.id).font(.system(size: 12, weight: .medium)).foregroundStyle(StudioTheme.quiet)
                 LazyVGrid(columns: [GridItem(.adaptive(minimum: 170), spacing: 12)], spacing: 12) {
                   ForEach(family.models) { model in
                     Button {
@@ -407,7 +410,7 @@ private struct HubBrowserView: View {
                                 Image(systemName: model.symbol).font(.system(size: 21, weight: .light)).foregroundStyle(
                                     StudioTheme.accent)
                                 Spacer()
-                                Text("EXL3").font(.system(size: 12, weight: .medium)).tracking(1).foregroundStyle(
+                                Text("EXL3").font(.system(size: 11, weight: .semibold)).foregroundStyle(
                                     StudioTheme.quiet)
                             }
                             Spacer(minLength: 6)
@@ -421,9 +424,9 @@ private struct HubBrowserView: View {
                             }.foregroundStyle(StudioTheme.quiet).padding(.top, 3)
                         }.padding(16).frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
                             .aspectRatio(1, contentMode: .fit)
-                            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 14))
-                            .overlay { RoundedRectangle(cornerRadius: 14).stroke(StudioTheme.edge, lineWidth: 0.5) }
-                    }.buttonStyle(StudioControlStyle()).help(model.id)
+                            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 12, style: .continuous))
+                            .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(StudioTheme.edge.opacity(0.7), lineWidth: 0.5) }
+                    }.buttonStyle(StudioControlStyle(cornerRadius: 12)).help(model.id)
                   }
                 }
               }
@@ -435,13 +438,12 @@ private struct HubBrowserView: View {
     private func details(_ detail: HubDetails) -> some View {
         VStack(alignment: .leading, spacing: 15) {
             HStack {
-                Button(action: library.back) { Label(L("Recherche", "Search"), systemImage: "arrow.left") }.buttonStyle(
-                    .plain
-                ).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+                Button(action: library.back) { Label(L("Recherche", "Search"), systemImage: "chevron.left") }
+                    .buttonStyle(.studio(.quiet, height: 26))
                 Spacer()
                 Link("Hugging Face ↗", destination: URL(string: "https://huggingface.co/\(detail.id)")!).font(
-                    .system(size: 12)
-                ).foregroundStyle(StudioTheme.quiet)
+                    .system(size: 12, weight: .medium)
+                ).foregroundStyle(StudioTheme.secondary)
             }
             Text(detail.id).font(StudioTheme.display(23)).lineLimit(2).textSelection(
                 .enabled)
@@ -483,12 +485,10 @@ private struct HubBrowserView: View {
                 Button {
                     library.download(studio: studio)
                 } label: {
-                    Label(L("Télécharger", "Download"), systemImage: "arrow.down.to.line").font(
-                        .system(size: 12, weight: .medium)
-                    ).padding(.horizontal, 15).padding(.vertical, 12)
-                }.buttonStyle(PrimaryGlassButtonStyle()).disabled(
+                    Label(L("Télécharger", "Download"), systemImage: "arrow.down.to.line")
+                }.buttonStyle(.studio(.primary, height: 36)).disabled(
                     library.selectedVariant == nil || library.downloading != nil || library.loadingDetail)
-            }.padding(14).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 10))
+            }.studioCard(padding: 14)
             if let variant = library.selectedVariant {
                 if variant.preview?.modelType == "qwen4_exp" {
                     Text(
@@ -497,30 +497,24 @@ private struct HubBrowserView: View {
                             "Flash Next uses SSD streaming: download size is not the required RAM. The engine loads experts on demand into a bounded cache; memory use depends on context and available memory."
                         )
                     )
-                    .font(.caption).foregroundStyle(StudioTheme.secondary)
+                    .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
                 } else {
                     ModelAdviceView(sizeBytes: variant.sizeBytes, preview: variant.preview)
                 }
             }
             if detail.variants.isEmpty {
-                Text(
-                    L(
-                        "Pas de checkpoint EXL3 complet identifié ici. Essayez une branche BPW. Les poids ambigus partageant un même descripteur ne sont pas mélangés.",
-                        "No complete EXL3 checkpoint identified here. Try a BPW branch. Ambiguous weights sharing one descriptor are not mixed."
-                    )
-                )
-                .font(.caption).foregroundStyle(.orange)
+                StudioNotice(kind: .warning, text: L(
+                    "Pas de checkpoint EXL3 complet identifié ici. Essayez une branche BPW. Les poids ambigus partageant un même descripteur ne sont pas mélangés.",
+                    "No complete EXL3 checkpoint identified here. Try a BPW branch. Ambiguous weights sharing one descriptor are not mixed."
+                ))
             }
             if detail.gated {
-                Text(
-                    L(
-                        "Dépôt à accès restreint : acceptez sa licence sur Hugging Face et connectez votre compte dans les Réglages.",
-                        "Gated repository: accept its license on Hugging Face and sign in in Settings.")
-                )
-                .font(.caption).foregroundStyle(.orange)
+                StudioNotice(kind: .warning, text: L(
+                    "Dépôt à accès restreint : acceptez sa licence sur Hugging Face et connectez votre compte dans les Réglages.",
+                    "Gated repository: accept its license on Hugging Face and sign in in Settings."))
             }
-            StudioCaption(french: "Fiche du modèle", english: "Model card", colored: false)
-                .foregroundStyle(StudioTheme.quiet)
+            StudioSectionTitle(title: L("Fiche du modèle", "Model card"), icon: "doc.text")
             ModelCardView(
                 source: detail.readme.isEmpty ? L("Aucun README disponible.", "No README available.") : detail.readme,
                 repo: detail.id, commit: detail.commit
@@ -541,19 +535,26 @@ private struct PendingDownloadsView: View {
     @State private var removal: PendingDownload?
     var body: some View {
         ForEach(library.pending) { job in
-            VStack(alignment: .leading, spacing: 8) {
-                Text(job.repo).font(.system(size: 12, weight: .medium)).lineLimit(2)
-                HStack {
+            HStack(alignment: .center, spacing: 12) {
+                Image(systemName: "pause.circle").font(.system(size: 17, weight: .light)).foregroundStyle(StudioTheme.warning)
+                    .frame(width: 38, height: 38)
+                    .background(StudioTheme.contrast.opacity(0.055), in: RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(job.repo).font(.system(size: 13, weight: .medium)).lineLimit(2)
                     Text(
                         ByteCountFormatter.string(fromByteCount: job.retained_bytes, countStyle: .file) + " · "
                             + L("interrompu", "interrupted"))
-                    Spacer()
-                    Button(L("Reprendre", "Resume")) { library.resume(job, studio: studio) }.disabled(
-                        library.downloading != nil)
-                    Button(L("Supprimer les fichiers partiels", "Delete partial files")) { removal = job }.disabled(
-                        library.downloading != nil)
-                }.font(.system(size: 12))
-            }.padding(14).background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
+                        .font(.system(size: 12)).monospacedDigit().foregroundStyle(StudioTheme.quiet)
+                }
+                Spacer(minLength: 8)
+                Button(L("Reprendre", "Resume")) { library.resume(job, studio: studio) }
+                    .buttonStyle(.studio(.primary)).disabled(library.downloading != nil)
+                StudioIconButton(icon: "trash", label: L("Supprimer les fichiers partiels", "Delete partial files"), destructive: true) {
+                    removal = job
+                }
+                .disabled(library.downloading != nil)
+            }.studioCard(padding: 14)
         }
         .confirmationDialog(
             L(

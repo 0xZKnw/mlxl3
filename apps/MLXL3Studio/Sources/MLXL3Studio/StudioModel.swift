@@ -2944,6 +2944,13 @@ extension StudioModel {
         bridge.stop()
     }
 
+    /// Visual QA only: replaces the Lab measurements of the isolated preview model.
+    func seedLabPreview(_ samples: [LabSample]) {
+        guard isPreview else { return }
+        labSamples = samples.filter(\.valid)
+        labUsage = LabUsageLedger(samples: samples)
+    }
+
     func exportLab() {
         let panel = NSSavePanel(); panel.nameFieldStringValue = "MLXL3-Lab.json"
         guard panel.runModal() == .OK, let url = panel.url else { return }

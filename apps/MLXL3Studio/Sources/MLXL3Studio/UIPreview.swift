@@ -156,6 +156,66 @@ extension StudioModel {
             studio.appSettingsPage = .appearance
             studio.showAppSettings = true
         }
+        // `--ui-preview-settings-page=models` (any SettingsPage), `--ui-preview-mcp`, `--ui-preview-projects`.
+        if let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--ui-preview-settings-page=") }),
+           let page = SettingsPage(rawValue: String(argument.dropFirst("--ui-preview-settings-page=".count))) {
+            studio.appSettingsPage = page
+            studio.showAppSettings = true
+        }
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-mcp") { studio.showMCPManager = true }
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-projects") { studio.showWorkspace = true }
+        // Lab QA: five weeks of measurements over three models, deterministic (no clock-free
+        // randomness: the same launch day gives the same page).
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-lab") {
+            let models = [("Qwen3.6 · 35B A3B", 2.49, 61.0), ("LFM3 · 8B", 4.0, 118.0), ("Inkling 2 Mini", 3.5, 87.0)]
+            var samples: [LabSample] = []
+            for day in 0..<36 where day % 7 != 5 {
+                for turn in 0..<(1 + (day * 7) % 4) {
+                    let (name, bits, speed) = models[(day + turn) % models.count]
+                    let input = 900 + ((day * 37 + turn * 911) % 5200)
+                    let output = 180 + ((day * 53 + turn * 269) % 1400)
+                    var sample = LabSample(
+                        model: name, modelPath: "/nonexistent/ui-preview", bits: bits, mode: turn % 3 == 2 ? "agent" : "chat",
+                        runtime: "preview", system: "macOS", hardware: LabHardware.identity, context: 16_384,
+                        temperature: 0.7, topK: 40, mtp: turn % 2 == 0, dflash: false,
+                        stats: GenerationStats(
+                            ttftSeconds: 0.31 + Double(turn) * 0.07, prefillTps: 940, decodeTps: speed + Double((day * 13) % 17) - 8,
+                            promptTokens: input, generatedTokens: output, peakMemoryGB: nil, modelSizeGB: nil,
+                            cachedPromptTokens: input / 2, evaluatedPromptTokens: input - input / 2, contextUsed: input + output,
+                            elapsedSeconds: Double(output) / speed + 0.6, endToEndTTFTSeconds: 0.42 + Double(turn) * 0.09))
+                    sample.date = Date().addingTimeInterval(-Double(day) * 86_400 - Double(turn) * 1_500)
+                    samples.append(sample)
+                }
+            }
+            studio.seedLabPreview(samples)
+        }
+        // Agent Studio QA: a small project with two versions in a temporary workspace.
+        if ProcessInfo.processInfo.arguments.contains("--ui-preview-agent-studio") {
+            let workspace = FileManager.default.temporaryDirectory
+                .appendingPathComponent("mlxl3-ui-preview-studio-\(UUID().uuidString)/files")
+            try? FileManager.default.createDirectory(at: workspace, withIntermediateDirectories: true)
+            let files = [
+                "README.md": "# Statistiques\n\nMoyenne et médiane en Perl, avec un test.\n",
+                "src/stats.pl": "sub mean { my $s = 0; $s += $_ for @_; return $s / @_; }\nsub median { return $_[int(@_ / 2)]; }\n1;\n",
+                "test.sh": "#!/bin/sh\nperl -Isrc t/stats.t\n",
+                "t/stats.t": "require 'stats.pl';\nprint median(4, 1, 3, 2) == 2.5 ? \"PASS\\n\" : \"FAIL\\n\";\n",
+            ]
+            for (path, text) in files { try? AgentProjectStore.write(Data(text.utf8), path: path, root: workspace) }
+            let store = AgentProjectStore(workspace: workspace)
+            _ = try? store.checkpoint("Projet importé")
+            try? AgentProjectStore.write(Data("""
+                sub mean { my $s = 0; $s += $_ for @_; return $s / @_; }
+                sub median {
+                  my @v = sort { $a <=> $b } @_;
+                  my $m = int(@v / 2);
+                  return @v % 2 ? $v[$m] : ($v[$m - 1] + $v[$m]) / 2;
+                }
+                1;
+
+                """.utf8), path: "src/stats.pl", root: workspace)
+            _ = try? store.checkpoint("Corriger la médiane")
+            studio.studioDocument = StudioDocument(workspace: workspace, file: workspace.appendingPathComponent("src/stats.pl"))
+        }
         // `--ui-preview-mode=server` (or decision, lab): standalone screens.
         if let argument = ProcessInfo.processInfo.arguments.first(where: { $0.hasPrefix("--ui-preview-mode=") }),
            let mode = StudioMode(rawValue: String(argument.dropFirst("--ui-preview-mode=".count))) {

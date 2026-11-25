@@ -392,20 +392,25 @@ struct SettingCard<Content: View>: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Label(title, systemImage: icon)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(StudioTheme.ink)
-                .padding(.horizontal, 3)
-                .accessibilityAddTraits(.isHeader)
+        VStack(alignment: .leading, spacing: grouped ? 9 : 10) {
+            if grouped {
+                StudioSectionTitle(title: title, icon: icon)
+            } else {
+                Label(title, systemImage: icon)
+                    .font(.system(size: 14, weight: .semibold))
+                    .foregroundStyle(StudioTheme.ink)
+                    .padding(.horizontal, 3)
+                    .accessibilityAddTraits(.isHeader)
+            }
+            let shape = RoundedRectangle(cornerRadius: StudioPageMetrics.card, style: .continuous)
             VStack(alignment: .leading, spacing: 13) {
                 content
             }
             .padding(grouped ? 16 : 3)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(grouped ? StudioTheme.panel : .clear, in: RoundedRectangle(cornerRadius: 14))
+            .background(grouped ? StudioTheme.panel : .clear, in: shape)
             .overlay {
-                RoundedRectangle(cornerRadius: 14).strokeBorder(grouped ? StudioTheme.edge.opacity(0.6) : .clear)
+                shape.strokeBorder(grouped ? StudioTheme.edge.opacity(0.7) : .clear, lineWidth: 0.5)
                     .allowsHitTesting(false)
             }
         }

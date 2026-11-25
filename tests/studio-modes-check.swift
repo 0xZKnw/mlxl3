@@ -289,6 +289,37 @@ extension StudioModel {
     check(peak?.tokens == 16 && peak?.date == iso.date(from: "2026-11-02T00:00:00Z")
       && peak?.formatted(locale: Locale(identifier: "en_US")) == "Nov 2, 2026",
       "Two equal peaks choose the most recent civil day and its localized date label")
+    // UI-2026-11-25-LAB: the daily series behind the Lab chart, one entry per civil day.
+    func series(_ period: LabUsagePeriod, limit: Int = 90) -> [LabUsageDay] {
+      ledger.daily(for: period, now: now, calendar: calendar, limit: limit)
+    }
+    check(series(.today).map(\.tokens) == [16] && series(.sevenDays).map(\.tokens) == [6, 0, 0, 0, 0, 16, 16],
+      "The daily series keeps idle days and ends today: \(series(.sevenDays).map(\.tokens))")
+    check(LabUsagePeriod.allCases.map { series($0).reduce(0) { $0 + $1.tokens } }
+      == LabUsagePeriod.allCases.map { stats($0).totals.totalTokens },
+      "Each period's daily series sums to its total")
+    check(series(.thirtyDays).count == 30 && series(.thirtyDays).first?.tokens == 6
+      && series(.allTime).count == 31 && series(.allTime).first?.tokens == 18,
+      "Thirty days start on the thirtieth day; all time starts on the first active day")
+    check(series(.sevenDays).last?.inputTokens == 10 && series(.sevenDays).last?.outputTokens == 6
+      && series(.sevenDays).last?.date == iso.date(from: "2026-11-02T00:00:00Z")
+      && series(.sevenDays).first?.date == iso.date(from: "2026-10-27T00:00:00Z"),
+      "A day keeps its input/output split and its civil date across the clock change")
+    check(series(.allTime, limit: 2).map(\.tokens) == [16, 16] && series(.thirtyDays, limit: 3).count == 3
+      && series(.allTime, limit: 0).isEmpty && series(.allTime, limit: -4).isEmpty,
+      "The series keeps at most the latest `limit` days and rejects a non-positive limit")
+    check(LabUsageLedger().daily(for: .allTime, now: now, calendar: calendar).isEmpty
+      && LabUsageLedger().daily(for: .sevenDays, now: now, calendar: calendar).isEmpty
+      && ledger.daily(for: .allTime, now: older.date.addingTimeInterval(-86_400), calendar: calendar).isEmpty,
+      "No chart without activity, including before the first recorded day")
+    check(ledger.daily(for: .sevenDays, now: Date(timeIntervalSince1970: .infinity), calendar: calendar).isEmpty
+      && LabUsageLedger(samples: [sample("A", now, .max, 1), sample("B", now, .max, 1)], calendar: calendar)
+        .daily(for: .today, now: now, calendar: calendar).map(\.tokens) == [.max],
+      "A non-finite clock yields no series and a saturated day stays at the maximum")
+    check(LabWorkspaceView.change(current: 150, previous: 100) == 0.5 && LabWorkspaceView.change(current: 50, previous: 100) == -0.5
+      && LabWorkspaceView.change(current: 100, previous: 100) == 0 && LabWorkspaceView.change(current: 5, previous: 0) == nil
+      && LabWorkspaceView.change(current: 5, previous: nil) == nil && LabWorkspaceView.change(current: .max, previous: 1)?.isFinite == true,
+      "The change against the previous period is signed, finite and absent without a baseline")
     let multiModel = sample("C", seventh.date, 6, 7)
     let combined = LabUsageLedger(samples: [older, a, b, seventh, multiModel], calendar: calendar)
       .summary(for: .allTime, now: now, calendar: calendar)

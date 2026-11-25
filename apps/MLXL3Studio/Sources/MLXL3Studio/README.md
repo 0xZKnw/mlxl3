@@ -7,5 +7,6 @@
 - `ChatComponents.swift`, `MarkdownResponseView.swift`, and `MessageActionsView.swift`: conversation display and actions.
 - `AgentStudio*.swift`, `Workspace*`, and `MCP*`: projects, workspaces, and MCP connections.
 - `AppSettingsView.swift`, `DesktopPreferences.swift`, `Theme.swift`, and `Localization.swift`: preferences and presentation.
+- `StudioPageKit.swift`: shared page components (sidebar rows, cards, setting rows, buttons, fields, notices, empty states) used by Settings, Lab, Models, MCP, Projects, Images, Agent Studio, Server and Decision.
 
 Related checks are in [tests/](../../../../tests/README.md), and resources are in [Resources/](../../Resources/README.md).

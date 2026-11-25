@@ -52,55 +52,27 @@ struct AppSettingsView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                StudioSidebarHeader(title: L("Réglages", "Settings"))
-
-                VStack(spacing: 3) {
+            StudioPageSidebar(title: L("Réglages", "Settings"), onBack: { studio.showAppSettings = false }) {
+                StudioNavList {
                     ForEach(SettingsPage.allCases) { page in
-                        Button { studio.appSettingsPage = page } label: {
-                            HStack(spacing: 11) {
-                                Image(systemName: page.icon).frame(width: 18)
-                                Text(page.title)
-                                Spacer(minLength: 0)
-                            }
-                            .font(.system(size: 13, weight: selection == page ? .semibold : .regular))
-                            .padding(.horizontal, 12).frame(height: 36)
+                        StudioNavRow(icon: page.icon, title: page.title, selected: selection == page,
+                                     badge: page == .updates && studio.updateManager.hasAvailableUpdate ? "•" : nil) {
+                            studio.appSettingsPage = page
                         }
-                        .buttonStyle(StudioControlStyle(emphasized: selection == page))
                         .accessibilityIdentifier("settings.\(page.rawValue)")
-                        .accessibilityAddTraits(selection == page ? .isSelected : [])
                     }
                 }
-                .padding(.horizontal, 10)
-                Spacer()
-                StudioBackButton(action: { studio.showAppSettings = false })
-                    .padding(.horizontal, 18).padding(.bottom, 18)
             }
-            .frame(width: studio.sidebarWidth.points, alignment: .leading)
-            .modifier(StudioSidebarSurface())
 
-            ScrollView {
-                VStack(alignment: .leading, spacing: 25) {
-                    VStack(alignment: .leading, spacing: 7) {
-                        Text(selection.title)
-                            .font(StudioTheme.display(39)).tracking(StudioTheme.displayTracking(-1.2))
-                            .accessibilityAddTraits(.isHeader)
-                        Text(selection.detail)
-                            .font(.system(size: 14)).foregroundStyle(StudioTheme.secondary)
-                    }
-                    pageContent
-                }
-                .padding(.vertical, 36)
-                .frame(maxWidth: 760, alignment: .leading)
-                .padding(.horizontal, 28)
-                .frame(maxWidth: .infinity)
+            StudioPageColumn(spacing: 24) {
+                StudioPageHeader(title: selection.title, detail: selection.detail)
+                pageContent
             }
             .id(selection)
             .transition(.opacity)
         }
         .font(.system(size: 13))
         .foregroundStyle(StudioTheme.ink)
-        .controlSize(.large)
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .background { StudioAurora(animated: true).background(StudioTheme.canvas) }
         .studioAppearance(studio)
@@ -109,75 +81,90 @@ struct AppSettingsView: View {
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2), value: selection)
     }
 
+    private var startupModelMissing: Bool {
+        !studio.startupModelPath.isEmpty && !studio.models.contains(where: { $0.path == studio.startupModelPath })
+    }
+
     @ViewBuilder private var pageContent: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 22) {
             switch selection {
             case .general:
-                if EngineRuntimeStore.nativeEngineEnabled {
-                    SettingCard(title: L("Profil Qwen natif", "Native Qwen profile"), icon: "cpu") {
-                        Picker(L("Profil demandé", "Requested profile"), selection: Binding(
-                            get: { QwenRuntimeProfile.requested(requestedQwenProfile).rawValue },
-                            set: { requestedQwenProfile = $0 }
-                        )) {
-                            Text(L("Référence", "Reference")).tag("reference")
-                            Text(L("Optimisé (expérimental)", "Optimized (experimental)")).tag("optimized")
-                        }
-                        .help(L("Rechargez le modèle pour appliquer le profil. Le profil optimisé est expérimental ; les variables du moteur restent prioritaires.", "Reload the model to apply the profile. The optimized profile is experimental; engine environment variables take precedence."))
-                        DisclosureGroup(L("Détails du moteur", "Engine details")) {
-                            Text(L("Profil actif : ", "Active profile: ") + (studio.runtimeQwenProfile ?? "—"))
-                            if let identity = studio.runtimeIdentity {
-                                Text(identity).textSelection(.enabled)
+                SettingSection(title: L("Langue", "Language"), icon: "globe") {
+                    SettingRow(title: L("Langue de l’app", "App language"),
+                               detail: L("S’applique immédiatement à toute l’interface.", "Applies immediately to the whole interface.")) {
+                        Picker(
+                            L("Langue de l’app", "App language"),
+                            selection: Binding(
+                                get: { studio.language }, set: { studio.setLanguage($0) }
+                            )
+                        ) {
+                            ForEach(AppLanguage.allCases, id: \.self) { language in
+                                Text(language.title).tag(language)
                             }
                         }
-                        .font(.caption).foregroundStyle(StudioTheme.secondary)
+                        .pickerStyle(.segmented)
+                        .labelsHidden()
+                        .fixedSize()
                     }
                 }
-                SettingCard(title: L("Langue de l’app", "App language"), icon: "globe") {
-                    Picker(
-                        L("Langue de l’app", "App language"),
-                        selection: Binding(
-                            get: { studio.language }, set: { studio.setLanguage($0) }
-                        )
-                    ) {
-                        ForEach(AppLanguage.allCases, id: \.self) { language in
-                            Text(language.title).tag(language)
+                SettingSection(title: L("Notifications", "Notifications"), icon: "bell") {
+                    SettingToggleRow(
+                        title: L("Notification de fin de génération", "Generation completion notification"),
+                        detail: L(
+                            "Préviens-moi lorsque la réponse est terminée et que MLXL3 est en arrière-plan. Le contenu de la conversation n’apparaît pas dans la notification.",
+                            "Notify me when the response is complete and MLXL3 is in the background. Conversation content is not included in the notification."
+                        ),
+                        isOn: Binding(
+                            get: { studio.completionNotificationsEnabled },
+                            set: { studio.setCompletionNotificationsEnabled($0) }
+                        ))
+                    if let status = studio.notificationStatus {
+                        Text(status).font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                if EngineRuntimeStore.nativeEngineEnabled {
+                    SettingSection(title: L("Moteur", "Engine"), icon: "cpu") {
+                        SettingRow(title: L("Profil Qwen natif", "Native Qwen profile"),
+                                   detail: L("Rechargez le modèle pour appliquer le profil. Le profil optimisé est expérimental ; les variables du moteur restent prioritaires.", "Reload the model to apply the profile. The optimized profile is experimental; engine environment variables take precedence.")) {
+                            Picker(L("Profil demandé", "Requested profile"), selection: Binding(
+                                get: { QwenRuntimeProfile.requested(requestedQwenProfile).rawValue },
+                                set: { requestedQwenProfile = $0 }
+                            )) {
+                                Text(L("Référence", "Reference")).tag("reference")
+                                Text(L("Optimisé (expérimental)", "Optimized (experimental)")).tag("optimized")
+                            }
+                            .labelsHidden().fixedSize()
                         }
-                    }
-                    .pickerStyle(.segmented)
-                    .labelsHidden()
-                    .frame(maxWidth: 320, alignment: .leading)
-                }
-                SettingCard(title: L("Notifications", "Notifications"), icon: "bell") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Toggle(
-                            L("Notification de fin de génération", "Generation completion notification"),
-                            isOn: Binding(
-                                get: { studio.completionNotificationsEnabled },
-                                set: { studio.setCompletionNotificationsEnabled($0) }
-                            ))
-                        Text(
-                            L(
-                                "Préviens-moi lorsque la réponse est terminée et que MLXL3 est en arrière-plan. Le contenu de la conversation n’apparaît pas dans la notification.",
-                                "Notify me when the response is complete and MLXL3 is in the background. Conversation content is not included in the notification."
-                            )
-                        )
+                        DisclosureGroup(L("Détails du moteur", "Engine details")) {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Text(L("Profil actif : ", "Active profile: ") + (studio.runtimeQwenProfile ?? "—"))
+                                if let identity = studio.runtimeIdentity {
+                                    Text(identity).textSelection(.enabled)
+                                }
+                            }
+                            .frame(maxWidth: .infinity, alignment: .leading).padding(.top, 6)
+                        }
                         .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
-                        if let status = studio.notificationStatus {
-                            Text(status).font(.caption).foregroundStyle(StudioTheme.secondary)
-                        }
                     }
                 }
             case .appearance:
                 AppearanceSettings()
             case .models:
-                SettingCard(title: L("Au démarrage", "At startup"), icon: "power") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Toggle(
-                            L("Charger le modèle au démarrage", "Load model on startup"),
-                            isOn: Binding(
-                                get: { studio.loadModelOnStartup },
-                                set: { studio.setLoadModelOnStartup($0) }
-                            ))
+                SettingSection(title: L("Au démarrage", "At startup"), icon: "power") {
+                    SettingToggleRow(
+                        title: L("Charger le modèle au démarrage", "Load model on startup"),
+                        detail: L("Le modèle est prêt dès l’ouverture de l’app.", "The model is ready as soon as the app opens."),
+                        isOn: Binding(
+                            get: { studio.loadModelOnStartup },
+                            set: { studio.setLoadModelOnStartup($0) }
+                        ))
+                    SettingRow(title: L("Modèle de démarrage", "Startup model"),
+                               detail: startupModelMissing
+                                   ? L(
+                                       "Le modèle choisi n’est plus disponible. Choisis un autre modèle pour le prochain démarrage.",
+                                       "The selected model is no longer available. Choose another model for the next launch.")
+                                   : nil) {
                         Picker(
                             L("Modèle de démarrage", "Startup model"),
                             selection: Binding(
@@ -188,34 +175,17 @@ struct AppSettingsView: View {
                             ForEach(studio.chatModels) { model in
                                 Text(model.name).tag(model.path)
                             }
-                            if !studio.startupModelPath.isEmpty
-                                && !studio.models.contains(where: { $0.path == studio.startupModelPath })
-                            {
+                            if startupModelMissing {
                                 Text(L("Modèle indisponible", "Model unavailable")).tag(studio.startupModelPath)
                             }
                         }
+                        .labelsHidden().frame(maxWidth: 260, alignment: .trailing)
                         .disabled(!studio.loadModelOnStartup)
-                        if !studio.startupModelPath.isEmpty
-                            && !studio.models.contains(where: { $0.path == studio.startupModelPath })
-                        {
-                            Text(
-                                L(
-                                    "Le modèle choisi n’est plus disponible. Choisis un autre modèle pour le prochain démarrage.",
-                                    "The selected model is no longer available. Choose another model for the next launch."
-                                )
-                            )
-                            .font(.caption).foregroundStyle(StudioTheme.secondary)
-                        }
                     }
-
                 }
-                SettingCard(title: L("Mémoire", "Memory"), icon: "memorychip") {
-                    VStack(alignment: .leading, spacing: 10) {
-                        Label(
-                            L("Déchargement automatique du modèle", "Automatic model unloading"),
-                            systemImage: "moon.zzz"
-                        )
-                        .font(.system(size: 13, weight: .semibold))
+                SettingSection(title: L("Mémoire", "Memory"), icon: "memorychip") {
+                    SettingRow(title: L("Déchargement automatique du modèle", "Automatic model unloading"),
+                               detail: L("Le modèle est déchargé après ce délai d’inactivité. La génération et le tuning ne sont pas interrompus.", "The model unloads after this idle delay. Generation and tuning are not interrupted.")) {
                         Picker(
                             L("Après une période d’inactivité", "After inactivity"),
                             selection: Binding(
@@ -227,13 +197,17 @@ struct AppSettingsView: View {
                                 Text(delay.title).tag(delay)
                             }
                         }
-                        .pickerStyle(.menu)
+                        .pickerStyle(.menu).labelsHidden().fixedSize()
                         .accessibilityLabel(L("Délai de déchargement automatique", "Automatic unload delay"))
-                        .help(L("Le modèle est déchargé après ce délai d’inactivité. La génération et le tuning ne sont pas interrompus.", "The model unloads after this idle delay. Generation and tuning are not interrupted."))
                     }
-
-                    Divider().overlay(StudioTheme.edge)
-                    VStack(alignment: .leading, spacing: 10) {
+                    SettingRow(title: L("Économie de mémoire", "Memory saving"),
+                               detail: (studio.engineState.isReady && !studio.memorySaverSupported
+                                   ? L("Mets à jour le moteur pour utiliser cette option.", "Update the engine to use this option.") + " "
+                                   : "")
+                                   + L(
+                                       "Libère le cache de contexte après chaque réponse sans décharger le modèle. Le prochain message peut démarrer plus lentement.",
+                                       "Frees the context cache after each response while keeping the model loaded. The next message may start more slowly."
+                                   )) {
                         Toggle(
                             L("Économie de mémoire", "Memory saving"),
                             isOn: Binding(
@@ -241,48 +215,34 @@ struct AppSettingsView: View {
                                 set: { studio.setMemorySaverEnabled($0) }
                             )
                         )
+                        .labelsHidden().toggleStyle(.switch).controlSize(.small)
                         .disabled(
                             studio.isGenerating || studio.isTuningMTP
                                 || (studio.engineState.isReady && !studio.memorySaverSupported))
-                        if studio.engineState.isReady && !studio.memorySaverSupported {
-                            Text(
-                                L(
-                                    "Mets à jour le moteur pour utiliser cette option.",
-                                    "Update the engine to use this option.")
-                            )
-                            .font(.system(size: 12))
-                            .foregroundStyle(StudioTheme.secondary)
-                        }
-                        Text(
-                            L(
-                                "Libère le cache de contexte après chaque réponse sans décharger le modèle. Le prochain message peut démarrer plus lentement.",
-                                "Frees the context cache after each response while keeping the model loaded. The next message may start more slowly."
-                            )
-                        )
-                        .font(.system(size: 12))
-                        .foregroundStyle(StudioTheme.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
                     }
-
                 }
             case .conversations:
-                SettingCard(
-                    title: L("Historique", "History"), icon: "bubble.left.and.bubble.right"
+                SettingSection(
+                    title: L("Historique", "History"), icon: "bubble.left.and.bubble.right",
+                    footer: L("Les conversations restent sur ce Mac. Une sauvegarde est un fichier que vous gardez où vous voulez.",
+                              "Conversations stay on this Mac. A backup is a file you keep wherever you like.")
                 ) {
-                    Button(action: studio.exportConversations) {
-                        Label(
-                            L("Exporter les conversations…", "Export conversations…"),
-                            systemImage: "square.and.arrow.up"
-                        )
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(12)
-                    }.buttonStyle(GlassPillButtonStyle())
-                    Button(action: studio.importConversations) {
-                        Label(
-                            L("Importer une sauvegarde…", "Import a backup…"),
-                            systemImage: "square.and.arrow.down"
-                        )
-                        .frame(maxWidth: .infinity, alignment: .leading).padding(12)
-                    }.buttonStyle(GlassPillButtonStyle())
+                    SettingRow(title: L("Exporter les conversations", "Export conversations"),
+                               detail: L("Enregistre tout l’historique dans un fichier.", "Saves the whole history to a file.")) {
+                        Button(action: studio.exportConversations) {
+                            Label(L("Exporter…", "Export…"), systemImage: "square.and.arrow.up")
+                        }
+                        .buttonStyle(.studio)
+                        .accessibilityLabel(L("Exporter les conversations…", "Export conversations…"))
+                    }
+                    SettingRow(title: L("Importer une sauvegarde", "Import a backup"),
+                               detail: L("Ajoute les conversations d’un fichier exporté.", "Adds the conversations of an exported file.")) {
+                        Button(action: studio.importConversations) {
+                            Label(L("Importer…", "Import…"), systemImage: "square.and.arrow.down")
+                        }
+                        .buttonStyle(.studio)
+                        .accessibilityLabel(L("Importer une sauvegarde…", "Import a backup…"))
+                    }
                 }
             case .connections:
                 SettingCard(title: "Hugging Face", icon: "key") {
@@ -292,55 +252,42 @@ struct AppSettingsView: View {
                     MCPSettingsControls()
                 }
             case .privacy:
-                SettingCard(title: L("Sur ce Mac", "On this Mac"), icon: "desktopcomputer") {
-                    dataFlowRow(
-                        L("Inférence et kernels Metal", "Inference and Metal kernels"),
-                        L("Exécutés localement sur votre Mac.", "Run locally on your Mac."), "cpu")
+                SettingSection(title: L("Sur ce Mac", "On this Mac"), icon: "desktopcomputer") {
+                    SettingRow(title: L("Inférence et kernels Metal", "Inference and Metal kernels"),
+                               detail: L("Exécutés localement sur votre Mac.", "Run locally on your Mac."), icon: "cpu") {
+                        StudioStatusPill(text: L("Local", "Local"), color: StudioTheme.success)
+                    }
+                    SettingRow(title: L("Conversations et documents", "Conversations and documents"),
+                               detail: L("Enregistrés dans le dossier de l’app, jamais envoyés.", "Stored in the app’s folder, never sent."),
+                               icon: "internaldrive") {
+                        StudioStatusPill(text: L("Local", "Local"), color: StudioTheme.success)
+                    }
                 }
-                SettingCard(title: L("Accès au réseau", "Network access"), icon: "network") {
-                    dataFlowRow(
-                        L("Modèles et mises à jour", "Models and updates"),
-                        "Hugging Face · GitHub", "arrow.down.circle")
-                    Divider().overlay(StudioTheme.edge)
-                    dataFlowRow(
-                        "MCP",
-                        studio.mcpEnabled
-                            ? L(
-                                "Activé · des données peuvent quitter ce Mac.", "Enabled · data may leave this Mac."
-                            )
-                            : L("Désactivé", "Disabled"), "link")
-                    Text(
-                        L(
-                            "Un serveur MCP local peut lui-même utiliser Internet. Activez uniquement des outils de confiance.",
-                            "A local MCP server can itself use the Internet. Enable only tools you trust.")
-                    )
-                    .foregroundStyle(StudioTheme.secondary)
+                SettingSection(
+                    title: L("Accès au réseau", "Network access"), icon: "network",
+                    footer: L(
+                        "Un serveur MCP local peut lui-même utiliser Internet. Activez uniquement des outils de confiance.",
+                        "A local MCP server can itself use the Internet. Enable only tools you trust.")
+                ) {
+                    SettingRow(title: L("Modèles et mises à jour", "Models and updates"),
+                               detail: "Hugging Face · GitHub", icon: "arrow.down.circle") {
+                        StudioStatusPill(text: L("À la demande", "On demand"))
+                    }
+                    SettingRow(title: "MCP",
+                               detail: studio.mcpEnabled
+                                   ? L("Activé · des données peuvent quitter ce Mac.", "Enabled · data may leave this Mac.")
+                                   : L("Désactivé", "Disabled"), icon: "link") {
+                        StudioStatusPill(text: studio.mcpEnabled ? L("Activé", "On") : L("Désactivé", "Off"),
+                                         color: studio.mcpEnabled ? StudioTheme.warning : StudioTheme.quiet)
+                    }
                 }
             case .updates:
-                SettingCard(title: "MLXL3 Desktop", icon: "arrow.triangle.2.circlepath") {
-                    UpdateSettingsCard(
-                        updater: studio.updateManager, canInstall: !studio.isGenerating,
-                        install: studio.installUpdateAndRestart)
-                }
-                Text(
-                    L(
-                        "L’app et le moteur peuvent être mis à jour séparément. Les téléchargements sont vérifiés avant installation.",
-                        "The app and engine can update separately. Downloads are verified before installation.")
-                )
-                .foregroundStyle(StudioTheme.secondary)
+                UpdateSettingsCard(
+                    updater: studio.updateManager, canInstall: !studio.isGenerating,
+                    install: studio.installUpdateAndRestart)
             }
         }
         .fixedSize(horizontal: false, vertical: true)
-    }
-
-    private func dataFlowRow(_ title: String, _ detail: String, _ icon: String) -> some View {
-        HStack(alignment: .top, spacing: 13) {
-            Image(systemName: icon).frame(width: 20).foregroundStyle(StudioTheme.secondary)
-            VStack(alignment: .leading, spacing: 6) {
-                Text(title).fontWeight(.medium)
-                Text(detail).foregroundStyle(StudioTheme.secondary)
-            }
-        }
     }
 }
 
@@ -349,30 +296,28 @@ private struct HuggingFaceAccountView: View {
     @State private var token = ""
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 12) {
             Text(
                 L(
                     "Accédez aux modèles privés ou à accès restreint avec votre token Hugging Face.",
                     "Access private or gated models with your Hugging Face token.")
             )
             .foregroundStyle(StudioTheme.secondary)
-            SecureField(L("Token Hugging Face · hf_…", "Hugging Face token · hf_…"), text: $token)
-                .textFieldStyle(.plain).padding(12)
-                .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(RoundedRectangle(cornerRadius: 8).stroke(StudioTheme.edge))
-                .accessibilityLabel(L("Token Hugging Face", "Hugging Face token"))
-                .onSubmit { signIn() }
-            HStack(spacing: 12) {
-                Button(action: signIn) {
-                    Text(L("Se connecter", "Sign in")).padding(.horizontal, 16).padding(.vertical, 11)
-                }
-                .buttonStyle(PrimaryGlassButtonStyle()).disabled(!validToken)
-                Button {
+            HStack(spacing: 8) {
+                SecureField(L("Token Hugging Face · hf_…", "Hugging Face token · hf_…"), text: $token)
+                    .studioField(monospaced: true)
+                    .accessibilityLabel(L("Token Hugging Face", "Hugging Face token"))
+                    .onSubmit { signIn() }
+                Button(L("Se connecter", "Sign in"), action: signIn)
+                    .buttonStyle(.studio(.primary)).disabled(!validToken)
+                Button(L("Se déconnecter", "Sign out")) {
                     library.authenticate(token: nil)
                     token = ""
-                } label: {
-                    Text(L("Se déconnecter", "Sign out")).padding(.horizontal, 12).padding(.vertical, 11)
-                }.buttonStyle(GlassPillButtonStyle())
+                }
+                .buttonStyle(.studio)
+            }
+            if let message = library.authMessage {
+                StudioNotice(text: message)
             }
             Text(
                 L(
@@ -380,10 +325,8 @@ private struct HuggingFaceAccountView: View {
                     "Hugging Face stores your token locally. For a gated model, also accept its license on the website."
                 )
             )
-            .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
-            if let message = library.authMessage {
-                Text(message).textSelection(.enabled)
-            }
+            .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 
@@ -399,38 +342,39 @@ struct MCPSettingsControls: View {
     @EnvironmentObject private var studio: StudioModel
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            Toggle(
-                L("Activer les outils MCP", "Enable MCP tools"),
-                isOn: Binding(
-                    get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) }
-                )
-            )
-            .toggleStyle(.switch)
-            .disabled(studio.isGenerating || studio.mcpUpdating)
-            Text(
-                studio.mcpUpdating
+        VStack(alignment: .leading, spacing: 12) {
+            SettingRow(
+                title: L("Activer les outils MCP", "Enable MCP tools"),
+                detail: studio.mcpUpdating
                     ? L("Connexion aux serveurs…", "Connecting to servers…")
                     : studio.mcpEnabled
                         ? L(
                             "\(studio.mcpServerCount) serveur(s) connecté(s) · \(studio.mcpToolCount) outil(s)",
                             "\(studio.mcpServerCount) connected server(s) · \(studio.mcpToolCount) tool(s)")
                         : L("Les outils externes sont désactivés.", "External tools are disabled.")
-            )
-            .foregroundStyle(StudioTheme.secondary)
-            ForEach(studio.mcpErrors.keys.sorted(), id: \.self) { key in
-                Text("\(key) · \(studio.mcpErrors[key] ?? "")")
-                    .foregroundStyle(.orange).textSelection(.enabled)
+            ) {
+                if studio.mcpUpdating { ProgressView().controlSize(.small) }
+                Toggle(
+                    L("Activer les outils MCP", "Enable MCP tools"),
+                    isOn: Binding(
+                        get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) }
+                    )
+                )
+                .labelsHidden().toggleStyle(.switch).controlSize(.small)
+                .disabled(studio.isGenerating || studio.mcpUpdating)
             }
-            HStack(spacing: 10) {
+            ForEach(studio.mcpErrors.keys.sorted(), id: \.self) { key in
+                StudioNotice(kind: .warning, text: "\(key) · \(studio.mcpErrors[key] ?? "")")
+            }
+            HStack(spacing: 8) {
                 Button(action: { studio.showMCPManager = true }) {
-                    Label(L("Configurer…", "Configure…"), systemImage: "doc.text")
-                        .padding(10)
-                }.buttonStyle(GlassPillButtonStyle())
-                Button(action: studio.reloadMCPServers) {
-                    Image(systemName: "arrow.clockwise").frame(width: 36, height: 36)
+                    Label(L("Configurer…", "Configure…"), systemImage: "slider.horizontal.3")
                 }
-                .buttonStyle(RoundGlassButtonStyle())
+                .buttonStyle(.studio)
+                Button(action: studio.reloadMCPServers) {
+                    Label(L("Recharger", "Reload"), systemImage: "arrow.clockwise")
+                }
+                .buttonStyle(.studio)
                 .disabled(studio.isGenerating || studio.mcpUpdating || !studio.mcpEnabled)
                 .help(L("Recharger les serveurs MCP", "Reload MCP servers"))
                 .accessibilityLabel(L("Recharger les serveurs MCP", "Reload MCP servers"))
@@ -441,7 +385,8 @@ struct MCPSettingsControls: View {
                     "MCP servers may receive your requests and access the Internet, even when launched locally."
                 )
             )
-            .font(.system(size: 12)).foregroundStyle(StudioTheme.secondary)
+            .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+            .fixedSize(horizontal: false, vertical: true)
         }
     }
 }
@@ -452,126 +397,89 @@ private struct UpdateSettingsCard: View {
     let install: () -> Void
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack(alignment: .top, spacing: 12) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 11, style: .continuous)
-                        .fill(StudioTheme.contrast.opacity(0.07))
-                    Image(systemName: "arrow.triangle.2.circlepath")
-                        .font(.system(size: 16, weight: .semibold))
-                        .foregroundStyle(StudioTheme.accent)
-                }
-                .frame(width: 40, height: 40)
-
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(L("Mises à jour", "Updates"))
-                        .font(.system(size: 15, weight: .bold))
-                    Text(
-                        L(
-                            "App \(updater.currentVersion) · Moteur \(updater.currentEngineVersion)",
-                            "App \(updater.currentVersion) · Engine \(updater.currentEngineVersion)")
-                    )
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundStyle(StudioTheme.quiet)
-                }
-                Spacer()
-                updateAction
-            }
-
-            Picker(
-                L("Canal des mises à jour", "Update channel"),
-                selection: Binding(
-                    get: { updater.updateChannel }, set: { updater.setUpdateChannel($0) }
-                )
-            ) {
-                Text("Stable").tag(UpdateChannel.stable)
-                Text(L("Bêta", "Beta")).tag(UpdateChannel.beta)
-            }
-            .pickerStyle(.segmented)
-            .disabled(updater.isInstalling)
-            Text(
-                L(
-                    "Utilise Rechercher pour vérifier les versions du canal choisi.",
-                    "Use Search to check versions from the selected channel.")
-            )
-            .font(.system(size: 13)).foregroundStyle(StudioTheme.quiet)
-
-            HStack(spacing: 10) {
-                stateIcon
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(statusTitle)
-                        .font(.system(size: 12.5, weight: .semibold))
-                    Text(statusDetail)
-                        .font(.system(size: 13, weight: .regular))
-                        .foregroundStyle(StudioTheme.quiet)
-                        .fixedSize(horizontal: false, vertical: true)
-                    if case .downloading = updater.state, let progress = updater.downloadProgress {
-                        UpdateTransferView(progress: progress)
+        VStack(alignment: .leading, spacing: 22) {
+            // The state first: what is installed, whether anything is waiting, the one action.
+            VStack(alignment: .leading, spacing: 14) {
+                HStack(alignment: .center, spacing: 13) {
+                    stateIcon
+                        .font(.system(size: 17, weight: .medium))
+                        .frame(width: 40, height: 40)
+                        .background(StudioTheme.contrast.opacity(0.06), in: RoundedRectangle(cornerRadius: 11, style: .continuous))
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(statusTitle).font(.system(size: 14, weight: .semibold))
+                        Text(statusDetail).font(.system(size: 12.5)).foregroundStyle(StudioTheme.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .textSelection(.enabled)
                     }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    updateAction
                 }
-                Spacer(minLength: 0)
-            }
-            .padding(13)
-            .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 12))
-            .overlay {
-                RoundedRectangle(cornerRadius: 12)
-                    .stroke(StudioTheme.contrast.opacity(0.07), lineWidth: 0.7)
-            }
-
-            HStack(spacing: 10) {
-                Image(systemName: "cpu")
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(L("Moteur indépendant", "Independent engine"))
-                        .font(.system(size: 13, weight: .semibold))
-                    Text(engineDetail)
-                        .font(.system(size: 13))
-                        .foregroundStyle(StudioTheme.quiet)
-                    if case .downloading = updater.engineState, let progress = updater.engineDownloadProgress {
-                        UpdateTransferView(progress: progress)
-                    }
+                if case .downloading = updater.state, let progress = updater.downloadProgress {
+                    UpdateTransferView(progress: progress)
                 }
-                Spacer()
+                if updater.hasReadyUpdate && !canInstall {
+                    StudioNotice(kind: .warning, text: L(
+                        "Termine ou arrête la génération avant de redémarrer pour installer.",
+                        "Finish or stop generation before restarting to install."))
+                }
             }
+            .studioCard(padding: 16, radius: 13)
 
             if let release = updater.latestRelease,
                 updater.hasAppUpdate,
                 !release.notes.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 9) {
                     HStack {
-                        if StudioTheme.style.isGraphite {
-                            Text(L("Nouveautés de \(release.tag)", "What’s new in \(release.tag)"))
-                                .font(.system(size: 13, weight: .semibold))
-                                .foregroundStyle(StudioTheme.secondary)
-                        } else {
-                        Text(L("NOUVEAUTÉS · \(release.tag.uppercased())", "WHAT’S NEW · \(release.tag.uppercased())"))
-                            .font(.system(size: 13, weight: .bold))
-                            .tracking(1.1)
-                            .foregroundStyle(StudioTheme.quiet)
-                        }
+                        StudioSectionTitle(title: L("Nouveautés de \(release.tag)", "What’s new in \(release.tag)"), icon: "sparkles")
                         Spacer()
                         Button(L("Voir la release", "View release")) { updater.openReleasePage() }
-                            .buttonStyle(.plain)
-                            .font(.system(size: 13, weight: .semibold))
-                            .foregroundStyle(StudioTheme.accent)
+                            .buttonStyle(.studio(.quiet, height: 24))
                     }
                     MarkdownResponseView(release.notes, textScale: 13.0 / 15.0, htmlPreviewEnabled: false)
                         .equatable()
                         .accessibilityIdentifier("updates.release-notes")
+                        .studioCard(padding: 16)
                 }
             }
 
-            if updater.hasReadyUpdate && !canInstall {
-                Text(
-                    L(
-                        "Termine ou arrête la génération avant de redémarrer pour installer.",
-                        "Finish or stop generation before restarting to install.")
-                )
-                .font(.system(size: 13, weight: .medium))
-                .foregroundStyle(Color.orange.opacity(0.82))
+            SettingSection(
+                title: L("Versions", "Versions"), icon: "shippingbox",
+                footer: L(
+                    "L’app et le moteur peuvent être mis à jour séparément. Les téléchargements sont vérifiés avant installation.",
+                    "The app and engine can update separately. Downloads are verified before installation.")
+            ) {
+                SettingRow(title: "MLXL3 Desktop", detail: L("L’interface.", "The interface.")) {
+                    Text(updater.currentVersion).font(.system(size: 12.5, design: .monospaced)).foregroundStyle(StudioTheme.secondary)
+                        .textSelection(.enabled)
+                }
+                VStack(alignment: .leading, spacing: 8) {
+                    SettingRow(title: L("Moteur", "Engine"), detail: engineDetail) {
+                        Text(updater.currentEngineVersion).font(.system(size: 12.5, design: .monospaced))
+                            .foregroundStyle(StudioTheme.secondary).textSelection(.enabled)
+                    }
+                    if case .downloading = updater.engineState, let progress = updater.engineDownloadProgress {
+                        UpdateTransferView(progress: progress)
+                    }
+                }
+                SettingRow(title: L("Canal des mises à jour", "Update channel"),
+                           detail: L(
+                               "Utilise Rechercher pour vérifier les versions du canal choisi.",
+                               "Use Search to check versions from the selected channel.")) {
+                    Picker(
+                        L("Canal des mises à jour", "Update channel"),
+                        selection: Binding(
+                            get: { updater.updateChannel }, set: { updater.setUpdateChannel($0) }
+                        )
+                    ) {
+                        Text("Stable").tag(UpdateChannel.stable)
+                        Text(L("Bêta", "Beta")).tag(UpdateChannel.beta)
+                    }
+                    .pickerStyle(.segmented).labelsHidden().fixedSize()
+                    .disabled(updater.isInstalling)
+                }
             }
         }
-        .padding(.vertical, 12)
     }
 
     @ViewBuilder
@@ -583,24 +491,36 @@ private struct UpdateSettingsCard: View {
                         ? L("Redémarrer et installer", "Restart and install")
                         : L("Installer le moteur", "Install engine"), systemImage: "arrow.clockwise"
                 )
-                .font(.system(size: 13, weight: .bold))
-                .padding(.horizontal, 13)
-                .frame(height: 34)
             }
-            .buttonStyle(PrimaryGlassButtonStyle())
+            .buttonStyle(.studio(.primary))
             .disabled(!canInstall)
         } else if updater.isBusy {
             ProgressView()
                 .controlSize(.small)
-                .frame(width: 34, height: 34)
+                .frame(width: 30, height: 30)
         } else {
-            Button(action: updater.checkForUpdates) {
-                Text(L("Rechercher", "Search"))
-                    .font(.system(size: 13, weight: .bold))
-                    .padding(.horizontal, 15)
-                    .frame(height: 34)
-            }
-            .buttonStyle(GlassPillButtonStyle())
+            Button(L("Rechercher", "Search"), action: updater.checkForUpdates)
+                .buttonStyle(.studio)
+        }
+    }
+
+    @ViewBuilder
+    private var stateIcon: some View {
+        switch updater.state {
+        case .checking, .downloading, .installing:
+            ProgressView().controlSize(.small)
+        case .ready:
+            Image(systemName: "arrow.down.circle.fill")
+                .foregroundStyle(StudioTheme.ink)
+        case .failed:
+            Image(systemName: "exclamationmark.triangle.fill")
+                .foregroundStyle(StudioTheme.warning)
+        case .upToDate:
+            Image(systemName: "checkmark.seal.fill")
+                .foregroundStyle(StudioTheme.success)
+        case .idle:
+            Image(systemName: "arrow.triangle.2.circlepath")
+                .foregroundStyle(StudioTheme.secondary)
         }
     }
 
@@ -620,26 +540,6 @@ private struct UpdateSettingsCard: View {
                 "Engine \(release.version) verified and ready to install.")
         case .installing: L("Validation et activation du moteur…", "Validating and activating engine…")
         case .failed(let message): message
-        }
-    }
-
-    @ViewBuilder
-    private var stateIcon: some View {
-        switch updater.state {
-        case .checking, .downloading, .installing:
-            ProgressView().controlSize(.small)
-        case .ready:
-            Image(systemName: "arrow.down.circle.fill")
-                .foregroundStyle(StudioTheme.accent)
-        case .failed:
-            Image(systemName: "exclamationmark.triangle.fill")
-                .foregroundStyle(Color.orange.opacity(0.9))
-        case .upToDate:
-            Image(systemName: "checkmark.seal.fill")
-                .foregroundStyle(Color(red: 0.42, green: 1.0, blue: 0.69))
-        case .idle:
-            Image(systemName: "circle.dotted")
-                .foregroundStyle(StudioTheme.quiet)
         }
     }
 

@@ -13,33 +13,30 @@ struct ImageGenerationView: View {
 
     var body: some View {
         HStack(spacing: 0) {
-            VStack(alignment: .leading, spacing: 0) {
-                StudioSidebarHeader(title: L("Images", "Images"))
+            StudioPageSidebar(title: L("Images", "Images"), onBack: close) {
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 22) {
+                    VStack(alignment: .leading, spacing: 20) {
                         modelPicker
-                        Divider()
+                        Rectangle().fill(StudioTheme.edge).frame(height: 0.5).accessibilityHidden(true)
                         settings
                     }
-                    .padding(.horizontal, 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 18).padding(.bottom, 12)
                 }
-                StudioBackButton(action: close)
-                    .padding(.horizontal, 18).padding(.vertical, 16)
+                .scrollIndicators(.hidden)
             }
-            .frame(width: studio.sidebarWidth.points)
-            .modifier(StudioSidebarSurface())
 
             VStack(alignment: .leading, spacing: 16) {
-                Text(L("Générer une image", "Generate an image"))
-                    .font(StudioTheme.display(39)).tracking(StudioTheme.displayTracking(-1.2))
-                    .accessibilityAddTraits(.isHeader)
+                StudioPageHeader(title: L("Générer une image", "Generate an image"),
+                                 detail: L("Qwen-Image-2.1, entièrement sur ce Mac.", "Qwen-Image-2.1, entirely on this Mac."))
                 preview
                 composer
             }
-            .padding(.horizontal, 28).padding(.top, 38).padding(.bottom, 24)
+            .padding(.horizontal, 32).padding(.top, 40).padding(.bottom, 24)
             .frame(maxWidth: 960)
             .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
+        .font(.system(size: 13))
         .foregroundStyle(StudioTheme.ink)
         .background { StudioAurora(animated: false).background(StudioTheme.canvas) }
         .onExitCommand(perform: close)
@@ -48,11 +45,11 @@ struct ImageGenerationView: View {
 
     private var modelPicker: some View {
         VStack(alignment: .leading, spacing: 8) {
-            StudioCaption(french: "Modèle", english: "Model")
-            Text("Qwen-Image-2.1").font(.headline)
+            Text(L("Modèle", "Model")).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
+            Text("Qwen-Image-2.1").font(.system(size: 14, weight: .semibold))
             Text(modelPath.isEmpty ? L("Choisis le dossier EXL3 pour commencer.", "Choose the EXL3 folder to start.")
                  : URL(fileURLWithPath: modelPath).lastPathComponent)
-                .font(.callout).foregroundStyle(StudioTheme.secondary)
+                .font(.system(size: 12)).foregroundStyle(modelPath.isEmpty ? StudioTheme.warning : StudioTheme.secondary)
                 .lineLimit(2).truncationMode(.middle).help(modelPath)
             Button {
                 let panel = NSOpenPanel()
@@ -61,34 +58,33 @@ struct ImageGenerationView: View {
                 if panel.runModal() == .OK, let url = panel.url { modelPath = url.path }
             } label: {
                 Label(modelPath.isEmpty ? L("Choisir le dossier…", "Choose folder…") : L("Changer de dossier…", "Change folder…"),
-                      systemImage: "folder").padding(.horizontal, 10).frame(height: 30)
+                      systemImage: "folder")
             }
-            .buttonStyle(StudioToolbarStyle()).disabled(engine.running)
+            .buttonStyle(.studio(modelPath.isEmpty ? .primary : .secondary)).disabled(engine.running)
             .accessibilityIdentifier("images.model")
         }
     }
 
     private var settings: some View {
         VStack(alignment: .leading, spacing: 10) {
-            StudioCaption(french: "Réglages", english: "Settings")
-            Text(L("Taille de l’image", "Image size")).font(.callout)
+            Text(L("Réglages", "Settings")).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
+            Text(L("Taille de l’image (px)", "Image size (px)")).font(.system(size: 12.5))
+            // Bare numbers: three "… px" segments are wider than a narrow sidebar.
             Picker(L("Taille de l’image", "Image size"), selection: $engine.size) {
-                ForEach([512, 768, 1024], id: \.self) { Text("\($0) px").tag($0) }
+                ForEach([512, 768, 1024], id: \.self) { Text(String($0)).tag($0) }
             }
             .pickerStyle(.segmented).labelsHidden()
             Stepper(value: $engine.steps, in: 2...50) {
-                Text(L("\(engine.steps) étapes", "\(engine.steps) steps")).monospacedDigit()
+                Text(L("\(engine.steps) étapes", "\(engine.steps) steps")).font(.system(size: 12.5)).monospacedDigit()
             }
             .padding(.vertical, 4)
-            Text(L("Graine", "Seed")).font(.callout)
-            HStack {
+            Text(L("Graine", "Seed")).font(.system(size: 12.5))
+            HStack(spacing: 6) {
                 TextField(L("Graine", "Seed"), value: $engine.seed, format: .number.grouping(.never))
-                    .monospacedDigit()
-                Button { engine.seed = .random(in: 0...UInt32.max) } label: {
-                    Image(systemName: "dice").frame(width: 28, height: 26)
+                    .studioField(monospaced: true)
+                StudioIconButton(icon: "dice", label: L("Nouvelle graine", "New seed")) {
+                    engine.seed = .random(in: 0...UInt32.max)
                 }
-                .buttonStyle(StudioControlStyle()).accessibilityLabel(L("Nouvelle graine", "New seed"))
-                .help(L("Nouvelle graine", "New seed"))
             }
         }
         .disabled(engine.running)
@@ -99,19 +95,19 @@ struct ImageGenerationView: View {
             HStack {
                 Text(engine.running ? L("Génération en cours", "Generating")
                      : engine.result == nil ? L("Exemple du modèle", "Model example") : L("Image générée", "Generated image"))
-                    .font(.callout.weight(.medium)).foregroundStyle(StudioTheme.secondary)
+                    .font(.system(size: 12.5, weight: .medium)).foregroundStyle(StudioTheme.secondary)
                 Spacer()
                 if let url = engine.result {
                     Button { NSWorkspace.shared.activateFileViewerSelecting([url]) } label: {
                         Label(L("Afficher le PNG", "Show PNG"), systemImage: "folder")
-                    }.buttonStyle(.link)
+                    }.buttonStyle(.studio(.secondary, height: 26))
                 }
             }
             ZStack {
                 if engine.running {
                     VStack(spacing: 12) {
                         ProgressView().controlSize(.small)
-                        Text(engine.status).font(.callout)
+                        Text(engine.status).font(.system(size: 12.5)).foregroundStyle(StudioTheme.secondary)
                     }
                 } else if let image = engine.result == nil ? Self.example : previewImage {
                     Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
@@ -124,8 +120,8 @@ struct ImageGenerationView: View {
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
             .background(StudioTheme.panel)
-            .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(StudioTheme.edge) }
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay { RoundedRectangle(cornerRadius: 12, style: .continuous).strokeBorder(StudioTheme.edge.opacity(0.7), lineWidth: 0.5) }
         }
         .frame(maxHeight: .infinity)
     }
@@ -134,20 +130,20 @@ struct ImageGenerationView: View {
         VStack(alignment: .leading, spacing: 8) {
             TextField(L("Décris l’image à générer…", "Describe the image to generate…"),
                       text: $engine.prompt, axis: .vertical)
-                .textFieldStyle(.plain).lineLimit(2...4).disabled(engine.running)
+                .textFieldStyle(.plain).font(.system(size: 14)).lineLimit(2...4).disabled(engine.running)
                 .accessibilityIdentifier("images.prompt")
             if let error = engine.error {
-                Text(error).font(.callout).foregroundStyle(StudioTheme.failure)
+                Text(error).font(.system(size: 12.5)).foregroundStyle(StudioTheme.failure)
                     .textSelection(.enabled).lineLimit(3).help(error)
             } else if !engine.running && !engine.status.isEmpty {
-                Text(engine.status).font(.callout).foregroundStyle(StudioTheme.secondary)
+                Text(engine.status).font(.system(size: 12.5)).foregroundStyle(StudioTheme.secondary)
             }
             HStack(spacing: 12) {
                 Text(L("Premier lancement : environ 5 Go à télécharger.", "First use downloads about 5 GB."))
-                    .font(.caption).foregroundStyle(StudioTheme.quiet)
+                    .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                 Spacer()
                 if engine.running {
-                    Button(L("Annuler", "Cancel"), action: engine.cancel)
+                    Button(L("Annuler", "Cancel"), action: engine.cancel).buttonStyle(.studio)
                 } else {
                     Button {
                         engine.start(model: URL(fileURLWithPath: modelPath), prompt: engine.prompt,
@@ -155,14 +151,15 @@ struct ImageGenerationView: View {
                     } label: {
                         Label(L("Générer", "Generate"), systemImage: "wand.and.stars")
                     }
-                    .buttonStyle(.borderedProminent).keyboardShortcut(.return, modifiers: .command)
+                    .buttonStyle(.studio(.primary)).keyboardShortcut(.return, modifiers: .command)
+                    .help(L("Générer · ⌘↩", "Generate · ⌘↩"))
                     .disabled(modelPath.isEmpty || engine.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("images.generate")
                 }
             }
         }
         .padding(14)
-        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 12))
-        .overlay { RoundedRectangle(cornerRadius: 12).strokeBorder(StudioTheme.edge).allowsHitTesting(false) }
+        .background(StudioTheme.composer.opacity(0.9), in: RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay { RoundedRectangle(cornerRadius: 14, style: .continuous).strokeBorder(StudioTheme.edge, lineWidth: 0.5).allowsHitTesting(false) }
     }
 }

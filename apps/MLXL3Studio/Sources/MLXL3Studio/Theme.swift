@@ -407,31 +407,51 @@ struct StudioToolbarStyle: ButtonStyle {
     }
 }
 
+/// Back as the sidebar's bottom row, where the main sidebar keeps the button that opened
+/// the page: the pointer is already there. Escape does the same.
 struct StudioBackButton: View {
     let action: () -> Void
 
     var body: some View {
         Button(action: action) {
-            Label(L("Retour", "Back"), systemImage: "arrow.left")
-                .font(.system(size: 13, weight: .medium))
-                .padding(.horizontal, 12).frame(height: 36)
+            HStack(spacing: 9) {
+                Image(systemName: "chevron.left")
+                    .font(.system(size: 12, weight: .semibold))
+                    .frame(width: 18)
+                    .foregroundStyle(StudioTheme.quiet)
+                Text(L("Retour", "Back"))
+                    .font(.system(size: 13))
+                    .foregroundStyle(StudioTheme.secondary)
+                Spacer(minLength: 4)
+                Text("esc")
+                    .font(.system(size: 11))
+                    .foregroundStyle(StudioTheme.quiet)
+                    .accessibilityHidden(true)
+            }
+            .padding(.leading, 9).padding(.trailing, StudioPageMetrics.content)
+            .frame(height: 30)
+            .contentShape(Rectangle())
         }
-        .buttonStyle(StudioToolbarStyle())
+        .buttonStyle(StudioRowStyle())
         .keyboardShortcut(.cancelAction)
         .help(L("Revenir à l’écran précédent · Échap", "Return to the previous screen · Escape"))
+        .accessibilityLabel(L("Retour", "Back"))
     }
 }
 
+/// A page's name at the top of its sidebar, on the main sidebar's left edge (x = 18).
 struct StudioSidebarHeader: View {
     @Environment(\.studioStyle) private var style
     let title: String
     var body: some View {
         let graphite = style.isGraphite
         HStack(spacing: 8) {
-            MonogramMark(size: graphite ? 26 : 35)
+            MonogramMark(size: graphite ? 24 : 32)
             Text(title).font(.system(size: graphite ? 15 : 17, weight: .semibold)).tracking(graphite ? -0.2 : -0.5)
+                .lineLimit(1)
+                .accessibilityAddTraits(.isHeader)
         }
-        .padding(.horizontal, graphite ? 20 : 18).padding(.top, graphite ? 40 : 37).padding(.bottom, 20)
+        .padding(.horizontal, 17).padding(.top, graphite ? 42 : 38).padding(.bottom, 16)
     }
 }
 
@@ -440,12 +460,6 @@ struct StudioPanelHeader: View {
     let detail: String
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 7) {
-            Text(title).font(StudioTheme.display(39)).tracking(StudioTheme.displayTracking(-1.2))
-                .accessibilityAddTraits(.isHeader)
-            Text(detail).font(.system(size: 14)).foregroundStyle(StudioTheme.secondary)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        StudioPageHeader(title: title, detail: detail)
     }
 }
