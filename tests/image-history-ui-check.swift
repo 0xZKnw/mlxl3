@@ -37,8 +37,12 @@ struct ImageHistoryInterfaceCheck {
         let studio = StudioModel(conversationFileURL: temporary.appendingPathComponent("chat"), isPreview: true, preferences: preferences)
         studio.setLanguage(.en)
         studio.setStyle(.graphite)
+        let fixtures = try StudioImageFixtures(root: temporary)
         let engine = ImageGeneration(supported: true, historyDirectory: images, preferences: preferences,
-                                     installedTurboDirectory: temporary.appendingPathComponent("Missing Turbo"))
+                                     catalog: fixtures.catalog, download: { files, destination, progress in
+            await progress(1, files.reduce(0) { $0 + $1.size })
+            try StudioImageFixtures.publish(files, at: destination)
+        })
         let host = NSHostingView(rootView: ImageGenerationView(engine: engine, close: {}).environmentObject(studio)
             .defaultAppStorage(preferences).preferredColorScheme(.dark))
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1120, height: 760),
@@ -61,7 +65,7 @@ struct ImageHistoryInterfaceCheck {
             ocr.setComputeDevice(cpu, for: stage)
         }
         var frame = 0
-        func words() async throws -> [Word] {
+        func words(snapshot: String? = nil) async throws -> [Word] {
             try await Task.sleep(for: .milliseconds(180))
             host.layoutSubtreeIfNeeded()
             guard let bitmap = host.bitmapImageRepForCachingDisplay(in: host.bounds) else {
@@ -74,7 +78,7 @@ struct ImageHistoryInterfaceCheck {
                 frame += 1
                 try fileManager.createDirectory(atPath: folder, withIntermediateDirectories: true)
                 try bitmap.representation(using: .png, properties: [:])?.write(
-                    to: URL(fileURLWithPath: folder).appendingPathComponent("image-history-\(frame).png"))
+                    to: URL(fileURLWithPath: folder).appendingPathComponent(snapshot ?? "image-history-\(frame).png"))
             }
             try VNImageRequestHandler(cgImage: image).perform([ocr])
             return (ocr.results ?? []).compactMap { item in
@@ -110,12 +114,24 @@ struct ImageHistoryInterfaceCheck {
             }
             return nil
         }
-        try expect(["base", "turbo"], in: await words())
+        let missing = try await words()
+        try expect(["base", "turbo", "recommended", "8 steps", "download"], in: missing)
+        guard engine.variant == .turbo && engine.modelDirectory == nil else { throw HistoryUIError(message: "First launch must offer Turbo") }
+        try click("download", in: missing.filter { $0.box.midX < 0.25 })
+        let deadline = ContinuousClock.now.advanced(by: .seconds(4))
+        while engine.modelDirectory == nil && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(20)) }
+        try expect(["installed on this mac"], in: await words())
+        guard engine.modelDirectory == fixtures.catalog.destination(for: .turbo) else { throw HistoryUIError(message: "Download button did not install Turbo") }
+        studio.setLanguage(.fr)
+        ocr.recognitionLanguages = ["fr-FR"]
+        try expect(["installé sur ce mac"], in: await words(snapshot: "studio-image-turbo-installed-fr.png"))
+        studio.setLanguage(.en)
+        ocr.recognitionLanguages = ["en-US"]
         guard let picker = variantPicker(in: host) else { throw HistoryUIError(message: "Missing image model picker") }
         picker.selectedSegment = 1
         guard picker.sendAction(picker.action, to: picker.target) else { throw HistoryUIError(message: "Image picker has no action") }
-        try expect(["8 fixed steps"], in: await words())
-        guard engine.variant == .turbo && engine.steps == 8 else { throw HistoryUIError(message: "Turbo picker failed") }
+        try expect(["2 to 50", "recreate a base", "download"], in: await words())
+        guard engine.variant == .base && engine.steps == 40 else { throw HistoryUIError(message: "Base picker failed") }
         try click("history", in: await words())
         try expect(["image history", "no images"], in: await words())
         let sample = temporary.appendingPathComponent("worker.png")
@@ -158,7 +174,7 @@ struct ImageHistoryInterfaceCheck {
         try click("a mint bicycle", in: await words())
         try expect(["variant", "turbo", "492"], in: await words())
         try click("reuse settings", in: await words())
-        try expect(["8 fixed steps"], in: await words())
+        try expect(["8 steps", "installed on this mac"], in: await words())
         guard engine.variant == .turbo && engine.prompt == "A mint bicycle" && engine.steps == 8 && engine.seed == 492
               && !engine.running && fileManager.fileExists(atPath: fast.fileURL.path) else {
             throw HistoryUIError(message: "Reusing Turbo must select its eight-step generator")

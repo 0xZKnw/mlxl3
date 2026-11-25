@@ -1,8 +1,17 @@
 # Generate an image on Apple M5
 
-In MLXL3 Studio, open **Image** in the sidebar. Choose **Base** or **Turbo**,
-describe the image, then click **Generate**. Studio remembers a separate local
-model folder for each variant.
+Open **Image** in the sidebar. Studio proposes **Turbo** on your first visit
+and remembers your choice afterwards. Turbo generates an image in eight steps.
+Choose **Base** if you want to adjust the step count or reproduce an earlier
+Base image using its saved settings.
+
+If the selected model is already installed, enter a prompt and click **Generate**.
+If it is missing, the download button shows the size of the selected model.
+You can cancel a transfer and resume it later, even after restarting Studio.
+Studio verifies the files it downloads and reuses completed files on the next attempt.
+You can also choose an existing folder on your Mac. Each variant remembers its
+own location. Downloads go in `~/Library/Application Support/io.mlxl3.desktop/ImageModels/`.
+
 The preview labels the bundled example until you generate your own image. **Back**
 returns to the previous screen. You can reopen Images to resume your draft, follow an
 active generation or reveal the finished PNG. **Cancel** stops an active generation.
@@ -24,10 +33,8 @@ Both variants share this local auxiliary snapshot and the Python environment.
 - **Base** uses the folder containing `manifest.json` and the 33 shards of the
   [3.56 GB Base conversion](https://huggingface.co/Henk0o/mlxl3-image21-exl3-4bpw).
 - **Turbo** loads the [published EXL3 4-bit weights](https://huggingface.co/jyohukuchan/Qwen-Image-2.1-Turbo-EXL3/tree/f362145b8e8ebc88d6639c445eb9f31beab7c0b4/4bit)
-  directly on Metal. Select the folder containing `quantization.json` and the
-  225 safetensors files (3.77 GB). Studio also detects them in
-  `~/Library/Application Support/io.mlxl3.desktop/ImageModels/Qwen-Image-2.1-Turbo-EXL3-4bit/`.
-  Keep the accompanying license and notice with the weights.
+  directly on Metal. To use a copy you installed manually, choose the folder
+  containing `quantization.json` and the 225 safetensors files (3.77 GB).
 
 Studio verifies the denoiser file hashes before generation.
 Generation uses the [MFLUX image pipeline](https://github.com/mflux-community/mflux/tree/d39c9639e6ac22407a725432cc221a83fab19f1b/src/mflux/models/qwen21).

@@ -142,7 +142,7 @@ struct ImageHistoryView: View {
                     } label: {
                         Label(L("Réutiliser les réglages", "Reuse settings"), systemImage: "arrow.counterclockwise")
                     }
-                    .buttonStyle(.studio(.primary)).disabled(engine.running)
+                    .buttonStyle(.studio(.primary)).disabled(engine.running || engine.isDownloading)
                     .accessibilityIdentifier("images.history.reuse")
                 }
                 Button { NSWorkspace.shared.activateFileViewerSelecting([item.fileURL]) } label: {

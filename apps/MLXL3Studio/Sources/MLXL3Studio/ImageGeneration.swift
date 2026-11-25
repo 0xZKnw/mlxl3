@@ -19,17 +19,34 @@ enum Image21Hardware {
     }
 }
 
+enum ImageModelAvailability: Equatable {
+    case checking
+    case missing(Int64)
+    case installed(URL)
+    case downloading(completed: Int64, total: Int64)
+    case paused(Int64)
+    case failed(String, Int64)
+}
+
 @MainActor
 final class ImageGeneration: ObservableObject {
-    static let installedTurboDirectory = URL.applicationSupportDirectory
-        .appendingPathComponent("io.mlxl3.desktop/ImageModels/Qwen-Image-2.1-Turbo-EXL3-4bit", isDirectory: true)
+    typealias Transfer = @Sendable ([ImageModelDownloadFile], URL, @escaping @Sendable (Int64, Int64) async -> Void) async throws -> Void
 
     @Published var prompt = ""
     @Published var size = 512
     @Published var baseSteps = 40
     var steps: Int { variant == .turbo ? 8 : baseSteps }
     @Published private(set) var variant: Image21Variant
-    @Published private(set) var modelDirectory: URL?
+    @Published private(set) var modelAvailability: ImageModelAvailability = .checking
+    @Published private(set) var folderError: String?
+    var modelDirectory: URL? {
+        if case let .installed(url) = modelAvailability { return url }
+        return nil
+    }
+    var isDownloading: Bool {
+        if case .downloading = modelAvailability { return true }
+        return false
+    }
     @Published var seed = UInt32.random(in: 0...UInt32.max)
     @Published private(set) var running = false
     @Published private(set) var status = ""
@@ -47,47 +64,135 @@ final class ImageGeneration: ObservableObject {
     private let supported: Bool
     private let worker: (launcher: URL, script: URL)?
     private let preferences: UserDefaults
-    private let installedTurboDirectory: URL
+    private let catalog: ImageModelCatalog
+    private let download: Transfer
+    private var downloadTask: Task<Void, Never>?
+    private var modelLookup = UUID()
 
     init(supported: Bool = Image21Hardware.available, historyDirectory: URL = GeneratedImageHistory.defaultDirectory,
          worker: (launcher: URL, script: URL)? = nil, preferences: UserDefaults = .standard,
-         installedTurboDirectory: URL = ImageGeneration.installedTurboDirectory) {
+         catalog: ImageModelCatalog = ImageModelCatalog(),
+         download: @escaping Transfer = { files, destination, progress in
+             try await ImageModelDownload().install(files: files, to: destination, progress: progress)
+         }) {
         self.supported = supported
         self.historyStore = GeneratedImageHistory(directory: historyDirectory)
         self.worker = worker
         self.preferences = preferences
-        self.installedTurboDirectory = installedTurboDirectory
-        variant = preferences.string(forKey: "image21Variant").flatMap(Image21Variant.init(rawValue:)) ?? .base
-        refreshModelDirectory()
+        self.catalog = catalog
+        self.download = download
+        variant = preferences.string(forKey: "image21Variant").flatMap(Image21Variant.init(rawValue:)) ?? .turbo
     }
 
     private var folderKey: String { variant == .base ? "image21ModelDirectory" : "image21TurboModelDirectory" }
 
-    func refreshModelDirectory() {
-        if let path = preferences.string(forKey: folderKey), !path.isEmpty {
-            modelDirectory = URL(fileURLWithPath: path, isDirectory: true)
-        } else if variant == .turbo && FileManager.default.fileExists(atPath: installedTurboDirectory.appendingPathComponent("quantization.json").path) {
-            modelDirectory = installedTurboDirectory
-        } else {
-            modelDirectory = nil
+    private var preferredFolder: URL? {
+        guard let path = preferences.string(forKey: folderKey), !path.isEmpty else { return nil }
+        return URL(fileURLWithPath: path, isDirectory: true)
+    }
+
+    func refreshModelDirectory() async {
+        guard !isDownloading else { return }
+        let request = UUID()
+        modelLookup = request
+        let previous = modelAvailability
+        let preferred = preferredFolder
+        let selection = variant
+        do {
+            let (directory, bytes, partial) = try await Task.detached(priority: .userInitiated) { [catalog] in
+                let package = try catalog.package(for: selection)
+                let directory = catalog.installedDirectory(for: selection, preferred: preferred)
+                return (directory, package.totalBytes, directory == nil && catalog.hasPartialDownload(for: selection))
+            }.value
+            guard request == modelLookup else { return }
+            if let directory { modelAvailability = .installed(directory) }
+            else if case .paused = previous { modelAvailability = .paused(bytes) }
+            else if case let .failed(message, _) = previous { modelAvailability = .failed(message, bytes) }
+            else { modelAvailability = partial ? .paused(bytes) : .missing(bytes) }
+        } catch {
+            if request == modelLookup { modelAvailability = .failed(error.localizedDescription, 0) }
         }
     }
 
     func selectVariant(_ selection: Image21Variant) {
-        guard !running, selection != variant else { return }
+        guard !running, !isDownloading, selection != variant else { return }
         variant = selection
         preferences.set(selection.rawValue, forKey: "image21Variant")
-        refreshModelDirectory()
+        modelLookup = UUID()
+        modelAvailability = .checking
+        folderError = nil
         error = nil
         status = ""
     }
 
-    func selectModelDirectory(_ directory: URL) {
-        guard !running else { return }
-        preferences.set(directory.path, forKey: folderKey)
-        modelDirectory = directory
-        error = nil
+    func selectModelDirectory(_ directory: URL) async {
+        guard !running, !isDownloading, modelAvailability != .checking else { return }
+        let request = UUID()
+        modelLookup = request
+        let selection = variant
+        do {
+            let installed = try await Task.detached(priority: .userInitiated) { [catalog] in
+                try catalog.package(for: selection).installedFolder(in: directory)
+            }.value
+            guard request == modelLookup else { return }
+            guard let installed else {
+                folderError = L("Choisis le dossier complet de la version sélectionnée.",
+                                "Choose the complete folder for the selected variant.")
+                return
+            }
+            preferences.set(installed.path, forKey: folderKey)
+            modelAvailability = .installed(installed)
+            folderError = nil
+            error = nil
+        } catch {
+            if request == modelLookup { folderError = error.localizedDescription }
+        }
     }
+
+    func downloadModel() {
+        guard !running, !isDownloading, modelDirectory == nil, modelAvailability != .checking else { return }
+        guard supported else {
+            modelAvailability = .failed(Image21Hardware.requirement, 0)
+            return
+        }
+        let selection = variant
+        let preferred = preferredFolder
+        modelLookup = UUID()
+        folderError = nil
+        modelAvailability = .downloading(completed: 0, total: 0)
+        downloadTask = Task {
+            var total: Int64 = 0
+            defer { downloadTask = nil }
+            do {
+                let (package, installed) = try await Task.detached(priority: .utility) { [catalog] in
+                    let package = try catalog.package(for: selection)
+                    return (package, catalog.installedDirectory(for: selection, preferred: preferred))
+                }.value
+                total = package.totalBytes
+                if let installed {
+                    modelAvailability = .installed(installed)
+                    return
+                }
+                try Task.checkCancellation()
+                let destination = catalog.destination(for: selection)
+                modelAvailability = .downloading(completed: 0, total: total)
+                try await download(package.files, destination) { completed, expected in
+                    await self.updateDownload(completed, expected)
+                }
+                let complete = await Task.detached(priority: .utility) { package.isInstalled(at: destination) }.value
+                guard complete else { throw failure(L("Le modèle téléchargé est incomplet.", "The downloaded model is incomplete.")) }
+                modelAvailability = .installed(destination)
+            } catch {
+                modelAvailability = Task.isCancelled ? .paused(total) : .failed(error.localizedDescription, total)
+            }
+        }
+    }
+
+    private func updateDownload(_ completed: Int64, _ total: Int64) {
+        if isDownloading { modelAvailability = .downloading(completed: completed, total: total) }
+    }
+
+    func cancelModelDownload() { downloadTask?.cancel() }
 
     func refreshHistory() async {
         let request = UUID()
@@ -112,7 +217,7 @@ final class ImageGeneration: ObservableObject {
     }
 
     func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32) {
-        guard !running else { return }
+        guard !running, !isDownloading else { return }
         let variant = self.variant
         running = true
         result = nil

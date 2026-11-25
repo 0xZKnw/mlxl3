@@ -2,6 +2,90 @@ import Foundation
 
 @main
 struct ImageGenerationCheck {
+    actor TestTransfer {
+        private(set) var attempts = 0
+
+        func install(files: [ImageModelDownloadFile], at destination: URL,
+                     progress: @escaping @Sendable (Int64, Int64) async -> Void) async throws {
+            attempts += 1
+            let total = files.reduce(Int64(0)) { $0 + $1.size }
+            await progress(1, total)
+            let stage = destination.deletingLastPathComponent().appendingPathComponent("." + destination.lastPathComponent + ".partial")
+            switch attempts {
+            case 1:
+                try StudioImageFixtures.publish([files[0]], at: stage)
+                try await Task.sleep(for: .seconds(10))
+            case 2: throw URLError(.cannotConnectToHost)
+            default:
+                try StudioImageFixtures.publish(files, at: destination)
+                if FileManager.default.fileExists(atPath: stage.path) { try FileManager.default.removeItem(at: stage) }
+            }
+        }
+    }
+
+    @MainActor static func checkDownloads(root: URL) async throws {
+        let fixtures = try StudioImageFixtures(root: root.appendingPathComponent("downloads"))
+        let suite = "mlxl3.image-downloads." + UUID().uuidString
+        let prefs = UserDefaults(suiteName: suite)!
+        defer { prefs.removePersistentDomain(forName: suite) }
+        let transport = TestTransfer()
+        let engine = ImageGeneration(supported: true, preferences: prefs, catalog: fixtures.catalog,
+                                     download: { try await transport.install(files: $0, at: $1, progress: $2) })
+        let turbo = try fixtures.catalog.package(for: .turbo)
+        let base = try fixtures.catalog.package(for: .base)
+        let customBase = root.appendingPathComponent("legacy base", isDirectory: true)
+        try StudioImageFixtures.publish(base.files, at: customBase)
+        prefs.set(customBase.path, forKey: "image21ModelDirectory")
+        func wait(for predicate: () -> Bool) async throws {
+            let deadline = ContinuousClock.now.advanced(by: .seconds(4))
+            while !predicate() && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(10)) }
+            precondition(predicate(), "Download state timed out")
+        }
+        await engine.refreshModelDirectory()
+        precondition(engine.variant == .turbo && engine.steps == 8 && engine.modelAvailability == .missing(turbo.totalBytes))
+        engine.downloadModel()
+        engine.downloadModel()
+        try await wait { engine.modelAvailability == .downloading(completed: 1, total: turbo.totalBytes) }
+        engine.selectVariant(.base)
+        precondition(engine.variant == .turbo && engine.modelDirectory == nil)
+        engine.cancelModelDownload()
+        try await wait { engine.modelAvailability == .paused(turbo.totalBytes) }
+        let reopened = ImageGeneration(supported: true, preferences: prefs, catalog: fixtures.catalog)
+        await reopened.refreshModelDirectory()
+        precondition(reopened.modelAvailability == .paused(turbo.totalBytes), "The next launch must offer to resume verified files")
+        engine.selectVariant(.base)
+        await engine.refreshModelDirectory()
+        engine.selectVariant(.turbo)
+        await engine.refreshModelDirectory()
+        precondition(engine.modelAvailability == .paused(turbo.totalBytes))
+        let attemptsAfterDiscovery = await transport.attempts
+        precondition(attemptsAfterDiscovery == 1, "Reopening or switching a paused download must not start a transfer")
+        engine.downloadModel()
+        try await wait { if case .failed = engine.modelAvailability { true } else { false } }
+        engine.downloadModel()
+        let managed = fixtures.catalog.destination(for: .turbo)
+        try await wait { engine.modelDirectory == managed }
+        engine.downloadModel()
+        engine.selectVariant(.base)
+        await engine.refreshModelDirectory()
+        precondition(engine.modelDirectory?.path == customBase.path)
+        engine.downloadModel()
+        let calls = await transport.attempts
+        precondition(calls == 3, "Only cancellation, failure, and the successful retry reach the transport")
+        precondition(!FileManager.default.fileExists(atPath: fixtures.catalog.destination(for: .base).path))
+        // Another process can finish installing between the discovery and the click.
+        engine.selectVariant(.turbo)
+        try FileManager.default.removeItem(at: managed)
+        await engine.refreshModelDirectory()
+        precondition(engine.modelDirectory == nil)
+        try StudioImageFixtures.publish(turbo.files, at: managed)
+        engine.downloadModel()
+        try await wait { engine.modelDirectory == managed }
+        let subsequentCalls = await transport.attempts
+        precondition(subsequentCalls == 3, "A model installed before the click must be adopted without any transfer")
+        print("Image downloads: Turbo default, legacy Base reuse, progress, duplicate click, cancel, retry and external completion checked")
+    }
+
     @MainActor static func checkHistory(root: URL) async throws {
         var assertions = 0
         func check(_ value: @autoclosure () -> Bool, _ message: String = "Image history invariant failed") {
@@ -12,7 +96,8 @@ struct ImageGenerationCheck {
         let images = root.appendingPathComponent("Generated Images")
         let model = root.appendingPathComponent("Qwen-Image-fixture")
         try fm.createDirectory(at: model, withIntermediateDirectories: true)
-        try Data("{}".utf8).write(to: model.appendingPathComponent("manifest.json"))
+        let fixtures = try StudioImageFixtures(root: root)
+        try StudioImageFixtures.publish(fixtures.catalog.package(for: .base).files, at: model)
         let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
         let sample = try Data(contentsOf: repo.appendingPathComponent("docs/images/studio-image21-m5.png"))
         try sample.write(to: model.appendingPathComponent("sample.png"))
@@ -53,9 +138,10 @@ struct ImageGenerationCheck {
         let prefs = UserDefaults(suiteName: suite)!
         defer { prefs.removePersistentDomain(forName: suite) }
         prefs.set(model.path, forKey: "image21ModelDirectory")
-        let turbo = root.appendingPathComponent("Installed Turbo", isDirectory: true)
+        prefs.set("base", forKey: "image21Variant")
+        let turbo = fixtures.catalog.destination(for: .turbo)
         let engine = ImageGeneration(supported: true, historyDirectory: images, worker: (uv, renderer),
-                                     preferences: prefs, installedTurboDirectory: turbo)
+                                     preferences: prefs, catalog: fixtures.catalog)
         func wait(_ predicate: @MainActor () -> Bool) async throws {
             for _ in 0..<500 {
                 if predicate() { return }
@@ -63,6 +149,7 @@ struct ImageGenerationCheck {
             }
             preconditionFailure("Timed out waiting for the isolated image worker")
         }
+        await engine.refreshModelDirectory()
         await engine.refreshHistory()
         check(engine.variant == .base && engine.modelDirectory?.path == model.path && engine.steps == 40)
         check(engine.history.isEmpty && !engine.isLoadingHistory && engine.historyError == nil)
@@ -105,11 +192,12 @@ struct ImageGenerationCheck {
 
         engine.baseSteps = 31
         engine.selectVariant(.turbo)
+        await engine.refreshModelDirectory()
         check(engine.modelDirectory == nil && engine.steps == 8, "Turbo must not silently use the Base folder")
         try fm.createDirectory(at: turbo, withIntermediateDirectories: true)
-        try Data("{}".utf8).write(to: turbo.appendingPathComponent("quantization.json"))
+        try StudioImageFixtures.publish(fixtures.catalog.package(for: .turbo).files, at: turbo)
         try sample.write(to: turbo.appendingPathComponent("sample.png"))
-        engine.refreshModelDirectory()
+        await engine.refreshModelDirectory()
         check(engine.modelDirectory == turbo, "An installed Turbo folder is discovered without a picker")
         for wrongSteps in [1, 7, 9, 40, 51] {
             engine.start(model: turbo, prompt: "turbo", size: 512, steps: wrongSteps, seed: 123)
@@ -126,12 +214,20 @@ struct ImageGenerationCheck {
         guard let fast = engine.history.first else { preconditionFailure() }
         check(turboArgs == "turbo:8" && fast.variant == .turbo && fast.steps == 8 && engine.variant == .turbo)
         let custom = root.appendingPathComponent("My Turbo", isDirectory: true)
-        engine.selectModelDirectory(custom)
-        let restored = ImageGeneration(supported: false, historyDirectory: images, preferences: prefs, installedTurboDirectory: turbo)
-        check(restored.variant == .turbo && restored.modelDirectory == custom && restored.steps == 8)
+        await engine.selectModelDirectory(custom)
+        check(engine.modelDirectory == turbo && engine.folderError != nil, "An empty custom folder must not replace an installed model")
+        let flat = custom.appendingPathComponent("4bit", isDirectory: true)
+        try StudioImageFixtures.publish(fixtures.catalog.package(for: .turbo).files, at: flat)
+        await engine.selectModelDirectory(custom)
+        check(engine.modelDirectory == flat && prefs.string(forKey: "image21TurboModelDirectory") == flat.path,
+              "Selecting a snapshot parent must store its actual 4bit folder")
+        let restored = ImageGeneration(supported: false, historyDirectory: images, preferences: prefs, catalog: fixtures.catalog)
+        await restored.refreshModelDirectory()
+        check(restored.variant == .turbo && restored.modelDirectory == flat && restored.steps == 8)
         await restored.refreshHistory()
         check(restored.history.first == fast && restored.history.count == 3)
         engine.selectVariant(.base)
+        await engine.refreshModelDirectory()
         check(engine.steps == 31 && engine.modelDirectory?.path == model.path, "Switching back must restore Base settings")
         let store = GeneratedImageHistory(directory: images)
         do {
@@ -210,14 +306,18 @@ struct ImageGenerationCheck {
         for gpu in [nil, "Apple M1", "Apple M2 Pro", "Apple M3 Ultra", "Apple M4 Max", "Apple M50"] as [String?] {
             precondition(!Image21Hardware.supports(gpu: gpu, os: minimum, disabled: false))
         }
-        let engine = ImageGeneration(supported: true)
+        let suite = "mlxl3.image-errors." + UUID().uuidString
+        let preferences = UserDefaults(suiteName: suite)!
+        defer { preferences.removePersistentDomain(forName: suite) }
+        preferences.set("base", forKey: "image21Variant")
+        let engine = ImageGeneration(supported: true, preferences: preferences)
         let root = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
 
         for (supported, steps, message) in [(false, 40, Image21Hardware.requirement),
                                              (true, 1, "Choose between 2 and 50 steps.")] {
-            let rejected = ImageGeneration(supported: supported)
+            let rejected = ImageGeneration(supported: supported, preferences: preferences)
             rejected.start(model: root, prompt: "oak", size: 512, steps: steps, seed: 371)
             let deadline = ContinuousClock.now.advanced(by: .seconds(5))
             while rejected.running && ContinuousClock.now < deadline {
@@ -239,6 +339,7 @@ struct ImageGenerationCheck {
             precondition(!engine.running && engine.result == nil && engine.status.isEmpty)
             precondition(engine.error == "Choose the EXL3 folder containing manifest.json.")
         }
+        try await checkDownloads(root: root)
         try await checkHistory(root: root)
         print("Image generation: overlapping request, missing model and retry checked")
     }
