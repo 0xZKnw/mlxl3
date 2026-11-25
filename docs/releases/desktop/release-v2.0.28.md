@@ -28,7 +28,15 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Source and download
 
-ARTIFACTS_PLACEHOLDER
+- Source: [`0e62d4ea7`](https://github.com/0xZKnw/mlxl3/commit/0e62d4ea7) (tag `v2.0.28`).
+- `MLXL3-Desktop-v2.0.28-b81-Apple-Silicon.dmg`: 252,695,832 bytes, SHA-256 `86dc6ce28e752b750a777045db2ce5da9caf2081b5c32eb7e6a3aefe25ff4e9a`.
+- `MLXL3-Desktop-v2.0.28-b81-Apple-Silicon.dmg.sha256`: 110 bytes.
+- Bundled engine: MLXL3 engine 2.0.32 rebuilt from `0e62d4ea7` (Rust sources identical to `engine-v2.0.32`; the binary is not byte-identical to the published archive, its `runtime-info` carries this commit).
+- This DMG: `hdiutil verify` valid, `codesign --deep --strict` passed on the app, version 2.0.28 / build 81, `build-info` has commit `0e62d4ea7` with no tracked changes.
+
+## Known limit
+
+With **tools enabled in chat (MCP) or in Agent mode**, the engine decodes without the drafter, as before: DFlash2 applies to requests without tools.
 
 ## Acknowledgements
 
