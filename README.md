@@ -96,6 +96,14 @@ Image input is limited to **eight images / 8 MiB per conversation**, with at
 most 64 million source pixels per image. Text-only models cannot continue an
 image conversation. Documents and images can be attached together.
 
+### Images
+
+On a supported M5 Mac, open **Images → History** to browse the PNGs generated
+on this Mac, newest first. Select a thumbnail to see the image, its prompt,
+the model, the resolution, the step count and the seed. Older PNGs from Studio
+also appear. **Reuse settings** copies a saved prompt, size, step count and seed
+into the generator for another run. [View a saved generation on an M5](docs/images/studio-image-history.png).
+
 ### Agent
 
 Each task works in an isolated project copy. **Agent Studio** combines a file

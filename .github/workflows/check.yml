@@ -67,10 +67,10 @@ jobs:
       MLXL3_SKIP_METAL_CHECK: '1'
     steps:
       - uses: actions/checkout@v4
-      - name: Check image generation errors and retries
+      - name: Check image generation and persistent image history
         run: |
           source_dir=apps/MLXL3Studio/Sources/MLXL3Studio
-          MACOSX_DEPLOYMENT_TARGET=26.0 swiftc -swift-version 6 -parse-as-library -warnings-as-errors "$source_dir/Localization.swift" "$source_dir/ImageGeneration.swift" tests/image-generation-check.swift -o "$RUNNER_TEMP/image-generation-check"
+          MACOSX_DEPLOYMENT_TARGET=26.0 swiftc -swift-version 6 -parse-as-library -warnings-as-errors "$source_dir/Localization.swift" "$source_dir/GeneratedImageHistory.swift" "$source_dir/ImageGeneration.swift" tests/image-generation-check.swift -o "$RUNNER_TEMP/image-generation-check"
           "$RUNNER_TEMP/image-generation-check"
       - run: scripts/check-desktop.sh --preferences-only
 

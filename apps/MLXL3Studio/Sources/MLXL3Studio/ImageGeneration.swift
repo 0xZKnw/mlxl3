@@ -29,13 +29,45 @@ final class ImageGeneration: ObservableObject {
     @Published private(set) var status = ""
     @Published private(set) var result: URL?
     @Published private(set) var error: String?
+    @Published private(set) var history: [GeneratedImageRecord] = []
+    @Published private(set) var isLoadingHistory = false
+    @Published private(set) var historyError: String?
+    private let historyStore: GeneratedImageHistory
+    private var historyRevision = 0
+    private var historyReadID: UUID?
     private var task: Task<Void, Never>?
     private var process: Process?
 
     private let supported: Bool
+    private let worker: (launcher: URL, script: URL)?
 
-    init(supported: Bool = Image21Hardware.available) {
+    init(supported: Bool = Image21Hardware.available, historyDirectory: URL = GeneratedImageHistory.defaultDirectory,
+         worker: (launcher: URL, script: URL)? = nil) {
         self.supported = supported
+        self.historyStore = GeneratedImageHistory(directory: historyDirectory)
+        self.worker = worker
+    }
+
+    func refreshHistory() async {
+        let request = UUID()
+        historyReadID = request
+        isLoadingHistory = true
+        historyError = nil
+        defer { if historyReadID == request { isLoadingHistory = false } }
+        do {
+            while !Task.isCancelled && historyReadID == request {
+                let revision = historyRevision
+                let scan = Task.detached(priority: .utility) { [historyStore] in try historyStore.records() }
+                let records = try await withTaskCancellationHandler {
+                    try await scan.value
+                } onCancel: { scan.cancel() }
+                guard historyReadID == request, !Task.isCancelled else { return }
+                // An in-flight scan can predate an image that just finished.
+                if revision == historyRevision { history = records; return }
+            }
+        } catch {
+            if historyReadID == request && !Task.isCancelled { historyError = error.localizedDescription }
+        }
     }
 
     func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32) {
@@ -57,10 +89,10 @@ final class ImageGeneration: ObservableObject {
                 }
                 let home = fm.homeDirectoryForCurrentUser
                 let paths = [home.appendingPathComponent(".local/bin/uv").path, "/opt/homebrew/bin/uv", "/usr/local/bin/uv"]
-                guard let uv = paths.first(where: fm.isExecutableFile(atPath:)) else {
+                guard let uv = worker?.launcher ?? paths.first(where: fm.isExecutableFile(atPath:)).map({ URL(fileURLWithPath: $0) }) else {
                     throw failure(L("Installe uv pour préparer le moteur image (docs.astral.sh/uv).", "Install uv to set up the image engine (docs.astral.sh/uv)."))
                 }
-                guard let script = Bundle.main.url(forResource: "render", withExtension: "py", subdirectory: "Image21") else {
+                guard let script = worker?.script ?? Bundle.main.url(forResource: "render", withExtension: "py", subdirectory: "Image21") else {
                     throw failure(L("Le composant Image21 manque dans l’application.", "The Image21 component is missing from the app."))
                 }
                 let work = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -68,7 +100,7 @@ final class ImageGeneration: ObservableObject {
                 defer { try? fm.removeItem(at: work) }
                 let log = work.appendingPathComponent("worker.log")
                 let interpreter = work.appendingPathComponent("interpreter.txt")
-                try await run(URL(fileURLWithPath: uv),
+                try await run(uv,
                               ["run", "--no-project", "--python", "3.12", "--script", script.path, "--interpreter"],
                               log: log, stdout: interpreter, timeout: 1800)
                 let python = try String(contentsOf: interpreter, encoding: .utf8).trimmingCharacters(in: .whitespacesAndNewlines)
@@ -82,15 +114,12 @@ final class ImageGeneration: ObservableObject {
                                "--size", String(size), "--steps", String(steps), "--seed", String(seed), "--output", png.path],
                               log: log, stdout: log, timeout: 3600, steps: steps)
                 try Task.checkCancellation()
-                guard let image = NSBitmapImageRep(data: try Data(contentsOf: png)), image.pixelsWide == size, image.pixelsHigh == size else {
-                    throw failure(L("Le moteur a produit une image illisible.", "The engine returned an unreadable image."))
-                }
-                let directory = try fm.url(for: .applicationSupportDirectory, in: .userDomainMask, appropriateFor: nil, create: true)
-                    .appendingPathComponent("io.mlxl3.desktop/Generated Images", isDirectory: true)
-                try fm.createDirectory(at: directory, withIntermediateDirectories: true)
-                let destination = directory.appendingPathComponent("Image-\(seed)-\(UUID().uuidString).png")
-                try fm.moveItem(at: png, to: destination)
-                result = destination
+                let record = try historyStore.save(png: png, prompt: prompt, modelName: model.lastPathComponent,
+                                                   size: size, steps: steps, seed: seed)
+                historyRevision += 1
+                let position = history.firstIndex { GeneratedImageRecord.newestFirst(record, $0) } ?? history.endIndex
+                history.insert(record, at: position)
+                result = record.fileURL
                 status = ""
             } catch is CancellationError {
                 status = L("Génération annulée.", "Generation cancelled.")

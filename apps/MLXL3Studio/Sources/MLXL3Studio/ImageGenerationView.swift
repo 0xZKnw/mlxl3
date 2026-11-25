@@ -7,40 +7,67 @@ struct ImageGenerationView: View {
     let close: () -> Void
     @AppStorage("image21ModelDirectory") private var modelPath = ""
     @State private var previewImage: NSImage?
+    @State private var showsHistory = false
+    @State private var selectedImage: URL?
 
     private static let example = Bundle.main.url(forResource: "studio-image21-m5", withExtension: "png",
                                                   subdirectory: "Image21").flatMap(NSImage.init(contentsOf:))
 
     var body: some View {
         HStack(spacing: 0) {
-            StudioPageSidebar(title: L("Images", "Images"), onBack: close) {
-                ScrollView {
-                    VStack(alignment: .leading, spacing: 20) {
-                        modelPicker
-                        Rectangle().fill(StudioTheme.edge).frame(height: 0.5).accessibilityHidden(true)
-                        settings
-                    }
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.horizontal, 18).padding(.bottom, 12)
+            StudioPageSidebar(title: L("Images", "Images"), onBack: goBack) {
+                StudioNavList {
+                    navigation(L("Générer", "Generate"), icon: "wand.and.stars", history: false)
+                    navigation(L("Historique", "History"), icon: "clock", history: true)
                 }
-                .scrollIndicators(.hidden)
+                .padding(.bottom, 16)
+                if !showsHistory {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 20) {
+                            modelPicker
+                            Rectangle().fill(StudioTheme.edge).frame(height: 0.5).accessibilityHidden(true)
+                            settings
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 18).padding(.bottom, 12)
+                    }
+                    .scrollIndicators(.hidden)
+                }
             }
 
-            VStack(alignment: .leading, spacing: 16) {
-                StudioPageHeader(title: L("Générer une image", "Generate an image"),
-                                 detail: L("Qwen-Image-2.1, entièrement sur ce Mac.", "Qwen-Image-2.1, entirely on this Mac."))
-                preview
-                composer
+            if showsHistory {
+                ImageHistoryView(engine: engine, selection: $selectedImage) { showsHistory = false }
+            } else {
+                VStack(alignment: .leading, spacing: 16) {
+                    StudioPageHeader(title: L("Générer une image", "Generate an image"),
+                                     detail: L("Qwen-Image-2.1, entièrement sur ce Mac.", "Qwen-Image-2.1, entirely on this Mac."))
+                    preview
+                    composer
+                }
+                .padding(.horizontal, 32).padding(.top, 40).padding(.bottom, 24)
+                .frame(maxWidth: 960)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
-            .padding(.horizontal, 32).padding(.top, 40).padding(.bottom, 24)
-            .frame(maxWidth: 960)
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
         .font(.system(size: 13))
         .foregroundStyle(StudioTheme.ink)
         .background { StudioAurora(animated: false).background(StudioTheme.canvas) }
-        .onExitCommand(perform: close)
+        .onExitCommand(perform: goBack)
         .task(id: engine.result) { previewImage = engine.result.flatMap(NSImage.init(contentsOf:)) }
+    }
+
+    private func navigation(_ title: String, icon: String, history: Bool) -> some View {
+        StudioNavRow(icon: icon, title: title, selected: history == showsHistory,
+                     badge: !history && engine.running ? "…" : nil) {
+            selectedImage = nil
+            showsHistory = history
+        }
+        .accessibilityIdentifier(history ? "images.history" : "images.create")
+    }
+
+    /// Back leaves an opened image first, then the page.
+    private func goBack() {
+        if showsHistory && selectedImage != nil { selectedImage = nil } else { close() }
     }
 
     private var modelPicker: some View {
