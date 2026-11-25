@@ -346,6 +346,28 @@ def capped_decode(decode, latent):
         mx.set_cache_limit(previous)
 
 
+# Legacy Studio squares followed by Qwen's native 2K text-to-image presets.
+IMAGE_SIZES = (
+    (512, 512),
+    (768, 768),
+    (1024, 1024),
+    (2048, 2048),
+    (2400, 1792),
+    (1792, 2400),
+    (2528, 1696),
+    (1696, 2528),
+    (2752, 1536),
+    (1536, 2752),
+)
+
+
+def image_dimensions(value: str) -> tuple[int, int]:
+    for width, height in IMAGE_SIZES:
+        if value == f"{width}x{height}" or (width == height and value == str(width)):
+            return width, height
+    raise argparse.ArgumentTypeError("expected a Studio square size or a native Qwen 2K preset")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True, type=Path)
@@ -354,17 +376,24 @@ def main():
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--seed", required=True, type=int)
     parser.add_argument("--steps", type=int, choices=range(2, 51), metavar="2..50")
-    parser.add_argument("--size", type=int, default=512, choices=(512, 768, 1024))
+    parser.add_argument(
+        "--size",
+        type=image_dimensions,
+        default=(512, 512),
+        metavar="SIDE|WIDTHxHEIGHT",
+        help="Square side or one of: " + ", ".join(f"{w}x{h}" for w, h in IMAGE_SIZES),
+    )
     parser.add_argument(
         "--low-memory",
         action="store_true",
         help=(
-            "Limit the free Metal buffer cache to 512 MiB at 1024 px on an Apple M5 with "
-            "24 GiB of memory. Applies throughout Base rendering and during final Turbo image "
-            "decoding. This can increase render time."
+            "On an Apple M5 with 24 GiB of memory, limit the free Metal buffer cache to 512 MiB "
+            "throughout Base rendering at 1024 px or during the final Turbo decode at 1024 px "
+            "and native 2K sizes. This can increase render time."
         ),
     )
     args = parser.parse_args()
+    width, height = args.size
     if args.steps is None:
         args.steps = 8 if args.variant == "turbo" else 40
     if args.variant == "turbo" and args.steps != 8:
@@ -376,26 +405,30 @@ def main():
     from mflux.callbacks.instances.memory_saver import MemorySaver
 
     m5_24gib = device["device_name"] == "Apple M5" and device.get("memory_size") == 24 * 1024**3
-    low_memory_1024 = args.low_memory and args.size == 1024 and m5_24gib
-    if args.size == 512 or (
-        args.variant == "base" and ((args.size == 768 and m5_24gib) or low_memory_1024)
+    if args.size == (512, 512) or (
+        args.variant == "base"
+        and m5_24gib
+        and (args.size == (768, 768) or (args.size == (1024, 1024) and args.low_memory))
     ):
         # Limit unused Metal buffers before the worker loads the model.
         mx.set_cache_limit(512 * 1024**2)
     model = build(args.model, args.variant)
     # Studio launches this worker for one image. Each component can be released after its phase.
     model.callbacks.register(MemorySaver(model, keep_transformer=False, cache_limit_bytes=None))
-    decode = capped_decode if args.variant == "turbo" and low_memory_1024 else checked_decode
+    cap_turbo_decode = (
+        args.variant == "turbo" and args.low_memory and m5_24gib and min(args.size) >= 1024
+    )
+    decode = capped_decode if cap_turbo_decode else checked_decode
     model.vae.decode = partial(decode, model.vae.decode)
     im = model.generate_image(
         seed=args.seed,
         prompt=args.prompt,
-        width=args.size,
-        height=args.size,
+        width=width,
+        height=height,
         num_inference_steps=args.steps,
     )
     image = im.image
-    if image.size != (args.size, args.size):
+    if image.size != args.size:
         raise ValueError("Unexpected generated image dimensions")
     image.save(args.output, format="PNG")
 

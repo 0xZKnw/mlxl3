@@ -25,13 +25,32 @@ Open **Lab → Images** to see Base and Turbo generation counts for the last 30 
 and all time. Successful previews count even when automatic saving is off. When
 older images have no record of the model used, the Lab shows how many could not
 be attributed to Base or Turbo.
-Base accepts 2–50 steps. Start with 512 × 512 and 40 steps. Turbo uses its
-trained eight-step sampling schedule. Saved generations record which variant
-was used, and **Reuse settings** restores it.
+Base accepts 2–50 steps. Turbo uses its trained eight-step schedule. Both
+start at 512 × 512. In **Image size (px)**, choose 512, 768 or 1024 square,
+or one of Qwen's seven native 2K formats. Studio generates at the selected
+width and height. **Reuse settings** restores those dimensions and the model.
+
+| Format | Landscape | Portrait |
+| --- | --- | --- |
+| Square | 2048 × 2048 | 2048 × 2048 |
+| 4:3 | 2400 × 1792 | 1792 × 2400 |
+| 3:2 | 2528 × 1696 | 1696 × 2528 |
+| 16:9 | 2752 × 1536 | 1536 × 2752 |
+
+These are the native sizes Qwen publishes for both checkpoints. For example,
+the worker accepts `--size 2048` for a square and `--size 2752x1536` for a
+landscape. A 2048 × 2048 image has four times as many pixels as 1024 × 1024.
+[Qwen’s published image sizes](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/fc13ba1986fcb905854dc8de2f52eee395f49b5b/README.md#supported-aspect-ratios)
 
 On an Apple M5 with 24 GiB, Base limits its cache of unused GPU buffers to
 512 MiB at 768 × 768. At 1024 × 1024, enable **Reduce memory use** to apply
 the same limit. This can make generation slower. [Measurements on the M5](measurements/image21-m5-large-cache/README.md)
+
+On the same Mac, Turbo offers **Reduce memory use** at 1024 × 1024 and the
+native 2K formats. It limits unused buffers during final image decoding.
+An eight-step 2048 × 2048 Turbo image took 13 min 15 s with this option
+enabled on a 24 GiB M5 running on battery.
+[Example and measurements](measurements/image21-turbo-m5/README.md#native-2k-generation)
 
 The feature requires an Apple M5-family GPU, macOS 26.3 or later and TensorOps enabled.
 Studio checks eligibility before it starts uv or downloads components. The physical validation used an M5 with 24 GiB of memory.

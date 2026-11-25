@@ -2,6 +2,25 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
+struct Image21Size: Hashable, Sendable {
+    let width: Int
+    let height: Int
+
+    static func square(_ side: Int) -> Self { Self(width: side, height: side) }
+
+    // Published text-to-image sizes of the Qwen Image 2.1 Base and Turbo checkpoints.
+    static let nativePresets: [Self] = [
+        .square(2048),
+        Self(width: 2400, height: 1792), Self(width: 1792, height: 2400),
+        Self(width: 2528, height: 1696), Self(width: 1696, height: 2528),
+        Self(width: 2752, height: 1536), Self(width: 1536, height: 2752)
+    ]
+    static let presets: [Self] = [.square(512), .square(768), .square(1024)] + nativePresets
+
+    var label: String { "\(width) × \(height)" }
+    var workerArgument: String { width == height ? String(width) : "\(width)x\(height)" }
+}
+
 enum Image21Variant: String, Codable, CaseIterable, Sendable {
     case base, turbo
 
@@ -55,13 +74,23 @@ struct GeneratedImageHistory: Sendable {
         let prompt: String
         let modelName: String
         let variant: Image21Variant?
-        let size: Int
+        let size: Int?
+        let width: Int?
+        let height: Int?
         let steps: Int
         let seed: UInt32
 
-        func record(at url: URL) -> GeneratedImageRecord {
+        func matches(_ pixels: Image21Size) -> Bool {
+            switch version {
+            case 1, 2: width == nil && height == nil && size == pixels.width && size == pixels.height
+            case 3: size == nil && width == pixels.width && height == pixels.height
+            default: false
+            }
+        }
+
+        func record(at url: URL, pixels: Image21Size) -> GeneratedImageRecord {
             GeneratedImageRecord(fileURL: url, createdAt: createdAt, prompt: prompt, modelName: modelName,
-                                 variant: variant ?? .base, width: size, height: size, steps: steps, seed: seed)
+                                 variant: variant ?? .base, width: pixels.width, height: pixels.height, steps: steps, seed: seed)
         }
     }
 
@@ -69,13 +98,13 @@ struct GeneratedImageHistory: Sendable {
         directory.appendingPathComponent("." + image.lastPathComponent + ".json")
     }
 
-    private func dimensions(of file: URL) -> (width: Int, height: Int)? {
+    private func dimensions(of file: URL) -> Image21Size? {
         let options = [kCGImageSourceShouldCache: false] as CFDictionary
         guard let source = CGImageSourceCreateWithURL(file as CFURL, options) else { return nil }
         return dimensions(of: source, verifyingSize: nil)
     }
 
-    private func dimensions(of source: CGImageSource, verifyingSize size: Int?) -> (width: Int, height: Int)? {
+    private func dimensions(of source: CGImageSource, verifyingSize size: Image21Size?) -> Image21Size? {
         let options = [kCGImageSourceShouldCache: false] as CFDictionary
         guard CGImageSourceGetType(source) == UTType.png.identifier as CFString,
               let properties = CGImageSourceCopyPropertiesAtIndex(source, 0, options) as? [CFString: Any],
@@ -83,20 +112,20 @@ struct GeneratedImageHistory: Sendable {
               let height = properties[kCGImagePropertyPixelHeight] as? Int, height > 0 else { return nil }
         if let size {
             let decode = [kCGImageSourceShouldCacheImmediately: true] as CFDictionary
-            guard width == size, height == size,
+            guard width == size.width, height == size.height,
                   CGImageSourceCreateImageAtIndex(source, 0, decode) != nil,
                   CGImageSourceGetStatusAtIndex(source, 0) == .statusComplete else { return nil }
         }
-        return (width, height)
+        return Image21Size(width: width, height: height)
     }
 
     struct VerifiedPNG: Sendable {
         let data: Data
         fileprivate let file: URL
-        fileprivate let size: Int
+        fileprivate let size: Image21Size
     }
 
-    func validatedPNG(at url: URL, size: Int) throws -> VerifiedPNG {
+    func validatedPNG(at url: URL, size: Image21Size) throws -> VerifiedPNG {
         guard let data = try? Data(contentsOf: url),
               let source = CGImageSourceCreateWithData(data as CFData, nil),
               dimensions(of: source, verifyingSize: size) != nil else {
@@ -107,7 +136,7 @@ struct GeneratedImageHistory: Sendable {
     }
 
     func save(png: URL, prompt: String, modelName: String, variant: Image21Variant = .base,
-              size: Int, steps: Int, seed: UInt32, id: UUID = UUID(), createdAt: Date = .now) throws -> GeneratedImageRecord {
+              size: Image21Size, steps: Int, seed: UInt32, id: UUID = UUID(), createdAt: Date = .now) throws -> GeneratedImageRecord {
         try save(verifiedPNG: validatedPNG(at: png, size: size), prompt: prompt, modelName: modelName,
                  variant: variant, steps: steps, seed: seed, id: id, createdAt: createdAt)
     }
@@ -123,8 +152,13 @@ struct GeneratedImageHistory: Sendable {
         try fm.createDirectory(at: directory, withIntermediateDirectories: true)
         let filename = "Image-\(seed)-\(id.uuidString).png"
         let image = directory.appendingPathComponent(filename)
-        let metadata = Metadata(version: 2, filename: filename, createdAt: createdAt, prompt: prompt,
-                                modelName: modelName, variant: variant, size: verifiedPNG.size, steps: steps, seed: seed)
+        // Keep square sidecars readable in Studio versions that predate rectangular output.
+        let pixels = verifiedPNG.size
+        let square = pixels.width == pixels.height
+        let metadata = Metadata(version: square ? 2 : 3, filename: filename, createdAt: createdAt, prompt: prompt,
+                                modelName: modelName, variant: variant, size: square ? pixels.width : nil,
+                                width: square ? nil : pixels.width, height: square ? nil : pixels.height,
+                                steps: steps, seed: seed)
         let settings = sidecar(for: image)
         // Stage on the destination volume. Readers see the complete PNG only after
         // its settings have been written, even when the worker's temporary volume differs.
@@ -142,7 +176,7 @@ struct GeneratedImageHistory: Sendable {
             try? fm.removeItem(at: settings)
             throw error
         }
-        return metadata.record(at: image)
+        return metadata.record(at: image, pixels: pixels)
     }
 
     private func metadata(for image: URL) -> Metadata? {
@@ -154,7 +188,7 @@ struct GeneratedImageHistory: Sendable {
               let metadata = try? JSONDecoder().decode(Metadata.self, from: data),
               metadata.filename == image.lastPathComponent else { return nil }
         // Version 1 was written when Base was the only supported checkpoint.
-        guard (metadata.version == 1 && metadata.variant == nil) || (metadata.version == 2 && metadata.variant != nil),
+        guard (metadata.version == 1 && metadata.variant == nil) || ([2, 3].contains(metadata.version) && metadata.variant != nil),
               (metadata.variant ?? .base).stepRange.contains(metadata.steps) else { return nil }
         return metadata
     }
@@ -190,9 +224,9 @@ struct GeneratedImageHistory: Sendable {
             // Directory enumeration can expand /var to /private/var. Keep the URL
             // rooted in the library so selection survives saving, refreshing and relaunching.
             let image = directory.appendingPathComponent(file.lastPathComponent)
-            if let saved = metadata(for: file), saved.size == pixels.width, saved.size == pixels.height,
+            if let saved = metadata(for: file), saved.matches(pixels),
                saved.seed == seed {
-                records.append(saved.record(at: image))
+                records.append(saved.record(at: image, pixels: pixels))
             } else if let date = info.creationDate ?? info.contentModificationDate {
                 records.append(GeneratedImageRecord(fileURL: image, createdAt: date, prompt: nil, modelName: nil, variant: nil,
                                                     width: pixels.width, height: pixels.height, steps: nil, seed: seed))

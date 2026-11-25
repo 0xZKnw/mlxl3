@@ -1,5 +1,8 @@
 import CryptoKit
+import CoreGraphics
 import Foundation
+import ImageIO
+import UniformTypeIdentifiers
 
 /// Tiny local catalogs exercise the same path as a downloaded checkpoint.
 struct StudioImageFixtures: Sendable {
@@ -50,6 +53,7 @@ struct StudioImageFixtures: Sendable {
             (args.model / "last-output").write_text(str(args.output))
             (args.model / "last-prompt").write_text(args.prompt, encoding="utf-8")
             (args.model / "last-variant").write_text(args.variant + ":" + args.steps)
+            (args.model / "last-size").write_text(args.size)
             if args.prompt == "--low-memory":
                 raise SystemExit(f"low-memory={args.low_memory}")
             if args.prompt == "corrupt":
@@ -64,6 +68,18 @@ struct StudioImageFixtures: Sendable {
             try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path.path)
         }
         return (uv, renderer)
+    }
+
+    static func writePNG(to destination: URL, width: Int, height: Int) throws {
+        guard let pixels = CGContext(data: nil, width: width, height: height, bitsPerComponent: 8, bytesPerRow: width,
+                                     space: CGColorSpaceCreateDeviceGray(), bitmapInfo: CGImageAlphaInfo.none.rawValue),
+              let output = CGImageDestinationCreateWithURL(destination as CFURL, UTType.png.identifier as CFString, 1, nil)
+        else { throw CocoaError(.fileWriteUnknown) }
+        pixels.setFillColor(gray: 1, alpha: 1)
+        pixels.fill(CGRect(x: 0, y: 0, width: width / 2, height: height))
+        guard let image = pixels.makeImage() else { throw CocoaError(.fileWriteUnknown) }
+        CGImageDestinationAddImage(output, image, nil)
+        guard CGImageDestinationFinalize(output) else { throw CocoaError(.fileWriteUnknown) }
     }
 
     static func publish(_ files: [ImageModelDownloadFile], at destination: URL) throws {

@@ -1,5 +1,6 @@
-"""Symbolic contracts for the candidate's Python control flow with a model allocator."""
+"""Symbolic contracts for the Studio worker's dimensions and modeled allocator."""
 
+import argparse
 import importlib.util
 import os
 import sys
@@ -23,6 +24,18 @@ with patch.dict(
     },
 ):
     spec.loader.exec_module(worker)
+
+
+def check_size(value: str) -> tuple[int, int]:
+    """
+    post: __return__ == (0, 0) or value == "%dx%d" % __return__ or (value == str(__return__[0]) and __return__[0] == __return__[1])
+    post: __return__ == (0, 0) or all(512 <= axis <= 2752 and axis % 16 == 0 for axis in __return__)
+    post: __return__[0] * __return__[1] <= 2400 * 1792
+    """
+    try:
+        return worker.image_dimensions(value)
+    except argparse.ArgumentTypeError:
+        return (0, 0)
 
 
 class ModelAllocator:

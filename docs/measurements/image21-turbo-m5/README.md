@@ -180,3 +180,30 @@ The entire Image21 resource directory matched the physically tested package.
 The updated controller and UI fixtures passed, including gallery export and
 cancellation. The rebuilt executable has SHA-256
 `02f3c2d8fc9a5f3dfa13cd8fd05a921a7cdd0642cb5230c51887bd4d29a917b4`.
+
+## Native 2K generation
+
+Studio's size picker and worker now accept all seven native 2K formats published
+for Qwen Image 2.1 Base and Turbo. The 512, 768 and 1024 square settings remain
+available. The CLI accepts a square side such as `--size 2048` or an ordered
+pair such as `--size 2752x1536`. Studio saves both axes and restores portrait
+and landscape settings from the gallery.
+[Qwen’s size table](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/fc13ba1986fcb905854dc8de2f52eee395f49b5b/README.md#supported-aspect-ratios)
+· [Studio with 2048 × 2048 selected](native-size-studio-fr.jpg)
+
+On the same 24 GiB M5, the new Turbo worker generated the teapot directly at
+**2048 × 2048** in **13 min 15 s** with `--low-memory` enabled. The eight
+denoising steps each processed 16,384 image tokens. The VAE produced a finite
+2048 × 2048 RGB tensor, and the PNG decoded to 12,582,912 RGB bytes.
+The process peaked at **11.00 GB** of physical footprint (4.81 GB maximum
+RSS). All 65 sampled system memory-pressure readings were normal. The Mac
+was running on battery. This was one timed render of one prompt and seed.
+[Run record and output hashes](native-2k.json) · [Preview of that render](teapot-2k-preview.jpg)
+
+Studio's gallery code validated the original 4,350,205-byte PNG, saved it,
+reopened its dimensions and generation settings, and exported identical bytes.
+The worker test suite checked both orientations and all supported sizes across
+336 CLI configurations with model dependencies simulated. The physical 2K
+run covered Turbo in square format. Base and the six rectangular formats
+were exercised by automated tests. The earlier memory comparison at 1024 px
+remains specific to that resolution.
