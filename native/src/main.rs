@@ -6316,7 +6316,7 @@ fn native_bridge(
         ),
     );
     let memory = mlxl3_native::array::memory_stats(false)?;
-    emit_event(json!({
+    let mut ready = json!({
         "flash":match &model { NativeChatModel::Flash(target) => Some(target.runtime_manifest()?), _ => None },
         "type":"ready", "model":name, "modules":checkpoint.modules.len(),
         "images_supported":model.supports_images(),
@@ -6338,11 +6338,6 @@ fn native_bridge(
         "dflash_tuning_key":dflash_tuning_key,
         "mtp_supported":matches!(&model, NativeChatModel::Qwen(_)) || flash_speculative,
         "dspark_supported":inkling_has_drafter(&model),
-        "dspark_default":inkling_speculation_requested(
-            None,
-            matches!(&model, NativeChatModel::Inkling(..)) && inkling_dflash2_source().is_some(),
-            std::env::var("MLXL3_INKLING_DFLASH2_DEFAULT").ok().as_deref(),
-        ),
         "mtp_sampling_supported":true,
         "mtp_auto_download_supported":mtp_auto_download_supported,
         "mtp_configure_supported":true,
@@ -6357,7 +6352,16 @@ fn native_bridge(
         "runtime_version":env!("CARGO_PKG_VERSION"), "bridge_protocol":1,
         "mcp_servers":0, "mcp_tools":0, "mcp_errors":{}, "workspace_features":true,
         "context_limit":context_limit, "model_context_limit":model_limit
-    }))?;
+    });
+    // DECISION-2026-11-25-INK2M-DFLASH2-ON (set apart: the macro above is at its recursion limit)
+    ready["dspark_default"] = json!(inkling_speculation_requested(
+        None,
+        matches!(&model, NativeChatModel::Inkling(..)) && inkling_dflash2_source().is_some(),
+        std::env::var("MLXL3_INKLING_DFLASH2_DEFAULT")
+            .ok()
+            .as_deref(),
+    ));
+    emit_event(ready)?;
     let cancelled = Arc::new(AtomicBool::new(false));
     signal_hook::flag::register(signal_hook::consts::SIGUSR1, Arc::clone(&cancelled))?;
     let mut random = SystemTime::now()
