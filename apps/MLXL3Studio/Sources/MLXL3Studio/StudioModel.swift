@@ -87,7 +87,7 @@ final class StudioModel: ObservableObject {
     private var persistenceBlocked = false
     private var persistenceRevision = 0
     private var drafts: [UUID: String] = [:]
-    private var deletedConversation: Conversation?
+    private var deletedConversation: (conversation: Conversation, draft: ConversationDraft, replacementID: UUID?)?
     @Published var engineState: EngineState = .idle {
         didSet { if engineState.isReady { attemptedSendWithoutModel = false }; updateModelIdleUnload() }
     }
@@ -346,33 +346,11 @@ final class StudioModel: ObservableObject {
         AppLocalization.set(language)
         quantizationObservation = quantizer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         do {
-        let loaded = try ConversationStore.load(from: conversationFileURL)
-        if let loaded { restoreLab(from: loaded) }
-        if let snapshot = loaded, !snapshot.conversations.isEmpty {
-            conversations = snapshot.conversations.map(Conversation.init(snapshot:))
-            selectedConversationID = conversations.contains {
-                $0.id == snapshot.selectedConversationID
-            } ? snapshot.selectedConversationID : conversations.first?.id
-            selectedModelName = snapshot.selectedModelName
-            temperature = snapshot.temperature
-            topK = snapshot.topK
-            repetitionPenalty = snapshot.repetitionPenalty
-            if let value = snapshot.topP, value.isFinite, value > 0, value <= 1 { topP = value }
-            if let value = snapshot.presencePenalty, value.isFinite, (-2...2).contains(value) { presencePenalty = value }
-            systemPrompt = snapshot.systemPrompt
-            projects = snapshot.projects ?? []
-            profiles = snapshot.profiles ?? []
-            documents = snapshot.documents ?? []
-            responseSchema = snapshot.responseSchema ?? ""
-            for saved in snapshot.drafts ?? [] {
-                drafts[saved.conversationID] = saved.text
-                attachmentDrafts[saved.conversationID] = saved.attachments
+            if let snapshot = try ConversationStore.load(from: conversationFileURL) {
+                restoreWorkspace(from: snapshot)
+            } else {
+                selectedConversationID = conversations.first?.id
             }
-            draft = selectedConversationID.flatMap { drafts[$0] } ?? ""
-            selectedProjectID = conversations.first(where: { $0.id == selectedConversationID })?.projectID
-        } else {
-            selectedConversationID = conversations.first?.id
-        }
         } catch {
             persistenceBlocked = true
             storageError = L("Historique illisible : aucune donnée ne sera écrasée. ", "History could not be read: no data will be overwritten. ") + error.localizedDescription
@@ -394,7 +372,6 @@ final class StudioModel: ObservableObject {
         serverObservation = localServer.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         decisionObservation = decision.server.objectWillChange.sink { [weak self] in self?.objectWillChange.send() }
         decision.prepareForLoad = { [weak self] in await self?.releaseChatModelForDecision() }
-        selectedMode = currentConversation?.agent == true ? .agent : .chat
         bridge.onRuntimeFallback = { [weak self] in
             guard let self else { return }
             self.readyInfo = nil
@@ -1402,28 +1379,29 @@ final class StudioModel: ObservableObject {
     }
 
     func deleteConversation(_ id: UUID) {
-        guard let removed = conversations.first(where: { $0.id == id }) else { return }
+        guard !isTuningMTP, !localServer.active, modeTransition == nil,
+              let removed = conversations.first(where: { $0.id == id }) else { return }
+        let removedDraft = ConversationDraft(conversationID: id, text: selectedConversationID == id ? draft : (drafts[id] ?? ""),
+                                             attachments: attachmentDrafts[id] ?? [])
         clearAttachmentDraft(id)
-        drafts[id] = nil
         if removed.messages.contains(where: { $0.id == activeResponseID }) {
             forceStopGeneration(L("Conversation supprimée", "Conversation deleted"))
         }
-        deletedConversation = removed
-        guard conversations.count > 1 else {
-            if let index = conversations.firstIndex(where: { $0.id == id }) {
-                conversations[index] = Conversation(id: id)
-                conversations[index].projectID = removed.projectID
-                conversations[index].agent = removed.agent
-            }
-            voice.stop(); draft = ""
-            schedulePersistence()
-            return
-        }
         conversations.removeAll { $0.id == id }
-        if selectedConversationID == id, let next = conversations.first {
-            selectConversation(next.id)
-            drafts[id] = nil
+        var replacementID: UUID?
+        if conversations.isEmpty {
+            var replacement = Conversation()
+            replacement.projectID = removed.projectID
+            replacement.agent = removed.agent
+            replacementID = replacement.id
+            conversations = [replacement]
         }
+        deletedConversation = (removed, removedDraft, replacementID)
+        if selectedConversationID == id,
+           let next = (isGenerating ? conversations.first { !$0.agent } : conversations.first) {
+            selectConversation(next.id)
+        }
+        drafts[id] = nil
         schedulePersistence()
     }
 
@@ -2246,14 +2224,16 @@ final class StudioModel: ObservableObject {
             }
             let backupURL = conversationFileURL.appendingPathExtension("backup")
             if let backup = try? ConversationStore.load(from: backupURL) {
-                conversations = backup.conversations.map(Conversation.init(snapshot:))
-                selectedConversationID = conversations.first?.id
-                restoreLab(from: backup)
-                projects = backup.projects ?? []
-                profiles = backup.profiles ?? []
-                documents = backup.documents ?? []
-                responseSchema = backup.responseSchema ?? ""
-                selectedProjectID = currentConversation?.projectID
+                let hadLoadedModel = canEject
+                ejectModel()
+                cancelPendingRegeneration()
+                cancelDocumentPreparation()
+                voice.stop()
+                if let importing = attachmentImportConversationID { clearAttachmentDraft(importing) }
+                attachmentImportErrors = [:]
+                restoreWorkspace(from: backup)
+                deletedConversation = nil
+                if hadLoadedModel, selectedModel != nil { loadSelectedModel() }
             } else if FileManager.default.fileExists(atPath: backupURL.path) {
                 try FileManager.default.moveItem(at: backupURL, to: backupURL.appendingPathExtension("unreadable-" + UUID().uuidString))
             }
@@ -2264,10 +2244,28 @@ final class StudioModel: ObservableObject {
     }
 
     func undoDeleteConversation() {
-        guard let restored = deletedConversation else { return }
-        conversations.removeAll { $0.id == restored.id }
+        guard let deleted = deletedConversation, !isGenerating, !localServer.active, modeTransition == nil else { return }
+        var restored = deleted.conversation
+        guard !conversations.contains(where: { $0.id == restored.id }) else { return }
+        if let projectID = restored.projectID, !projects.contains(where: { $0.id == projectID }) {
+            restored.projectID = nil
+        }
+        let replacement = deleted.replacementID.flatMap { id in conversations.first { $0.id == id } }
+        let discardReplacement = replacement.map {
+            // An Agent task may already have files even if its transcript is empty.
+            !$0.agent && $0.messages.isEmpty && !$0.isPinned && $0.projectID == restored.projectID
+                && ($0.id == selectedConversationID ? draft : (drafts[$0.id] ?? "")).isEmpty
+                && (attachmentDrafts[$0.id] ?? []).isEmpty && attachmentImportConversationID != $0.id
+        } ?? false
+        drafts[restored.id] = deleted.draft.text
+        attachmentDrafts[restored.id] = deleted.draft.attachments
         conversations.insert(restored, at: 0)
         selectConversation(restored.id)
+        if let replacement, discardReplacement {
+            conversations.removeAll { $0.id == replacement.id }
+            drafts[replacement.id] = nil
+            clearAttachmentDraft(replacement.id)
+        }
         deletedConversation = nil
         schedulePersistence()
     }
@@ -2297,7 +2295,11 @@ final class StudioModel: ObservableObject {
         do {
             guard let snapshot = try ConversationStore.load(from: url) else { return }
             let known = Set(conversations.map(\.id))
+            let newConversations = snapshot.conversations.filter { !known.contains($0.id) }
+            let newDrafts = (snapshot.drafts ?? []).filter { !known.contains($0.conversationID) }
             var merged = workspaceSnapshot
+            merged.conversations.insert(contentsOf: newConversations, at: 0)
+            merged.drafts = (merged.drafts ?? []) + newDrafts
             let knownProjects = Set(projects.map(\.id))
             merged.projects = projects + (snapshot.projects ?? []).filter { !knownProjects.contains($0.id) }
             let knownProfiles = Set(profiles.map(\.id))
@@ -2308,7 +2310,11 @@ final class StudioModel: ObservableObject {
             projects = merged.projects ?? []
             profiles = merged.profiles ?? []
             documents = merged.documents ?? []
-            conversations.insert(contentsOf: snapshot.conversations.filter { !known.contains($0.id) }.map(Conversation.init(snapshot:)), at: 0)
+            conversations.insert(contentsOf: newConversations.map(Conversation.init(snapshot:)), at: 0)
+            for saved in newDrafts {
+                drafts[saved.conversationID] = saved.text
+                attachmentDrafts[saved.conversationID] = saved.attachments
+            }
             persistNow()
         } catch { storageError = error.localizedDescription }
     }
@@ -2698,6 +2704,29 @@ final class StudioModel: ObservableObject {
         let words = prompt.split(whereSeparator: \.isWhitespace)
         let title = words.prefix(7).joined(separator: " ")
         return title.count > 46 ? String(title.prefix(46)) + "…" : title
+    }
+
+    private func restoreWorkspace(from snapshot: WorkspaceSnapshot) {
+        restoreLab(from: snapshot)
+        conversations = snapshot.conversations.isEmpty ? [Conversation()] : snapshot.conversations.map(Conversation.init(snapshot:))
+        selectedConversationID = conversations.first { $0.id == snapshot.selectedConversationID }?.id ?? conversations.first?.id
+        selectedProjectID = currentConversation?.projectID
+        selectedMode = currentConversation?.agent == true ? .agent : .chat
+        selectedModelName = snapshot.selectedModelName
+        temperature = snapshot.temperature
+        topK = snapshot.topK
+        repetitionPenalty = snapshot.repetitionPenalty
+        topP = snapshot.topP.flatMap { $0.isFinite && $0 > 0 && $0 <= 1 ? $0 : nil } ?? 1
+        presencePenalty = snapshot.presencePenalty.flatMap { $0.isFinite && (-2...2).contains($0) ? $0 : nil } ?? 0
+        systemPrompt = snapshot.systemPrompt
+        projects = snapshot.projects ?? []
+        profiles = snapshot.profiles ?? []
+        documents = snapshot.documents ?? []
+        responseSchema = snapshot.responseSchema ?? ""
+        let saved = snapshot.drafts ?? []
+        drafts = Dictionary(uniqueKeysWithValues: saved.map { ($0.conversationID, $0.text) })
+        attachmentDrafts = Dictionary(uniqueKeysWithValues: saved.map { ($0.conversationID, $0.attachments) })
+        draft = selectedConversationID.flatMap { drafts[$0] } ?? ""
     }
 
     private func restoreLab(from snapshot: WorkspaceSnapshot) {

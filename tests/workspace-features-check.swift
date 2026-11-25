@@ -3,6 +3,108 @@ import Foundation
 import SwiftUI
 
 @main struct WorkspaceFeaturesCheck {
+    @MainActor static func checkDraftLifecycle(root: URL, preferences: UserDefaults) async throws -> Int {
+        var count = 0
+        var failures: [String] = []
+        func check(_ result: Bool, _ message: String) {
+            count += 1
+            if !result { failures.append(message) }
+        }
+        let sourceURL = root.appendingPathComponent("draft-workspace.json")
+        let source = StudioModel(conversationFileURL: sourceURL, isPreview: true, preferences: preferences)
+        let first = source.currentConversation!.id
+        source.draft = "first unfinished prompt"
+        let attachmentURL = root.appendingPathComponent("draft-notes.txt")
+        try Data("unpublished notes".utf8).write(to: attachmentURL)
+        await source.importChatFiles([attachmentURL])
+        let attachments = source.pendingAttachments
+        check(attachments.count == 1 && attachments.first?.text == "unpublished notes", "Fixture imports a real file")
+        source.newConversation()
+        let second = source.currentConversation!.id
+        source.draft = "second unfinished prompt"
+        source.selectConversation(first)
+        source.selectedModelName = "fixture-model"
+        source.systemPrompt = "Answer in French."
+        source.topP = 0.42
+        check(source.persistNow(), "Fixture writes a workspace")
+        try FileManager.default.removeItem(at: attachmentURL)
+
+        let recoveredURL = root.appendingPathComponent("recovered-drafts.json")
+        try FileManager.default.copyItem(at: sourceURL, to: recoveredURL.appendingPathExtension("backup"))
+        try Data("broken".utf8).write(to: recoveredURL)
+        let recovery = StudioModel(conversationFileURL: recoveredURL, isPreview: true, preferences: preferences)
+        recovery.recoverConversations()
+        let reopened = StudioModel(conversationFileURL: recoveredURL, isPreview: true, preferences: preferences)
+        check(reopened.selectedConversationID == first && reopened.draft == "first unfinished prompt"
+              && reopened.pendingAttachments == attachments, "Backup restores the selected chat, draft and embedded attachment")
+        check(reopened.selectedModelName == "fixture-model" && reopened.systemPrompt == "Answer in French."
+              && reopened.topP == 0.42, "Backup restores model and generation settings")
+        reopened.selectConversation(second)
+        check(reopened.draft == "second unfinished prompt", "Backup restores background drafts")
+
+        let importURL = root.appendingPathComponent("imported-drafts.json")
+        let imported = StudioModel(conversationFileURL: importURL, isPreview: true, preferences: preferences)
+        imported.importWorkspace(from: sourceURL)
+        imported.selectConversation(first)
+        check(imported.draft == "first unfinished prompt" && imported.pendingAttachments == attachments,
+              "Workspace import keeps drafts and embedded attachments of new chats")
+        imported.draft = "locally edited"
+        imported.importWorkspace(from: sourceURL)
+        let reimported = StudioModel(conversationFileURL: importURL, isPreview: true, preferences: preferences)
+        check(reimported.draft == "locally edited" && reimported.pendingAttachments == attachments,
+              "Reimport preserves the local draft for a known chat")
+
+        source.deleteConversation(first)
+        check(source.selectedConversationID == second && source.draft == "second unfinished prompt", "Deletion preserves the next chat's draft")
+        source.undoDeleteConversation()
+        check(source.selectedConversationID == first && source.draft == "first unfinished prompt"
+              && source.pendingAttachments == attachments, "Undo restores the deleted draft and its attachments")
+        source.deleteConversation(second)
+        source.deleteConversation(first)
+        source.draft = "started after deletion"
+        let replacement = source.selectedConversationID!
+        source.undoDeleteConversation()
+        check(source.selectedConversationID == first && source.draft == "first unfinished prompt", "Undo restores the last chat's draft")
+        source.selectConversation(replacement)
+        check(replacement != first && source.draft == "started after deletion", "Undo preserves new work started after deleting the last chat")
+        source.addProject("Disposable")
+        let removedProject = source.selectedProjectID!
+        let projectChat = source.selectedConversationID!
+        source.deleteConversation(projectChat)
+        source.deleteProject(removedProject)
+        source.undoDeleteConversation()
+        check(source.selectedConversationID == projectChat && source.currentConversation?.projectID == nil && source.persistNow(),
+              "Undo after project removal restores a writable chat")
+        let message = ChatMessage(role: .assistant, content: "saved reply")
+        let savedChat = Conversation(title: "saved chat", messages: [message])
+        source.conversations = [savedChat]
+        source.selectConversation(savedChat.id)
+        check(source.persistNow(), "Fixture persists a complete reply")
+        let valid = try JSONSerialization.jsonObject(with: Data(contentsOf: sourceURL)) as! [String: Any]
+        let chat = (valid["conversations"] as! [[String: Any]])[0]
+        let reply = (chat["messages"] as! [[String: Any]])[0]
+        var duplicateMessage = chat
+        duplicateMessage["messages"] = [reply, reply]
+        var unknownRole = reply
+        unknownRole["role"] = "unknown"
+        var unknownMessage = chat
+        unknownMessage["messages"] = [unknownRole]
+        for (label, rows) in [("duplicate chats", [chat, chat]), ("duplicate messages", [duplicateMessage]),
+                              ("unknown message role", [unknownMessage])] {
+            var invalid = valid
+            invalid["conversations"] = rows
+            let data = try JSONSerialization.data(withJSONObject: invalid)
+            let url = root.appendingPathComponent(label + ".json")
+            try data.write(to: url)
+            let unreadable = StudioModel(conversationFileURL: url, isPreview: true, preferences: preferences)
+            let blocked = !unreadable.persistNow()
+            let unchanged = try Data(contentsOf: url) == data
+            check(unreadable.storageError != nil && blocked && unchanged, "Reject \(label) without rewriting history")
+        }
+        precondition(failures.isEmpty, failures.joined(separator: "\n"))
+        return count
+    }
+
     @MainActor static func main() async throws {
         let root = FileManager.default.temporaryDirectory.appendingPathComponent("mlxl3-workspace-\(UUID())")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
@@ -12,7 +114,7 @@ import SwiftUI
         let suite = "mlxl3.workspace.\(UUID())"
         let preferences = UserDefaults(suiteName: suite)!
         defer { preferences.removePersistentDomain(forName: suite) }
-        var checks = 0
+        var checks = try await checkDraftLifecycle(root: root, preferences: preferences)
         func check(_ condition: @autoclosure () throws -> Bool, _ message: String) rethrows { let result = try condition(); precondition(result, message); checks += 1 }
         func wait(_ predicate: @MainActor () -> Bool) async throws {
             for _ in 0..<400 { if predicate() { return }; try await Task.sleep(for: .milliseconds(20)) }

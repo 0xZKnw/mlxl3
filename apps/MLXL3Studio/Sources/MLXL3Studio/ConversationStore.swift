@@ -6,7 +6,7 @@ struct WorkspaceSnapshot: Codable, Sendable {
     let version: Int
     let selectedConversationID: UUID?
     let selectedModelName: String?
-    let conversations: [ConversationSnapshot]
+    var conversations: [ConversationSnapshot]
     let temperature: Double
     let topK: Int
     let repetitionPenalty: Double
@@ -132,9 +132,16 @@ final class ConversationStore: @unchecked Sendable {
 
     static func validate(_ snapshot: WorkspaceSnapshot) throws {
         guard snapshot.labUsage?.valid != false else { throw CocoaError(.fileReadCorruptFile) }
+        let conversationIDs = Set(snapshot.conversations.map(\.id))
+        guard conversationIDs.count == snapshot.conversations.count,
+              snapshot.conversations.allSatisfy({ conversation in
+                  // Branches share message IDs with their parent, but each row in one chat must be distinct.
+                  Set(conversation.messages.map(\.id)).count == conversation.messages.count
+                      && conversation.messages.allSatisfy { ChatMessage.Role(rawValue: $0.role) != nil }
+              }) else { throw CocoaError(.fileReadCorruptFile) }
         let drafts = snapshot.drafts ?? []
         guard drafts.count <= 128, Set(drafts.map(\.conversationID)).count == drafts.count,
-              drafts.allSatisfy({ draft in draft.valid && snapshot.conversations.contains(where: { $0.id == draft.conversationID }) }),
+              drafts.allSatisfy({ $0.valid && conversationIDs.contains($0.conversationID) }),
               drafts.reduce(0, { $0 + $1.byteCount }) <= 16 * 1024 * 1024 else {
             throw CocoaError(.fileReadCorruptFile)
         }
