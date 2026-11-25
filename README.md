@@ -103,6 +103,10 @@ image conversation. Documents and images can be attached together.
 
 ### Images
 
+Choose **Base** for a configurable step count or **Turbo** for Qwen's eight-step
+schedule. Each variant loads its own EXL3 weights and shares Studio's image
+dependencies. [Supported models and folders](docs/studio-image21.md).
+
 On a supported M5 Mac, open **Images → History** to browse the PNGs generated
 on this Mac, newest first. Select a thumbnail to see the image, its prompt,
 the model, the resolution, the step count and the seed. Older PNGs from Studio

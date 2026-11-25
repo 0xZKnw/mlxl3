@@ -37,7 +37,8 @@ struct ImageHistoryInterfaceCheck {
         let studio = StudioModel(conversationFileURL: temporary.appendingPathComponent("chat"), isPreview: true, preferences: preferences)
         studio.setLanguage(.en)
         studio.setStyle(.graphite)
-        let engine = ImageGeneration(supported: true, historyDirectory: images)
+        let engine = ImageGeneration(supported: true, historyDirectory: images, preferences: preferences,
+                                     installedTurboDirectory: temporary.appendingPathComponent("Missing Turbo"))
         let host = NSHostingView(rootView: ImageGenerationView(engine: engine, close: {}).environmentObject(studio)
             .defaultAppStorage(preferences).preferredColorScheme(.dark))
         let window = NSWindow(contentRect: .init(x: 0, y: 0, width: 1120, height: 760),
@@ -102,6 +103,19 @@ struct ImageHistoryInterfaceCheck {
             }
         }
 
+        func variantPicker(in view: NSView) -> NSSegmentedControl? {
+            if let picker = view as? NSSegmentedControl, picker.segmentCount == 2 { return picker }
+            for child in view.subviews {
+                if let picker = variantPicker(in: child) { return picker }
+            }
+            return nil
+        }
+        try expect(["base", "turbo"], in: await words())
+        guard let picker = variantPicker(in: host) else { throw HistoryUIError(message: "Missing image model picker") }
+        picker.selectedSegment = 1
+        guard picker.sendAction(picker.action, to: picker.target) else { throw HistoryUIError(message: "Image picker has no action") }
+        try expect(["8 fixed steps"], in: await words())
+        guard engine.variant == .turbo && engine.steps == 8 else { throw HistoryUIError(message: "Turbo picker failed") }
         try click("history", in: await words())
         try expect(["image history", "no images"], in: await words())
         let sample = temporary.appendingPathComponent("worker.png")
@@ -109,6 +123,9 @@ struct ImageHistoryInterfaceCheck {
         let store = GeneratedImageHistory(directory: images)
         let saved = try store.save(png: sample, prompt: "A cobalt blue teapot", modelName: "Fixture model",
                                    size: 512, steps: 17, seed: 371)
+        try fileManager.copyItem(at: example, to: sample)
+        let fast = try store.save(png: sample, prompt: "A mint bicycle", modelName: "Fixture model", variant: .turbo,
+                                  size: 512, steps: 8, seed: 492)
         let legacy = images.appendingPathComponent("Image-29-\(UUID().uuidString).png")
         try fileManager.copyItem(at: example, to: legacy)
         await engine.refreshHistory()
@@ -123,7 +140,7 @@ struct ImageHistoryInterfaceCheck {
         try click("all images", in: older)
         try click("a cobalt blue teapot", in: await words())
         let details = try await words()
-        try expect(["a cobalt blue teapot", "fixture model", "512", "17", "371", "show png"], in: details)
+        try expect(["a cobalt blue teapot", "fixture model", "base", "512", "17", "371", "show png"], in: details)
 
         window.setContentSize(.init(width: 820, height: 700))
         try click("all images", in: await words())
@@ -132,10 +149,19 @@ struct ImageHistoryInterfaceCheck {
         try click("a cobalt blue teapot", in: narrow)
         try click("reuse settings", in: await words())
         try await Task.sleep(for: .milliseconds(120))
-        guard engine.prompt == "A cobalt blue teapot", engine.size == 512, engine.steps == 17, engine.seed == 371,
+        guard engine.prompt == "A cobalt blue teapot", engine.variant == .base, engine.size == 512, engine.steps == 17, engine.seed == 371,
               !engine.running, fileManager.fileExists(atPath: saved.fileURL.path),
               fileManager.fileExists(atPath: legacy.path) else {
             throw HistoryUIError(message: "Reusing a saved entry must restore the draft and preserve both images")
+        }
+        try click("history", in: await words())
+        try click("a mint bicycle", in: await words())
+        try expect(["variant", "turbo", "492"], in: await words())
+        try click("reuse settings", in: await words())
+        try expect(["8 fixed steps"], in: await words())
+        guard engine.variant == .turbo && engine.prompt == "A mint bicycle" && engine.steps == 8 && engine.seed == 492
+              && !engine.running && fileManager.fileExists(atPath: fast.fileURL.path) else {
+            throw HistoryUIError(message: "Reusing Turbo must select its eight-step generator")
         }
         print("Image history interface passed: empty library, image and prompt, saved settings, compact navigation, reuse without generation")
     }

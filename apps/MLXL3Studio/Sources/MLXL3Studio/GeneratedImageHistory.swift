@@ -2,12 +2,20 @@ import Foundation
 import ImageIO
 import UniformTypeIdentifiers
 
+enum Image21Variant: String, Codable, CaseIterable, Sendable {
+    case base, turbo
+
+    var title: String { self == .turbo ? "Turbo" : "Base" }
+    var stepRange: ClosedRange<Int> { self == .turbo ? 8...8 : 2...50 }
+}
+
 struct GeneratedImageRecord: Identifiable, Equatable, Sendable {
     var id: URL { fileURL }
     let fileURL: URL
     let createdAt: Date
     let prompt: String?
     let modelName: String?
+    let variant: Image21Variant?
     let width: Int
     let height: Int
     let steps: Int?
@@ -30,13 +38,14 @@ struct GeneratedImageHistory: Sendable {
         let createdAt: Date
         let prompt: String
         let modelName: String
+        let variant: Image21Variant?
         let size: Int
         let steps: Int
         let seed: UInt32
 
         func record(at url: URL) -> GeneratedImageRecord {
             GeneratedImageRecord(fileURL: url, createdAt: createdAt, prompt: prompt, modelName: modelName,
-                                 width: size, height: size, steps: steps, seed: seed)
+                                 variant: variant ?? .base, width: size, height: size, steps: steps, seed: seed)
         }
     }
 
@@ -60,7 +69,13 @@ struct GeneratedImageHistory: Sendable {
         return (width, height)
     }
 
-    func save(png: URL, prompt: String, modelName: String, size: Int, steps: Int, seed: UInt32) throws -> GeneratedImageRecord {
+    func save(png: URL, prompt: String, modelName: String, variant: Image21Variant = .base,
+              size: Int, steps: Int, seed: UInt32) throws -> GeneratedImageRecord {
+        guard variant.stepRange.contains(steps) else {
+            throw NSError(domain: "MLXL3.ImageGeneration", code: 1,
+                          userInfo: [NSLocalizedDescriptionKey: L("Nombre d’étapes incompatible avec le modèle.",
+                                                                  "Step count is incompatible with the model.")])
+        }
         guard dimensions(of: png, verifyingSize: size) != nil else {
             throw NSError(domain: "MLXL3.ImageGeneration", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: L("Le moteur a produit une image illisible.", "The engine returned an unreadable image.")])
@@ -69,8 +84,8 @@ struct GeneratedImageHistory: Sendable {
         try fm.createDirectory(at: directory, withIntermediateDirectories: true)
         let filename = "Image-\(seed)-\(UUID().uuidString).png"
         let image = directory.appendingPathComponent(filename)
-        let metadata = Metadata(version: 1, filename: filename, createdAt: Date(), prompt: prompt,
-                                modelName: modelName, size: size, steps: steps, seed: seed)
+        let metadata = Metadata(version: 2, filename: filename, createdAt: Date(), prompt: prompt,
+                                modelName: modelName, variant: variant, size: size, steps: steps, seed: seed)
         let settings = sidecar(for: image)
         // Stage on the destination volume. Readers see the complete PNG only after
         // its settings have been written, even when the worker's temporary volume differs.
@@ -94,7 +109,10 @@ struct GeneratedImageHistory: Sendable {
               let size = info.fileSize, size <= 2 * 1024 * 1024,
               let data = try? Data(contentsOf: file),
               let metadata = try? JSONDecoder().decode(Metadata.self, from: data),
-              metadata.version == 1, metadata.filename == image.lastPathComponent else { return nil }
+              metadata.filename == image.lastPathComponent else { return nil }
+        // Version 1 was written when Base was the only supported checkpoint.
+        guard (metadata.version == 1 && metadata.variant == nil) || (metadata.version == 2 && metadata.variant != nil),
+              (metadata.variant ?? .base).stepRange.contains(metadata.steps) else { return nil }
         return metadata
     }
 
@@ -128,10 +146,10 @@ struct GeneratedImageHistory: Sendable {
             // rooted in the library so selection survives saving, refreshing and relaunching.
             let image = directory.appendingPathComponent(file.lastPathComponent)
             if let saved = metadata(for: file), saved.size == pixels.width, saved.size == pixels.height,
-               saved.seed == seed, (2...50).contains(saved.steps) {
+               saved.seed == seed {
                 records.append(saved.record(at: image))
             } else if let date = info.creationDate ?? info.contentModificationDate {
-                records.append(GeneratedImageRecord(fileURL: image, createdAt: date, prompt: nil, modelName: nil,
+                records.append(GeneratedImageRecord(fileURL: image, createdAt: date, prompt: nil, modelName: nil, variant: nil,
                                                     width: pixels.width, height: pixels.height, steps: nil, seed: seed))
             }
         }

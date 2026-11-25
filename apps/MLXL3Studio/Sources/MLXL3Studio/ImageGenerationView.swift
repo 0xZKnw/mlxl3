@@ -5,7 +5,6 @@ struct ImageGenerationView: View {
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var engine: ImageGeneration
     let close: () -> Void
-    @AppStorage("image21ModelDirectory") private var modelPath = ""
     @State private var previewImage: NSImage?
     @State private var showsHistory = false
     @State private var selectedImage: URL?
@@ -53,6 +52,7 @@ struct ImageGenerationView: View {
         .foregroundStyle(StudioTheme.ink)
         .background { StudioAurora(animated: false).background(StudioTheme.canvas) }
         .onExitCommand(perform: goBack)
+        .onAppear { engine.refreshModelDirectory() }
         .task(id: engine.result) { previewImage = engine.result.flatMap(NSImage.init(contentsOf:)) }
     }
 
@@ -74,20 +74,25 @@ struct ImageGenerationView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Modèle", "Model")).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
             Text("Qwen-Image-2.1").font(.system(size: 14, weight: .semibold))
-            Text(modelPath.isEmpty ? L("Choisis le dossier EXL3 pour commencer.", "Choose the EXL3 folder to start.")
-                 : URL(fileURLWithPath: modelPath).lastPathComponent)
-                .font(.system(size: 12)).foregroundStyle(modelPath.isEmpty ? StudioTheme.warning : StudioTheme.secondary)
-                .lineLimit(2).truncationMode(.middle).help(modelPath)
+            Picker(L("Version du modèle", "Model variant"),
+                   selection: Binding(get: { engine.variant }, set: engine.selectVariant)) {
+                ForEach(Image21Variant.allCases, id: \.self) { variant in Text(variant.title).tag(variant) }
+            }
+            .pickerStyle(.segmented).labelsHidden().disabled(engine.running)
+            .accessibilityIdentifier("images.variant")
+            Text(engine.modelDirectory?.lastPathComponent ?? L("Choisis le dossier EXL3 pour commencer.", "Choose the EXL3 folder to start."))
+                .font(.system(size: 12)).foregroundStyle(engine.modelDirectory == nil ? StudioTheme.warning : StudioTheme.secondary)
+                .lineLimit(2).truncationMode(.middle).help(engine.modelDirectory?.path ?? "")
             Button {
                 let panel = NSOpenPanel()
                 panel.canChooseFiles = false
                 panel.canChooseDirectories = true
-                if panel.runModal() == .OK, let url = panel.url { modelPath = url.path }
+                if panel.runModal() == .OK, let url = panel.url { engine.selectModelDirectory(url) }
             } label: {
-                Label(modelPath.isEmpty ? L("Choisir le dossier…", "Choose folder…") : L("Changer de dossier…", "Change folder…"),
+                Label(engine.modelDirectory == nil ? L("Choisir le dossier…", "Choose folder…") : L("Changer de dossier…", "Change folder…"),
                       systemImage: "folder")
             }
-            .buttonStyle(.studio(modelPath.isEmpty ? .primary : .secondary)).disabled(engine.running)
+            .buttonStyle(.studio(engine.modelDirectory == nil ? .primary : .secondary)).disabled(engine.running)
             .accessibilityIdentifier("images.model")
         }
     }
@@ -101,10 +106,14 @@ struct ImageGenerationView: View {
                 ForEach([512, 768, 1024], id: \.self) { Text(String($0)).tag($0) }
             }
             .pickerStyle(.segmented).labelsHidden()
-            Stepper(value: $engine.steps, in: 2...50) {
-                Text(L("\(engine.steps) étapes", "\(engine.steps) steps")).font(.system(size: 12.5)).monospacedDigit()
+            if engine.variant == .turbo {
+                Text(L("8 étapes fixes", "8 fixed steps")).font(.system(size: 12.5)).padding(.vertical, 4)
+            } else {
+                Stepper(value: $engine.baseSteps, in: 2...50) {
+                    Text(L("\(engine.steps) étapes", "\(engine.steps) steps")).font(.system(size: 12.5)).monospacedDigit()
+                }
+                .padding(.vertical, 4)
             }
-            .padding(.vertical, 4)
             Text(L("Graine", "Seed")).font(.system(size: 12.5))
             HStack(spacing: 6) {
                 TextField(L("Graine", "Seed"), value: $engine.seed, format: .number.grouping(.never))
@@ -121,7 +130,7 @@ struct ImageGenerationView: View {
         VStack(spacing: 10) {
             HStack {
                 Text(engine.running ? L("Génération en cours", "Generating")
-                     : engine.result == nil ? L("Exemple du modèle", "Model example") : L("Image générée", "Generated image"))
+                     : engine.result == nil ? L("Exemple du modèle Base", "Base model example") : L("Image générée", "Generated image"))
                     .font(.system(size: 12.5, weight: .medium)).foregroundStyle(StudioTheme.secondary)
                 Spacer()
                 if let url = engine.result {
@@ -173,14 +182,15 @@ struct ImageGenerationView: View {
                     Button(L("Annuler", "Cancel"), action: engine.cancel).buttonStyle(.studio)
                 } else {
                     Button {
-                        engine.start(model: URL(fileURLWithPath: modelPath), prompt: engine.prompt,
+                        guard let model = engine.modelDirectory else { return }
+                        engine.start(model: model, prompt: engine.prompt,
                                      size: engine.size, steps: engine.steps, seed: engine.seed)
                     } label: {
                         Label(L("Générer", "Generate"), systemImage: "wand.and.stars")
                     }
                     .buttonStyle(.studio(.primary)).keyboardShortcut(.return, modifiers: .command)
                     .help(L("Générer · ⌘↩", "Generate · ⌘↩"))
-                    .disabled(modelPath.isEmpty || engine.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .disabled(engine.modelDirectory == nil || engine.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("images.generate")
                 }
             }

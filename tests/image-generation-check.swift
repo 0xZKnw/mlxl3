@@ -33,10 +33,11 @@ struct ImageGenerationCheck {
             parser = argparse.ArgumentParser()
             for key in ("model", "output"):
                 parser.add_argument("--" + key, required=True, type=Path)
-            for key in ("prompt", "size", "steps", "seed"):
+            for key in ("variant", "prompt", "size", "steps", "seed"):
                 parser.add_argument("--" + key, required=True)
             args = parser.parse_args()
             (args.model / "last-prompt").write_text(args.prompt, encoding="utf-8")
+            (args.model / "last-variant").write_text(args.variant + ":" + args.steps)
             if args.prompt == "corrupt":
                 args.output.write_bytes(b"bad PNG")
             elif args.prompt == "pause":
@@ -48,7 +49,13 @@ struct ImageGenerationCheck {
         for path in [uv, renderer] {
             try fm.setAttributes([.posixPermissions: 0o700], ofItemAtPath: path.path)
         }
-        let engine = ImageGeneration(supported: true, historyDirectory: images, worker: (uv, renderer))
+        let suite = "mlxl3.turbo-test.\(UUID().uuidString)"
+        let prefs = UserDefaults(suiteName: suite)!
+        defer { prefs.removePersistentDomain(forName: suite) }
+        prefs.set(model.path, forKey: "image21ModelDirectory")
+        let turbo = root.appendingPathComponent("Installed Turbo", isDirectory: true)
+        let engine = ImageGeneration(supported: true, historyDirectory: images, worker: (uv, renderer),
+                                     preferences: prefs, installedTurboDirectory: turbo)
         func wait(_ predicate: @MainActor () -> Bool) async throws {
             for _ in 0..<500 {
                 if predicate() { return }
@@ -57,6 +64,7 @@ struct ImageGenerationCheck {
             preconditionFailure("Timed out waiting for the isolated image worker")
         }
         await engine.refreshHistory()
+        check(engine.variant == .base && engine.modelDirectory?.path == model.path && engine.steps == 40)
         check(engine.history.isEmpty && !engine.isLoadingHistory && engine.historyError == nil)
         check(!fm.fileExists(atPath: images.path), "Opening an empty gallery must not create files")
         let prompt = "Lune 🌙, lignes ‘bleues’.\nDeuxième ligne."
@@ -66,7 +74,9 @@ struct ImageGenerationCheck {
         try await wait { !engine.running }
         guard let first = engine.history.first else { preconditionFailure(engine.error ?? "Missing history") }
         check(engine.result == first.fileURL && first.prompt == prompt && first.steps == 2 && first.seed == 0)
-        check(first.modelName == "Qwen-Image-fixture" && first.width == 512 && first.height == 512)
+        check(first.modelName == "Qwen-Image-fixture" && first.variant == .base && first.width == 512 && first.height == 512)
+        let baseArgs = try String(contentsOf: model.appendingPathComponent("last-variant"), encoding: .utf8)
+        check(baseArgs == "base:2", "Base reaches the worker with the selected steps")
         let published = try Data(contentsOf: first.fileURL)
         check(published == sample, "The worker's PNG must survive publication byte-for-byte")
         engine.start(model: model, prompt: "--seed", size: 512, steps: 50, seed: 0)
@@ -77,7 +87,7 @@ struct ImageGenerationCheck {
         check(engine.history == [second, first] && second.id != first.id)
         check(second.prompt == "--seed" && second.steps == 50 && second.createdAt >= first.createdAt)
 
-        let reopened = ImageGeneration(supported: false, historyDirectory: images)
+        let reopened = ImageGeneration(supported: false, historyDirectory: images, preferences: prefs)
         await reopened.refreshHistory()
         check(reopened.history == [second, first] && reopened.historyError == nil, "Restore after relaunch")
         engine.start(model: model, prompt: "corrupt", size: 512, steps: 2, seed: 5)
@@ -93,6 +103,58 @@ struct ImageGenerationCheck {
         await engine.refreshHistory()
         check(engine.status == "Generation cancelled." && engine.error == nil && engine.history == [second, first])
 
+        engine.baseSteps = 31
+        engine.selectVariant(.turbo)
+        check(engine.modelDirectory == nil && engine.steps == 8, "Turbo must not silently use the Base folder")
+        try fm.createDirectory(at: turbo, withIntermediateDirectories: true)
+        try Data("{}".utf8).write(to: turbo.appendingPathComponent("quantization.json"))
+        try sample.write(to: turbo.appendingPathComponent("sample.png"))
+        engine.refreshModelDirectory()
+        check(engine.modelDirectory == turbo, "An installed Turbo folder is discovered without a picker")
+        for wrongSteps in [1, 7, 9, 40, 51] {
+            engine.start(model: turbo, prompt: "turbo", size: 512, steps: wrongSteps, seed: 123)
+            try await wait { !engine.running }
+            check(engine.error == "Turbo uses 8 steps." && !fm.fileExists(atPath: turbo.appendingPathComponent("last-prompt").path))
+        }
+        engine.start(model: model, prompt: "turbo", size: 512, steps: 8, seed: 123)
+        try await wait { !engine.running }
+        check(engine.error?.contains("quantization.json") == true && engine.history.count == 2)
+        engine.start(model: turbo, prompt: "turbo", size: 512, steps: engine.steps, seed: 123)
+        engine.selectVariant(.base)
+        try await wait { !engine.running }
+        let turboArgs = try String(contentsOf: turbo.appendingPathComponent("last-variant"), encoding: .utf8)
+        guard let fast = engine.history.first else { preconditionFailure() }
+        check(turboArgs == "turbo:8" && fast.variant == .turbo && fast.steps == 8 && engine.variant == .turbo)
+        let custom = root.appendingPathComponent("My Turbo", isDirectory: true)
+        engine.selectModelDirectory(custom)
+        let restored = ImageGeneration(supported: false, historyDirectory: images, preferences: prefs, installedTurboDirectory: turbo)
+        check(restored.variant == .turbo && restored.modelDirectory == custom && restored.steps == 8)
+        await restored.refreshHistory()
+        check(restored.history.first == fast && restored.history.count == 3)
+        engine.selectVariant(.base)
+        check(engine.steps == 31 && engine.modelDirectory?.path == model.path, "Switching back must restore Base settings")
+        let store = GeneratedImageHistory(directory: images)
+        do {
+            _ = try store.save(png: turbo.appendingPathComponent("sample.png"), prompt: "invalid", modelName: "Turbo",
+                               variant: .turbo, size: 512, steps: 9, seed: 0)
+            preconditionFailure("Saved a Turbo render with a different sampling schedule")
+        } catch {
+            check(fm.fileExists(atPath: turbo.appendingPathComponent("sample.png").path))
+        }
+        let turboInfo = images.appendingPathComponent("." + fast.fileURL.lastPathComponent + ".json")
+        let originalTurboInfo = try Data(contentsOf: turboInfo)
+        for invalid in ["unknown variant", "missing variant", "wrong schedule"] {
+            var metadata = try JSONSerialization.jsonObject(with: originalTurboInfo) as! [String: Any]
+            if invalid == "unknown variant" { metadata["variant"] = "future-model" }
+            if invalid == "missing variant" { metadata.removeValue(forKey: "variant") }
+            if invalid == "wrong schedule" { metadata["steps"] = 40 }
+            try JSONSerialization.data(withJSONObject: metadata).write(to: turboInfo, options: .atomic)
+            await restored.refreshHistory()
+            check(restored.history.first?.id == fast.id && restored.history.first?.variant == nil
+                  && restored.history.first?.prompt == nil, "Invalid metadata must not be reused as Base")
+        }
+        try originalTurboInfo.write(to: turboInfo, options: .atomic)
+
         let legacy = images.appendingPathComponent("Image-4294967295-22C1B2AC-D794-445B-BF0A-10AE664773D0.png")
         let unknown = images.appendingPathComponent("renamed.png")
         try sample.write(to: legacy)
@@ -101,24 +163,28 @@ struct ImageGenerationCheck {
         try Data("bad png".utf8).write(to: images.appendingPathComponent("damaged.png"))
         try sample.write(to: images.appendingPathComponent(".incomplete.png"))
         try Data("{}".utf8).write(to: images.appendingPathComponent(".no-such-image.png.json"))
-        // A truncated sidecar or one belonging to a different image must never invent a prompt.
+        // Version 1 predates Turbo. A missing or malformed sidecar cannot establish which model rendered an image.
         let firstInfo = images.appendingPathComponent("." + first.fileURL.lastPathComponent + ".json")
         let secondInfo = images.appendingPathComponent("." + second.fileURL.lastPathComponent + ".json")
+        var legacyMetadata = try JSONSerialization.jsonObject(with: Data(contentsOf: firstInfo)) as! [String: Any]
+        legacyMetadata["version"] = 1
+        legacyMetadata.removeValue(forKey: "variant")
+        try JSONSerialization.data(withJSONObject: legacyMetadata).write(to: firstInfo, options: .atomic)
         try fm.copyItem(at: firstInfo, to: images.appendingPathComponent("." + legacy.lastPathComponent + ".json"))
         try Data("{".utf8).write(to: secondInfo, options: .atomic)
         await reopened.refreshHistory()
-        check(reopened.history.count == 4 && reopened.historyError == nil)
+        check(reopened.history.count == 5 && reopened.historyError == nil)
         guard let old = reopened.history.first(where: { $0.fileURL == legacy }),
               let renamed = reopened.history.first(where: { $0.fileURL == unknown }),
               let incomplete = reopened.history.first(where: { $0.id == second.id }) else { preconditionFailure() }
         check(old.prompt == nil && old.steps == nil && old.seed == .max && old.width == 512 && old.height == 512)
-        check(renamed.prompt == nil && renamed.seed == nil && renamed.modelName == nil)
+        check(renamed.prompt == nil && renamed.seed == nil && renamed.modelName == nil && renamed.variant == nil)
         check(incomplete.prompt == nil && incomplete.seed == 0 && incomplete.steps == nil)
         check(reopened.history.contains(first), "One corrupt entry must not hide the valid entry")
         check(zip(reopened.history, reopened.history.dropFirst()).allSatisfy { $0.createdAt >= $1.createdAt })
         try fm.removeItem(at: first.fileURL)
         await reopened.refreshHistory()
-        check(reopened.history.count == 3 && !reopened.history.contains(first), "Missing PNGs are not gallery entries")
+        check(reopened.history.count == 4 && !reopened.history.contains(first), "Missing PNGs are not gallery entries")
         let blocked = ImageGeneration(historyDirectory: unknown)
         await blocked.refreshHistory()
         check(!blocked.isLoadingHistory && blocked.history.isEmpty && blocked.historyError != nil)

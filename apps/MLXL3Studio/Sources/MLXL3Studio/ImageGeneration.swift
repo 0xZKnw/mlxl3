@@ -21,9 +21,15 @@ enum Image21Hardware {
 
 @MainActor
 final class ImageGeneration: ObservableObject {
+    static let installedTurboDirectory = URL.applicationSupportDirectory
+        .appendingPathComponent("io.mlxl3.desktop/ImageModels/Qwen-Image-2.1-Turbo-EXL3-4bit", isDirectory: true)
+
     @Published var prompt = ""
     @Published var size = 512
-    @Published var steps = 40
+    @Published var baseSteps = 40
+    var steps: Int { variant == .turbo ? 8 : baseSteps }
+    @Published private(set) var variant: Image21Variant
+    @Published private(set) var modelDirectory: URL?
     @Published var seed = UInt32.random(in: 0...UInt32.max)
     @Published private(set) var running = false
     @Published private(set) var status = ""
@@ -40,12 +46,47 @@ final class ImageGeneration: ObservableObject {
 
     private let supported: Bool
     private let worker: (launcher: URL, script: URL)?
+    private let preferences: UserDefaults
+    private let installedTurboDirectory: URL
 
     init(supported: Bool = Image21Hardware.available, historyDirectory: URL = GeneratedImageHistory.defaultDirectory,
-         worker: (launcher: URL, script: URL)? = nil) {
+         worker: (launcher: URL, script: URL)? = nil, preferences: UserDefaults = .standard,
+         installedTurboDirectory: URL = ImageGeneration.installedTurboDirectory) {
         self.supported = supported
         self.historyStore = GeneratedImageHistory(directory: historyDirectory)
         self.worker = worker
+        self.preferences = preferences
+        self.installedTurboDirectory = installedTurboDirectory
+        variant = preferences.string(forKey: "image21Variant").flatMap(Image21Variant.init(rawValue:)) ?? .base
+        refreshModelDirectory()
+    }
+
+    private var folderKey: String { variant == .base ? "image21ModelDirectory" : "image21TurboModelDirectory" }
+
+    func refreshModelDirectory() {
+        if let path = preferences.string(forKey: folderKey), !path.isEmpty {
+            modelDirectory = URL(fileURLWithPath: path, isDirectory: true)
+        } else if variant == .turbo && FileManager.default.fileExists(atPath: installedTurboDirectory.appendingPathComponent("quantization.json").path) {
+            modelDirectory = installedTurboDirectory
+        } else {
+            modelDirectory = nil
+        }
+    }
+
+    func selectVariant(_ selection: Image21Variant) {
+        guard !running, selection != variant else { return }
+        variant = selection
+        preferences.set(selection.rawValue, forKey: "image21Variant")
+        refreshModelDirectory()
+        error = nil
+        status = ""
+    }
+
+    func selectModelDirectory(_ directory: URL) {
+        guard !running else { return }
+        preferences.set(directory.path, forKey: folderKey)
+        modelDirectory = directory
+        error = nil
     }
 
     func refreshHistory() async {
@@ -72,6 +113,7 @@ final class ImageGeneration: ObservableObject {
 
     func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32) {
         guard !running else { return }
+        let variant = self.variant
         running = true
         result = nil
         error = nil
@@ -80,11 +122,17 @@ final class ImageGeneration: ObservableObject {
             defer { running = false; task = nil; process = nil }
             do {
                 guard supported else { throw failure(Image21Hardware.requirement) }
-                guard (2...50).contains(steps) else {
+                guard variant.stepRange.contains(steps) else {
+                    if variant == .turbo { throw failure(L("Turbo utilise 8 étapes.", "Turbo uses 8 steps.")) }
                     throw failure(L("Choisis entre 2 et 50 étapes.", "Choose between 2 and 50 steps."))
                 }
                 let fm = FileManager.default
-                guard fm.fileExists(atPath: model.appendingPathComponent("manifest.json").path) else {
+                let manifest = variant == .turbo ? "quantization.json" : "manifest.json"
+                guard fm.fileExists(atPath: model.appendingPathComponent(manifest).path) else {
+                    if variant == .turbo {
+                        throw failure(L("Choisis le dossier EXL3 Turbo 4 bits contenant quantization.json.",
+                                        "Choose the Turbo 4-bit EXL3 folder containing quantization.json."))
+                    }
                     throw failure(L("Choisis le dossier EXL3 contenant manifest.json.", "Choose the EXL3 folder containing manifest.json."))
                 }
                 let home = fm.homeDirectoryForCurrentUser
@@ -110,12 +158,12 @@ final class ImageGeneration: ObservableObject {
                 status = L("Chargement du modèle…", "Loading the model…")
                 let png = work.appendingPathComponent("image.png")
                 try await run(URL(fileURLWithPath: python),
-                              ["-I", "-u", script.path, "--model", model.path, "--prompt=\(prompt)",
+                              ["-I", "-u", script.path, "--variant", variant.rawValue, "--model", model.path, "--prompt=\(prompt)",
                                "--size", String(size), "--steps", String(steps), "--seed", String(seed), "--output", png.path],
                               log: log, stdout: log, timeout: 3600, steps: steps)
                 try Task.checkCancellation()
                 let record = try historyStore.save(png: png, prompt: prompt, modelName: model.lastPathComponent,
-                                                   size: size, steps: steps, seed: seed)
+                                                   variant: variant, size: size, steps: steps, seed: seed)
                 historyRevision += 1
                 let position = history.firstIndex { GeneratedImageRecord.newestFirst(record, $0) } ?? history.endIndex
                 history.insert(record, at: position)

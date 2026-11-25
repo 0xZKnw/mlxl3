@@ -1,8 +1,10 @@
 """Exercise the actual worker CLI without Metal, weights or downloads."""
 
 import contextlib
+import hashlib
 import importlib.util
 import io
+import json
 import math
 import os
 import subprocess
@@ -39,6 +41,7 @@ class ImageWorkerTest(unittest.TestCase):
         os.environ.pop("MLXL3_DISABLE_TENSOR_OPS", None)
         self.root = Path(self.enterContext(tempfile.TemporaryDirectory()))
         self.model = Mock()
+        self.actual_build = self.worker.build
         self.build = self.enterContext(patch.object(self.worker, "build", return_value=self.model))
         self.image = Mock(size=(512, 512))
         self.latent = self.tensor([0.25, -1.0])
@@ -84,6 +87,128 @@ class ImageWorkerTest(unittest.TestCase):
             seed=371, prompt="oak", width=512, height=512, num_inference_steps=40
         )
         self.image.save.assert_called_once_with(output, format="PNG")
+
+    def test_turbo_uses_eight_steps_and_an_explicit_variant(self):
+        self.run_worker("--variant", "turbo")
+        self.build.assert_called_once_with(self.root, "turbo")
+        self.model.generate_image.assert_called_once_with(
+            seed=371, prompt="oak", width=512, height=512, num_inference_steps=8
+        )
+
+    def test_turbo_rejects_base_step_count_before_setup(self):
+        with contextlib.redirect_stderr(io.StringIO()) as err, self.assertRaises(SystemExit):
+            self.run_worker("--variant", "turbo", "--steps", "40")
+        self.assertIn("exactly 8 steps", err.getvalue())
+        self.build.assert_not_called()
+        self.core.device_info.assert_not_called()
+
+    def test_checkpoint_and_scheduler_are_selected_together(self):
+        # In the pinned MFLUX pipeline the model config selects either the fixed
+        # 8-sigma Turbo scheduler or the resolution-dependent base scheduler.
+        config = Mock()
+        init = Mock()
+
+        class ImageModel:
+            transformer = object()
+
+        modules = {
+            "huggingface_hub": SimpleNamespace(snapshot_download=Mock(return_value=str(self.root))),
+            "mflux.models.common.compute_precision": SimpleNamespace(ComputePrecision=Mock()),
+            "mflux.models.common.config": SimpleNamespace(ModelConfig=config),
+            "mflux.models.qwen21.qwen21_initializer": SimpleNamespace(Qwen21Initializer=init),
+            "mflux.models.qwen21.variants.txt2img.qwen_image_21": SimpleNamespace(
+                QwenImage21=ImageModel
+            ),
+            "mflux.models.qwen21.weights.qwen21_weight_definition": SimpleNamespace(
+                Qwen21WeightDefinition=object
+            ),
+        }
+        with (
+            patch.dict(sys.modules, modules),
+            patch.object(self.worker, "load_denoiser") as base,
+            patch.object(self.worker, "load_turbo_denoiser") as turbo,
+        ):
+            for variant, expected, target, other in (
+                ("turbo", config.qwen_image_21_turbo.return_value, turbo, base),
+                ("base", config.qwen_image_21.return_value, base, turbo),
+            ):
+                with self.subTest(variant=variant):
+                    model = self.actual_build(self.root, variant)
+                    init.init_config.assert_called_with(model, expected)
+                    target.assert_called_once_with(model.transformer, self.root)
+                    other.assert_not_called()
+                    target.reset_mock()
+
+    def test_published_turbo_manifest_identity_before_loading_weights(self):
+        (self.root / "quantization.json").write_text('{"source":"base"}')
+        with self.assertRaisesRegex(ValueError, "Turbo EXL3"):
+            self.worker.load_turbo_denoiser(None, self.root)
+        self.core.load.assert_not_called()
+
+    def test_loads_each_default_codebook_projection_from_its_own_file(self):
+        # Synthetic manifest with the actual 32 x 7 module names. The digest is
+        # replaced only for this fixture so CI needs neither Metal nor a model.
+        names = [f"transformer_blocks.{i}.{p}" for i in range(32) for p in self.worker.PROJECTIONS]
+        layers = {}
+        for name in names:
+            filename = hashlib.sha256(name.encode()).hexdigest() + ".safetensors"
+            (self.root / filename).write_bytes(name.encode())
+            layers[name] = {
+                "file": filename,
+                "sha256": hashlib.sha256(name.encode()).hexdigest(),
+                "bits": 4,
+                "mcg": False,
+                "mul1": False,
+                "bias": False,
+                "in_features": 128,
+                "out_features": 256,
+            }
+        manifest = {
+            "source": {"repo_id": self.worker.TURBO_SOURCE, "revision": self.worker.TURBO_REVISION},
+            "layers": layers,
+            "unquantized_sha256": hashlib.sha256(b"dense").hexdigest(),
+        }
+        (self.root / "unquantized.safetensors").write_bytes(b"dense")
+        self.worker.tree_flatten.return_value = [
+            (n + ".weight", SimpleNamespace(shape=(256, 128))) for n in names
+        ]
+        values = {"trellis": object(), "suh": object(), "svh": object()}
+        dense = {"learned.weight": object()}
+        self.core.load.side_effect = lambda path: dense if "unquantized." in path else values
+        linear = self.enterContext(patch.object(self.worker, "EXL3Linear"))
+        install = self.enterContext(patch.object(self.worker, "install_denoiser"))
+
+        def load():
+            raw = json.dumps(manifest).encode()
+            (self.root / "quantization.json").write_bytes(raw)
+            with patch.object(
+                self.worker, "TURBO_MANIFEST_SHA256", hashlib.sha256(raw).hexdigest()
+            ):
+                self.worker.load_turbo_denoiser(self.model, self.root)
+
+        load()
+        self.assertEqual(linear.call_count, 224)
+        self.assertEqual(install.call_args.args[2], dense)
+        self.assertEqual([n for n, _ in install.call_args.args[3]], names)
+        for name, invocation in zip(names, linear.call_args_list, strict=True):
+            self.assertEqual(invocation.args[0], {f"{name}.{k}": v for k, v in values.items()})
+            self.assertEqual(invocation.args[1:], (name, (256, 128), 4))
+            self.assertEqual(invocation.kwargs, {"mcg": False})
+        for field, wrong in (("mcg", True), ("mul1", True), ("bits", 3), ("file", "../outside")):
+            with (
+                self.subTest(field=field),
+                patch.dict(layers[names[0]], {field: wrong}),
+                self.assertRaisesRegex(ValueError, "Invalid Turbo EXL3 layer"),
+            ):
+                load()
+        with (
+            patch.dict(layers[names[0]], {"sha256": "0" * 64}),
+            self.assertRaisesRegex(ValueError, "Checksum mismatch"),
+        ):
+            load()
+        del layers[names[0]]
+        with self.assertRaisesRegex(ValueError, "Incomplete Turbo"):
+            load()
 
     def test_matmul_depth_for_image_projection_shapes(self):
         for inputs, outputs, bits, depth in (
@@ -136,7 +261,9 @@ class ImageWorkerTest(unittest.TestCase):
         order.attach_mock(self.core.set_cache_limit, "limit")
         order.attach_mock(self.build, "build")
         self.run_worker("--size", "512")
-        self.assertEqual(order.method_calls, [call.limit(512 * 1024**2), call.build(self.root)])
+        self.assertEqual(
+            order.method_calls, [call.limit(512 * 1024**2), call.build(self.root, "base")]
+        )
 
     def test_preserves_allocator_cache_at_larger_sizes(self):
         for size in (768, 1024):

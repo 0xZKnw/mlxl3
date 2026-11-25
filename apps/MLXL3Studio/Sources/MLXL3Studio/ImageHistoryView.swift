@@ -123,17 +123,19 @@ struct ImageHistoryView: View {
                     StudioSectionTitle(title: L("Réglages", "Settings"))
                     Grid(alignment: .leading, horizontalSpacing: 14, verticalSpacing: 7) {
                         if let model = item.modelName { setting(L("Modèle", "Model"), model) }
+                        if let variant = item.variant { setting(L("Version", "Variant"), variant.title) }
                         setting(L("Dimensions", "Dimensions"), "\(item.width) × \(item.height) px")
                         if let steps = item.steps { setting(L("Étapes", "Steps"), String(steps)) }
                         if let seed = item.seed { setting(L("Graine", "Seed"), String(seed)) }
                     }
                 }
-                if let prompt = item.prompt, let steps = item.steps, let seed = item.seed,
-                   item.width == item.height, [512, 768, 1024].contains(item.width), (2...50).contains(steps) {
+                if let prompt = item.prompt, let variant = item.variant, let steps = item.steps, let seed = item.seed,
+                   item.width == item.height, [512, 768, 1024].contains(item.width), variant.stepRange.contains(steps) {
                     Button {
+                        engine.selectVariant(variant)
                         engine.prompt = prompt
                         engine.size = item.width
-                        engine.steps = steps
+                        if variant == .base { engine.baseSteps = steps }
                         engine.seed = seed
                         selection = nil
                         openGenerator()
