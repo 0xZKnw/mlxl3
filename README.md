@@ -133,7 +133,7 @@ In **Compare**, choose two installed text models, enter a shared prompt and set
 an output limit. Studio runs one model at a time and shows the answers together
 with time to first visible text and decode speed. Model loading is excluded from
 the first-text measurement. Comparison runs have their own sessions and leave
-your conversations and usage totals intact.
+your conversations and usage totals intact. [See a comparison on an Apple M5](docs/images/studio-lab-compare.png).
 
 **Generations** lets you inspect individual runs, filter by model or export
 the retained details as JSON. **This Mac** shows hardware and current memory
