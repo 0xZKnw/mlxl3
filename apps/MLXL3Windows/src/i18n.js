@@ -160,8 +160,6 @@ const STRINGS = {
     changeModified: "Modified", changeDeleted: "Deleted", binaryFile: "Binary file",
     excludedOnImport: "{n} items excluded on import", filesCount: "{n} files", noFilesYet: "No files yet",
     agentLimit: "4,096-token Agent limit reached. Partial output was kept; continue in another turn.",
-    agentTimeout: "10-minute Agent limit reached. Partial output was kept.",
-    agentSilent: "Agent has not responded for 2 minutes. Partial output was kept.",
     agentCard: "Agent tools", agentCardNote: "Private copy per task · list, read and write tools · commands off by default.",
     // Server
     serverSubtitle: "Local OpenAI-compatible API.", model: "Model", access: "Access", thisPc: "This PC",
@@ -342,8 +340,6 @@ const STRINGS = {
     changeModified: "Modifié", changeDeleted: "Supprimé", binaryFile: "Fichier binaire",
     excludedOnImport: "{n} éléments exclus à l’import", filesCount: "{n} fichiers", noFilesYet: "Aucun fichier pour le moment",
     agentLimit: "Limite de 4 096 tokens atteinte. La réponse partielle est conservée ; continue dans un nouveau tour.",
-    agentTimeout: "Limite de 10 minutes atteinte. La réponse partielle est conservée.",
-    agentSilent: "L’agent ne répond plus depuis 2 minutes. La réponse partielle est conservée.",
     agentCard: "Outils de l’agent", agentCardNote: "Copie privée par tâche · outils de liste, lecture et écriture · commandes désactivées par défaut.",
     serverSubtitle: "API locale compatible OpenAI.", model: "Modèle", access: "Accès", thisPc: "Ce PC",
     localNetwork: "Réseau local", networkNote: "Accessible sur le réseau avec la clé API. HTTP n’est pas chiffré.",

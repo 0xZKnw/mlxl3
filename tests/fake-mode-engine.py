@@ -78,11 +78,22 @@ elif command == "bridge":
         fcntl.flock(lease, fcntl.LOCK_EX | fcntl.LOCK_NB)
     active = None
     ignore_stop = False
+    # What an engine reports with `cancelled` / `error` once tools ran in the stopped turn.
+    interrupted = None
+    INTERRUPTED_HISTORY = json.dumps([
+        {"role": "assistant", "content": "", "tool_calls": [
+            {"type": "function", "function": {"name": "write", "arguments": {"file_path": "game.py"}}}]},
+        {"role": "tool", "name": "write", "content": "Wrote game.py (120 lines)"},
+        {"role": "assistant", "content": ""},
+    ])
 
     def cancel(*_):
         global active
         if active and not ignore_stop:
-            emit("cancelled", request_id=active)
+            if interrupted:
+                emit("cancelled", request_id=active, turn_context=interrupted)
+            else:
+                emit("cancelled", request_id=active)
             active = None
 
     can_yield = os.path.isfile(os.path.join(os.environ["MLXL3_HOME"], "cooperative-agent-guidance"))
@@ -188,6 +199,20 @@ elif command == "bridge":
                     emit("complete", request_id=active, stop_reason="agent_yield" if yield_requested else "eos",
                          turn_context=json.dumps(history), assistant_context="Yielded" if yield_requested else "Completed")
                 active = None
+                continue
+            interrupted = None
+            if text in ("tools-then-hang", "tools-then-error"):
+                key = {"request_id": active, "tool_call_id": "w1", "tool_name": "write"}
+                emit("delta", request_id=active, phase="answer", text="Writing the game.")
+                emit("tool_start", **key)
+                emit("tool_result", **key, text="Wrote game.py (120 lines)", is_error=False)
+                if text == "tools-then-error":
+                    emit("error", request_id=active, message="Metal device lost",
+                         turn_context=INTERRUPTED_HISTORY)
+                    active = None
+                else:
+                    interrupted = INTERRUPTED_HISTORY
+                    emit("delta", request_id=active, phase="thinking", text="Now the tests")
                 continue
             if text.startswith("hang-"):
                 ignore_stop = text == "hang-ignore"

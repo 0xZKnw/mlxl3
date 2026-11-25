@@ -3482,6 +3482,7 @@ fn prefill_dspark_round(
             Ok(())
         },
         &|| cancelled.load(Ordering::Relaxed),
+        &mut |done| report_prefill_progress(done, tokens.len()),
     )?;
     *cache = saved;
     Ok((logits, cached))
@@ -3717,6 +3718,7 @@ fn prefill_mtp(
         let end = model
             .prefill_span_end(start, tokens.len(), CHUNK, group)
             .context("invalid MTP prefill span")?;
+        report_prefill_progress(start, tokens.len())?;
         let NativeChatModel::Qwen(target) = &mut *model else {
             bail!("MTP requires Qwen");
         };
@@ -6827,13 +6829,13 @@ fn native_bridge(
                     prompt_cache = None;
                     mtp_head = None;
                     mtp_head_revision = None;
-                    if cancelled.swap(false, Ordering::Relaxed) {
-                        emit_event(json!({"type":"cancelled", "request_id":request_id}))?;
-                    } else {
-                        emit_event(
-                            json!({"type":"error", "request_id":request_id, "message":error.to_string()}),
-                        )?;
-                    }
+                    // After tool results the event carries them (`turn_context`), so the next
+                    // turn still shows the model what it did before the stop.
+                    emit_event(mlxl3_native::agent_turn::failure_event(
+                        &request_id,
+                        cancelled.swap(false, Ordering::Relaxed),
+                        &error,
+                    ))?;
                 }
             }
             other => emit_event(json!({

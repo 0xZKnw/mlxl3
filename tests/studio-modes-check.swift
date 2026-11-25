@@ -257,54 +257,68 @@ extension StudioModel {
     ignored.stopServices()
     await ignored.bridge.stopAndWait()
 
-    for deadline in [300] {
-      let guarded = try await readyAgent("deadline-\(deadline)")
-      guarded.draft = "hang-cooperative"
-      guarded.send()
-      try await wait { guarded.currentConversation?.messages.last?.thinking.isEmpty == false }
-      let start = guarded.generationStartedAt!
-      guarded.generationLastActivity = start
-      let last = guarded.generationLastActivity
-      let stale = try JSONDecoder().decode(
-        BridgeEvent.self,
-        from: Data(#"{"type":"generation_status","request_id":"stale","text":"still busy"}"#.utf8))
-      guarded.handle(stale)
-      check(guarded.generationLastActivity == last, "Stale requests cannot keep the watchdog alive")
-      guarded.checkAgentGenerationDeadline(at: start + .seconds(deadline - 1))
-      check(guarded.cancellationFallback == nil, "Deadline is not triggered early")
-      guarded.checkAgentGenerationDeadline(at: start + .seconds(deadline))
-      try await wait { !guarded.isGenerating }
+    // The app has no time limit on an Agent turn, total or silent (a long context can be read
+    // for many minutes without an engine event): a silent turn keeps running until Stop.
+    let silent = try await readyAgent("silent")
+    silent.draft = "hang-cooperative"
+    silent.send()
+    try await wait { silent.currentConversation?.messages.last?.thinking.isEmpty == false }
+    try await Task.sleep(for: .milliseconds(1_200))
+    check(
+      silent.isGenerating && silent.cancellationFallback == nil
+        && silent.currentConversation!.messages.last!.error == nil,
+      "A silent Agent turn is left running")
+    silent.stopGeneration()
+    try await wait { !silent.isGenerating }
+    check(
+      silent.currentConversation!.messages.last!.error != nil && silent.cancellationFallback == nil
+        && silent.bridge.isRunning,
+      "Stop still ends a silent Agent turn and keeps the engine")
+    silent.stopServices()
+    await silent.bridge.stopAndWait()
+    // A turn stopped (or failed) after tools ran keeps what they did: the next message gives
+    // the model its calls and their results back, not only the visible text.
+    for (prompt, stop) in [("tools-then-hang", true), ("tools-then-error", false)] {
+      let agent = try await readyAgent("interrupted-\(stop)")
+      agent.draft = prompt
+      agent.send()
+      if stop {
+        try await wait { agent.currentConversation?.messages.last?.thinking.isEmpty == false }
+        agent.stopGeneration()
+      }
+      try await wait { !agent.isGenerating && !agent.agentStudioBusy }
+      let stopped = agent.currentConversation!.messages[1]
+      let history = try JSONSerialization.jsonObject(with: Data((stopped.turnContext ?? "[]").utf8)) as! [[String: Any]]
       check(
-        guarded.currentConversation!.messages.last!.error?.contains(
-          "5 minutes") == true,
-        "Deadline stops the real request and explains why")
+        stopped.error != nil && stopped.content == "Writing the game." && history.count == 3
+          && history[1]["content"] as? String == "Wrote game.py (120 lines)"
+          && stopped.toolActivities.first?.result == "Wrote game.py (120 lines)",
+        "An interrupted Agent answer keeps the tool history the engine reports (\(prompt))")
+      check(agent.bridge.isRunning && agent.engineState.isReady, "The engine stays loaded after \(prompt)")
+      agent.draft = "continue"
+      agent.send()
+      try await wait { !agent.isGenerating && agent.currentConversation?.messages.count == 4 }
+      let echoed = agent.currentConversation!.messages[3].content
+      let next = try JSONSerialization.jsonObject(with: Data(echoed.utf8)) as! [String: Any]
+      let replay = next["messages"] as! [[String: Any]]
       check(
-        guarded.generationWatchdog == nil && guarded.cancellationFallback == nil,
-        "Completion cleans up every watchdog")
-      guarded.stopServices()
-      await guarded.bridge.stopAndWait()
+        replay.count >= 3 && replay[replay.count - 2]["role"] as? String == "assistant"
+          && replay[replay.count - 2]["turn_context"] as? String == stopped.turnContext
+          && replay.last?["content"] as? String == "continue",
+        "The next turn sends the interrupted tool history back to the engine (\(prompt))")
+      agent.stopServices()
+      await agent.bridge.stopAndWait()
     }
-    // No total time limit (it used to stop at 10 minutes): an answer that keeps streaming
-    // runs as long as it needs; only silence stops it.
-    let active = try await readyAgent("deadline-active")
-    active.draft = "hang-cooperative"
-    active.send()
-    try await wait { active.currentConversation?.messages.last?.thinking.isEmpty == false }
-    let activeStart = active.generationStartedAt!
-    active.generationLastActivity = activeStart + .seconds(3_599)
-    active.checkAgentGenerationDeadline(at: activeStart + .seconds(3_600))
-    try await Task.sleep(for: .milliseconds(200))
-    check(
-      active.isGenerating && active.cancellationFallback == nil
-        && active.currentConversation!.messages.last!.error == nil,
-      "An Agent answer still streaming after an hour is not stopped")
-    active.checkAgentGenerationDeadline(at: activeStart + .seconds(3_599 + 300))
-    try await wait { !active.isGenerating }
-    check(
-      active.currentConversation!.messages.last!.error?.contains("5 minutes") == true,
-      "Five silent minutes still stop it")
-    active.stopServices()
-    await active.bridge.stopAndWait()
+    // An engine that reports nothing with its stop (older ones) leaves the answer as before.
+    let legacyStop = try await readyAgent("interrupted-legacy")
+    legacyStop.draft = "hang-cooperative"
+    legacyStop.send()
+    try await wait { legacyStop.currentConversation?.messages.last?.thinking.isEmpty == false }
+    legacyStop.stopGeneration()
+    try await wait { !legacyStop.isGenerating }
+    check(legacyStop.currentConversation!.messages[1].turnContext == nil, "No tool history is invented for a stop without one")
+    legacyStop.stopServices()
+    await legacyStop.bridge.stopAndWait()
     let limited = try await readyAgent("budget")
     limited.draft = "budget-limit"
     limited.send()
