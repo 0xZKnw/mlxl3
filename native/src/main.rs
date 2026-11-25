@@ -4918,15 +4918,13 @@ fn bridge_generate_round(
             json!({"type":"flash_memory_plan","request_id":request_id,"ar":plan,"memory":model.memory_ledger(None)?}),
         )?;
     }
-    // DSPARK-INK2M-P2: Inkling 2 drafter, exact for greedy and sampled rows; tool rounds keep the
-    // ordinary path (their stream filter and stops are unchanged).
+    // DSPARK-INK2M-P2: Inkling 2 drafter, exact for greedy and sampled rows. FEAT-2026-11-25-INK2M-SPEC-TOOLS:
+    // tool rounds too (as the prompt lookup since AGENT-2026-11-23-VITESSE V1): every token still goes through
+    // the same stream filter and stops.
     #[cfg(feature = "mlx")]
     let mut dspark = match &*model {
         NativeChatModel::Inkling(target, Some(drafter), _)
-            if tools.is_empty()
-                && mtp.is_none()
-                && draft.is_none()
-                && DSPARK_REQUESTED.with(std::cell::Cell::get) =>
+            if mtp.is_none() && draft.is_none() && DSPARK_REQUESTED.with(std::cell::Cell::get) =>
         {
             // DFLASH2-2026-11-24-INK2M-P0: DFlash2 drafts up to its whole block (7), DSpark keeps width 3
             let dflash2 = matches!(
