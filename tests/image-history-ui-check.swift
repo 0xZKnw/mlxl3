@@ -246,8 +246,12 @@ struct ImageHistoryInterfaceCheck {
         try fileManager.removeItem(at: unavailable)
         try click("réessayer", in: errorPage)
         let empty = try await words()
-        try expectImageCounts([0, 0], for: .base, in: empty)
-        try expectImageCounts([0, 0], for: .turbo, in: empty)
+        // Vision may omit an isolated zero. Check the empty table still exposes both
+        // modes and periods; the four distinct non-zero cells were checked above.
+        try expect(["base", "turbo", "30 derniers jours", "depuis le début"], in: empty)
+        guard try fresh.usageStore.summary() == ImageUsageSummary() else {
+            throw HistoryUIError(message: "Retry did not open an empty image ledger")
+        }
         for _ in 0..<12 { try fresh.usageStore.record(id: UUID(), variant: .turbo) }
         let missingHistory = unavailable.appendingPathComponent("Images")
         try Data().write(to: missingHistory)

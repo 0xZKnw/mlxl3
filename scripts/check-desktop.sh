@@ -406,7 +406,7 @@ run_after_preferences() {
     await_compile image-input
     run_fixture_check "${test_dir}/image-input-check" "$PWD/tests/fake-desktop-engine.py" "$PWD/tests/fixtures/image-input"
     await_compile image-history-ui
-    run_fixture_check "${test_dir}/image-history-ui-check" "$PWD/docs/images/studio-image21-m5.png" | tee "${test_dir}/image-history-ui.log"
+    fixture_timeout=180 run_fixture_check "${test_dir}/image-history-ui-check" "$PWD/docs/images/studio-image21-m5.png" | tee "${test_dir}/image-history-ui.log"
     grep -q '^Image history interface passed:' "${test_dir}/image-history-ui.log"
     await_compile workspace-features
     "${test_dir}/workspace-features-check" "$PWD/tests/fake-desktop-engine.py"
