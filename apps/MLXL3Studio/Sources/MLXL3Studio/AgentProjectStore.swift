@@ -485,8 +485,8 @@ struct AgentProjectStore: Sendable {
       at: workspace, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
     try FileManager.default.createDirectory(
       at: metadata, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-    let inventory = try files()
-    let paths = includedPaths ?? inventory.paths
+    var inventory = try files()
+    if let includedPaths { inventory.paths = includedPaths }
     if !FileManager.default.fileExists(atPath: repository.path) {
       _ = try git(["init", "--bare", repository.path])
     }
@@ -499,10 +499,10 @@ struct AgentProjectStore: Sendable {
     .write(to: info.appendingPathComponent("attributes"), options: .atomic)
     _ = try git(["read-tree", "--empty"])
     // Explicit paths prevent .gitignore or an Agent's exclusions from hiding a changed file.
-    for start in stride(from: 0, to: paths.count, by: 100) {
+    for start in stride(from: 0, to: inventory.paths.count, by: 100) {
       _ = try git(
         ["add", "-f", "--"]
-          + paths[start..<min(start + 100, paths.count)].map { ":(literal)" + $0 })
+          + inventory.paths[start..<min(start + 100, inventory.paths.count)].map { ":(literal)" + $0 })
     }
     let indexed = String(decoding: try git(["ls-files", "--stage", "-z"]), as: UTF8.self).split(
       separator: "\0")
