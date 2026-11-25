@@ -1,6 +1,15 @@
 import AppKit
 import SwiftUI
 
+private extension ImageGeneration {
+    // Swift 6.3.3 crashes when it emits the isolated method adapter for
+    // Binding(get:set:). A writable key path keeps the same guarded selection.
+    var pickerVariant: Image21Variant {
+        get { variant }
+        set { selectVariant(newValue) }
+    }
+}
+
 struct ImageGenerationView: View {
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var engine: ImageGeneration
@@ -74,8 +83,7 @@ struct ImageGenerationView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(L("Modèle", "Model")).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
             Text("Qwen-Image-2.1").font(.system(size: 14, weight: .semibold))
-            Picker(L("Version du modèle", "Model variant"),
-                   selection: Binding(get: { engine.variant }, set: engine.selectVariant)) {
+            Picker(L("Version du modèle", "Model variant"), selection: $engine.pickerVariant) {
                 Text("Turbo").tag(Image21Variant.turbo)
                 Text("Base").tag(Image21Variant.base)
             }
