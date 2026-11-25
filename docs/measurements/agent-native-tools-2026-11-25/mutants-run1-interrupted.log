@@ -1,0 +1,25 @@
+M01 detected main/agent-sandbox-check.swift:1262: Fatal error: disabled tool refused
+M02 detected AssertionError: another harness's tool is refused with the catalogue: (True, 'Error: javascript is not enabled in this task.')
+M03 detected AssertionError: Native tools refused under the javascript harness
+M04 detected main/agent-sandbox-check.swift:1262: Fatal error: path refused: ../x
+M05 detected main/agent-sandbox-check.swift:1262: Fatal error: include refused: src/*.py
+M06 detected main/agent-sandbox-check.swift:1262: Fatal error: ambiguous edit names the argument and writes nothing: Error: edit: the text to find occurs 2 times in twice.tx
+M07 detected 3| x = 3
+M08 detected [exit code: 0]
+Traceback (most recent call last):
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-native-tools/docs/measurements/agent-native-tools-2026-11-25/mutants.py", line 130, in <module>
+    raise SystemExit(main())
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-native-tools/docs/measurements/agent-native-tools-2026-11-25/mutants.py", line 112, in main
+    code, tail = run(command, 900)
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-native-tools/docs/measurements/agent-native-tools-2026-11-25/mutants.py", line 69, in run
+    done = subprocess.run(command, cwd=REPO, capture_output=True, text=True, timeout=timeout, check=False, **options)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 507, in run
+    stdout, stderr = process.communicate(input, timeout=timeout)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1134, in communicate
+    stdout, stderr = self._communicate(input, endtime, timeout)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/subprocess.py", line 1979, in _communicate
+    ready = selector.select(timeout)
+  File "/Library/Developer/CommandLineTools/Library/Frameworks/Python3.framework/Versions/3.9/lib/python3.9/selectors.py", line 416, in select
+    fd_event_list = self._selector.poll(timeout)
+KeyboardInterrupt
+exit 130

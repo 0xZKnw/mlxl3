@@ -6,7 +6,10 @@ struct AgentPermissions: Codable, Equatable, Sendable {
   var write = true
   var run = true
   var commandSeconds = 5
-  var harness = AgentHarness.javascript
+  /// The tools the model is given. Saved as `toolHarness`: the earlier `harness` key, which
+  /// every workspace carried with the then-default `javascript`, is no longer read, so
+  /// existing workspaces take the native tools like new ones (AGENT-2026-11-25-NATIVE-TOOLS).
+  var harness = AgentHarness.native
   /// Internet: commands reach it directly, and `fetch`, `download` and web search go through
   /// the host. On by default (the user's choice of an open sandbox); a saved value is kept.
   var internet = true
@@ -14,6 +17,11 @@ struct AgentPermissions: Codable, Equatable, Sendable {
   var internetHosts = AgentNetwork.defaultHosts
 
   init() {}
+
+  enum CodingKeys: String, CodingKey {
+    case read, write, run, commandSeconds, internet, internetHosts
+    case harness = "toolHarness"
+  }
 
   /// Fields missing from older `project.json` files keep their defaults.
   init(from decoder: Decoder) throws {
@@ -353,6 +361,8 @@ enum AgentSandbox {
     case .javascript:
       // The tool description gives this call's limits; no second, contradicting copy here.
       return javascriptInstructions + (permissions.internet ? " " + internetInstructions : "")
+    case .native:
+      return AgentTools.instructions(permissions)
     }
   }
 
@@ -776,6 +786,63 @@ enum AgentSandbox {
     var kernel: (process: Process, input: FileHandle, output: FileHandle)?
     var kernelLines = Data()
     var kernelLost = false
+    /// One call to the persistent kernel (started here when needed): its outcome, and whether
+    /// a kernel that had stopped was replaced for it.
+    func exchange(_ call: [String: Any]) throws -> (outcome: AgentJavaScript.Outcome, restarted: Bool) {
+      if let current = kernel, !current.process.isRunning {
+        kernel = nil
+        kernelLost = true
+      }
+      if kernel == nil {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
+        process.arguments = ["--agent-js-kernel", root, stateFile ?? "-"]
+        process.environment = ["PATH": "/usr/bin:/bin"]
+        process.standardError = FileHandle.nullDevice
+        let input = Pipe()
+        let output = Pipe()
+        process.standardInput = input
+        process.standardOutput = output
+        try process.run()
+        kernel = (process, input.fileHandleForWriting, output.fileHandleForReading)
+        kernelLines = Data()
+      }
+      guard let current = kernel else { throw CocoaError(.executableRuntimeMismatch) }
+      var data = Data()
+      do {
+        try current.input.write(contentsOf: try JSONSerialization.data(withJSONObject: call) + Data([10]))
+        while true {
+          if let end = kernelLines.firstIndex(of: 10) {
+            data = Data(kernelLines[..<end])
+            kernelLines.removeSubrange(...end)
+            break
+          }
+          let chunk = current.output.availableData
+          if chunk.isEmpty { throw CocoaError(.executableRuntimeMismatch) }
+          kernelLines.append(chunk)
+          if kernelLines.count > 4 << 20 { throw CocoaError(.fileReadTooLarge) }
+        }
+      } catch {
+        current.process.terminate()
+        kernel = nil
+        kernelLost = true
+        throw error
+      }
+      let outcome = try JSONDecoder().decode(AgentJavaScript.Outcome.self, from: data)
+      defer { kernelLost = false }
+      return (outcome, kernelLost)
+    }
+    /// What every kernel call carries: the permissions and limits of this request.
+    func kernelCall(_ permissions: AgentPermissions, _ commandFolder: URL?) -> [String: Any] {
+      var call: [String: Any] = [
+        "read": permissions.read, "write": permissions.write, "run": permissions.run,
+        "commandSeconds": permissions.commandSeconds,
+        "wall": AgentJavaScript.wall(commandSeconds: permissions.commandSeconds, longCalls: longCalls),
+        "internet": permissions.internet, "hosts": permissions.internetHosts,
+      ]
+      if let commandFolder { call["commandFolder"] = commandFolder.path }
+      return call
+    }
     while true {
       let chunk = FileHandle.standardInput.availableData
       if chunk.isEmpty { break }
@@ -864,56 +931,12 @@ enum AgentSandbox {
             if let text, text.utf8.count > AgentJavaScript.maximumFileBytes {
               throw Refusal(text: AgentJavaScript.textTooLarge(text.utf8.count).text)
             }
-            if let current = kernel, !current.process.isRunning {
-              kernel = nil
-              kernelLost = true
-            }
-            if kernel == nil {
-              let process = Process()
-              process.executableURL = URL(fileURLWithPath: CommandLine.arguments[0])
-              process.arguments = ["--agent-js-kernel", root, stateFile ?? "-"]
-              process.environment = ["PATH": "/usr/bin:/bin"]
-              process.standardError = FileHandle.nullDevice
-              let input = Pipe()
-              let output = Pipe()
-              process.standardInput = input
-              process.standardOutput = output
-              try process.run()
-              kernel = (process, input.fileHandleForWriting, output.fileHandleForReading)
-              kernelLines = Data()
-            }
-            guard let current = kernel else { throw CocoaError(.executableRuntimeMismatch) }
-            var call: [String: Any] = [
-              "code": code, "read": permissions.read, "write": permissions.write, "run": permissions.run,
-              "commandSeconds": permissions.commandSeconds,
-              "wall": AgentJavaScript.wall(commandSeconds: permissions.commandSeconds, longCalls: longCalls),
-              "internet": permissions.internet, "hosts": permissions.internetHosts,
-            ]
-            if let commandFolder { call["commandFolder"] = commandFolder.path }
+            var call = kernelCall(permissions, commandFolder)
+            call["code"] = code
             if let text { call["text"] = text }
-            var data = Data()
-            do {
-              try current.input.write(contentsOf: try JSONSerialization.data(withJSONObject: call) + Data([10]))
-              while true {
-                if let end = kernelLines.firstIndex(of: 10) {
-                  data = Data(kernelLines[..<end])
-                  kernelLines.removeSubrange(...end)
-                  break
-                }
-                let chunk = current.output.availableData
-                if chunk.isEmpty { throw CocoaError(.executableRuntimeMismatch) }
-                kernelLines.append(chunk)
-                if kernelLines.count > 4 << 20 { throw CocoaError(.fileReadTooLarge) }
-              }
-            } catch {
-              current.process.terminate()
-              kernel = nil
-              kernelLost = true
-              throw error
-            }
-            var outcome = try JSONDecoder().decode(AgentJavaScript.Outcome.self, from: data)
-            if kernelLost {
-              kernelLost = false
+            let answer = try exchange(call)
+            var outcome = answer.outcome
+            if answer.restarted {
               outcome = .init(
                 text: "warning: the JavaScript kernel had stopped and was restarted: `$` and what was kept in it are gone; `state` was kept.\n"
                   + outcome.text, isError: outcome.isError)
@@ -929,6 +952,48 @@ enum AgentSandbox {
                 "type": "text",
                 "text": (error as? Refusal)?.text
                   ?? "Error: the JavaScript sandbox stopped during this call or could not start (it restarts on the next call). Check what the call did before running it again.",
+              ]],
+              "isError": true,
+            ]
+          }
+        case "tools/list" where permissions.harness == .native:
+          response["result"] = [
+            "tools": AgentTools.definitions(
+              permissions,
+              wall: AgentJavaScript.wall(commandSeconds: permissions.commandSeconds, longCalls: longCalls))
+          ]
+        case "tools/call" where permissions.harness == .native:
+          do {
+            guard let params = request["params"] as? [String: Any], let name = params["name"] as? String,
+              params["arguments"] == nil || params["arguments"] is NSNull || params["arguments"] is [String: Any]
+            else { throw CocoaError(.fileReadCorruptFile) }
+            // Each harness serves its own tools only: `javascript` and the four classic names
+            // are refused here like any unknown name, with the list of what can be called.
+            guard AgentTools.names(permissions).contains(name) else {
+              let offered = AgentTools.names(permissions).map { "`\($0)`" }.joined(separator: ", ")
+              throw Refusal(
+                text: "Error: there is no tool named `\(name)` in this task; nothing was executed."
+                  + (offered.isEmpty ? "" : " The tools you can call are: \(offered)."))
+            }
+            let roots = [root, (try? canonicalRoot(URL(fileURLWithPath: root)).path) ?? root]
+            let arguments = try AgentTools.arguments(
+              name, params["arguments"] as? [String: Any] ?? [:], permissions: permissions, roots: roots)
+            var call = kernelCall(permissions, commandFolder)
+            call["code"] = ""
+            call["tool"] = name
+            call["args"] = arguments
+            let outcome = try exchange(call).outcome
+            let note = repeats.note(code: AgentTools.signature(name, arguments), outcome: outcome, call: true)
+            response["result"] = [
+              "content": [["type": "text", "text": outcome.text + (note.map { "\n" + $0 } ?? "")]],
+              "isError": outcome.isError,
+            ]
+          } catch {
+            response["result"] = [
+              "content": [[
+                "type": "text",
+                "text": (error as? Refusal)?.text
+                  ?? "Error: the sandbox stopped during this call or could not start (it restarts on the next call). Check what the call did before making it again.",
               ]],
               "isError": true,
             ]
