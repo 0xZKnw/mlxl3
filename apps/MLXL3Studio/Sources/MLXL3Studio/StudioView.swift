@@ -14,12 +14,16 @@ struct StudioView: View {
     var body: some View {
         GeometryReader { geometry in
             HStack(spacing: 0) {
-                if sidebarVisible {
+                if sidebarVisible && studio.selectedMode != .lab {
                     SidebarView()
                         .frame(width: studio.sidebarWidth.points)
                         .modifier(StudioSidebarSurface())
                 }
-                ChatWorkspaceView(sidebarVisible: $sidebarVisible)
+                if studio.selectedMode == .lab {
+                    LabWorkspaceView(onBack: studio.leaveLab)
+                } else {
+                    ChatWorkspaceView(sidebarVisible: $sidebarVisible)
+                }
 
                 if studio.showInspector && (studio.selectedMode == .chat || studio.selectedMode == .agent) && geometry.size.width >= 1280 {
                     GenerationInspector().frame(width: 340).padding(8)
@@ -659,8 +663,6 @@ private struct ChatWorkspaceView: View {
                 DecisionWorkspaceView(decision: studio.decision)
             } else if studio.selectedMode == .server {
                 ServerWorkspaceView(server: studio.localServer)
-            } else if studio.selectedMode == .lab {
-                LabWorkspaceView()
             } else if let conversation = studio.currentConversation, !conversation.messages.isEmpty {
                 MessagesView(messages: conversation.messages)
                 ComposerView()

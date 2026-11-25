@@ -36,7 +36,7 @@ project workspaces, vision, conversion and independent engine updates.
 | **Chat** | Streaming responses and reasoning, Markdown, code, math, HTML previews, attachments, vision, conversation branches, search and export. |
 | **Agent Studio** | Isolated project copies, file editing, diffs, Git checkpoints, restore, ZIP export and reviewed changes applied to the original project. |
 | **Models** | Recommended EXL3 checkpoints, model cards, resumable downloads, local imports and Quantization Studio. |
-| **Server and Lab** | An OpenAI-compatible endpoint, live server logs, recorded generation metrics, charts and JSON export. |
+| **Server and Lab** | An OpenAI-compatible endpoint, live server logs, token usage by model and detailed generation history with JSON export. |
 | **Personalization** | System, Light and Dark appearances, Iris and custom accents, reading controls, project profiles, startup models and idle unloading. |
 
 The ASCII characters transform within fixed cells as light flows across the
@@ -115,9 +115,21 @@ context and port, copy the endpoint and key, and inspect logs. Loopback access
 is the default. Optional LAN access uses a generated bearer key over HTTP.
 Desktop passes the key to the engine through a private pipe.
 
-**Lab** displays recorded generations with decode and prefill rates, latency,
-token counts, memory and runtime details. Compare samples or export JSON.
-These are observations from actual sessions, not controlled benchmarks.
+Open **Lab** from the sidebar’s **…** menu or with **⌘5**. **Usage** shows
+input and output tokens for Chat and Agent over today, 7 days, 30 days or all
+recorded time. The overview compares token volumes with the preceding period
+when records exist and shows active days, the busiest day and average output
+tokens per generation. The median time to first text uses retained generations
+with an end-to-end measurement. Models are ordered by tokens used. Average and maximum tok/s
+refer to decode speed. Each generation with a measured decode interval counts
+once toward the average.
+
+**Generations** lets you inspect individual runs, filter by model or export
+the retained details as JSON. **This Mac** shows hardware and current memory
+use. Daily totals persist after individual details age out. On first upgrade,
+Studio starts the totals from the generation details still available on the Mac.
+
+[Preview Lab on macOS with sample usage data](docs/images/studio-lab-usage.png).
 
 ## Models and compatibility
 
