@@ -7,6 +7,25 @@ private struct HistoryUIError: LocalizedError {
     var errorDescription: String? { message }
 }
 
+/// The fixture drives the same configured panel as Studio without relying on a window-server
+/// dialog on a hosted runner. A physical Mac can also exercise the app-modal interaction.
+@MainActor
+private final class SavePanelDriver {
+    private(set) var requests = 0
+    private(set) var filename: String?
+    private(set) var directory: URL?
+    private(set) var isPNG = false
+    var destination: URL?
+
+    func select(_ panel: NSSavePanel) -> URL? {
+        requests += 1
+        filename = panel.nameFieldStringValue
+        directory = panel.directoryURL
+        isPNG = panel.allowedContentTypes == [.png] && panel.canCreateDirectories
+        return destination
+    }
+}
+
 @main
 struct ImageHistoryInterfaceCheck {
     @MainActor static func main() {
@@ -50,8 +69,11 @@ struct ImageHistoryInterfaceCheck {
             await progress(1, files.reduce(0) { $0 + $1.size })
             try StudioImageFixtures.publish(files, at: destination)
         })
+        let dialog = SavePanelDriver()
+        let useSystemPanel = ProcessInfo.processInfo.environment["MLXL3_TEST_NATIVE_IMAGE_PANEL"] == "1"
+        let select: @MainActor (NSSavePanel) -> URL? = useSystemPanel ? selectImageSaveDestination : dialog.select
         func workspace() -> AnyView {
-            AnyView(ImageGenerationView(engine: engine, close: {}).environmentObject(studio)
+            AnyView(ImageGenerationView(engine: engine, close: {}, selectDestination: select).environmentObject(studio)
                 .environment(\.locale, Locale(identifier: studio.language.rawValue))
                 .defaultAppStorage(preferences).preferredColorScheme(.dark))
         }
@@ -119,31 +141,46 @@ struct ImageHistoryInterfaceCheck {
         }
 
         func download(_ cells: [Word], filename: String, accept: Bool) async throws {
-            let destination = downloads.appendingPathComponent(filename)
+            let suggested = downloads.appendingPathComponent(filename)
+            let destination = accept && !useSystemPanel ? temporary.appendingPathComponent("Chosen name.png") : suggested
             let before = try engine.usageStore.summary()
             let gallery = engine.history
-            var matched = false
-            let reply = Timer(timeInterval: 0.1, repeats: true) { _ in
-                MainActor.assumeIsolated {
-                    guard !matched, let panel = NSApp.modalWindow as? NSSavePanel, panel.isVisible,
-                          panel.allowedContentTypes == [.png], panel.nameFieldStringValue == filename,
-                          panel.url?.resolvingSymlinksInPath().path == destination.resolvingSymlinksInPath().path else { return }
-                    matched = true
-                    // Complete the real app-modal session. The system Save button lives
-                    // in a separate process, which CI does not need permission to drive.
-                    if accept { NSApp.stopModal(withCode: .OK) } else { panel.cancel(nil) }
+            if useSystemPanel {
+                var matched = false
+                let reply = Timer(timeInterval: 0.1, repeats: true) { _ in
+                    MainActor.assumeIsolated {
+                        guard !matched, let panel = NSApp.modalWindow as? NSSavePanel, panel.isVisible,
+                              panel.allowedContentTypes == [.png], panel.nameFieldStringValue == filename,
+                              panel.url?.resolvingSymlinksInPath().path == destination.resolvingSymlinksInPath().path else { return }
+                        matched = true
+                        // AppKit hosts the system Save button in a separate process.
+                        if accept { NSApp.stopModal(withCode: .OK) } else { panel.cancel(nil) }
+                    }
+                }
+                let timeout = Timer(fire: .now.addingTimeInterval(5), interval: 0, repeats: false) { _ in
+                    MainActor.assumeIsolated { (NSApp.modalWindow as? NSSavePanel)?.cancel(nil) }
+                }
+                RunLoop.main.add(reply, forMode: .modalPanel)
+                RunLoop.main.add(timeout, forMode: .modalPanel)
+                defer { reply.invalidate(); timeout.invalidate() }
+                try click("download png", in: cells)
+                let shown = ContinuousClock.now.advanced(by: .seconds(6))
+                while !matched && ContinuousClock.now < shown { try await Task.sleep(for: .milliseconds(25)) }
+                guard matched else { throw HistoryUIError(message: "The native PNG save panel did not show the selected filename and destination") }
+            } else {
+                let requests = dialog.requests
+                dialog.destination = accept ? destination : nil
+                try click("download png", in: cells)
+                let deadline = ContinuousClock.now.advanced(by: .seconds(4))
+                while dialog.requests == requests && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(25)) }
+                guard dialog.requests == requests + 1 else { throw HistoryUIError(message: "Download PNG did not request one save dialog") }
+                guard dialog.isPNG, dialog.filename == filename else {
+                    throw HistoryUIError(message: "Download PNG configured an incorrect format or filename: \(dialog.filename ?? "nil")")
+                }
+                guard dialog.directory?.resolvingSymlinksInPath().path == downloads.resolvingSymlinksInPath().path else {
+                    throw HistoryUIError(message: "Download PNG did not request the Downloads directory: \(dialog.directory?.path ?? "nil")")
                 }
             }
-            let timeout = Timer(fire: .now.addingTimeInterval(5), interval: 0, repeats: false) { _ in
-                MainActor.assumeIsolated { (NSApp.modalWindow as? NSSavePanel)?.cancel(nil) }
-            }
-            RunLoop.main.add(reply, forMode: .modalPanel)
-            RunLoop.main.add(timeout, forMode: .modalPanel)
-            defer { reply.invalidate(); timeout.invalidate() }
-            try click("download png", in: cells)
-            let shown = ContinuousClock.now.advanced(by: .seconds(6))
-            while !matched && ContinuousClock.now < shown { try await Task.sleep(for: .milliseconds(25)) }
-            guard matched else { throw HistoryUIError(message: "Download PNG did not open the expected PNG save panel") }
             if accept {
                 let deadline = ContinuousClock.now.advanced(by: .seconds(4))
                 while !fileManager.fileExists(atPath: destination.path) && ContinuousClock.now < deadline {
@@ -240,6 +277,9 @@ struct ImageHistoryInterfaceCheck {
         let details = try await words()
         try expect(["a cobalt blue teapot", "fixture model", "base", "512", "17", "371", "show png"], in: details)
         try await download(details, filename: "Image-371.png", accept: true)
+        guard !fileManager.fileExists(atPath: downloads.appendingPathComponent("Image-29.png").path) else {
+            throw HistoryUIError(message: "The cancelled export created a file")
+        }
         studio.setLanguage(.fr)
         host.rootView = workspace()
         ocr.recognitionLanguages = ["fr-FR"]
