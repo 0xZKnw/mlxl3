@@ -17,13 +17,21 @@ device half* activation = const_cast<device half*>(xhat);
 #ifndef STEP_TILES
 #define STEP_TILES 1u
 #endif
+// The native engine consumes one decoded tile at a time. Studio can combine adjacent tiles
+// from this same buffer for the image projections with a measured wider operation.
+#ifndef OP_K
+#define OP_K BK
+#endif
+#if OP_K < BK || OP_K % BK != 0 || (STEP_TILES * BK) % OP_K != 0 || INPUT_DIMS % OP_K != 0
+#error "The TensorOps depth must span whole decoded tiles and divide both the window and input"
+#endif
 // Q27P-07b: STEP_TILES depth tiles are decoded per barrier, then as many operations run.
 threadgroup half shared_tile[2][STEP_TILES * BK * BN];
 
 constexpr auto descriptor = tensor_ops::matmul2d_descriptor(
     BM,
     BN,
-    BK,
+    OP_K,
     false,
     false,
     false,
@@ -99,14 +107,14 @@ for (uint tile_k = 0u; tile_k < DEPTH_TILES; tile_k += STEP_TILES, ++step) {
     threadgroup_barrier(mem_flags::mem_threadgroup);
     if (active) {
         #pragma unroll
-        for (uint part = 0u; part < STEP_TILES; ++part) {
+        for (uint part = 0u; part < STEP_TILES; part += OP_K / BK) {
             if (tile_k + part < DEPTH_TILES) {
                 auto left = tensor(
                     activation + ulong(row_block * BM) * INPUT_DIMS + (tile_k + part) * 16u,
-                    dextents<int, 2>{int(BK), int(BM)},
+                    dextents<int, 2>{int(OP_K), int(BM)},
                     array<int, 2>{1, int(INPUT_DIMS)}
                 );
-                auto right = tensor(tile + part * 16u * BN, dextents<int, 2>{int(BN), int(BK)},
+                auto right = tensor(tile + part * 16u * BN, dextents<int, 2>{int(BN), int(OP_K)},
                     array<int, 2>{1, int(BN)});
                 operation.run(left, right, accumulator);
             }
