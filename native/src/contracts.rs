@@ -1633,6 +1633,83 @@ pub fn q36_moe_group_setting(value: Option<&str>) -> Option<usize> {
     }
 }
 
+/// Prefill chunk width whose shapes define the Inkling 2 numeric contract.
+pub const INKLING_PREFILL_SLICE: usize = 128;
+/// Default number of whole Inkling prefill chunks whose expert rows are batched
+/// together (SPEED-2026-11-25-INK2M-PREFILL-G: bit-identical to the per-chunk
+/// prefill; `MLXL3_INKLING_MOE_GROUP=1` restores one expert call per chunk).
+pub const INKLING_MOE_GROUP_DEFAULT: usize = 8;
+/// Largest accepted Inkling expert group, in chunks.
+pub const INKLING_MOE_GROUP_MAX: usize = 8;
+
+/// Strict `MLXL3_INKLING_MOE_GROUP` parser: one digit from 1 to
+/// [`INKLING_MOE_GROUP_MAX`]; `1` keeps one expert call per chunk.
+pub fn inkling_moe_group_setting(value: Option<&str>) -> Option<usize> {
+    match value {
+        None => Some(INKLING_MOE_GROUP_DEFAULT),
+        Some(text) => match text.as_bytes() {
+            [digit @ b'1'..=b'9'] if usize::from(digit - b'0') <= INKLING_MOE_GROUP_MAX => {
+                Some(usize::from(digit - b'0'))
+            }
+            _ => None,
+        },
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn inkling_moe_group_setting_and_spans() {
+    assert_eq!(
+        inkling_moe_group_setting(None),
+        Some(INKLING_MOE_GROUP_DEFAULT)
+    );
+    for group in 1..=INKLING_MOE_GROUP_MAX {
+        assert_eq!(
+            inkling_moe_group_setting(Some(&group.to_string())),
+            Some(group)
+        );
+    }
+    for text in ["", "0", "9", "01", " 2", "2 ", "true", "-1", "10"] {
+        assert_eq!(inkling_moe_group_setting(Some(text)), None, "{text:?}");
+    }
+    // The Inkling prefill never joins a tail to a group: every span is either
+    // 1..=group whole chunks or the final partial chunk alone, so the prompt
+    // cache boundary `len / 128 * 128` always ends a span and group 1 is the
+    // per-chunk prefill.
+    const SLICE: usize = INKLING_PREFILL_SLICE;
+    for len in 0..(SLICE * (INKLING_MOE_GROUP_MAX + 3)) {
+        for group in 1..=INKLING_MOE_GROUP_MAX {
+            let mut spans = Vec::new();
+            let mut start = 0;
+            while let Some(end) = prefill_span_end_merged(start, len, SLICE, group, 0) {
+                spans.push((start, end));
+                start = end;
+            }
+            assert_eq!(start, len, "spans must cover the prompt");
+            let checkpoint = len / SLICE * SLICE;
+            for &(start, end) in &spans {
+                let width = end - start;
+                assert!(start.is_multiple_of(SLICE) && width > 0);
+                if width.is_multiple_of(SLICE) {
+                    assert!(width / SLICE <= group && end <= checkpoint);
+                } else {
+                    assert!(width < SLICE && start == checkpoint && end == len);
+                }
+            }
+            if checkpoint > 0 {
+                assert!(spans.iter().any(|&(_, end)| end == checkpoint));
+            }
+            if group == 1 {
+                let chunks = (0..len)
+                    .step_by(SLICE)
+                    .map(|start| (start, (start + SLICE).min(len)))
+                    .collect::<Vec<_>>();
+                assert_eq!(spans, chunks, "group 1 must equal chunks(128)");
+            }
+        }
+    }
+}
+
 /// Smallest tail whose MoE may join the preceding group: shorter tails use
 /// the small-batch expert kernels on their own.
 pub const Q36_MOE_TAIL_MIN: usize = 64;

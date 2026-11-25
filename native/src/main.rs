@@ -2382,15 +2382,20 @@ impl NativeChatModel {
         output.context("empty token batch")
     }
 
-    /// Whole prefill chunks per span; Qwen MoE batches the MLP of a span.
+    /// Whole prefill chunks per span; Qwen MoE batches the MLP of a span and
+    /// Inkling 2 its experts (SPEED-2026-11-25-INK2M-PREFILL-G, 8 unless
+    /// `MLXL3_INKLING_MOE_GROUP` says otherwise).
     fn prefill_group(&self) -> Result<usize> {
         match self {
             Self::Qwen(model) if model.supports_moe_grouping() => q36_moe_group(),
+            Self::Inkling(..) => mlxl3_native::inkling2::moe_group(),
             _ => Ok(1),
         }
     }
 
     /// End of the prefill span from `start`; a Qwen MoE group may take the tail.
+    /// An Inkling span is whole chunks only: its tail stays a call of its own,
+    /// so the prompt-cache boundary always ends a span.
     fn prefill_span_end(
         &self,
         start: usize,
@@ -2398,13 +2403,11 @@ impl NativeChatModel {
         chunk: usize,
         group: usize,
     ) -> Option<usize> {
-        mlxl3_native::prefill_span_end_merged(
-            start,
-            len,
-            chunk,
-            group,
-            mlxl3_native::Q36_MOE_TAIL_MIN,
-        )
+        let min_tail = match self {
+            Self::Inkling(..) => 0,
+            _ => mlxl3_native::Q36_MOE_TAIL_MIN,
+        };
+        mlxl3_native::prefill_span_end_merged(start, len, chunk, group, min_tail)
     }
 
     /// Runs one span; with `checkpoint`, a span ending in a tail also returns
@@ -2421,10 +2424,17 @@ impl NativeChatModel {
             mlxl3_native::array::Array,
         )>,
     )> {
-        if tokens.len() > self.prefill_chunk_size()
-            && let Self::Qwen(model) = self
-        {
-            return model.forward_tokens_grouped_checkpoint(tokens, checkpoint);
+        if tokens.len() > self.prefill_chunk_size() {
+            match self {
+                Self::Qwen(model) => {
+                    return model.forward_tokens_grouped_checkpoint(tokens, checkpoint);
+                }
+                // whole chunks with their experts computed together; no state inside the span
+                Self::Inkling(model, ..) => {
+                    return Ok((model.forward_tokens_grouped(tokens)?, None));
+                }
+                _ => {}
+            }
         }
         Ok((self.forward_many(tokens)?, None))
     }

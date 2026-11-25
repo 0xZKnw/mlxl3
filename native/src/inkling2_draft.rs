@@ -1592,13 +1592,36 @@ impl DsparkSession {
                 logits.as_ref().context("resumed logits")?,
             )?;
         }
+        // SPEED-2026-11-25-INK2M-PREFILL-G: a span is 1 to `group` whole chunks (their experts computed
+        // together) or the final partial chunk alone; group 1 is the chunk-by-chunk prefill
+        let group = crate::inkling2::moe_group()?;
         let mut position = start;
-        for chunk in tokens[start..].chunks(Self::PREFILL_CHUNK) {
+        while let Some(end) =
+            crate::prefill_span_end(position, tokens.len(), Self::PREFILL_CHUNK, group)
+        {
             ensure!(!cancelled(), "generation cancelled");
+            let chunk = &tokens[position..end];
             let started = Instant::now();
-            let (chunk_logits, features) = target.forward_with_features(chunk, &self.taps)?;
+            let (chunk_logits, features) = if chunk.len() > Self::PREFILL_CHUNK {
+                target.forward_with_features_grouped(chunk, &self.taps)?
+            } else {
+                target.forward_with_features(chunk, &self.taps)?
+            };
             let target_done = started.elapsed();
-            draft.append_context(&features)?;
+            let rows = chunk.len() as i32;
+            if chunk.len() > Self::PREFILL_CHUNK {
+                // the drafter receives the features chunk by chunk, each as an array of its own, exactly
+                // what the chunk-by-chunk prefill hands it
+                let step = Self::PREFILL_CHUNK as i32;
+                let mut row = 0;
+                while row < rows {
+                    let next = (row + step).min(rows);
+                    draft.append_context(&features.slice(0, row, next)?.compact_for_cache()?)?;
+                    row = next;
+                }
+            } else {
+                draft.append_context(&features)?;
+            }
             if std::env::var_os("MLXL3_INKLING_DSPARK_TRACE").is_some() {
                 eprintln!(
                     "dspark prefill chunk {} rows: target {:.1} ms, draft context {:.1} ms",
@@ -1607,10 +1630,15 @@ impl DsparkSession {
                     (started.elapsed() - target_done).as_secs_f64() * 1e3
                 );
             }
-            let rows = chunk.len() as i32;
-            self.last_feature = Some(features.slice(0, rows - 1, rows)?);
+            let last_feature = features.slice(0, rows - 1, rows)?;
+            self.last_feature = Some(if chunk.len() > Self::PREFILL_CHUNK {
+                // do not keep the features of the whole span alive for one row
+                last_feature.compact_for_cache()?
+            } else {
+                last_feature
+            });
             logits = Some(chunk_logits);
-            position += chunk.len();
+            position = end;
             if checkpoint == Some(position) {
                 capture(
                     self.prefix(target, draft)?,
@@ -4243,6 +4271,60 @@ mod tests {
             decode,
             tokens,
         })
+    }
+
+    /// SPEED-2026-11-25-INK2M-PREFILL-G: a DSpark session whose prefill computes the experts of 2, 4 or 8
+    /// chunks together gives the chunk-by-chunk session's last logits, drafter context and last features to the
+    /// bit, then the same verified rows and tokens over a greedy DSpark decode (prompts without and with a
+    /// tail, before and past the 1 024-row windows).
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn dspark_grouped_prefill_matches_chunks() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let mut target = Inkling2::load(&dir)?;
+        let mut draft = Inkling2Draft::load(&dir, &target)?;
+        let vocab = target.unpadded_vocab() as u32;
+        let text: Vec<u32> = text_rows()?.into_iter().map(|t| t % vocab).collect();
+        const STEPS: usize = 48;
+        let mut compared = 0usize;
+        for len in [300usize, 1024, 1100, 1300] {
+            ensure!(text.len() >= len, "not enough tokens");
+            let mut run = |group: usize| -> Result<D1Run> {
+                crate::inkling2::with_moe_group(group, || {
+                    let mut session = DsparkSession::new(&draft, DsparkSession::DEFAULT_WIDTH)?;
+                    let mut saved = None;
+                    d1_run(
+                        &mut session,
+                        &mut target,
+                        &mut draft,
+                        &text[..len],
+                        None,
+                        None,
+                        &mut saved,
+                        STEPS,
+                    )
+                })
+            };
+            let reference = run(1)?;
+            ensure!(
+                reference.cached == 0 && reference.tokens.len() == STEPS,
+                "invalid reference at {len} tokens"
+            );
+            for group in [2usize, 4, 8] {
+                let grouped = run(group)?;
+                println!(
+                    "len {len} group {group}: identical {}",
+                    grouped == reference
+                );
+                ensure!(
+                    grouped == reference,
+                    "group {group} at {len} tokens: {grouped:?} differs from {reference:?}"
+                );
+                compared += 1;
+            }
+        }
+        ensure!(compared == 12, "layouts compared");
+        Ok(())
     }
 
     /// DSPARK-2026-11-24-INK2M-MAYA2-D1: a DSpark prompt resumed from the previous turn's prefix (after that
