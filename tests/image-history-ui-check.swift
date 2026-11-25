@@ -218,10 +218,30 @@ struct ImageHistoryInterfaceCheck {
         studio.setLanguage(.en)
         ocr.recognitionLanguages = ["en-US"]
         engine.size = 1024
-        let turbo1024 = try await words()
-        guard !turbo1024.contains(where: { $0.text.contains("reduce memory") }) else {
-            throw HistoryUIError(message: "Turbo must not offer the Base memory mode")
+        let turbo1024 = try await words(snapshot: "studio-image-turbo-memory-1024.png")
+        try expect(["reduce memory use"], in: turbo1024)
+        engine.prompt = "--low-memory"
+        func checkMemorySubmission(_ expected: Int) async throws {
+            let controls = try await words()
+            try click("generate", in: controls.filter { $0.box.midX > 0.5 && $0.box.midY < 0.3 })
+            let submitted = ContinuousClock.now.advanced(by: .seconds(12))
+            while (engine.running || engine.error == nil) && ContinuousClock.now < submitted {
+                try await Task.sleep(for: .milliseconds(25))
+            }
+            guard !engine.running, engine.error?.contains("low-memory=\(expected)") == true else {
+                engine.cancel()
+                throw HistoryUIError(message: "Wrong memory mode for \(engine.variant): \(engine.error ?? "no response")")
+            }
         }
+        try await checkMemorySubmission(0)
+        try click("reduce memory use", in: await words())
+        studio.setLanguage(.fr)
+        ocr.recognitionLanguages = ["fr-FR"]
+        try expect(["réduire la mémoire"], in: await words(snapshot: "studio-image-turbo-memory-1024-enabled-fr.png"))
+        studio.setLanguage(.en)
+        ocr.recognitionLanguages = ["en-US"]
+        try await checkMemorySubmission(1)
+        engine.prompt = ""
         guard let picker = variantPicker(in: host) else { throw HistoryUIError(message: "Missing image model picker") }
         picker.selectedSegment = 1
         guard picker.sendAction(picker.action, to: picker.target) else { throw HistoryUIError(message: "Image picker has no action") }
@@ -233,15 +253,9 @@ struct ImageHistoryInterfaceCheck {
         guard engine.modelDirectory == fixtures.catalog.destination(for: .base) else { throw HistoryUIError(message: "Base download failed") }
 
         engine.prompt = "--low-memory"  // The fixture worker reports how many independent flags it received.
-        let controls = try await words()
-        try click("reduce memory use", in: controls)
-        try click("generate", in: controls.filter { $0.box.midX > 0.5 && $0.box.midY < 0.3 })
-        let submitted = ContinuousClock.now.advanced(by: .seconds(12))
-        while engine.error == nil && ContinuousClock.now < submitted { try await Task.sleep(for: .milliseconds(25)) }
-        guard engine.error?.contains("low-memory=1") == true else {
-            engine.cancel()
-            throw HistoryUIError(message: "The selected memory mode did not reach the worker: \(engine.error ?? "no response")")
-        }
+        try await checkMemorySubmission(0)  // Selecting Turbo's option does not opt Base in.
+        try click("reduce memory use", in: await words())
+        try await checkMemorySubmission(1)
         engine.prompt = ""
         engine.size = 768
         let base768 = try await words()

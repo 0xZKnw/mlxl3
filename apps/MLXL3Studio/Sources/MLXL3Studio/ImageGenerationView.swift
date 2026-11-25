@@ -39,7 +39,9 @@ struct ImageGenerationView: View {
     var selectDestination: @MainActor (NSSavePanel) -> URL? = selectImageSaveDestination
     @State private var previewImage: NSImage?
     @State private var showsHistory = false
-    @State private var lowMemory = false
+    @State private var baseLowMemory = false
+    @State private var turboLowMemory = false
+    private var lowMemory: Binding<Bool> { engine.variant == .turbo ? $turboLowMemory : $baseLowMemory }
     @State private var selectedImage: URL?
 
     private static let example = Bundle.main.url(forResource: "studio-image21-m5", withExtension: "png",
@@ -204,10 +206,13 @@ struct ImageGenerationView: View {
             }
             .pickerStyle(.segmented).labelsHidden()
             if engine.offersLowMemory(at: engine.size) {
-                Toggle(L("Réduire la mémoire", "Reduce memory use"), isOn: $lowMemory)
+                Toggle(L("Réduire la mémoire", "Reduce memory use"), isOn: lowMemory)
                     .font(.system(size: 12.5))
-                    .help(L("Réduit la mémoire utilisée et peut allonger la génération.",
-                            "Uses less memory and may take longer to generate."))
+                    .help(engine.variant == .turbo
+                          ? L("Réduit la mémoire utilisée lors du décodage final de l’image.",
+                              "Uses less memory during the final image decode.")
+                          : L("Réduit la mémoire utilisée et peut allonger la génération.",
+                              "Uses less memory and may take longer to generate."))
                     .accessibilityIdentifier("images.lowMemory")
             }
             if engine.variant == .base {
@@ -295,7 +300,7 @@ struct ImageGenerationView: View {
                     Button {
                         guard let model = engine.modelDirectory else { return }
                         engine.start(model: model, prompt: engine.prompt,
-                                     size: engine.size, steps: engine.steps, seed: engine.seed, lowMemory: lowMemory)
+                                     size: engine.size, steps: engine.steps, seed: engine.seed, lowMemory: lowMemory.wrappedValue)
                     } label: {
                         Label(L("Générer", "Generate"), systemImage: "wand.and.stars")
                     }

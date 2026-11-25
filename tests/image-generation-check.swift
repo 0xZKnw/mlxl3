@@ -217,12 +217,20 @@ struct ImageGenerationCheck {
             try await wait { !engine.running }
             check(engine.error == "Turbo uses 8 steps." && !fm.fileExists(atPath: turbo.appendingPathComponent("last-prompt").path))
         }
-        for size in [512, 768, 1024] {
-            check(!engine.offersLowMemory(at: size), "Only Base offers the measured memory policy")
+        for (size, expected) in [(512, 0), (768, 0), (1024, 1)] {
+            check(engine.offersLowMemory(at: size) == (expected == 1), "Offer the Turbo memory option only at 1024 px")
             engine.start(model: turbo, prompt: "--low-memory", size: size, steps: 8, seed: 123, lowMemory: true)
             try await wait { !engine.running }
-            check(engine.error == "low-memory=0", "Turbo must keep its native memory policy at every size")
+            check(engine.error == "low-memory=\(expected)", "Pass one independent Turbo option only at the qualified size")
         }
+        engine.start(model: turbo, prompt: "--low-memory", size: 1024, steps: 8, seed: 123)
+        try await wait { !engine.running }
+        check(engine.error == "low-memory=0", "Turbo defaults to the standard memory profile")
+        otherHardware.selectVariant(.turbo)
+        check(!otherHardware.offersLowMemory(at: 1024))
+        otherHardware.start(model: turbo, prompt: "--low-memory", size: 1024, steps: 8, seed: 123, lowMemory: true)
+        try await wait { !otherHardware.running }
+        check(otherHardware.error == "low-memory=0", "Ignore the option on unqualified hardware")
         engine.start(model: model, prompt: "turbo", size: 512, steps: 8, seed: 123)
         try await wait { !engine.running }
         check(engine.error?.contains("quantization.json") == true && engine.history.count == 2)

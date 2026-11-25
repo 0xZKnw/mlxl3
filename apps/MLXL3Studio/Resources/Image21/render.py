@@ -338,6 +338,14 @@ def checked_decode(decode, latent):
     return pixels
 
 
+def capped_decode(decode, latent):
+    previous = mx.set_cache_limit(512 * 1024**2)
+    try:
+        return checked_decode(decode, latent)
+    finally:
+        mx.set_cache_limit(previous)
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--model", required=True, type=Path)
@@ -351,8 +359,9 @@ def main():
         "--low-memory",
         action="store_true",
         help=(
-            "Limit the free Metal buffer cache to 512 MiB for Base at 1024 px on an Apple M5 with "
-            "24 GiB of memory. This can increase render time."
+            "Limit the free Metal buffer cache to 512 MiB at 1024 px on an Apple M5 with "
+            "24 GiB of memory. Applies throughout Base rendering and during final Turbo image "
+            "decoding. This can increase render time."
         ),
     )
     args = parser.parse_args()
@@ -366,18 +375,18 @@ def main():
     print(device["device_name"], flush=True)
     from mflux.callbacks.instances.memory_saver import MemorySaver
 
+    m5_24gib = device["device_name"] == "Apple M5" and device.get("memory_size") == 24 * 1024**3
+    low_memory_1024 = args.low_memory and args.size == 1024 and m5_24gib
     if args.size == 512 or (
-        args.variant == "base"
-        and (args.size == 768 or (args.size == 1024 and args.low_memory))
-        and device["device_name"] == "Apple M5"
-        and device.get("memory_size") == 24 * 1024**3
+        args.variant == "base" and ((args.size == 768 and m5_24gib) or low_memory_1024)
     ):
         # Limit unused Metal buffers before the worker loads the model.
         mx.set_cache_limit(512 * 1024**2)
     model = build(args.model, args.variant)
     # Studio launches this worker for one image. Each component can be released after its phase.
     model.callbacks.register(MemorySaver(model, keep_transformer=False, cache_limit_bytes=None))
-    model.vae.decode = partial(checked_decode, model.vae.decode)
+    decode = capped_decode if args.variant == "turbo" and low_memory_1024 else checked_decode
+    model.vae.decode = partial(decode, model.vae.decode)
     im = model.generate_image(
         seed=args.seed,
         prompt=args.prompt,

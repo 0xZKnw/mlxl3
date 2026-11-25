@@ -245,7 +245,7 @@ final class ImageGeneration: ObservableObject {
     }
 
     func offersLowMemory(at size: Int) -> Bool {
-        supported && lowMemoryAvailable && variant == .base && size == 1024
+        supported && lowMemoryAvailable && size == 1024
     }
 
     func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32, lowMemory: Bool = false) {

@@ -269,6 +269,9 @@ class ImageWorkerTest(unittest.TestCase):
 
     def test_allocator_cache_for_variant_size_and_hardware(self):
         gib = 1024**3
+        cap = 512 * 1024**2
+        previous = 4 * gib
+        self.core.set_cache_limit.return_value = previous
         for gpu, memory, default_sizes, low_memory_sizes in (
             ("Apple M5", 24 * gib, (512, 768), (512, 768, 1024)),
             ("Apple M5", 16 * gib, (512,), (512,)),
@@ -296,16 +299,27 @@ class ImageWorkerTest(unittest.TestCase):
                     order = Mock()
                     order.attach_mock(self.core.set_cache_limit, "limit")
                     order.attach_mock(self.build, "build")
+                    order.attach_mock(self.decode, "decode")
                     flags = ["--low-memory"] if low_memory else []
                     self.run_worker("--variant", variant, "--size", str(size), *flags)
                     self.core.device_info.assert_called_once_with()
                     capped_sizes = low_memory_sizes if low_memory else default_sizes
                     if variant == "turbo":
                         capped_sizes = (512,)
-                    expected = [call.limit(512 * 1024**2)] if size in capped_sizes else []
-                    self.assertEqual(
-                        order.method_calls, expected + [call.build(self.root, variant)]
-                    )
+                    expected = [call.limit(cap)] if size in capped_sizes else []
+                    expected.append(call.build(self.root, variant))
+                    if (
+                        variant == "turbo"
+                        and size == 1024
+                        and low_memory
+                        and 1024 in low_memory_sizes
+                    ):
+                        expected.extend(
+                            [call.limit(cap), call.decode(self.latent), call.limit(previous)]
+                        )
+                    else:
+                        expected.append(call.decode(self.latent))
+                    self.assertEqual(order.method_calls, expected)
                     self.assertEqual(self.model.generate_image.call_args.kwargs["width"], size)
                     self.assertEqual(self.model.generate_image.call_args.kwargs["height"], size)
 
@@ -382,6 +396,25 @@ class ImageWorkerTest(unittest.TestCase):
                     self.run_worker()
         self.decode.assert_not_called()
         self.image.save.assert_not_called()
+
+    def test_capped_decode_restores_previous_limit_on_errors(self):
+        cap = 512 * 1024**2
+        for previous, latent, result, error, calls in (
+            (0, self.tensor([math.nan]), self.pixels, ValueError, 0),
+            (12345, self.latent, self.tensor([math.inf]), ValueError, 1),
+            (cap, self.latent, RuntimeError("decode failed"), RuntimeError, 1),
+            (8 * 1024**3, self.latent, KeyboardInterrupt(), KeyboardInterrupt, 1),
+        ):
+            with self.subTest(previous=previous, error=error):
+                self.core.set_cache_limit.reset_mock()
+                self.core.set_cache_limit.return_value = previous
+                decode = Mock(side_effect=[result])
+                with self.assertRaises(error):
+                    self.worker.capped_decode(decode, latent)
+                self.assertEqual(decode.call_count, calls)
+                self.assertEqual(
+                    self.core.set_cache_limit.call_args_list, [call(cap), call(previous)]
+                )
 
     def test_rejects_invalid_pixels_before_png(self):
         for values in ([0, float("nan")], [float("inf")], [-float("inf")], []):
