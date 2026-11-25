@@ -1,0 +1,52 @@
+{
+ "engine": "/private/tmp/claude-501/-Users-justin--claude-spares-spare-nFMnku/0922763b-ca08-415d-86cc-5364e2bf9951/scratchpad/engine-extract-2.0.35/mlxl3",
+ "helper": "/Applications/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+ "model": "Inkling-2-Mini-EXL3-3.33bpw-5d8cff98",
+ "runs": [
+  {
+   "temperature": 1.0,
+   "calls": [
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "return list()"
+     }
+    }
+   ],
+   "results": [
+    {
+     "error": false,
+     "text": "Result:\n[\n  \"a.txt\",\n  \"b.txt\",\n  \"src/c.txt\"\n]"
+    }
+   ],
+   "unreadable": 0,
+   "read": 1,
+   "stop_reason": "eos"
+  },
+  {
+   "temperature": 1.0,
+   "calls": [
+    {
+     "name": "sandbox.javascript",
+     "arguments": {
+      "code": "return list();"
+     }
+    }
+   ],
+   "results": [
+    {
+     "error": false,
+     "text": "Result:\n[\n  \"a.txt\",\n  \"b.txt\",\n  \"src/c.txt\"\n]"
+    }
+   ],
+   "unreadable": 0,
+   "read": 1,
+   "stop_reason": "eos"
+  }
+ ],
+ "state": "complete",
+ "ready": {
+  "runtime_commit": "a0d6a2e669b0",
+  "runtime_version": "2.0.35"
+ }
+}

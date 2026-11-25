@@ -23,7 +23,12 @@ Install the archive through the Desktop engine updater, or extract all its files
 
 ## Artifacts
 
-Completed after the build.
+| File | Size | SHA-256 |
+|---|---|---|
+| `MLXL3-Engine-v2.0.35-arm64.tar.gz` | 69,298,589 bytes | `6202179127f3ccf8edb8ee4221a3100a7856643911534b2973b76d5a40b1c37d` |
+| `MLXL3-Engine-v2.0.35-arm64.tar.gz.sha256` | 100 bytes | |
+
+Source: `a0d6a2e66` (tag `engine-v2.0.35`). The archive was extracted into a new directory: `mlxl3` passes a strict signature check and is arm64, its manifest reports 2.0.35 and `engine-v2.0.35`, and its five files are identical to those bundled in Desktop 2.0.31. The extracted binary, with no environment variable, then ran two Agent requests at temperature 1 on the installed Inkling 2 Mini: the bridge reported 2.0.35 from `a0d6a2e66`, and both `sandbox.javascript` calls were read and executed.
 
 ## Thanks
 
