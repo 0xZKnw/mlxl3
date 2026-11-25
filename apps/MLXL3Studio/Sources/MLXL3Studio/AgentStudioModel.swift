@@ -57,7 +57,7 @@ final class AgentStudioModel: ObservableObject {
       ?? L("Dossier de la tâche", "Task workspace")
   }
 
-  func open(workspace: URL, file: URL?) async {
+  func open(workspace: URL, file: URL?, turnResult: AgentTurnResult? = nil) async {
     guard store == nil, !busy else { return }
     busy = true
     defer { busy = false }
@@ -68,7 +68,22 @@ final class AgentStudioModel: ObservableObject {
       if let file {
         selected = String(file.standardizedFileURL.path.dropFirst(value.workspace.path.count + 1))
       }
-      try await refreshSnapshot(value)
+      if let turnResult {
+        // Read the pinned pair even when it is older than the latest hundred history entries.
+        let snapshot = try await Task.detached { (try value.state(), try value.versions()) }.value
+        state = snapshot.0
+        versions = snapshot.1
+        revision = turnResult.after
+        compare = turnResult.before
+        if file == nil {
+          tab = .diff
+          allChanges = true
+          selected = turnResult.files.first?.path ?? ""
+        }
+        await loadSelection()
+      } else {
+        try await refreshSnapshot(value)
+      }
     } catch { self.error = error.localizedDescription }
   }
 
@@ -162,8 +177,9 @@ final class AgentStudioModel: ObservableObject {
       selected = result.1
       fileExists = result.3
       diff = result.4
-      binary = result.2.contains(0) || String(data: result.2, encoding: .utf8) == nil
-      savedCode = binary ? "" : String(decoding: result.2, as: UTF8.self)
+      let text = AgentProjectStore.editorText(result.2)
+      binary = text == nil
+      savedCode = text ?? ""
       code = savedCode
       if tab == .preview && !isHTML { tab = .code }
     } catch {

@@ -62,7 +62,7 @@ struct StudioView: View {
         .accessibilityHidden(studio.studioDocument != nil)
         .overlay {
             if let document = studio.studioDocument {
-                AgentStudioView(workspace: document.workspace, file: document.file, onClose: { studio.studioDocument = nil })
+                AgentStudioView(workspace: document.workspace, file: document.file, showPermissions: document.showPermissions, turnResult: document.turnResult, onClose: { studio.studioDocument = nil })
                     .id(document.id)
                     .environmentObject(studio)
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -664,7 +664,9 @@ private struct ChatWorkspaceView: View {
             } else if studio.selectedMode == .server {
                 ServerWorkspaceView(server: studio.localServer)
             } else if let conversation = studio.currentConversation, !conversation.messages.isEmpty {
-                MessagesView(messages: conversation.messages)
+                MessagesView(messages: conversation.messages,
+                    agentWorkspace: studio.selectedMode == .agent && conversation.agent ? studio.agentWorkspaceURL : nil,
+                    savingAgentTurn: studio.agentStudioBusy)
                 ComposerView()
                     .matchedGeometryEffect(id: "composer", in: composerMotion, properties: .position)
                     .padding(.horizontal, 32)

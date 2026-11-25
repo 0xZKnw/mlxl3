@@ -170,6 +170,9 @@ extension StudioModel {
       cooperative.currentConversation?.messages.last?.parts.last?.text.contains("32 tokens") == true
     }
     let pending = cooperative.currentConversation!.messages.last!
+    cooperative.draft = "unsent instruction after Stop"
+    cooperative.send()
+    check(cooperative.queuedAgentGuidance == cooperative.draft, "Guidance queues on a legacy Agent")
     cooperative.stopGeneration()
     try await wait { !cooperative.isGenerating && !cooperative.agentStudioBusy }
     check(
@@ -177,6 +180,8 @@ extension StudioModel {
       "Cooperative Stop preserves the loaded model and partial response")
     check(cooperative.labUsage.summary(for: .allTime).models.isEmpty,
       "Cancelling without engine counters does not fabricate usage")
+    check(cooperative.queuedAgentGuidance == nil && cooperative.draft == "unsent instruction after Stop"
+      && cooperative.currentConversation?.messages.count == 2, "Stopping keeps the queued instruction as an editable draft")
     cooperative.draft = "Resume after Stop"
     cooperative.send()
     try await wait { !cooperative.isGenerating }
@@ -186,11 +191,47 @@ extension StudioModel {
     cooperative.stopServices()
     await cooperative.bridge.stopAndWait()
 
+    let signalSupport = root.appendingPathComponent("cooperative-agent-guidance")
+    let operationFinished = root.appendingPathComponent("guidance-operation-finished")
+    for supported in [false, true] {
+      if supported { try Data().write(to: signalSupport) }
+      let agent = try await readyAgent("guidance-\(supported)")
+      let thread = agent.selectedConversationID
+      agent.draft = "steer the second action"
+      agent.send()
+      agent.draft = "Keep the original colours"
+      check(agent.canQueueAgentGuidance, "An active Agent accepts a text instruction before the engine acknowledges")
+      agent.send()
+      agent.send()
+      try await wait { agent.currentConversation?.messages.last?.toolActivities.first?.state == .running }
+      check(agent.queuedAgentGuidance == "Keep the original colours" && !agent.canQueueAgentGuidance
+        && agent.currentConversation?.messages.count == 2, "Submitting twice queues one follow-up and waits for the running operation")
+      try Data().write(to: operationFinished)
+      try await wait { !agent.isGenerating && !agent.agentStudioBusy && agent.currentConversation?.messages.count == 4 }
+      let messages = agent.currentConversation!.messages
+      let next = try JSONSerialization.jsonObject(with: Data(messages[3].content.utf8)) as! [String: Any]
+      let replay = next["messages"] as! [[String: Any]]
+      check(agent.selectedConversationID == thread && messages[1].error == nil
+        && messages[1].content == (supported ? "Yielded" : "Completed")
+        && messages[1].toolActivities.first?.result == "modified first file"
+        && messages[2].content == "Keep the original colours" && agent.draft.isEmpty
+        && replay.last?["content"] as? String == messages[2].content
+        && replay[replay.count - 2]["turn_context"] as? String == messages[1].turnContext,
+        "Send the guidance once, after checkpointing, with the actual tool output in the same conversation")
+      agent.stopServices()
+      await agent.bridge.stopAndWait()
+      try FileManager.default.removeItem(at: operationFinished)
+      if supported { try FileManager.default.removeItem(at: signalSupport) }
+    }
+
     let ignored = try await readyAgent("ignored")
     ignored.draft = "hang-ignore"
     ignored.send()
     try await wait { ignored.currentConversation?.messages.last?.thinking.isEmpty == false }
     let ignoredMessage = ignored.currentConversation!.messages.last!
+    let stopStore = AgentProjectStore(workspace: ignored.agentWorkspaceURL!)
+    let partialFile = stopStore.workspace.appendingPathComponent("partial.txt")
+    try Data("before stop".utf8).write(to: partialFile)
     let ignoredPID = (try launches().last!["pid"] as! NSNumber).int32Value
     let stopStarted = ContinuousClock.now
     ignored.stopGeneration()
@@ -198,6 +239,10 @@ extension StudioModel {
     check(
       ignoredMessage.error != nil && !ignored.bridge.isRunning,
       "Stop falls back when SIGUSR1 and SIGTERM are ignored")
+    check(ignored.agentStudioBusy, "The interrupted Agent workspace stays busy while its engine retires")
+    // A tool may finish writing after cancellation was requested, before its process exits.
+    let finalBytes = Data("finished during shutdown".utf8)
+    try finalBytes.write(to: partialFile)
     ignored.selectModel(model.name)
     try await wait { ignored.engineState.isReady && !ignored.mcpUpdating }
     check(ContinuousClock.now - stopStarted < .seconds(7), "Ignored Stop and reload are bounded")
@@ -205,6 +250,10 @@ extension StudioModel {
       kill(ignoredPID, 0) == -1 && errno == ESRCH,
       "Reload joins the previous engine before loading another model")
     check(ignored.engineState.isReady, "Model can be loaded again after forced shutdown")
+    try await wait { !ignored.agentStudioBusy }
+    let stoppedVersion = try stopStore.state().messageCheckpoints?[ignoredMessage.id.uuidString]
+    let stoppedBytes = try stoppedVersion.map { try stopStore.contents("partial.txt", revision: $0) }
+    check(stoppedBytes == finalBytes, "Force Stop binds the final workspace bytes to the interrupted answer")
     ignored.stopServices()
     await ignored.bridge.stopAndWait()
 
@@ -308,6 +357,11 @@ extension StudioModel {
     let chatBefore = looping.currentConversation?.messages.count ?? 0
     looping.draft = "Plain chat"
     looping.send()
+    looping.draft = "A later Chat draft"
+    check(!looping.canSteerActiveAgent && !looping.canQueueAgentGuidance, "Chat never offers Agent steering")
+    looping.send()
+    check(looping.queuedAgentGuidance == nil, "Pressing Send during an ordinary Chat leaves its draft alone")
+    looping.draft = ""
     try await wait {
       (looping.currentConversation?.messages.count ?? 0) >= 2
         && looping.currentConversation!.messages.count != chatBefore && !looping.isGenerating

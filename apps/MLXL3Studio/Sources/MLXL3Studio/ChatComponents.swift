@@ -44,6 +44,8 @@ struct MessagesView: View {
   @Environment(\.conversationDensity) private var density
   @Environment(\.conversationReadingWidth) private var readingWidth
   let messages: [ChatMessage]
+  var agentWorkspace: URL? = nil
+  var savingAgentTurn = false
   @State private var scroll = StreamingScrollState()
   @State private var metrics = BottomMetrics()
   @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -55,14 +57,14 @@ struct MessagesView: View {
         VStack(spacing: density.spacing) {
           if split > 0 {
             LazyVStack(spacing: density.spacing) {
-              ForEach(messages.prefix(split)) { message in
-                MessageView(message: message, isLast: false)
+              ForEach(messages.enumerated().prefix(split), id: \.element.id) { index, message in
+                row(message, at: index, isLast: false)
                   .id(message.id)
               }
             }
           }
-          ForEach(messages.suffix(from: split)) { message in
-            MessageView(message: message, isLast: message.id == messages.last?.id)
+          ForEach(messages.enumerated().dropFirst(split), id: \.element.id) { index, message in
+            row(message, at: index, isLast: index == messages.count - 1)
               .transition(
                 reduceMotion || message.id == messages.last?.id
                   ? .identity : .offset(y: 7).combined(with: .opacity))
@@ -139,6 +141,14 @@ struct MessagesView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity)
   }
 
+  private func row(_ message: ChatMessage, at index: Int, isLast: Bool) -> some View {
+    // Read the boundary in O(1) even for long or imported transcripts.
+    let start = agentWorkspace != nil && message.role == .assistant && index > 0
+      && messages[index - 1].role == .user ? messages[index - 1].id : nil
+    return MessageView(message: message, isLast: isLast, agentWorkspace: agentWorkspace,
+      startID: start, savingAgentTurn: isLast && savingAgentTurn)
+  }
+
   private func pin(_ proxy: ScrollViewProxy) {
     var transaction = Transaction(animation: nil)
     transaction.disablesAnimations = true
@@ -156,6 +166,9 @@ private struct MessageView: View {
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var message: ChatMessage
     var isLast = false
+    var agentWorkspace: URL? = nil
+    var startID: UUID? = nil
+    var savingAgentTurn = false
     @State private var hovered = false
 
     var body: some View {
@@ -216,7 +229,7 @@ private struct MessageView: View {
             .contentShape(Rectangle())
             .onHover { hovered = $0 }
         } else {
-            AssistantMessageView(message: message, isLast: isLast)
+            AssistantMessageView(message: message, isLast: isLast, agentWorkspace: agentWorkspace, startID: startID, savingAgentTurn: savingAgentTurn)
         }
     }
 }
@@ -226,7 +239,11 @@ private struct AssistantMessageView: View {
     @Environment(\.conversationTextScale) private var textScale
     @ObservedObject var message: ChatMessage
     var isLast = false
+    var agentWorkspace: URL? = nil
+    var startID: UUID? = nil
+    var savingAgentTurn = false
     @State private var citedSource: DocumentExcerpt?
+    @State private var turnOutcome: Result<AgentTurnResult?, Error>?
     @State private var hovered = false
 
     var body: some View {
@@ -296,6 +313,18 @@ private struct AssistantMessageView: View {
                     }
                     .scrollIndicators(.never)
                 }
+                if let agentWorkspace, startID != nil, !message.isStreaming, !savingAgentTurn {
+                    switch turnOutcome {
+                    case .success(let result?) where !result.files.isEmpty || !result.commands.isEmpty:
+                        AgentTurnResultRow(workspace: agentWorkspace, result: result)
+                    case .failure(let error):
+                        Label(L("Résultat du tour indisponible", "Turn result unavailable"), systemImage: "exclamationmark.circle")
+                            .font(.caption).foregroundStyle(StudioTheme.secondary)
+                            .help(error.localizedDescription).accessibilityHint(error.localizedDescription)
+                    default:
+                        EmptyView()
+                    }
+                }
                 if let stats = message.stats {
                     StatsRow(stats: stats)
                 }
@@ -311,6 +340,20 @@ private struct AssistantMessageView: View {
         .contentShape(Rectangle())
         .onHover { hovered = $0 }
         .sheet(item: $citedSource) { DocumentSourceView(source: $0) }
+        .background {
+            if let agentWorkspace, let startID, !message.isStreaming, !savingAgentTurn {
+                // Loading cannot add an empty row to the transcript or move a plain answer.
+                Color.clear.allowsHitTesting(false).accessibilityHidden(true)
+                  .task(id: agentWorkspace.appendingPathComponent(startID.uuidString)) {
+                    let store = AgentProjectStore(workspace: agentWorkspace)
+                    let assistantID = message.id
+                    let outcome = await Task.detached(priority: .utility) {
+                        Result { try store.turnResult(user: startID, assistant: assistantID) }
+                    }.value
+                    if !Task.isCancelled { turnOutcome = outcome }
+                }
+            }
+        }
     }
 
     private func isLive(_ part: AssistantPart) -> Bool {
@@ -978,7 +1021,9 @@ struct ComposerView: View {
                 .padding(.top, 12)
             }
             HStack(alignment: .bottom, spacing: 12) {
-                TextField(studio.selectedMode == .agent ? L("Décrivez votre tâche…", "Describe your task…") : L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
+                TextField(studio.canSteerActiveAgent ? L("Précisez la tâche en cours…", "Add an instruction…")
+                    : studio.selectedMode == .agent ? L("Décrivez votre tâche…", "Describe your task…")
+                    : L("Écrivez un message…", "Write a message…"), text: $studio.draft, axis: .vertical)
                     .textFieldStyle(.plain)
                     .font(.system(size: 15))
                     .lineLimit(1...6)
@@ -991,7 +1036,7 @@ struct ComposerView: View {
                         guard focused, let image = ComposerPasteboard.image(from: .general) else { return }
                         ComposerPasteboard.importImage(image, into: studio)
                     }
-                    .disabled(studio.composerBusy)
+                    .disabled(studio.composerBusy && !studio.canSteerActiveAgent)
                     .onSubmit { studio.send() }
                     .onKeyPress(.return, phases: .down) { press in
                         if press.modifiers.contains(.control) {
@@ -1018,7 +1063,7 @@ struct ComposerView: View {
         }
         .contentShape(RoundedRectangle(cornerRadius: 18, style: .continuous))
         .onTapGesture {
-            guard !studio.composerBusy else { return }
+            guard !studio.composerBusy || studio.canSteerActiveAgent else { return }
             focused = true
         }
         .background {
@@ -1182,14 +1227,32 @@ private struct ComposerAgentControls: View {
     var body: some View {
         let internet = studio.agentPermissions.internet
         HStack(spacing: 2) {
-            Button(action: studio.openAgentWorkspace) {
-                Image(systemName: "folder")
-                    .foregroundStyle(StudioTheme.secondary)
-                    .frame(width: 28, height: 28)
+            if let folder = studio.attachedAgentFolder {
+                Button {
+                    if let workspace = studio.agentWorkspaceURL {
+                        studio.studioDocument = StudioDocument(workspace: workspace, showPermissions: true)
+                    }
+                } label: {
+                    Label(folder.lastPathComponent, systemImage: "folder")
+                        .font(.system(size: 12, weight: .medium)).lineLimit(1).truncationMode(.middle)
+                        .frame(maxWidth: 140).fixedSize(horizontal: true, vertical: false)
+                        .padding(.horizontal, 7).frame(height: 28)
+                }
+                .buttonStyle(WorkspaceControlStyle())
+                .disabled(studio.isGenerating || studio.agentStudioBusy)
+                .help(folder.path + "\n" + L("Voir les autorisations de cette tâche", "View permissions for this task"))
+                .accessibilityLabel(L("Autorisations du dossier ", "Permissions for folder ") + folder.lastPathComponent)
+                .accessibilityIdentifier("agent.composer.folder")
+            } else {
+                Button(action: studio.openAgentWorkspace) {
+                    Image(systemName: "folder")
+                        .foregroundStyle(StudioTheme.secondary)
+                        .frame(width: 28, height: 28)
+                }
+                .buttonStyle(WorkspaceControlStyle())
+                .help(L("Ouvrir le dossier de la tâche dans le Finder", "Open the task’s folder in Finder"))
+                .accessibilityLabel(L("Dossier de la tâche", "Task folder"))
             }
-            .buttonStyle(WorkspaceControlStyle())
-            .help(L("Ouvrir le dossier de la tâche dans le Finder", "Open the task’s folder in Finder"))
-            .accessibilityLabel(L("Dossier de la tâche", "Task folder"))
 
             Button { studio.setAgentInternet(!internet) } label: {
                 Image(systemName: internet ? "globe" : "network.slash")
@@ -1217,11 +1280,18 @@ private struct ComposerFooterView: View {
             HStack(spacing: 7) {
                 Menu {
                     Button(action: studio.chooseChatFiles) {
-                        Label(L("Joindre des fichiers…", "Attach files…"), systemImage: "paperclip")
+                        Label(studio.selectedMode == .agent
+                              ? L("Joindre des fichiers à lire…", "Attach files to read…")
+                              : L("Joindre des fichiers…", "Attach files…"), systemImage: "paperclip")
                     }
                     .disabled(!studio.canImportFiles)
                     .keyboardShortcut("o", modifiers: [.command, .shift])
-                    if studio.selectedMode != .agent {
+                    if studio.selectedMode == .agent {
+                        Button(action: studio.chooseAgentProject) {
+                            Label(L("Travailler dans un dossier…", "Work in a folder…"), systemImage: "folder.badge.plus")
+                        }
+                        .disabled(studio.isGenerating || studio.agentStudioBusy || studio.attachedAgentFolder != nil)
+                    } else {
                         Divider()
                         Toggle(L("Activer les outils MCP", "Enable MCP tools"), isOn: Binding(
                             get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) }))
@@ -1264,6 +1334,17 @@ private struct ComposerFooterView: View {
                 Spacer()
                 ComposerVoiceControl(studio: studio, voice: studio.voice)
                 if studio.composerBusy || studio.preparingDocuments {
+                    if studio.canSteerActiveAgent && !studio.draft.isEmpty {
+                        Button(action: studio.send) {
+                            Image(systemName: "arrow.turn.down.right")
+                                .frame(width: 31, height: 31)
+                        }
+                        .buttonStyle(RoundGlassButtonStyle(bright: false))
+                        .disabled(!studio.canQueueAgentGuidance)
+                        .help(L("Transmettre la précision (Retour)", "Send instruction (Return)"))
+                        .accessibilityLabel(L("Transmettre la précision", "Send instruction"))
+                        .accessibilityIdentifier("agent.sendGuidance")
+                    }
                     Button(action: studio.stopGeneration) {
                         Image(systemName: "stop.fill")
                             .font(.system(size: 10, weight: .bold))

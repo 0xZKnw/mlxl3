@@ -85,6 +85,15 @@ elif command == "bridge":
             emit("cancelled", request_id=active)
             active = None
 
+    can_yield = os.path.isfile(os.path.join(os.environ["MLXL3_HOME"], "cooperative-agent-guidance"))
+    yield_requested = False
+
+    def request_yield(*_):
+        global yield_requested
+        yield_requested = True
+
+    if can_yield:
+        signal.signal(signal.SIGUSR2, request_yield)
     signal.signal(signal.SIGUSR1, cancel)
     with open(os.path.join(os.environ["MLXL3_HOME"], "mode-launches.jsonl"), "a") as log:
         log.write(json.dumps({"registry": registry, "model": model, "pid": os.getpid()}) + "\n")
@@ -96,6 +105,7 @@ elif command == "bridge":
         context_limit=2048,
         model_context_limit=2048,
         workspace_features=True,
+        agent_yield_supported=can_yield,
         bridge_protocol=1,
         runtime_commit="fixture",
         runtime_profile="release",
@@ -120,6 +130,7 @@ elif command == "bridge":
                 mcp_errors={},
             )
         elif request["type"] == "generate":
+            yield_requested = False
             active = request["request_id"]
             text = request["messages"][-1]["content"]
             if model.startswith("compare-test-"):
@@ -159,6 +170,25 @@ elif command == "bridge":
                 if text == "comparison-malformed":
                     print("invalid fixture frame", flush=True)
                     continue
+            if text == "steer the second action":
+                key = {"request_id": active, "tool_call_id": "first", "tool_name": "task"}
+                emit("tool_start", **key)
+                # The test deliberately keeps the first operation in flight after queueing.
+                gate = os.path.join(os.environ["MLXL3_HOME"], "guidance-operation-finished")
+                deadline = time.monotonic() + 6
+                while not os.path.isfile(gate) or (can_yield and not yield_requested):
+                    if time.monotonic() >= deadline:
+                        emit("error", request_id=active, message="Guidance handshake timed out")
+                        break
+                    time.sleep(0.01)
+                else:
+                    emit("tool_result", **key, text="modified first file", is_error=False)
+                    history = [{"role": "assistant", "tool_calls": [{"type": "function", "function": {"name": "task", "arguments": {}}}]},
+                               {"role": "tool", "name": "task", "content": "modified first file"}, {"role": "assistant", "content": ""}]
+                    emit("complete", request_id=active, stop_reason="agent_yield" if yield_requested else "eos",
+                         turn_context=json.dumps(history), assistant_context="Yielded" if yield_requested else "Completed")
+                active = None
+                continue
             if text.startswith("hang-"):
                 ignore_stop = text == "hang-ignore"
                 if ignore_stop:

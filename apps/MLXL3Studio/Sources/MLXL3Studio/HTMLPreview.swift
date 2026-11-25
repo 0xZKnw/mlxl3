@@ -148,6 +148,8 @@ struct StudioDocument: Identifiable, Sendable {
   let id = UUID()
   let workspace: URL
   var file: URL? = nil
+  var showPermissions = false
+  var turnResult: AgentTurnResult? = nil
 }
 
 /// Lives only while its inline Preview tab is visible.

@@ -338,6 +338,12 @@ final class MLXL3Bridge: @unchecked Sendable {
         }
     }
 
+    /// Call only after this process announced support and acknowledged the current generation.
+    func yieldAfterAgentTool() -> Bool {
+        guard let process, process.isRunning else { return false }
+        return Darwin.kill(process.processIdentifier, SIGUSR2) == 0
+    }
+
     func cancelGeneration() -> Bool {
         guard let process, process.isRunning else { return false }
         return Darwin.kill(process.processIdentifier, SIGUSR1) == 0
@@ -348,7 +354,7 @@ final class MLXL3Bridge: @unchecked Sendable {
         await waitForRetiringProcesses()
     }
 
-    private func waitForRetiringProcesses() async {
+    func waitForRetiringProcesses() async {
         let pending = retiringProcesses.withLock { $0 }
         await Task.detached {
             for process in pending where process.isRunning { process.waitUntilExit() }

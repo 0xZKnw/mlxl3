@@ -210,6 +210,7 @@ struct BridgeEvent: Decodable {
     /// Engines whose Agent loop has no total budget: `reasoning_budget`, up to 512 rounds,
     /// context pruning and a stop for repeated identical calls.
     var agentLoopSupported: Bool? = nil
+    var agentYieldSupported: Bool? = nil
     /// `tool_start`: the call's arguments, shown with the tool (the code of a JS call).
     var arguments: ToolArguments? = nil
     var bridgeProtocol: Int? = nil
@@ -279,6 +280,7 @@ struct BridgeEvent: Decodable {
         case toolRoundsSupported = "tool_rounds_supported"
         case mcpCallTimeoutSupported = "mcp_call_timeout_supported"
         case agentLoopSupported = "agent_loop_supported"
+        case agentYieldSupported = "agent_yield_supported"
         case arguments
         case bridgeProtocol = "bridge_protocol"
         case mcpToolCatalog = "mcp_tool_catalog"

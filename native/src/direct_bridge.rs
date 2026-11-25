@@ -182,6 +182,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
     ready["mcp_call_timeout_supported"] = json!(true);
     // AGENT-2026-11-23-BOUCLE: `reasoning_budget`, 512 rounds, pruning, repeated-call stop.
     ready["agent_loop_supported"] = json!(true);
+    ready["agent_yield_supported"] = json!(false);
     ready["reasoning_effort_supported"] = json!(true);
     ready["reasoning_effort_levels"] = json!(mlxl3_native::tokenizer::REASONING_EFFORTS);
     emit_event(ready)?;
@@ -327,6 +328,7 @@ pub(super) fn run(registry_path: Option<&Path>, name: &str, requested: i32) -> R
                             context,
                             size,
                             &cancelled,
+                            None, // This bridge only registers the cancellation signal.
                             &mut random,
                             &mut mcp,
                             draft.as_ref().map(|(_, _, d)| d),

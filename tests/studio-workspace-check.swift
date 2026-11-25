@@ -32,6 +32,69 @@ import SwiftUI
       precondition(valid, message)
       count += 1
     }
+    // The assistant's result stays pinned to its own request and response, across later edits.
+    let task = AgentProjectStore(workspace: root.appendingPathComponent("turn-results/files"))
+    let user = UUID(), assistant = UUID()
+    try task.checkpoint(messageID: user, startingTurn: true)
+    let receipts = AgentCommandReceipt.folder(metadata: task.metadata, turn: user)
+    let incomplete = AgentCommandReceipt.start(command: "npm test", in: receipts)
+    let shell = AgentCommandReceipt.start(command: "npm test || true", in: receipts)
+    shell?.finish(.init(output: "all tests passed", status: 7, interrupted: false, raw: nil, omitted: nil))
+    let path = "notes avec espaces.md"
+    try AgentProjectStore.write(Data("first version".utf8), path: path, root: task.workspace)
+    try task.checkpoint(messageID: assistant)
+    guard let result = try task.turnResult(user: user, assistant: assistant) else {
+      preconditionFailure("Turn with a new document did not produce a result")
+    }
+    check(result.files == [.init(path: path, added: true)] && result.newDocument == path,
+      "A new text document did not expose its review and document actions")
+    check(result.commands.commands == ["failure": 1] && result.commands.tests == ["unconfirmed": 1],
+      "Unfinished jobs and compound commands were described as passing tests")
+    let nextUser = UUID(), nextAssistant = UUID()
+    try task.checkpoint(messageID: nextUser, startingTurn: true)
+    incomplete?.finish(.init(output: "", status: 0, interrupted: false, raw: nil, omitted: nil))
+    try files.removeItem(at: task.workspace.appendingPathComponent(path))
+    try AgentProjectStore.write(Data("unrelated".utf8), path: "next.txt", root: task.workspace)
+    try task.checkpoint(messageID: nextAssistant)
+    let secondTurn = try task.turnResult(user: nextUser, assistant: nextAssistant)
+    check(secondTurn?.files.count == 2 && secondTurn?.newDocument == nil && secondTurn?.commands.isEmpty == true,
+      "Added/deleted files or command results crossed into another turn")
+    check(try task.turnResult(user: user, assistant: assistant) == result,
+      "Later edits or a late background job changed a historical result")
+    check(try task.turnResult(user: UUID(), assistant: assistant) == nil,
+      "Missing legacy checkpoint silently substituted the current workspace")
+    let reviewedTurn = AgentStudioModel()
+    await reviewedTurn.open(workspace: task.workspace, file: nil, turnResult: result)
+    check(reviewedTurn.tab == .diff && reviewedTurn.diff.contains("+first version")
+      && !reviewedTurn.diff.contains("unrelated") && !reviewedTurn.canApply,
+      "Review shortcut opened the current diff or allowed applying a historic turn")
+    let openedDocument = AgentStudioModel()
+    await openedDocument.open(workspace: task.workspace, file: task.workspace.appendingPathComponent(path),
+      turnResult: result)
+    check(openedDocument.tab == .code && openedDocument.code == "first version" && !openedDocument.editable,
+      "Historical document shortcut showed today's content or made past content editable")
+    let silent = UUID(), reply = UUID()
+    try task.checkpoint(messageID: silent, startingTurn: true)
+    try task.checkpoint(messageID: reply)
+    let unchanged = try task.turnResult(user: silent, assistant: reply)
+    check(unchanged?.files.isEmpty == true && unchanged?.commands.isEmpty == true,
+      "An unchanged turn displayed a result")
+    let binaryRequest = UUID(), binaryResponse = UUID()
+    try task.checkpoint(messageID: binaryRequest, startingTurn: true)
+    try AgentProjectStore.write(Data([0, 255]), path: "actually-binary.md", root: task.workspace)
+    try task.checkpoint(messageID: binaryResponse)
+    let binaryResult = try task.turnResult(user: binaryRequest, assistant: binaryResponse)
+    check(binaryResult?.files.count == 1 && binaryResult?.newDocument == nil,
+      "A misleading extension offered to open binary bytes as a document")
+    let userWithoutReceipts = UUID(), responseWithoutReceipts = UUID()
+    try task.checkpoint(messageID: userWithoutReceipts, startingTurn: true)
+    let damagedReceipts = AgentCommandReceipt.folder(metadata: task.metadata, turn: userWithoutReceipts)
+    try Data("truncated".utf8).write(to: damagedReceipts.appendingPathComponent(UUID().uuidString))
+    try AgentProjectStore.write(Data("kept".utf8), path: "recovered.txt", root: task.workspace)
+    try task.checkpoint(messageID: responseWithoutReceipts)
+    let recovered = try task.turnResult(user: userWithoutReceipts, assistant: responseWithoutReceipts)
+    check(recovered?.newDocument == "recovered.txt" && recovered?.commands.isEmpty == true,
+      "A malformed command receipt lost the file result or reported success")
     let source = root.appendingPathComponent("original")
     let workspace = root.appendingPathComponent("task/files")
     try files.createDirectory(at: source, withIntermediateDirectories: true)
@@ -254,16 +317,86 @@ import SwiftUI
     let studio = StudioModel(
       conversationFileURL: root.appendingPathComponent("ui/history.json"), isPreview: true,
       preferences: prefs)
-    let oldID = studio.selectedConversationID
+    let chatID = studio.selectedConversationID
     await studio.openAgentProject(source)
-    check(
-      studio.selectedConversationID != oldID && studio.currentConversation?.agent == true
-        && studio.studioDocument != nil,
-      "Open project did not create a new isolated Agent task")
-    check(
-      studio.conversations.contains(where: { $0.id == oldID }),
-      "Open project discarded previous task")
+    check(studio.selectedMode == .chat && studio.selectedConversationID == chatID
+      && studio.conversations.count == 1 && studio.attachedAgentFolder == nil,
+      "Attaching a folder must not turn a Chat into an Agent task")
+    studio.selectMode(.agent)
+    let taskID = studio.selectedConversationID!
     let uiWorkspace = studio.agentWorkspaceURL!
+    let taskStore = AgentProjectStore(workspace: uiWorkspace)
+    let earlier = ChatMessage(role: .user, content: "Keep my work in this thread")
+    let taskIndex = studio.conversations.firstIndex(where: { $0.id == taskID })!
+    studio.conversations[taskIndex].messages.append(earlier)
+    studio.draft = "Review the selected project"
+    await studio.importChatFiles([source.appendingPathComponent("blague.txt")])
+    let attachmentID = studio.pendingAttachments.first!.id
+    try files.createDirectory(at: uiWorkspace, withIntermediateDirectories: true)
+    try AgentProjectStore.write(Data("my note".utf8), path: "notes.md", root: uiWorkspace)
+    try taskStore.checkpoint(messageID: earlier.id)
+    let alias = root.appendingPathComponent("workspace-alias")
+    try files.createSymbolicLink(at: alias, withDestinationURL: uiWorkspace.deletingLastPathComponent())
+    do {
+      try taskStore.importProject(alias)
+      preconditionFailure("A task was allowed to attach its own private storage")
+    } catch {
+      check((error as NSError).code == CocoaError.fileReadNoPermission.rawValue, "Wrong self-import error")
+    }
+    let emptySource = root.appendingPathComponent("blank-project")
+    try files.createDirectory(at: emptySource, withIntermediateDirectories: true)
+    let blankStore = AgentProjectStore(workspace: root.appendingPathComponent("blank-task/files"))
+    try blankStore.importProject(emptySource)
+    check(try blankStore.state().baseline != nil && blankStore.paths(at: blankStore.versions().first!.id).isEmpty,
+      "A new empty project cannot be attached")
+    var taskPermissions = try taskStore.state().permissions
+    taskPermissions.run = false
+    try taskStore.setPermissions(taskPermissions)
+
+    // A clash after a successful copy cannot truncate either file or attach part of the project.
+    let conflicting = root.appendingPathComponent("conflicting")
+    try files.createDirectory(at: conflicting, withIntermediateDirectories: true)
+    try files.createDirectory(at: conflicting.appendingPathComponent("first"), withIntermediateDirectories: true)
+    try Data().write(to: conflicting.appendingPathComponent("first/file.txt"))
+    try Data("collision".utf8).write(to: conflicting.appendingPathComponent("notes.md"))
+    await studio.openAgentProject(conflicting)
+    check(try studio.featureError != nil && taskStore.state().source == nil
+      && !files.fileExists(atPath: uiWorkspace.appendingPathComponent("first").path)
+      && Data(contentsOf: uiWorkspace.appendingPathComponent("notes.md")) == Data("my note".utf8),
+      "A conflicting attach changed the task files or binding")
+    studio.featureError = nil
+    await studio.openAgentProject(source)
+    check(studio.featureError == nil && studio.selectedConversationID == taskID
+      && studio.currentConversation?.messages.first?.id == earlier.id && studio.conversations.count == 2
+      && studio.draft == "Review the selected project" && studio.pendingAttachments.map(\.id) == [attachmentID]
+      && studio.studioDocument == nil, "Attaching from the composer lost the task, its draft or its attachments")
+    check(try taskStore.state().permissions == taskPermissions && studio.attachedAgentFolder?.resolvingSymlinksInPath().path == source.resolvingSymlinksInPath().path
+      && Data(contentsOf: uiWorkspace.appendingPathComponent("notes.md")) == Data("my note".utf8),
+      "Attaching a folder lost the existing files, permissions or source")
+    let attachedState = try taskStore.state()
+    check(try !taskStore.paths(at: attachedState.baseline!).contains("notes.md")
+      && taskStore.paths(at: taskStore.versions().first!.id).contains("notes.md"),
+      "The review must distinguish existing task files from the original source")
+    check(studio.persistNow(), "Task history could not be saved")
+    let restored = StudioModel(conversationFileURL: root.appendingPathComponent("ui/history.json"),
+      isPreview: true, preferences: prefs)
+    check(restored.selectedConversationID == taskID && restored.attachedAgentFolder == studio.attachedAgentFolder
+      && restored.pendingAttachments.map(\.id) == [attachmentID] && restored.draft == studio.draft,
+      "Reopening the Agent task lost its folder or draft")
+    let earlierBranch = AgentProjectStore(workspace: root.appendingPathComponent("before-attachment/files"))
+    try taskStore.fork(to: earlierBranch.workspace, at: earlier.id, retaining: [earlier.id])
+    check(try earlierBranch.state().source == nil && earlierBranch.state().baseline == nil
+      && earlierBranch.files().paths == ["notes.md"], "Branch before attachment inherited the new source")
+    let later = UUID()
+    try taskStore.checkpoint(messageID: later)
+    let laterBranch = AgentProjectStore(workspace: root.appendingPathComponent("after-attachment/files"))
+    try taskStore.fork(to: laterBranch.workspace, at: later, retaining: [earlier.id, later])
+    check(try laterBranch.state().source == attachedState.source && laterBranch.files().paths.contains("blague.txt"),
+      "Branch after attachment lost the project")
+    await studio.openAgentProject(conflicting)
+    check(try studio.featureError != nil && taskStore.state().source == attachedState.source,
+      "Attaching a second project silently changed the source")
+    studio.featureError = nil
     studio.studioDocument = StudioDocument(
       workspace: uiWorkspace, file: uiWorkspace.appendingPathComponent("blague.txt"))
     let host = NSHostingView(
