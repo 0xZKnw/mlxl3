@@ -1,5 +1,7 @@
 # MLXL3 Desktop 2.0.34
 
+> **Correction (2026-11-25): this release has no Windows installer.** A change in this release line ([#210](https://github.com/0xZKnw/mlxl3/pull/210)) removed a type the Windows app needs, so the Windows build fails for this tag. The last Windows installer is [v2.0.32](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.32); the fix is on `main` and a later release will carry the installer. The Mac app is not affected.
+
 **Agent can now work directly in one of your folders: choose it at the top of the window, and find your tasks grouped by folder in the sidebar.**
 
 Desktop **2.0.34 / build 87** bundles MLXL3 engine **2.0.37**, rebuilt from this source. The Rust sources are identical to [`engine-v2.0.37`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.37); the binary is not byte-identical to that archive because it records another source commit. The engine itself is not republished.
@@ -36,7 +38,7 @@ Desktop **2.0.34 / build 87** bundles MLXL3 engine **2.0.37**, rebuilt from this
 
 Requires **Apple Silicon and macOS 26.2+**. Download the DMG below, or check for updates in Settings.
 
-The DMG is ad-hoc signed. First launch may require approval in System Settings → Privacy & Security. The Windows installer is built and attached by the `windows-desktop` workflow after publication.
+The DMG is ad-hoc signed. First launch may require approval in System Settings → Privacy & Security. **No Windows installer is attached to this release** (see the correction at the top).
 
 ## Verification and limits
 
