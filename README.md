@@ -103,11 +103,17 @@ image conversation. Documents and images can be attached together.
 
 ### Images
 
-On a supported M5 Mac, open **Images → History** to browse the PNGs generated
+Open **Image** to use **Turbo**, the recommended eight-step model, or choose
+**Base** for an adjustable step count. Download either model directly from
+this page or use a copy already on your Mac. [Image generation in Studio](docs/studio-image21.md).
+
+Use **Save…** in the preview to keep a PNG. Enable **Settings → Privacy →
+Automatically save generated images** to keep new images in **Image → History**
 on this Mac, newest first. Select a thumbnail to see the image, its prompt,
 the model, the resolution, the step count and the seed. Older PNGs from Studio
-also appear. **Reuse settings** copies a saved prompt, size, step count and seed
-into the generator for another run. [View a saved generation on an M5](docs/images/studio-image-history.png).
+also appear. **Download PNG** saves a copy in the folder you choose. **Reuse settings**
+copies the prompt, size, step count and seed into the generator for another run.
+[View a saved generation on an M5](docs/images/studio-image-detail-download-fr.jpg).
 
 ### Agent
 
@@ -147,6 +153,10 @@ tokens per generation. The median time to first text uses retained generations
 with an end-to-end measurement. Models are ordered by tokens used. Average and maximum tok/s
 refer to decode speed. Each generation with a measured decode interval counts
 once toward the average.
+
+**Images** shows completed Base and Turbo generations for the last 30 days and
+all time, including unsaved previews. On upgrade, Studio counts existing history
+entries that identify the model variant. [See the image counters in Lab](docs/images/studio-lab-image-counts-fr.jpg).
 
 In **Compare**, choose two installed text models, enter a shared prompt and set
 an output limit. Studio runs one model at a time and shows the answers together

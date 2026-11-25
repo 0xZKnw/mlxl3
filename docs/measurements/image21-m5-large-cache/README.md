@@ -2,7 +2,7 @@
 
 **IMAGE21-M5-LARGECACHE-19, 25 November 2026.** On an Apple M5 with 24 GiB, limiting MLX's free buffer cache to 512 MiB saved **11.65 GB** of peak process footprint at 768 × 768 and **10.62 GB** at 1024 × 1024 in a pair of 40-step renders at each size. At 768 px the capped worker finished 23.87 s earlier. At 1024 px it took 75.10 s longer. At each size both workers produced the same PNG and decoded pixels. [Individual runs and source identities](evidence.json)
 
-The final Studio worker uses the cap automatically at 768 px on this configuration. At 1024 px the default uses MLX's ordinary allocator policy. To trade render time for a smaller footprint, select **Reduce memory use** (**Réduire la mémoire**) in the image settings or pass `--low-memory` to the worker. Both paths use the same checkpoint, projection kernels and diffusion schedule. The existing 512 px setting applies across the supported M5 family. [Worker](../../../apps/MLXL3Studio/Resources/Image21/render.py) · [512 px measurements](../image21-m5-20261125/README.md)
+For the Base model, the Studio worker uses the cap automatically at 768 px on this configuration. At 1024 px the default uses MLX's ordinary allocator policy. To trade render time for a smaller footprint, select **Reduce memory use** (**Réduire la mémoire**) in the image settings or pass `--low-memory` to the worker. Both paths use the same checkpoint, projection kernels and diffusion schedule. The existing 512 px setting applies across the supported M5 family. [Worker](../../../apps/MLXL3Studio/Resources/Image21/render.py) · [512 px measurements](../image21-m5-20261125/README.md)
 
 ## Workers and environment
 
@@ -95,6 +95,18 @@ Additional 1024 px, 40-step confirmations of the **final optional setting** stop
 The measurement artifacts identify the sources used in the original campaign. For the pull request on `84ca5375`, the 1024 px switch was combined with Studio’s newer `--prompt=<text>` argument handling. The repackaged worker, both shaders and the bundled sample were byte-identical to C. On this base, 13 worker tests and all 6 native-inventory tests passed. The Swift subprocess fixture passed its 29 history assertions and its hardware and launch preconditions, including the literal prompt `--low-memory` with the option both enabled and disabled. An isolated mutation that split the prompt into two arguments failed this fixture. CrossHair repeated the worker-selection check under the model described above. The archived A/B measurements and physical checks apply to their recorded builds.
 
 The Studio image settings show the 1024 px choice unchecked by default. Both screenshots use the bundled example image and isolated preferences. [Default setting at 1120 × 760 pt](qwen-image-memory-1024-normal.png) · [Enabled setting at 820 × 740 pt](qwen-image-memory-1024-enabled.png)
+
+### Integration with the shared Base and Turbo worker
+
+Studio offers the 1024 px option when Base is selected on the tested M5 configuration.
+At 512 px both variants keep the existing cache policy. At 768 and 1024 px the
+new rule applies only to Base. The worker enforces this even for direct CLI
+calls. The 40-step results above describe the original Base campaign.
+
+After integration, the packaged worker reproduced the two-step Base references
+on the 24 GiB M5 at 768 px (automatic) and 1024 px (reduced memory selected).
+Both intermediate states in each render, the PNG files and the decoded RGB
+pixels matched their archived SHA-256 digests. [Integration results](post-turbo-parity.json)
 
 ## Reproduction
 

@@ -15,7 +15,7 @@ import render
 from render import PROJECTIONS, REVISION, SOURCE, EXL3Linear, checked_decode, load_denoiser
 
 rng = np.random.default_rng(371)
-for bits in (3, 4, 5):
+for bits, mcg in ((3, True), (4, True), (5, True), (4, False)):
     rows, cols = 128, 256
     packed = rng.integers(0, 65536, size=(rows // 16, cols // 16, 16 * bits), dtype=np.uint16)
     w = np.empty((rows, cols), dtype=np.float32)
@@ -27,7 +27,9 @@ for bits in (3, 4, 5):
             state = int.from_bytes(
                 np.packbits(stream[np.arange(end - 16, end) % len(stream)]).tobytes(), "big"
             )
-            code = (state * 0xCBAC1FED & 0x8FFF8FFF) ^ 0x3B603B60
+            # The upstream Turbo quantization uses EXL3's default affine codebook.
+            word = state * 0xCBAC1FED if mcg else state * 89_226_354 + 64_248_484
+            code = (word & 0x8FFF8FFF) ^ 0x3B603B60
             val = np.array([code], dtype="<u4").view("<f2").sum(dtype=np.float16)
             lane, inner = divmod(i, 8)
             r = 2 * (lane % 4) + (0, 1, 8, 9)[inner % 4]
@@ -39,23 +41,20 @@ for bits in (3, 4, 5):
     h /= np.sqrt(128.0)
     su = rng.uniform(0.15, 1, rows).astype("f2")
     sv = rng.uniform(0.15, 1, cols).astype("f2")
-    proj = EXL3Linear(
-        {
-            "a.suh": mx.array(su),
-            "a.svh": mx.array(sv),
-            "a.trellis": mx.array(packed.view("i2")),
-            "a.mcg": mx.array(-877912083, dtype=mx.int32),
-        },
-        "a",
-        (cols, rows),
-        bits,
-    )
+    weights = {
+        "a.suh": mx.array(su),
+        "a.svh": mx.array(sv),
+        "a.trellis": mx.array(packed.view("i2")),
+    }
+    if mcg:
+        weights["a.mcg"] = mx.array(-877912083, dtype=mx.int32)
+    proj = EXL3Linear(weights, "a", (cols, rows), bits, mcg=mcg)
     for batch in (1, 32, 35, 127, 128, 129, 255, 256, 257, 1023, 1024, 1025):
         x = rng.normal(size=(batch, rows)).astype("f2")
         with patch.object(render, "qmm", wraps=render.qmm) as dispatch:
             y = np.asarray(proj(mx.array(x)), dtype="f")
         expected_tile = (64, 4) if batch == 1024 else (32, 1)
-        dispatch.assert_called_once_with(rows, cols, bits, *expected_tile)
+        dispatch.assert_called_once_with(rows, cols, bits, *expected_tile, mcg)
         want = (((x * su) @ h) @ w).reshape(-1, 128) @ h
         want = want.reshape(batch, cols) * sv
         assert np.isfinite(y).all() and y.shape == want.shape
@@ -65,7 +64,7 @@ for bits in (3, 4, 5):
             # Splitting forces the original single-SIMD path for an independent dispatch comparison.
             original = mx.concatenate([proj(mx.array(x[i : i + 32])) for i in range(0, batch, 32)])
             np.testing.assert_array_equal(y.view("u4"), np.asarray(original, dtype="f").view("u4"))
-        print(bits, batch, err)
+        print("MCG" if mcg else "Default", bits, batch, err)
 
 # Exercise the production loader before it can access any auxiliary network service.
 checks = unittest.TestCase()

@@ -1753,6 +1753,24 @@ impl VisitState {
     /// Keep the first `rows` rows of the pending call. Sliding visits then keep the sink row and the last
     /// `window - 1` real keys.
     fn commit(&mut self, rows: i32, calls: i32, window: Option<i32>, kernel: i32) -> Result<()> {
+        self.commit_kv(rows, calls, window)?;
+        self.commit_conv(0..4, kernel, rows)
+    }
+
+    /// The convolution half of `commit` for the windows `which`: each becomes the state after the first
+    /// `rows` inputs of its pending call.
+    fn commit_conv(&mut self, which: std::ops::Range<usize>, kernel: i32, rows: i32) -> Result<()> {
+        for i in which {
+            let window = self.pending_conv[i]
+                .take()
+                .context("missing pending convolution")?;
+            self.conv[i] = Some(state_after(&window, kernel, rows)?);
+        }
+        Ok(())
+    }
+
+    /// The keys/values half of `commit`.
+    fn commit_kv(&mut self, rows: i32, calls: i32, window: Option<i32>) -> Result<()> {
         let (keys, values, before) = self.pending_kv.take().context("no pending Inkling call")?;
         if let Some(buffer) = &mut self.kv_buffer {
             // in place: only the logical rows move; same kept rows as the trims below
@@ -1773,12 +1791,6 @@ impl VisitState {
             let end = buffer.base + buffer.len;
             self.keys = Some(buffer.keys.slice(2, buffer.base, end)?);
             self.values = Some(buffer.values.slice(2, buffer.base, end)?);
-            for i in 0..4 {
-                let window = self.pending_conv[i]
-                    .take()
-                    .context("missing pending convolution")?;
-                self.conv[i] = Some(state_after(&window, kernel, rows)?);
-            }
             return Ok(());
         }
         let cut = |a: Array| -> Result<Array> {
@@ -1800,12 +1812,6 @@ impl VisitState {
             ensure!(from < total, "Inkling cache would be empty");
             self.keys = Some(keys.slice(2, from, total)?);
             self.values = Some(values.slice(2, from, total)?);
-            for i in 0..4 {
-                let window = self.pending_conv[i]
-                    .take()
-                    .context("missing pending convolution")?;
-                self.conv[i] = Some(state_after(&window, kernel, rows)?);
-            }
             return Ok(());
         }
         let keep = match window {
@@ -1822,12 +1828,6 @@ impl VisitState {
         };
         self.keys = Some(trim(&keys)?);
         self.values = Some(trim(&values)?);
-        for i in 0..4 {
-            let window = self.pending_conv[i]
-                .take()
-                .context("missing pending convolution")?;
-            self.conv[i] = Some(state_after(&window, kernel, rows)?);
-        }
         Ok(())
     }
 }
@@ -2982,6 +2982,108 @@ impl Moe {
         self.experts
             .forward(&x.astype(Dtype::Float16)?, &selected, &scores)
     }
+
+    /// SPEED-2026-11-25-INK2M-PREFILL-G: the MoE of several whole prefill chunks (`xs`: one `[T, D]` FP16 input
+    /// per chunk, in order) with a single expert call over all their rows; one `[T, D]` output per chunk.
+    /// The router runs chunk by chunk, with the shapes of the per-chunk prefill: its MLX product can round
+    /// differently on a larger batch (Q36-MOE-GROUP-20261116 E1, from 1 024 rows). The expert kernels compute
+    /// every route from its own row and expert only, so a row keeps the bits of its per-chunk call while an
+    /// expert is decoded once for the rows of all the chunks.
+    fn forward_group(&self, xs: &[&Array]) -> Result<Vec<Array>> {
+        ensure!(!xs.is_empty(), "empty Inkling MoE group");
+        if xs.len() == 1 || ablated("moe") || ablated("experts") {
+            return xs.iter().map(|x| self.forward(x)).collect();
+        }
+        let join = |arrays: &[Array]| Array::concatenate(&arrays.iter().collect::<Vec<_>>(), 0);
+        let mut inputs = Vec::with_capacity(xs.len());
+        let mut selected = Vec::with_capacity(xs.len());
+        let mut scores = Vec::with_capacity(xs.len());
+        for x in xs {
+            ensure!(
+                x.shape().len() == 2 && !invariant_call(x.shape()[0]),
+                "Inkling MoE group outside a committed prefill"
+            );
+            inputs.push(x.astype(Dtype::Float16)?);
+        }
+        #[cfg(test)]
+        let whole = GROUP_MUTATION.with(std::cell::Cell::get) == 1;
+        #[cfg(not(test))]
+        let whole = false;
+        if whole {
+            // mutation 1: the router on the rows of the whole group
+            let (_, s, c) = self.route(&join(&inputs)?)?;
+            selected.push(s);
+            scores.push(c);
+        } else {
+            for x in xs {
+                let (logits, s, c) = self.route(x)?;
+                stage("m.logits", &logits)?;
+                stage("m.selected", &s)?;
+                stage("m.scores", &c)?;
+                capture_routes(&s)?;
+                selected.push(s);
+                scores.push(c);
+            }
+        }
+        let out = self
+            .experts
+            .forward(&join(&inputs)?, &join(&selected)?, &join(&scores)?)?;
+        let mut outs = Vec::with_capacity(xs.len());
+        let mut row = 0;
+        for x in xs {
+            let rows = x.shape()[0];
+            outs.push(out.slice(0, row, row + rows)?);
+            row += rows;
+        }
+        ensure!(row == out.shape()[0], "Inkling MoE group rows");
+        Ok(outs)
+    }
+}
+
+#[cfg(test)]
+thread_local! {
+    /// SPEED-2026-11-25-INK2M-PREFILL-G mutations of the grouped prefill (parity test): 1 routes the whole
+    /// group in one router call, 2 leaves the convolution after the experts uncommitted between the chunks
+    /// (every chunk reads the state from before the span).
+    static GROUP_MUTATION: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+}
+
+/// Depth sources of the loop pass that just ended: its block states, its normalized residual stream and, on
+/// the lean path, their stack.
+type LoopBank = (Vec<Array>, Array, Option<Array>);
+
+/// `blocks`: the block states at the end of a loop pass, the first `kept` of them from before the loop;
+/// `hidden`: the residual stream at the end of that pass.
+fn loop_bank(blocks: &[Array], kept: usize, hidden: &Array, eps: f32) -> Result<LoopBank> {
+    let previous: Vec<Array> = blocks[kept + 1..]
+        .iter()
+        .map(Array::try_clone)
+        .collect::<Result<_>>()?;
+    let partial = hidden.rms_norm_without_weight(eps)?;
+    let stacked = if lean() {
+        let mut sources: Vec<&Array> = previous.iter().collect();
+        sources.push(&partial);
+        Some(depth_stack(&sources)?)
+    } else {
+        None
+    };
+    Ok((previous, partial, stacked))
+}
+
+/// Messages `[T, 4, D]` of looped layer `index` (0-based within the loop) from the previous pass.
+fn loop_messages(bank: &LoopBank, queries: &Array, index: usize, hidden: i32) -> Result<Array> {
+    let (previous, partial, stacked) = bank;
+    let queries = queries
+        .slice(0, index as i32, index as i32 + 1)?
+        .reshape(&[4, hidden])?;
+    match stacked {
+        Some(stacked) => depth_attend(stacked, &queries),
+        None => {
+            let mut sources: Vec<&Array> = previous.iter().collect();
+            sources.push(partial);
+            depth_attention(&sources, &queries)
+        }
+    }
 }
 
 struct Layer {
@@ -3137,6 +3239,24 @@ impl Layer {
         plan: &MaskPlan,
         state: &mut VisitState,
     ) -> Result<Array> {
+        let (residual, moe_in) =
+            self.forward_mixer(hidden, blocks, messages, start, plan, state)?;
+        let mlp = self.moe.forward(&moe_in)?;
+        self.forward_tail(&residual, &mlp, state)
+    }
+
+    /// The visit up to the experts: the residual stream after the attention `[T, D]` FP32 and the experts'
+    /// input `[T, D]` FP16. Leaves the keys/values and the first three convolution windows pending in `state`.
+    #[allow(clippy::too_many_arguments)]
+    fn forward_mixer(
+        &self,
+        hidden: &Array,
+        blocks: &mut Vec<Array>,
+        messages: Option<&Array>,
+        start: i32,
+        plan: &MaskPlan,
+        state: &mut VisitState,
+    ) -> Result<(Array, Array)> {
         let time = hidden.shape()[0];
         let dims = hidden.shape()[1];
         stage("in", hidden)?;
@@ -3246,9 +3366,14 @@ impl Layer {
             .rms_norm(&self.post_attention_norm, self.eps)?
             .astype(Dtype::Float16)?;
         stage("moe_in", &moe_in)?;
-        let mlp = self.moe.forward(&moe_in)?;
-        stage("moe_out", &mlp)?;
-        let (mlp, conv_state) = self.post_mlp_conv.forward(&mlp, state.conv[3].as_ref())?;
+        Ok((residual, moe_in))
+    }
+
+    /// The visit after the experts: `mlp` is their output `[T, D]` for the rows of `residual`. Leaves the
+    /// fourth convolution window pending in `state`.
+    fn forward_tail(&self, residual: &Array, mlp: &Array, state: &mut VisitState) -> Result<Array> {
+        stage("moe_out", mlp)?;
+        let (mlp, conv_state) = self.post_mlp_conv.forward(mlp, state.conv[3].as_ref())?;
         stage("post_mlp_conv", &mlp)?;
         state.pending_conv[3] = Some(conv_state);
         let out = residual.add(&mlp)?;
@@ -4785,41 +4910,17 @@ impl Inkling2 {
             let bank = if pass == 0 {
                 None
             } else {
-                let previous: Vec<Array> = blocks[pre_blocks.len() + 1..]
-                    .iter()
-                    .map(Array::try_clone)
-                    .collect::<Result<_>>()?;
-                let partial = hidden.rms_norm_without_weight(self.eps)?;
-                let stacked = if lean() {
-                    let mut sources: Vec<&Array> = previous.iter().collect();
-                    sources.push(&partial);
-                    Some(depth_stack(&sources)?)
-                } else {
-                    None
-                };
+                let bank = loop_bank(&blocks, pre_blocks.len(), &hidden, self.eps)?;
                 hidden = pre_hidden.try_clone()?;
                 blocks = pre_blocks
                     .iter()
                     .map(Array::try_clone)
                     .collect::<Result<_>>()?;
-                Some((previous, partial, stacked))
+                Some(bank)
             };
             for (i, layer) in (core_start..core_end).enumerate() {
                 let messages = match &bank {
-                    Some((previous, partial, stacked)) => {
-                        let queries = self
-                            .message_queries
-                            .slice(0, i as i32, i as i32 + 1)?
-                            .reshape(&[4, self.hidden])?;
-                        Some(match stacked {
-                            Some(stacked) => depth_attend(stacked, &queries)?,
-                            None => {
-                                let mut sources: Vec<&Array> = previous.iter().collect();
-                                sources.push(partial);
-                                depth_attention(&sources, &queries)?
-                            }
-                        })
-                    }
+                    Some(bank) => Some(loop_messages(bank, &self.message_queries, i, self.hidden)?),
                     None => None,
                 };
                 if tapped(visit) {
@@ -4840,12 +4941,7 @@ impl Inkling2 {
             visit == self.visits.len() || ablated("loop"),
             "Inkling visit count mismatch"
         );
-        let partial = hidden.rms_norm_without_weight(self.eps)?;
-        let mut sources: Vec<&Array> = blocks.iter().collect();
-        sources.push(&partial);
-        let hidden = depth_attention(&sources, &self.final_query)?
-            .reshape(&[time, self.hidden])?
-            .rms_norm(&self.norm, self.eps)?;
+        let hidden = self.final_hidden(&hidden, &blocks, time)?;
         let features = match taps {
             Some(taps) => {
                 features.push(hidden.try_clone()?);
@@ -4862,13 +4958,7 @@ impl Inkling2 {
         } else {
             hidden.slice(0, time - 1, time)?
         };
-        let rows = hidden.shape()[0];
-        let logits = self
-            .head_scores(&hidden)?
-            .astype(Dtype::Float32)?
-            .softcap(self.softcap)?;
-        // Same layout as the other chat models: [1, rows, vocab]
-        let logits = logits.reshape(&[1, rows, self.unpadded_vocab])?;
+        let logits = self.head_logits(&hidden)?;
         if commit {
             self.pending = Some(time);
             self.commit_rows(time, time)?;
@@ -4922,6 +5012,389 @@ impl Inkling2 {
         let _ = end;
         Ok((logits, features))
     }
+
+    /// Final normalized hidden rows `[time, D]` from the residual stream and the block states of one call.
+    fn final_hidden(&self, hidden: &Array, blocks: &[Array], time: i32) -> Result<Array> {
+        let partial = hidden.rms_norm_without_weight(self.eps)?;
+        let mut sources: Vec<&Array> = blocks.iter().collect();
+        sources.push(&partial);
+        depth_attention(&sources, &self.final_query)?
+            .reshape(&[time, self.hidden])?
+            .rms_norm(&self.norm, self.eps)
+    }
+
+    /// Softcapped FP32 logits of final hidden rows, in the layout of the other chat models: `[1, rows, vocab]`.
+    fn head_logits(&self, hidden: &Array) -> Result<Array> {
+        let rows = hidden.shape()[0];
+        self.head_scores(hidden)?
+            .astype(Dtype::Float32)?
+            .softcap(self.softcap)?
+            .reshape(&[1, rows, self.unpadded_vocab])
+    }
+
+    /// SPEED-2026-11-25-INK2M-PREFILL-G: committed prefill of `tokens`, 2 to `INKLING_MOE_GROUP_MAX` whole
+    /// chunks of `INKLING_PREFILL_SLICE` tokens, with the experts of all the chunks computed together.
+    /// Logits `[1, 1, vocab]` FP32 of the last token: the values of `forward_tokens` chunk by chunk.
+    pub fn forward_tokens_grouped(&mut self, tokens: &[u32]) -> Result<Array> {
+        if tokens.len() <= crate::INKLING_PREFILL_SLICE {
+            return self.forward_tokens(tokens);
+        }
+        match self.run_grouped(tokens, None) {
+            Ok((logits, _)) => Ok(logits),
+            Err(error) => {
+                self.reset();
+                Err(error.context("Inkling grouped prefill failed; its cache was reset"))
+            }
+        }
+    }
+
+    /// `forward_tokens_grouped` that also captures the drafter features of every row (`[T, taps * D]`, the
+    /// chunks in order): the values of `forward_with_features` chunk by chunk.
+    pub fn forward_with_features_grouped(
+        &mut self,
+        tokens: &[u32],
+        taps: &[usize],
+    ) -> Result<(Array, Array)> {
+        if tokens.len() <= crate::INKLING_PREFILL_SLICE {
+            return self.forward_with_features(tokens, taps);
+        }
+        ensure!(
+            !taps.is_empty()
+                && taps.windows(2).all(|w| w[0] < w[1])
+                && *taps.last().unwrap_or(&0) == self.visits.len(),
+            "Inkling draft taps must be increasing and end at the visit count"
+        );
+        match self.run_grouped(tokens, Some(taps)) {
+            Ok((logits, features)) => Ok((logits, features.context("features")?)),
+            Err(error) => {
+                self.reset();
+                Err(error.context("Inkling grouped prefill failed; its cache was reset"))
+            }
+        }
+    }
+
+    /// The committed forward of several whole prefill chunks, visit by visit instead of chunk by chunk. At
+    /// each visit every chunk runs, in order and with the shapes of its own `run` call, everything up to the
+    /// experts (depth attention, gates, dense projections, convolutions, attention; its keys/values and
+    /// convolution windows are committed before the next chunk reads them); then one expert call takes the
+    /// rows of all the chunks (`Moe::forward_group`, router per chunk); then every chunk finishes the visit.
+    /// Only the experts see another batch, and their kernels compute each route from its own row, so every
+    /// state and output is meant to keep the bits of the per-chunk prefill (checked by
+    /// `tests::moe_group_matches_chunks`). The head runs on the last row of the last chunk only.
+    fn run_grouped(
+        &mut self,
+        tokens: &[u32],
+        taps: Option<&[usize]>,
+    ) -> Result<(Array, Option<Array>)> {
+        const SLICE: usize = crate::INKLING_PREFILL_SLICE;
+        // a committed call: no invariant verification rows (as `run` with `commit`)
+        let _verify_scope = VerifyScope::enter(false);
+        let started = Instant::now();
+        let mut waited = Duration::ZERO;
+        ensure!(
+            self.pending.is_none(),
+            "Inkling has an uncommitted verify call"
+        );
+        ensure!(
+            tokens.len() > SLICE
+                && tokens.len().is_multiple_of(SLICE)
+                && tokens.len() / SLICE <= crate::INKLING_MOE_GROUP_MAX,
+            "an Inkling grouped prefill takes 2 to {} whole chunks of {SLICE} tokens, not {} tokens",
+            crate::INKLING_MOE_GROUP_MAX,
+            tokens.len()
+        );
+        ensure!(
+            tokens.iter().all(|&t| t < self.vocab as u32),
+            "Inkling token is outside vocabulary"
+        );
+        let total = i32::try_from(tokens.len()).context("Inkling batch is too large")?;
+        let first = self.offset;
+        let end = first
+            .checked_add(total)
+            .context("Inkling position overflow")?;
+        ensure!(end <= self.context_limit, "Inkling context is full");
+        // One lane per chunk: what `run` keeps on its stack for one call.
+        struct Lane {
+            start: i32,
+            time: i32,
+            sliding: MaskPlan,
+            full: MaskPlan,
+            hidden: Array,
+            blocks: Vec<Array>,
+            features: Vec<Array>,
+            /// Residual stream and block states before the loop.
+            pre: Option<(Array, Vec<Array>)>,
+            /// Depth sources of the previous loop pass.
+            bank: Option<LoopBank>,
+        }
+        let mut lanes = Vec::with_capacity(tokens.len() / SLICE);
+        let mut start = first;
+        for chunk in tokens.chunks(SLICE) {
+            let time = chunk.len() as i32;
+            let ids = Array::from_i32(
+                &chunk.iter().map(|&t| t as i32).collect::<Vec<_>>(),
+                &[time],
+            )?;
+            let hidden = self.embed_tokens(&ids)?;
+            let hidden = if self.images.is_empty() {
+                hidden
+            } else {
+                self.place_images(hidden, start)?
+            };
+            let lane_end = start + time;
+            let sliding_first = (start - (self.window - 1)).max(0);
+            lanes.push(Lane {
+                start,
+                time,
+                sliding: MaskPlan::new(
+                    start,
+                    time,
+                    sliding_first,
+                    lane_end - sliding_first,
+                    self.window,
+                    Some(self.window),
+                )?,
+                full: MaskPlan::new(start, time, 0, lane_end, self.extent, None)?,
+                hidden,
+                blocks: Vec::new(),
+                features: Vec::new(),
+                pre: None,
+                bank: None,
+            });
+            start = lane_end;
+        }
+        let kernel = self.kernel;
+        let (core_start, core_end) = self.core;
+        let tapped = |visit: usize| taps.is_some_and(|t| t.contains(&visit));
+        // One visit of `layer` for every lane. `looped`: the layer's index within the loop, when the lanes
+        // carry the messages of a previous pass.
+        let mut wave = |lanes: &mut [Lane],
+                        layers: &[Layer],
+                        states: &mut [VisitState],
+                        message_queries: &Array,
+                        hidden_size: i32,
+                        layer: usize,
+                        visit: usize,
+                        looped: Option<usize>|
+         -> Result<()> {
+            let l = &layers[layer];
+            let window = l.attention.window;
+            let state = &mut states[visit];
+            let mut mixed = Vec::with_capacity(lanes.len());
+            for lane in lanes.iter_mut() {
+                if tapped(visit) {
+                    lane.features.push(lane.hidden.try_clone()?);
+                }
+                let messages = match (&lane.bank, looped) {
+                    (Some(bank), Some(index)) => {
+                        Some(loop_messages(bank, message_queries, index, hidden_size)?)
+                    }
+                    _ => None,
+                };
+                let plan = if l.sliding { &lane.sliding } else { &lane.full };
+                let (residual, moe_in) = l.forward_mixer(
+                    &lane.hidden,
+                    &mut lane.blocks,
+                    messages.as_ref(),
+                    lane.start,
+                    plan,
+                    state,
+                )?;
+                // the next chunk of this visit reads these keys/values and convolution states
+                state.commit_kv(lane.time, lane.time, window)?;
+                state.commit_conv(0..3, kernel, lane.time)?;
+                // evaluated now, as the per-chunk prefill evaluates a chunk before the next one is built:
+                // nothing still reads the keys/values buffer when the next chunk writes its rows in place
+                let mut pending = vec![&residual, &moe_in];
+                pending.extend([&state.keys, &state.values].into_iter().flatten());
+                pending.extend(state.conv[..3].iter().flatten());
+                let waiting = Instant::now();
+                Array::eval_many(&pending)?;
+                waited += waiting.elapsed();
+                drop(pending);
+                mixed.push((residual, moe_in));
+            }
+            let outs = l
+                .moe
+                .forward_group(&mixed.iter().map(|(_, moe_in)| moe_in).collect::<Vec<_>>())?;
+            #[cfg(test)]
+            let stale = GROUP_MUTATION.with(std::cell::Cell::get) == 2;
+            #[cfg(not(test))]
+            let stale = false;
+            let count = lanes.len();
+            for (index, ((lane, (residual, _)), mlp)) in
+                lanes.iter_mut().zip(&mixed).zip(&outs).enumerate()
+            {
+                lane.hidden = l.forward_tail(residual, mlp, state)?;
+                // mutation 2 keeps the state from before the span for every chunk
+                if !stale || index + 1 == count {
+                    state.commit_conv(3..4, kernel, lane.time)?;
+                }
+            }
+            let mut pending: Vec<&Array> = lanes.iter().map(|lane| &lane.hidden).collect();
+            pending.extend(state.conv[3].iter());
+            let waiting = Instant::now();
+            Array::eval_many(&pending)?;
+            waited += waiting.elapsed();
+            Ok(())
+        };
+        let mut visit = 0usize;
+        for layer in 0..core_start {
+            wave(
+                &mut lanes,
+                &self.layers,
+                &mut self.states,
+                &self.message_queries,
+                self.hidden,
+                layer,
+                visit,
+                None,
+            )?;
+            visit += 1;
+        }
+        for lane in &mut lanes {
+            lane.pre = Some((
+                lane.hidden.try_clone()?,
+                lane.blocks
+                    .iter()
+                    .map(Array::try_clone)
+                    .collect::<Result<_>>()?,
+            ));
+        }
+        // timing-only ablation: one pass of the loop (meaningless outputs)
+        let passes = if ablated("loop") { 1 } else { self.passes };
+        for pass in 0..passes {
+            if pass > 0 {
+                for lane in &mut lanes {
+                    let (pre_hidden, pre_blocks) = lane.pre.as_ref().context("loop entry state")?;
+                    lane.bank = Some(loop_bank(
+                        &lane.blocks,
+                        pre_blocks.len(),
+                        &lane.hidden,
+                        self.eps,
+                    )?);
+                    lane.hidden = pre_hidden.try_clone()?;
+                    lane.blocks = pre_blocks
+                        .iter()
+                        .map(Array::try_clone)
+                        .collect::<Result<_>>()?;
+                }
+            }
+            for (index, layer) in (core_start..core_end).enumerate() {
+                wave(
+                    &mut lanes,
+                    &self.layers,
+                    &mut self.states,
+                    &self.message_queries,
+                    self.hidden,
+                    layer,
+                    visit,
+                    Some(index),
+                )?;
+                visit += 1;
+            }
+        }
+        for lane in &mut lanes {
+            // the last layers run without messages, as in `run`
+            lane.bank = None;
+        }
+        for layer in core_end..self.layers.len() {
+            wave(
+                &mut lanes,
+                &self.layers,
+                &mut self.states,
+                &self.message_queries,
+                self.hidden,
+                layer,
+                visit,
+                None,
+            )?;
+            visit += 1;
+        }
+        ensure!(
+            visit == self.visits.len() || ablated("loop"),
+            "Inkling visit count mismatch"
+        );
+        let mut features = Vec::with_capacity(lanes.len());
+        let mut last = None;
+        for lane in &mut lanes {
+            let hidden = self.final_hidden(&lane.hidden, &lane.blocks, lane.time)?;
+            if let Some(taps) = taps {
+                lane.features.push(hidden.try_clone()?);
+                ensure!(
+                    lane.features.len() == taps.len(),
+                    "Inkling draft taps not all reached"
+                );
+                features.push(Array::concatenate(
+                    &lane.features.iter().collect::<Vec<_>>(),
+                    1,
+                )?);
+            }
+            last = Some(hidden.slice(0, lane.time - 1, lane.time)?);
+        }
+        let features = match taps {
+            Some(_) => Some(Array::concatenate(&features.iter().collect::<Vec<_>>(), 0)?),
+            None => None,
+        };
+        let logits = self.head_logits(&last.context("Inkling grouped prefill without chunks")?)?;
+        self.offset = end;
+        let mut pending = vec![&logits];
+        pending.extend(features.iter());
+        for state in &self.states {
+            pending.extend([&state.keys, &state.values].into_iter().flatten());
+            pending.extend(state.conv.iter().flatten());
+        }
+        let waiting = Instant::now();
+        submit(&pending)?;
+        waited += waiting.elapsed();
+        self.profile.calls += 1;
+        self.profile.build += started.elapsed().saturating_sub(waited);
+        self.profile.eval += waited;
+        Ok((logits, features))
+    }
+}
+
+/// `MLXL3_INKLING_MOE_GROUP`: whole prefill chunks whose expert rows are computed together (1 to
+/// `INKLING_MOE_GROUP_MAX`; unset = the default, 8; 1 = one expert call per chunk). An invalid value is an
+/// error.
+pub fn moe_group() -> Result<usize> {
+    #[cfg(test)]
+    if let Some(group) = MOE_GROUP_TEST.with(std::cell::Cell::get) {
+        return Ok(group);
+    }
+    let value = std::env::var_os("MLXL3_INKLING_MOE_GROUP");
+    let text = value
+        .as_deref()
+        .map(|value| {
+            value
+                .to_str()
+                .context("MLXL3_INKLING_MOE_GROUP is not UTF-8")
+        })
+        .transpose()?;
+    crate::inkling_moe_group_setting(text).with_context(|| {
+        format!(
+            "MLXL3_INKLING_MOE_GROUP must be an integer from 1 to {}",
+            crate::INKLING_MOE_GROUP_MAX
+        )
+    })
+}
+
+#[cfg(test)]
+thread_local! {
+    static MOE_GROUP_TEST: std::cell::Cell<Option<usize>> = const { std::cell::Cell::new(None) };
+}
+
+/// Runs `run` with `moe_group()` returning `group` on this thread (tests).
+#[cfg(test)]
+pub(crate) fn with_moe_group<T>(group: usize, run: impl FnOnce() -> T) -> T {
+    struct Restore(Option<usize>);
+    impl Drop for Restore {
+        fn drop(&mut self) {
+            MOE_GROUP_TEST.with(|cell| cell.set(self.0));
+        }
+    }
+    let _restore = Restore(MOE_GROUP_TEST.with(|cell| cell.replace(Some(group))));
+    run()
 }
 
 /// Test and export helper: writes `tensors` (U32, F16 or F32, row-major) as one safetensors file.
@@ -8376,6 +8849,323 @@ mod tests {
         }
         ensure!(!report.is_empty(), "no row evaluated");
         println!("{}", serde_json::to_string(&report)?);
+        Ok(())
+    }
+
+    /// Every committed state of the model as bytes (shapes included): keys, values and the four convolution
+    /// states of each visit.
+    fn state_bytes(model: &Inkling2) -> Result<Vec<u8>> {
+        let mut out = Vec::new();
+        for state in &model.states {
+            let arrays = [&state.keys, &state.values]
+                .into_iter()
+                .chain(state.conv.iter());
+            for array in arrays {
+                let array = array.as_ref().context("uncommitted Inkling state")?;
+                for &dim in array.shape() {
+                    out.extend(dim.to_le_bytes());
+                }
+                out.extend(array.to_bytes()?);
+            }
+        }
+        Ok(out)
+    }
+
+    /// Spans of a prefill of `len` tokens from `from` with `group` chunks per expert call (the bridge's).
+    fn group_spans(from: usize, len: usize, group: usize) -> Vec<(usize, usize)> {
+        let mut spans = Vec::new();
+        let mut start = from;
+        while let Some(end) =
+            crate::prefill_span_end(start, len, crate::INKLING_PREFILL_SLICE, group)
+        {
+            spans.push((start, end));
+            start = end;
+        }
+        spans
+    }
+
+    /// What a prefill leaves: the last-row logits at each span end, the features of every row, the state,
+    /// and the logits of the decode steps that follow.
+    struct PrefillTrace {
+        ends: Vec<(usize, Vec<u8>)>,
+        features: Vec<u8>,
+        state: Vec<u8>,
+        steps: Vec<u8>,
+    }
+
+    /// Prefills `text[from..len]` by the spans of `group` (the model already holds `text[..from]`), then
+    /// decodes `steps` tokens of `text`.
+    fn prefill_trace(
+        model: &mut Inkling2,
+        text: &[u32],
+        from: usize,
+        len: usize,
+        group: usize,
+        taps: &[usize],
+        steps: usize,
+    ) -> Result<PrefillTrace> {
+        let mut trace = PrefillTrace {
+            ends: Vec::new(),
+            features: Vec::new(),
+            state: Vec::new(),
+            steps: Vec::new(),
+        };
+        for (start, end) in group_spans(from, len, group) {
+            let span = &text[start..end];
+            let (logits, features) = if span.len() > crate::INKLING_PREFILL_SLICE {
+                model.forward_with_features_grouped(span, taps)?
+            } else {
+                model.forward_with_features(span, taps)?
+            };
+            ensure!(
+                features.shape()[0] as usize == span.len() && features.dtype() == Dtype::Float32,
+                "features of a span"
+            );
+            trace.ends.push((end, logits.to_bytes()?));
+            trace.features.extend(features.to_bytes()?);
+        }
+        ensure!(model.offset() as usize == len, "prefill position");
+        trace.state = state_bytes(model)?;
+        for i in 0..steps {
+            trace
+                .steps
+                .extend(model.forward(text[len + i])?.to_bytes()?);
+        }
+        Ok(trace)
+    }
+
+    /// Bytes that differ between two traces, per part (span-end logits of `b` looked up in `a`); a missing
+    /// span end or a length mismatch is an error.
+    fn trace_differences(a: &PrefillTrace, b: &PrefillTrace) -> Result<[usize; 4]> {
+        let count = |x: &[u8], y: &[u8]| -> Result<usize> {
+            ensure!(x.len() == y.len() && !x.is_empty(), "value counts differ");
+            Ok(x.iter().zip(y).filter(|(p, q)| p != q).count())
+        };
+        let mut ends = 0;
+        for (end, logits) in &b.ends {
+            let (_, reference) = a
+                .ends
+                .iter()
+                .find(|(e, _)| e == end)
+                .with_context(|| format!("span end {end} is not a chunk end"))?;
+            ends += count(reference, logits)?;
+        }
+        Ok([
+            ends,
+            count(&a.features, &b.features)?,
+            count(&a.state, &b.state)?,
+            count(&a.steps, &b.steps)?,
+        ])
+    }
+
+    fn finite_f32(bytes: &[u8]) -> bool {
+        bytes
+            .as_chunks::<4>()
+            .0
+            .iter()
+            .all(|x| f32::from_ne_bytes(*x).is_finite())
+    }
+
+    /// SPEED-2026-11-25-INK2M-PREFILL-G E1: a prefill whose experts are computed for 2, 3, 4 or 8 chunks at a
+    /// time leaves, to the bit, what the chunk-by-chunk prefill leaves: the last-row logits at every span
+    /// end, the drafter features of every row, every key, value and convolution state, and the logits of the
+    /// 4 decode steps that follow (prompts before and past the sliding window, with and without a tail, with
+    /// a partial last group). A prefix saved at a grouped span end resumes into a grouped prefill with the
+    /// same values. The stale-convolution mutation must differ; the whole-group router is reported.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn moe_group_matches_chunks() -> Result<()> {
+        const STEPS: usize = 4;
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = model.unpadded_vocab() as u32;
+        let text: Vec<u32> = text_tokens()?.into_iter().map(|t| t % vocab).collect();
+        let visits = model.visit_count();
+        let taps = vec![1, visits / 2, visits];
+        let lengths = [256usize, 384, 640, 1024, 1100, 1300];
+        ensure!(
+            text.len() >= lengths[lengths.len() - 1] + STEPS,
+            "not enough tokens"
+        );
+        let mut report = Vec::new();
+        let mut compared = 0usize;
+        for len in lengths {
+            model.reset();
+            let reference = prefill_trace(&mut model, &text, 0, len, 1, &taps, STEPS)?;
+            ensure!(
+                reference.ends.len() == len.div_ceil(crate::INKLING_PREFILL_SLICE)
+                    && reference.features.len() == len * taps.len() * model.hidden as usize * 4
+                    && finite_f32(&reference.features)
+                    && finite_f32(&reference.steps)
+                    && reference.ends.iter().all(|(_, l)| finite_f32(l)),
+                "invalid reference at {len} tokens"
+            );
+            let mut seen = vec![group_spans(0, len, 1)];
+            for group in [2usize, 3, 4, 8] {
+                let spans = group_spans(0, len, group);
+                if seen.contains(&spans) {
+                    continue;
+                }
+                seen.push(spans);
+                model.reset();
+                let grouped = prefill_trace(&mut model, &text, 0, len, group, &taps, STEPS)?;
+                let differences = trace_differences(&reference, &grouped)?;
+                println!("len {len} group {group}: differing bytes {differences:?}");
+                report.push(serde_json::json!({
+                    "tokens": len, "group": group, "differing_bytes": differences,
+                }));
+                ensure!(
+                    differences == [0; 4],
+                    "group {group} at {len} tokens differs from the chunks: {differences:?}"
+                );
+                compared += 1;
+            }
+        }
+        ensure!(compared >= 12, "too few grouped layouts compared");
+
+        // prompt cache: saved at the end of a grouped span, resumed into a grouped prefill
+        let (first, boundary, second, group) = (1100usize, 1024usize, 1300usize, 8usize);
+        model.reset();
+        let reference = prefill_trace(&mut model, &text, 0, second, 1, &taps, STEPS)?;
+        model.reset();
+        let mut prefix = None;
+        for (start, end) in group_spans(0, first, group) {
+            model.forward_tokens_grouped(&text[start..end])?;
+            if end == boundary {
+                prefix = Some(model.prefix_snapshot()?);
+            }
+        }
+        for i in 0..STEPS {
+            model.forward(text[first + i])?;
+        }
+        ensure!(
+            model.resume_prefix(prefix.context("no prefix at the span end")?)?,
+            "the prefix of a grouped span was refused"
+        );
+        let resumed = prefill_trace(&mut model, &text, boundary, second, group, &taps, STEPS)?;
+        let row = taps.len() * model.hidden as usize * 4;
+        let tail = PrefillTrace {
+            ends: reference.ends.clone(),
+            features: reference.features[boundary * row..].to_vec(),
+            state: reference.state.clone(),
+            steps: reference.steps.clone(),
+        };
+        let differences = trace_differences(&tail, &resumed)?;
+        println!(
+            "resume at {boundary} of {second}, group {group}: differing bytes {differences:?}"
+        );
+        ensure!(
+            differences == [0; 4],
+            "a resumed grouped prefill differs from the cold chunks: {differences:?}"
+        );
+
+        // mutations (640 tokens: a group of 5 chunks)
+        let len = 640usize;
+        model.reset();
+        let reference = prefill_trace(&mut model, &text, 0, len, 1, &taps, STEPS)?;
+        let mut mutated = Vec::new();
+        for mutation in [1u8, 2] {
+            GROUP_MUTATION.with(|m| m.set(mutation));
+            model.reset();
+            let trace = prefill_trace(&mut model, &text, 0, len, 8, &taps, STEPS);
+            GROUP_MUTATION.with(|m| m.set(0));
+            mutated.push(trace_differences(&reference, &trace?)?);
+        }
+        println!(
+            "mutations at {len} tokens: whole-group router {:?}, stale convolution {:?}",
+            mutated[0], mutated[1]
+        );
+        ensure!(
+            mutated[1].iter().sum::<usize>() > 0,
+            "the stale-convolution mutation was not detected"
+        );
+        println!(
+            "{}",
+            serde_json::json!({
+                "layouts": report, "resume": differences,
+                "mutation_router": mutated[0], "mutation_conv": mutated[1],
+            })
+        );
+        Ok(())
+    }
+
+    /// SPEED-2026-11-25-INK2M-PREFILL-G E2 (microbenchmark, not a generation measurement): wall time of a
+    /// prefill of `MLXL3_INKLING_PREFILL_TOKENS` real tokens (default 1 024) with the experts of 1, 2, 4 and 8
+    /// chunks computed together, order 1/2/4/8/8/4/2/1 after one warm-up prefill per group, best and all
+    /// times. Run it once per `MLXL3_INKLING_ABLATE` value (unset, `experts`, `moe`, `dense`, `attn`, `head`)
+    /// to read the cost of each part as a difference; the logits fingerprint shows whether the groups agree
+    /// (meaningful without ablation only).
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn prefill_anatomy_profile() -> Result<()> {
+        let model_dir = std::env::var("MLXL3_INKLING_MODEL")?;
+        let tokens: usize = std::env::var("MLXL3_INKLING_PREFILL_TOKENS")
+            .ok()
+            .map(|v| v.parse())
+            .transpose()?
+            .unwrap_or(1024);
+        let mut model = Inkling2::load(Path::new(&model_dir))?;
+        let vocab = model.unpadded_vocab() as u32;
+        let text: Vec<u32> = text_tokens()?.into_iter().map(|t| t % vocab).collect();
+        ensure!(tokens >= 1 && text.len() >= tokens, "not enough tokens");
+        let prefill = |model: &mut Inkling2, group: usize| -> Result<(f64, f64, f64, u64)> {
+            model.reset();
+            model.take_profile();
+            let started = Instant::now();
+            let mut logits = None;
+            for (start, end) in group_spans(0, tokens, group) {
+                logits = Some(model.forward_tokens_grouped(&text[start..end])?);
+            }
+            let logits = logits.context("no span")?;
+            logits.eval()?;
+            let ms = started.elapsed().as_secs_f64() * 1e3;
+            let profile = model.take_profile();
+            let mut hash = 0xcbf2_9ce4_8422_2325u64;
+            fnv(&mut hash, &logits.to_bytes()?);
+            Ok((
+                ms,
+                profile.build.as_secs_f64() * 1e3,
+                profile.eval.as_secs_f64() * 1e3,
+                hash,
+            ))
+        };
+        let groups = [1usize, 2, 4, 8];
+        for &group in &groups {
+            prefill(&mut model, group)?;
+        }
+        let mut runs: Vec<(usize, Vec<f64>, f64, f64, u64)> = groups
+            .iter()
+            .map(|&g| (g, Vec::new(), 0.0, 0.0, 0))
+            .collect();
+        for &index in &[0usize, 1, 2, 3, 3, 2, 1, 0, 0, 1, 2, 3] {
+            let (ms, build, eval, hash) = prefill(&mut model, groups[index])?;
+            let run = &mut runs[index];
+            if run.1.iter().all(|&best| ms < best) {
+                (run.2, run.3) = (build, eval);
+            }
+            run.1.push(ms);
+            run.4 = hash;
+        }
+        let report: Vec<_> = runs
+            .iter()
+            .map(|(group, times, build, eval, hash)| {
+                let best = times.iter().cloned().fold(f64::INFINITY, f64::min);
+                serde_json::json!({
+                    "group": group, "ms": times, "best_ms": best,
+                    "best_tok_s": tokens as f64 / (best / 1e3),
+                    "best_build_ms": build, "best_wait_ms": eval,
+                    "logits_fnv": format!("{hash:016x}"),
+                })
+            })
+            .collect();
+        println!(
+            "{}",
+            serde_json::json!({
+                "tokens": tokens,
+                "ablate": std::env::var("MLXL3_INKLING_ABLATE").unwrap_or_default(),
+                "runs": report,
+            })
+        );
         Ok(())
     }
 }

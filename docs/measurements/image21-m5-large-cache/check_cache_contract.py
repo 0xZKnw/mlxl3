@@ -41,7 +41,7 @@ class EnteredBuild(Exception):
     pass
 
 
-def stop_before_loading(_folder):
+def stop_before_loading(_folder, _variant="base"):
     raise EnteredBuild()
 
 
@@ -49,13 +49,13 @@ WORKER.build = stop_before_loading
 
 
 def cache_before_build(
-    size: int, memory_bytes: int, base: bool, memory_known: bool, low_memory: bool
+    size: int, memory_bytes: int, base_gpu: bool, memory_known: bool, low_memory: bool, turbo: bool
 ) -> bool:
     """pre: size in (512, 768, 1024)
     post: __return__
     """
     limits = []
-    device = {"device_name": "Apple M5" if base else "Apple M5 Pro"}
+    device = {"device_name": "Apple M5" if base_gpu else "Apple M5 Pro"}
     if memory_known:
         device["memory_size"] = memory_bytes
     WORKER.mx = SimpleNamespace(
@@ -64,7 +64,13 @@ def cache_before_build(
         set_cache_limit=limits.append,
     )
     parsed = SimpleNamespace(
-        size=size, low_memory=low_memory, seed=371, prompt="oak", model="fixture"
+        size=size,
+        low_memory=low_memory,
+        seed=371,
+        prompt="oak",
+        model="fixture",
+        variant="turbo" if turbo else "base",
+        steps=None,
     )
     parser = SimpleNamespace(add_argument=lambda *args, **kwargs: None, parse_args=lambda: parsed)
     WORKER.argparse = SimpleNamespace(ArgumentParser=lambda: parser)
@@ -73,7 +79,7 @@ def cache_before_build(
     except EnteredBuild:
         # Acceptance table includes the historical all-M5 rule at the smallest size.
         allowed_sizes = (512,)
-        if base and memory_known and memory_bytes == 25769803776:
+        if not turbo and base_gpu and memory_known and memory_bytes == 25769803776:
             allowed_sizes = (512, 768, 1024) if low_memory else (512, 768)
         expected = [536870912] if size in allowed_sizes else []
         return limits == expected

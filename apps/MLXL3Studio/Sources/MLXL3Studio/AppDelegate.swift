@@ -15,6 +15,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
 
     func applicationWillTerminate(_ notification: Notification) {
         studio?.imageGeneration.cancel()
+        studio?.imageGeneration.cancelModelDownload()
         studio?.modelLibrary.cancelDownload()
         studio?.persistNow()
         studio?.stopServices()
