@@ -679,6 +679,9 @@ struct Conversation: Identifiable {
     var projectID: UUID?
     var parentConversationID: UUID?
     var agent = false
+    /// Agent: the user's folder this task works in directly (canonical path). Nil: the task
+    /// has its own private copy in the app's data.
+    var agentFolder: String?
     var updatedAt: Date?
     private var messageSnapshots: ConversationMessageSnapshots
     var messageChanges: AnyPublisher<Void, Never> { messageSnapshots.changed.eraseToAnyPublisher() }
@@ -711,7 +714,8 @@ struct Conversation: Identifiable {
             projectID: projectID,
             parentConversationID: parentConversationID,
             agent: agent ? true : nil,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            agentFolder: agent ? agentFolder : nil
         )
     }
 
@@ -727,6 +731,7 @@ struct Conversation: Identifiable {
         projectID = snapshot.projectID
         parentConversationID = snapshot.parentConversationID
         agent = snapshot.agent ?? false
+        agentFolder = agent ? snapshot.agentFolder.flatMap { $0.hasPrefix("/") ? $0 : nil } : nil
         updatedAt = snapshot.updatedAt
     }
 }

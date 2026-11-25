@@ -51,10 +51,46 @@ struct AgentTurnResult: Equatable, Sendable {
 struct AgentProjectStore: Sendable {
   private static let mutation = NSRecursiveLock()
   let workspace: URL
-  init(workspace: URL) {
-    self.workspace = URL(fileURLWithPath: workspace.standardizedFileURL.path, isDirectory: true)
+  /// History, `project.json` and command receipts of the task. Beside the task's own copy,
+  /// or the folder given at init when the task works in a user's folder (`direct`).
+  let metadata: URL
+  /// The files are a user's folder, edited in place: no copy, no review before applying.
+  let direct: Bool
+  /// `metadata`: the task's folder in the app's data when `workspace` is a user's folder.
+  init(workspace: URL, metadata: URL? = nil) {
+    let workspace = URL(fileURLWithPath: workspace.standardizedFileURL.path, isDirectory: true)
+    self.workspace = workspace
+    self.metadata = metadata.map { URL(fileURLWithPath: $0.standardizedFileURL.path, isDirectory: true) }
+      ?? workspace.deletingLastPathComponent().appendingPathComponent("studio")
+    direct = metadata != nil
   }
-  var metadata: URL { workspace.deletingLastPathComponent().appendingPathComponent("studio") }
+
+  /// A user's folder an Agent task may work in directly, as its canonical path. Refused:
+  /// what is not a folder, `/`, the home folder itself, and any folder that holds or sits
+  /// inside `reserved` (the app's own data: histories, private homes, other tasks' copies).
+  static func workingFolder(_ url: URL, reserved: [URL]) throws -> URL {
+    let refusal = { (text: String) in
+      NSError(domain: "MLXL3.Project", code: 6, userInfo: [NSLocalizedDescriptionKey: text])
+    }
+    var isDirectory: ObjCBool = false
+    guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), isDirectory.boolValue,
+      let root = try? AgentSandbox.canonicalRoot(url)
+    else { throw refusal(L("Ce dossier n’existe pas ou n’est pas lisible.", "This folder does not exist or cannot be read.")) }
+    let home = (try? AgentSandbox.canonicalRoot(FileManager.default.homeDirectoryForCurrentUser))?.path
+    guard root.path != "/", root.path != home, AgentSandbox.validRootPath(root.path) else {
+      throw refusal(L("Choisissez un dossier de projet, pas le disque ni votre dossier personnel.",
+                      "Choose a project folder, not the disk or your home folder."))
+    }
+    for folder in reserved {
+      // A reserved folder may not exist yet: its existing part is resolved like the root.
+      let path = AgentSandbox.canonicalLocation(folder).path
+      guard root.path != path, !root.path.hasPrefix(path + "/"), !path.hasPrefix(root.path + "/") else {
+        throw refusal(L("Ce dossier contient les données de MLXL3 : choisissez-en un autre.",
+                        "This folder holds MLXL3’s own data: choose another one."))
+      }
+    }
+    return root
+  }
   private var repository: URL { metadata.appendingPathComponent("history.git") }
   static let maximumFiles = 4_000
   static let maximumBytes = 64 * 1024 * 1024
@@ -171,6 +207,8 @@ struct AgentProjectStore: Sendable {
         "No workspace checkpoint exists for this message. Start a new task instead."])
     }
     try requireRevision(revision)
+    // Never rewrites a user's folder to an earlier state; the caller keeps the same folder.
+    guard !direct else { throw CocoaError(.fileWriteNoPermission) }
     let branch = AgentProjectStore(workspace: destination)
     guard !FileManager.default.fileExists(atPath: destination.deletingLastPathComponent().path) else {
       throw CocoaError(.fileWriteFileExists)
@@ -252,9 +290,19 @@ struct AgentProjectStore: Sendable {
     var skipped = 0
     var bytes = 0
     var visited = 0
+    // A user's folder is taken as it is: what a copy would refuse (a link, a file or a
+    // project too large to version) is left out of the history instead of failing the turn.
+    let lenient = direct && folder == nil
+    let importing = importing || lenient
     for case let url as URL in enumerator {
       visited += 1
-      guard visited <= 20_000 else { throw CocoaError(.fileReadTooLarge) }
+      guard visited <= 20_000 else {
+        if lenient {
+          skipped += 1
+          break
+        }
+        throw CocoaError(.fileReadTooLarge)
+      }
       let name = url.lastPathComponent
       if Self.excludedNames.contains(name) || name == ".env"
         || name.hasPrefix(".env.") && name != ".env.example"
@@ -285,11 +333,19 @@ struct AgentProjectStore: Sendable {
         }
         throw CocoaError(.fileReadTooLarge)
       }
-      bytes += size
-      guard paths.count < Self.maximumFiles, bytes <= Self.maximumBytes else {
+      guard paths.count < Self.maximumFiles, bytes + size <= Self.maximumBytes else {
+        if lenient {
+          skipped += 1
+          continue
+        }
         throw CocoaError(.fileReadTooLarge)
       }
-      _ = try HTMLPreview.data(at: url, in: root)
+      do { _ = try HTMLPreview.data(at: url, in: root) } catch {
+        guard lenient else { throw error }
+        skipped += 1
+        continue
+      }
+      bytes += size
       paths.append(path)
     }
     return (paths.sorted(), skipped)
@@ -298,6 +354,8 @@ struct AgentProjectStore: Sendable {
   func importProject(_ source: URL) throws {
     Self.mutation.lock()
     defer { Self.mutation.unlock() }
+    // A task in a user's folder has no copy to import into.
+    guard !direct else { throw CocoaError(.fileWriteNoPermission) }
     let root = try AgentSandbox.canonicalRoot(source)
     // realpath requires an existing item; new tasks may have several missing parents.
     // Resolve both sides identically, including a symlinked Application Support directory.
@@ -597,7 +655,7 @@ struct AgentProjectStore: Sendable {
     Self.mutation.lock()
     defer { Self.mutation.unlock() }
     var state = try state()
-    guard let source = state.source, let baseline = state.baseline,
+    guard !direct, let source = state.source, let baseline = state.baseline,
       let latest = try versions().first?.id
     else { throw CocoaError(.fileWriteNoPermission) }
     let root = URL(fileURLWithPath: source)

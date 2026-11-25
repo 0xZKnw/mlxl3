@@ -53,16 +53,23 @@ final class AgentStudioModel: ObservableObject {
     tab == .diff && allChanges && isCurrent && compare == state.baseline && !diff.isEmpty && !dirty
   }
   var title: String {
-    state.source.map { URL(fileURLWithPath: $0).lastPathComponent }
+    if let store, store.direct { return store.workspace.lastPathComponent }
+    return state.source.map { URL(fileURLWithPath: $0).lastPathComponent }
       ?? L("Dossier de la tâche", "Task workspace")
   }
+  /// The task works in the user's folder itself: nothing to review before applying.
+  var direct: Bool { store?.direct == true }
 
+  /// A task's own copy, with its history beside it.
   func open(workspace: URL, file: URL?, turnResult: AgentTurnResult? = nil) async {
+    await open(store: AgentProjectStore(workspace: workspace), file: file, turnResult: turnResult)
+  }
+
+  func open(store value: AgentProjectStore, file: URL?, turnResult: AgentTurnResult? = nil) async {
     guard store == nil, !busy else { return }
     busy = true
     defer { busy = false }
     do {
-      let value = AgentProjectStore(workspace: workspace)
       store = value
       tab = ["html", "htm"].contains(file?.pathExtension.lowercased() ?? "") ? .preview : .code
       if let file {

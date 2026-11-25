@@ -235,6 +235,7 @@ private struct MessageView: View {
 }
 
 private struct AssistantMessageView: View {
+    @EnvironmentObject private var studio: StudioModel
     @Environment(\.studioStyle) private var style
     @Environment(\.conversationTextScale) private var textScale
     @ObservedObject var message: ChatMessage
@@ -345,7 +346,7 @@ private struct AssistantMessageView: View {
                 // Loading cannot add an empty row to the transcript or move a plain answer.
                 Color.clear.allowsHitTesting(false).accessibilityHidden(true)
                   .task(id: agentWorkspace.appendingPathComponent(startID.uuidString)) {
-                    let store = AgentProjectStore(workspace: agentWorkspace)
+                    let store = studio.agentStore(for: agentWorkspace)
                     let assistantID = message.id
                     let outcome = await Task.detached(priority: .utility) {
                         Result { try store.turnResult(user: startID, assistant: assistantID) }
@@ -1227,7 +1228,7 @@ private struct ComposerAgentControls: View {
     var body: some View {
         let internet = studio.agentPermissions.internet
         HStack(spacing: 2) {
-            if let folder = studio.attachedAgentFolder {
+            if let folder = studio.agentDisplayFolder {
                 Button {
                     if let workspace = studio.agentWorkspaceURL {
                         studio.studioDocument = StudioDocument(workspace: workspace, showPermissions: true)
@@ -1287,10 +1288,10 @@ private struct ComposerFooterView: View {
                     .disabled(!studio.canImportFiles)
                     .keyboardShortcut("o", modifiers: [.command, .shift])
                     if studio.selectedMode == .agent {
-                        Button(action: studio.chooseAgentProject) {
+                        Button(action: studio.chooseAgentFolder) {
                             Label(L("Travailler dans un dossier…", "Work in a folder…"), systemImage: "folder.badge.plus")
                         }
-                        .disabled(studio.isGenerating || studio.agentStudioBusy || studio.attachedAgentFolder != nil)
+                        .disabled(studio.isGenerating || studio.agentStudioBusy)
                     } else {
                         Divider()
                         Toggle(L("Activer les outils MCP", "Enable MCP tools"), isOn: Binding(

@@ -76,7 +76,7 @@ struct AgentStudioView: View {
     .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
     .tint(studio.accentColor)
     .task {
-      await model.open(workspace: workspace, file: file, turnResult: turnResult)
+      await model.open(store: studio.agentStore(for: workspace), file: file, turnResult: turnResult)
       if showPermissions, model.error == nil { permissions = true }
     }
     .onExitCommand { navigate { close() } }
@@ -175,7 +175,7 @@ struct AgentStudioView: View {
         Button(
           L("Travailler dans un dossier…", "Work in a folder…"),
           systemImage: "folder.badge.plus"
-        ) { navigate { studio.chooseAgentProject() } }.disabled(mutating || model.state.source != nil)
+        ) { navigate { close(); studio.chooseAgentFolder() } }.disabled(mutating || studio.isGenerating)
         Divider()
         Button(L("Créer un checkpoint", "Create checkpoint"), systemImage: "flag") {
           Task { await model.checkpoint() }
@@ -270,9 +270,9 @@ struct AgentStudioView: View {
                   "Files created by the Agent will appear here.")
               ).font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                 .fixedSize(horizontal: false, vertical: true)
-              Button(L("Travailler dans un dossier…", "Work in a folder…")) { studio.chooseAgentProject() }.buttonStyle(
+              Button(L("Travailler dans un dossier…", "Work in a folder…")) { navigate { close(); studio.chooseAgentFolder() } }.buttonStyle(
                 .studio
-              ).disabled(mutating || model.state.source != nil).padding(.top, 4)
+              ).disabled(mutating || studio.isGenerating || model.direct).padding(.top, 4)
             }.padding(.horizontal, 8).padding(.top, 6)
           }
         }.padding(.horizontal, 10).padding(.bottom, 16)
@@ -655,9 +655,13 @@ struct AgentStudioView: View {
             }), in: 1...30
         ).font(.system(size: 12.5)).monospacedDigit()
         Text(
-          L(
-            "Les commandes lisent tout le Mac, y compris les clés et fichiers d’apps, et n’écrivent que dans la copie et /tmp. Désactiver l’écriture bloque aussi leurs écritures dans la copie.",
-            "Commands read the whole Mac, keys and app files included, and write only to the copy and /tmp. Disabling writes also blocks their writes to the copy.")
+          model.direct
+            ? L(
+              "L’agent travaille directement dans ce dossier : ses changements sont réels, sans validation préalable. Les commandes lisent tout le Mac, y compris les clés et fichiers d’apps, et n’écrivent que dans ce dossier et /tmp. Désactiver l’écriture bloque aussi leurs écritures dans le dossier.",
+              "The Agent works directly in this folder: its changes are real, with no review first. Commands read the whole Mac, keys and app files included, and write only to this folder and /tmp. Disabling writes also blocks their writes to the folder.")
+            : L(
+              "Les commandes lisent tout le Mac, y compris les clés et fichiers d’apps, et n’écrivent que dans la copie et /tmp. Désactiver l’écriture bloque aussi leurs écritures dans la copie.",
+              "Commands read the whole Mac, keys and app files included, and write only to the copy and /tmp. Disabling writes also blocks their writes to the copy.")
         ).font(.system(size: 11.5)).foregroundStyle(StudioTheme.quiet)
           .fixedSize(horizontal: false, vertical: true)
       }

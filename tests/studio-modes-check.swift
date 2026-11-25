@@ -130,6 +130,237 @@ extension StudioModel {
     return checks
   }
 
+  /// AGENT-2026-11-25-DOSSIER-DIRECT: an Agent task that works in a user's folder itself.
+  static func checkAgentFolders(root: URL, prefs: UserDefaults, model: LocalModel) async throws
+    -> Int
+  {
+    var count = 0
+    func check(_ value: @autoclosure () throws -> Bool, _ message: String) {
+      precondition((try? value()) == true, message)
+      count += 1
+    }
+    func wait(line: UInt = #line, _ predicate: @MainActor () -> Bool) async throws {
+      for _ in 0..<400 {
+        if predicate() { return }
+        try await Task.sleep(for: .milliseconds(20))
+      }
+      preconditionFailure("Agent folder check timed out at line \(line)")
+    }
+    let files = FileManager.default
+    func names(_ folder: URL) -> Set<String> { Set((try? files.contentsOfDirectory(atPath: folder.path)) ?? []) }
+
+    // Sidebar groups: where the first task of a folder stands, no folder last, twins named by parent.
+    let ids = (0..<5).map { _ in UUID() }
+    let groups = AgentFolderGroup.groups([
+      (ids[0], "/w/b/app"), (ids[1], nil), (ids[2], "/w/a/app"), (ids[3], "/w/b/app"), (ids[4], "/w/solo"),
+    ])
+    check(
+      groups.map(\.folder) == ["/w/b/app", "/w/a/app", "/w/solo", nil]
+        && groups.map(\.title).prefix(3) == ["b/app", "a/app", "solo"]
+        && groups[0].conversations == [ids[0], ids[3]] && groups[3].conversations == [ids[1]],
+      "Tasks are grouped by folder in sidebar order, the ones without a folder last")
+    check(
+      AgentFolderGroup.groups([]).isEmpty && AgentFolderGroup.groups([(ids[0], nil)]).map(\.folder) == [nil]
+        && Set(groups.map(\.id)).count == groups.count,
+      "No task gives no group; every group has its own identity")
+
+    let base = try AgentSandbox.canonicalRoot(files.temporaryDirectory)
+      .appendingPathComponent("mlxl3-agent-folders-\(UUID().uuidString)")
+    let alpha = base.appendingPathComponent("alpha"), beta = base.appendingPathComponent("beta")
+    let gone = base.appendingPathComponent("gone")
+    for folder in [alpha, beta, gone] { try files.createDirectory(at: folder, withIntermediateDirectories: true) }
+    defer { try? files.removeItem(at: base) }
+    try Data("print('hello')\n".utf8).write(to: alpha.appendingPathComponent("main.py"))
+    // What a copy refuses must not block a task in a real project.
+    try files.createSymbolicLink(at: alpha.appendingPathComponent("hosts-link"), withDestinationURL: URL(fileURLWithPath: "/etc/hosts"))
+    let data = root.resolvingSymlinksInPath()
+
+    let studio = StudioModel(conversationFileURL: root.appendingPathComponent("agent-folders.json"), preferences: prefs)
+    studio.models = [model]
+    studio.selectModel(model.name)
+    try await wait { studio.engineState.isReady }
+    studio.selectMode(.agent)
+    try await wait { studio.engineState.isReady && studio.mcpToolCount == 1 && !studio.mcpUpdating }
+    let first = studio.selectedConversationID!
+    check(studio.agentFolder == nil && studio.agentWorkspaceURL?.path.hasPrefix(data.path + "/agent-workspaces/") == true,
+      "A task without a folder keeps its own copy in the app's data")
+
+    for refused in [
+      URL(fileURLWithPath: "/"), files.homeDirectoryForCurrentUser, root, root.appendingPathComponent("agent-workspaces"),
+      root.deletingLastPathComponent(), alpha.appendingPathComponent("main.py"), base.appendingPathComponent("missing"),
+    ] {
+      studio.featureError = nil
+      check(
+        !studio.workInAgentFolder(refused) && studio.featureError != nil && studio.agentFolder == nil
+          && studio.selectedConversationID == first,
+        "Refuse \(refused.path) as an Agent folder")
+    }
+    studio.featureError = nil
+
+    let beside = names(base), inside = names(alpha)
+    check(studio.workInAgentFolder(alpha) && studio.featureError == nil, "A project folder is accepted")
+    check(
+      studio.selectedConversationID == first && studio.agentFolder?.path == alpha.path
+        && studio.agentWorkspaceURL?.path == alpha.path && studio.agentDisplayFolder?.path == alpha.path,
+      "The empty task now works in the chosen folder itself")
+    try await wait { studio.engineState.isReady && !studio.mcpUpdating }
+    let registry = try studio.modesRegistryForCheck()
+    let config = try JSONSerialization.jsonObject(
+      with: Data(contentsOf: registry.deletingLastPathComponent().appendingPathComponent("mcp.json"))) as! [String: Any]
+    let sandbox = (config["mcpServers"] as! [String: [String: Any]])["sandbox"]!
+    let arguments = sandbox["args"] as! [String]
+    let task = data.path + "/agent-workspaces/\(first.uuidString)"
+    check(
+      arguments[1] == alpha.path && arguments[2] == task + "/studio/project.json"
+        && sandbox["env"] as? [String: String] == [AgentSandbox.homeVariable: task + "/home"],
+      "The sandbox server works in the folder; history and private home stay in the app's data: \(sandbox)")
+    let store = studio.agentStore!
+    check(
+      store.direct && store.workspace.path == alpha.standardizedFileURL.path && store.metadata.path == task + "/studio"
+        && studio.agentStore(for: alpha).metadata.path == store.metadata.path,
+      "Views given the folder get the store whose history is in the app's data")
+    check(names(base) == beside && names(alpha) == inside, "Choosing a folder creates nothing in it or beside it")
+
+    studio.draft = "direct turn"
+    studio.send()
+    try await wait { !studio.isGenerating && !studio.agentStudioBusy && studio.currentConversation?.messages.count == 2 }
+    var messages = studio.currentConversation!.messages
+    let echoed = try JSONSerialization.jsonObject(with: Data(messages[1].content.utf8)) as! [String: Any]
+    let system = (echoed["messages"] as! [[String: Any]])[0]["content"] as! String
+    check(
+      messages[1].error == nil && system.contains("directly in the user's project folder") && !system.contains("isolated copy"),
+      "The model is told its changes are real: \(system.prefix(200))")
+    check(
+      (try store.state().messageCheckpoints?.count) == 2
+        && files.fileExists(atPath: store.metadata.appendingPathComponent("history.git").path)
+        && !files.fileExists(atPath: alpha.appendingPathComponent(".git").path)
+        && names(base) == beside && names(alpha) == inside,
+      "A turn is versioned in the app's data although the folder holds a symbolic link; the folder is untouched")
+    check(try store.paths(at: store.versions().first!.id) == ["main.py"], "The link is left out of the history, not an error")
+
+    // What tools change during a turn is the turn's result (written right after the request).
+    studio.draft = "second turn"
+    studio.send()
+    try Data("x = 1\n".utf8).write(to: alpha.appendingPathComponent("new.py"))
+    try Data("print('changed')\n".utf8).write(to: alpha.appendingPathComponent("main.py"))
+    try await wait { !studio.isGenerating && !studio.agentStudioBusy && studio.currentConversation?.messages.count == 4 }
+    messages = studio.currentConversation!.messages
+    let result = try store.turnResult(user: messages[2].id, assistant: messages[3].id)
+    check(
+      Set(result?.files.map(\.path) ?? []) == ["main.py", "new.py"]
+        && result?.files.first(where: { $0.path == "new.py" })?.added == true,
+      "The files a turn changed in the folder can be reviewed from its answer")
+
+    // The copy import of an earlier design has no place in a folder task.
+    await studio.openAgentProject(beta)
+    check((try store.state().source) == nil && names(alpha) == inside.union(["new.py"]), "Nothing is imported into a user's folder")
+
+    // A new task continues in the same folder; an empty one can still be pointed elsewhere.
+    studio.newConversation()
+    let second = studio.selectedConversationID!
+    check(second != first && studio.currentConversation?.agentFolder == alpha.path, "A new task stays in the current folder")
+    check(studio.workInAgentFolder(beta) && studio.selectedConversationID == second && studio.agentFolder?.path == beta.path,
+      "An empty task takes the folder chosen for it")
+    studio.selectConversation(first)
+    try await wait { studio.engineState.isReady && !studio.mcpUpdating }
+    let before = studio.conversations.count
+    check(
+      studio.workInAgentFolder(beta) && studio.conversations.count == before + 1 && studio.selectedConversationID != first
+        && studio.agentFolder?.path == beta.path
+        && studio.conversations.first(where: { $0.id == first })?.agentFolder == alpha.path,
+      "A task with messages keeps its folder: another choice starts a new task there")
+    let third = studio.selectedConversationID!
+    studio.newAgentTask(in: alpha.path)
+    let fourth = studio.selectedConversationID!
+    check(fourth != third && studio.agentFolder?.path == alpha.path, "A group's + starts a task in its folder")
+    studio.newAgentTask(in: beta.path)
+    check([second, third].contains(studio.selectedConversationID!), "An empty task already in that folder is reused")
+    studio.selectConversation(fourth)
+    check(studio.workInAgentFolder(nil) && studio.selectedConversationID == fourth && studio.agentFolder == nil
+      && studio.agentWorkspaceURL?.path == data.path + "/agent-workspaces/\(fourth.uuidString)/files",
+      "No folder gives the empty task its own copy again")
+    check(Set(studio.agentFolderChoices.map(\.path)) == [alpha.path, beta.path], "The header offers the folders in use")
+
+    // Sidebar: the same tasks, grouped, and a closed group stays closed for the next launch.
+    let rows = studio.sidebarConversations(matching: "")
+    let shown = AgentFolderGroup.groups(rows.map { ($0.id, $0.agentFolder) })
+    check(
+      Set(shown.compactMap(\.folder)) == [alpha.path, beta.path] && shown.last?.folder == nil
+        && shown.flatMap(\.conversations).count == rows.count,
+      "The Agent sidebar shows every task once, under its folder")
+    studio.setAgentFolderCollapsed(beta.path, true)
+    studio.setAgentFolderCollapsed(nil, true)
+    let reopened = StudioModel(conversationFileURL: root.appendingPathComponent("agent-folders-2.json"), preferences: prefs)
+    check(reopened.collapsedAgentFolders == [beta.path, ""], "Closed folder groups are remembered")
+    studio.setAgentFolderCollapsed(beta.path, false)
+    studio.setAgentFolderCollapsed(nil, false)
+    check(prefs.stringArray(forKey: "studio.agentFolders.collapsed") == [], "and opened again")
+
+    // A branch keeps working in the folder as it is now: nothing is put back.
+    studio.selectConversation(first)
+    try await wait { studio.engineState.isReady && !studio.mcpUpdating }
+    check(studio.branchConversation(at: messages[1].id), "A folder task can be branched")
+    check(
+      studio.currentConversation?.agentFolder == alpha.path && studio.currentConversation?.parentConversationID == first
+        && studio.currentConversation?.messages.count == 2
+        && (try? Data(contentsOf: alpha.appendingPathComponent("main.py"))) == Data("print('changed')\n".utf8)
+        && files.fileExists(atPath: alpha.appendingPathComponent("new.py").path) && names(base) == beside,
+      "The branch shares the folder and does not rewrite it to the earlier turn")
+
+    // The folder survives everything the app deletes.
+    let snapshot = try JSONEncoder().encode(studio.currentConversation!.snapshot)
+    check(Conversation(snapshot: try JSONDecoder().decode(ConversationSnapshot.self, from: snapshot)).agentFolder == alpha.path,
+      "The folder is saved with the task")
+    var plain = try JSONSerialization.jsonObject(with: snapshot) as! [String: Any]
+    plain["agentFolder"] = "relative/folder"
+    check(Conversation(snapshot: try JSONDecoder().decode(ConversationSnapshot.self,
+      from: JSONSerialization.data(withJSONObject: plain))).agentFolder == nil, "A saved folder that is not an absolute path is ignored")
+    plain["agentFolder"] = alpha.path
+    plain["agent"] = false
+    check(Conversation(snapshot: try JSONDecoder().decode(ConversationSnapshot.self,
+      from: JSONSerialization.data(withJSONObject: plain))).agentFolder == nil, "A chat never has an Agent folder")
+    studio.deleteConversation(first)
+    check(
+      !studio.conversations.contains(where: { $0.id == first }) && names(alpha) == inside.union(["new.py"])
+        && names(base) == beside,
+      "Deleting a task leaves its folder and files alone")
+
+    // A folder that disappeared is reported, never recreated.
+    studio.newAgentTask(in: nil)
+    check(studio.workInAgentFolder(gone), "A second folder is accepted")
+    try await wait { studio.engineState.isReady && !studio.mcpUpdating }
+    try files.removeItem(at: gone)
+    do {
+      _ = try studio.modesRegistryForCheck()
+      check(false, "A missing folder must not connect")
+    } catch {
+      check(error.localizedDescription.contains(gone.path) && !files.fileExists(atPath: gone.path),
+        "A missing folder is named in the error and not created again: \(error.localizedDescription)")
+    }
+    if CommandLine.arguments.count > 2 {
+      // The grouped sidebar and the header's folder menu, for a visual check.
+      studio.selectConversation(third)
+      _ = NSApplication.shared
+      let window = NSWindow(
+        contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800), styleMask: .borderless, backing: .buffered, defer: false)
+      window.isReleasedWhenClosed = false
+      let host = NSHostingView(rootView: StudioView().environmentObject(studio).preferredColorScheme(.dark))
+      window.contentView = host
+      host.frame = NSRect(x: 0, y: 0, width: 1200, height: 800)
+      defer { window.close() }
+      try await Task.sleep(for: .milliseconds(400))
+      host.layoutSubtreeIfNeeded()
+      if let image = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+        host.cacheDisplay(in: host.bounds, to: image)
+        try image.representation(using: .png, properties: [:])?
+          .write(to: URL(fileURLWithPath: CommandLine.arguments[2] + ".folders.png"))
+      }
+    }
+    studio.stopServices()
+    await studio.bridge.stopAndWait()
+    return count
+  }
+
   static func checkAgentGuards(root: URL, prefs: UserDefaults, model: LocalModel) async throws
     -> Int
   {
@@ -1037,6 +1268,7 @@ extension StudioModel {
         "Agent workspace renders nonempty UI")
     }
     count += try await StudioModel.checkAgentGuards(root: root, prefs: prefs, model: model)
+    count += try await StudioModel.checkAgentFolders(root: root, prefs: prefs, model: model)
     try await checkLabPeriodControl(root: root, prefs: prefs) { check($0, $1) }
     print(
       "Studio modes checks passed: \(count), navigation, migration, isolated Agent registry, model reuse, request wiring, Lab persistence and real server lifecycle"

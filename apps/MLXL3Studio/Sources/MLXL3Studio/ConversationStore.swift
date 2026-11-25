@@ -60,6 +60,8 @@ struct ConversationSnapshot: Codable, Sendable {
     var parentConversationID: UUID? = nil
     var agent: Bool? = nil
     var updatedAt: Date? = nil
+    /// Agent: the user's folder the task works in directly (canonical path); nil: its own copy.
+    var agentFolder: String? = nil
 }
 
 struct ConversationDraft: Codable, Sendable {

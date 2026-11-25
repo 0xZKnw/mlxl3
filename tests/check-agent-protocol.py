@@ -664,4 +664,57 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
                 # group whose remaining members are dead but not reaped yet (hosted runner).
                 pass
 
+# A task that works in a user's folder: the app assigns its private home (MLXL3_AGENT_HOME).
+# Through the production entry, with the native tools: commands get that home, write in the
+# folder, cannot write beside it, and nothing of the task appears beside the user's folder.
+with tempfile.TemporaryDirectory(prefix='mlxl3-agent-direct-') as directory:
+    base = Path(directory).resolve()
+    project = base / 'user' / 'project'
+    project.mkdir(parents=True)
+    (project / 'main.py').write_text("print('hello')\n")
+    task = base / 'app-data' / 'task'
+    (task / 'studio').mkdir(parents=True)
+    metadata = task / 'studio' / 'project.json'
+    metadata.write_text(json.dumps({'permissions': {'toolHarness': 'native', 'commandSeconds': 5}}))
+    home = task / 'home'
+
+    def direct(calls, assigned=home):
+        environment = dict(os.environ)
+        environment.pop('MLXL3_AGENT_HOME', None)
+        if assigned is not None:
+            environment['MLXL3_AGENT_HOME'] = str(assigned)
+        payload = ''.join(json.dumps(request('tools/call', {'name': name, 'arguments': arguments}, index + 1)) + '\n'
+                          for index, (name, arguments) in enumerate(calls))
+        result = subprocess.run([helper, '--agent-tools', str(project), str(metadata), 'long-calls'], input=payload,
+                                text=True, capture_output=True, timeout=60, check=False, env=environment)
+        return result, [json.loads(line)['result'] for line in result.stdout.splitlines()]
+
+    result, replies = direct([
+        ('bash', {'description': 'home', 'command': 'printf "%s|%s" "$HOME" "$TMPDIR"; echo cache > "$HOME/cache.txt"'}),
+        ('write', {'file_path': 'notes/todo.md', 'content': '# todo\n'}),
+        ('edit', {'file_path': 'main.py', 'old_string': "hello", 'new_string': 'direct'}),
+        ('bash', {'description': 'beside', 'command': 'echo stolen > ../beside.txt'}),
+        ('bash', {'description': 'inside', 'command': 'echo ok > built.txt && cat built.txt'}),
+    ])
+    texts = [reply['content'][0]['text'] for reply in replies]
+    check(result.returncode == 0 and len(replies) == 5, f'direct folder: five replies ({result.stderr[-300:]})')
+    check(f'{home}|{home}/tmp/' in texts[0] and (home / 'cache.txt').read_text() == 'cache\n',
+          f'commands of a task in a user folder use the assigned home: {texts[0]}')
+    check((project / 'notes' / 'todo.md').read_text() == '# todo\n' and (project / 'main.py').read_text() == "print('direct')\n",
+          'write and edit change the user folder itself')
+    check('Operation not permitted' in texts[3] and '[exit code: 0]' not in texts[3]
+          and not (project.parent / 'beside.txt').exists(),
+          f'a command cannot write beside the user folder: {texts[3]}')
+    check('[exit code: 0]' in texts[4] and (project / 'built.txt').read_text() == 'ok\n',
+          f'a command writes inside the user folder: {texts[4]}')
+    check(sorted(path.name for path in project.parent.iterdir()) == ['project'],
+          f'nothing of the task is created beside the user folder: {sorted(path.name for path in project.parent.iterdir())}')
+    # A home inside the folder would put caches and temporary files in the project: refused.
+    result, replies = direct([('bash', {'description': 'home', 'command': 'true'})], assigned=project / 'home')
+    check(len(replies) == 1 and '[exit code: 0]' not in replies[0]['content'][0]['text'] and not (project / 'home').exists(),
+          f'a home inside the user folder is refused: {replies}')
+    # Without an assigned home the helper keeps the sibling home of a task's own copy.
+    result, replies = direct([('bash', {'description': 'home', 'command': 'printf "%s" "$HOME"'})], assigned=None)
+    check(str(project) + '.sandbox-home' in replies[0]['content'][0]['text'], 'no assigned home: the sibling one, as before')
+
 print(f'Agent protocol checks passed: {checks}, real MCP commands, errors, bounded input and parent-death cleanup; JavaScript harness tools, cross-harness refusal and cleanup; native tools, exact writes, jobs, refusals, permissions, network and cleanup')

@@ -684,6 +684,60 @@ struct AgentSandboxCheck {
   /// processes they start. Skipped, and said so, on a Mac without developer tools.
   /// The persistent kernel and its background jobs (AGENT-2026-11-23-KERNEL): literal oracles
   /// through the real kernel, sandbox and jobs.
+  /// A task that works in a user's folder (AGENT-2026-11-25-DOSSIER-DIRECT): its private
+  /// home is the one the app assigned, never a folder beside the user's, and the model is
+  /// told its changes are real.
+  static func checkAssignedHome(temporary: URL, check: (Bool, String) -> Void) throws {
+    let base = try AgentSandbox.canonicalRoot(temporary).appendingPathComponent("direct-\(UUID().uuidString)")
+    let project = base.appendingPathComponent("user/project", isDirectory: true)
+    let assigned = base.appendingPathComponent("app-data/task/home", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: base) }
+    check(
+      try AgentSandbox.homeLocation(for: project, assigned: nil).path == project.path + ".sandbox-home",
+      "without an assigned home it stays beside the copy")
+    check(
+      try AgentSandbox.homeLocation(for: project, assigned: assigned.path).path == assigned.path,
+      "an assigned home is used as given")
+    for refused in [
+      project.path, project.path + "/inside", project.deletingLastPathComponent().path, "/", "relative/home", "",
+    ] {
+      check(
+        (try? AgentSandbox.homeLocation(for: project, assigned: refused)) == nil,
+        "a home that is the folder, inside it, above it or not absolute is refused: \(refused)")
+    }
+    let home = try AgentSandbox.privateHome(for: project, assigned: assigned.path)
+    check(
+      home.path == assigned.path && FileManager.default.fileExists(atPath: assigned.appendingPathComponent("tmp").path)
+        && FileManager.default.fileExists(atPath: assigned.appendingPathComponent(".gitconfig").path),
+      "the assigned home is prepared like a sibling one")
+    check(
+      try FileManager.default.contentsOfDirectory(atPath: project.deletingLastPathComponent().path) == ["project"]
+        && FileManager.default.contentsOfDirectory(atPath: project.path).isEmpty,
+      "nothing is created in the user's folder or beside it")
+    let entry = AgentSandbox.serverEntry(
+      executable: "/bin/app", root: project, project: base.appendingPathComponent("project.json"), longCalls: true,
+      home: assigned)
+    check(
+      entry["env"] as? [String: String] == [AgentSandbox.homeVariable: assigned.path]
+        && AgentSandbox.serverEntry(
+          executable: "/bin/app", root: project, project: base.appendingPathComponent("project.json"), longCalls: true)["env"] == nil,
+      "only a task in a user's folder gives its server a home")
+    for harness in [AgentHarness.native, .javascript, .tools] {
+      var permissions = AgentPermissions()
+      permissions.harness = harness
+      let direct = AgentSandbox.instructions(for: permissions, direct: true)
+      check(
+        direct.contains("directly in the user's project folder") && !direct.contains("copy")
+          && !direct.contains("after user review") && !direct.contains("reviews your changes"),
+        "\(harness) prompt of a task in a user's folder never speaks of a copy: \(direct)")
+      check(
+        AgentSandbox.instructions(for: permissions) == AgentSandbox.instructions(for: permissions, direct: false)
+          && AgentSandbox.instructions(for: permissions).contains("isolated copy"),
+        "\(harness) prompt of a task on its copy is unchanged")
+    }
+  }
+
   static func checkKernel(root: URL, check: (Bool, String) -> Void) throws {
     var permissions = AgentPermissions()
     permissions.harness = .javascript
@@ -1794,6 +1848,7 @@ struct AgentSandboxCheck {
     try checkKernel(root: root, check: { check($0, $1) })
     try checkSpill(root: root, check: { check($0, $1) })
     try checkNetwork(temporary: temporary, count: &count)
+    try checkAssignedHome(temporary: temporary, check: { check($0, $1) })
     print(
       "Agent sandbox checks passed: \(count), real commands, file/network/child isolation, environment, limits, process cleanup and invalid input; JavaScript harness API, errors, isolation, permissions and limits; native tools catalogue, arguments, edits, exact writes, search, jobs and permissions"
     )

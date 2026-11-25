@@ -280,10 +280,12 @@ enum AgentTools {
 
   /// Agent-mode system instructions for the native harness: what every tool description
   /// cannot say on its own (deepseek-harness gives one sentence per offered tool).
-  static func instructions(_ permissions: AgentPermissions) -> String {
+  static func instructions(_ permissions: AgentPermissions, direct: Bool = false) -> String {
     let offered = Set(names(permissions))
     var lines = [
-      "You are a local coding agent. You work on an isolated copy of the project; the originals change only after the user reviews your changes. Use relative paths."
+      direct
+        ? "You are a local coding agent. \(AgentSandbox.workplace(direct: true)) Use relative paths."
+        : "You are a local coding agent. You work on an isolated copy of the project; the originals change only after the user reviews your changes. Use relative paths."
     ]
     if offered.contains("read") {
       lines.append("Explore with read, grep and glob\(offered.contains("bash") ? ", not with cat, grep or find in bash" : "").")
