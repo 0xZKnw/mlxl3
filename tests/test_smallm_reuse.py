@@ -75,7 +75,9 @@ def test_decode_transform_preserves_grouped_k3_and_all_outside_loop_bytes(transf
 
 
 @pytest.mark.parametrize("transform", [SCREEN.shared_decode, SCREEN.lookup_decode])
-@pytest.mark.parametrize("corruption", ["missing", "duplicate", "closing", "nested", "extra_fma"])
+@pytest.mark.parametrize(
+    "corruption", ["missing", "duplicate", "closing", "nested", "extra_fma", "missing_plan_skip"]
+)
 def test_decode_transform_rejects_changed_loop_instead_of_matching_other_branches(
     transform, corruption
 ):
@@ -92,6 +94,10 @@ def test_decode_transform_rejects_changed_loop_instead_of_matching_other_branche
         source = source.replace("                        }\n                    }\n#endif\n", "", 1)
     elif corruption == "nested":
         source = source.replace(old, "{" + old + "}")
+    elif corruption == "missing_plan_skip":
+        guard = "                            MLXL3_PLAN_SKIP\n                            uint j ="
+        assert source.count(guard) == 1
+        source = source.replace(guard, "                            uint j =")
     else:
         source = source.replace(old, old.replace("cw0, CB)),", "cw0, CB)), fma(0.0f, 0.0f, 0.0f),"))
     with pytest.raises(ValueError):

@@ -15,11 +15,14 @@ def shared_decode(source: str) -> str:
 
     post: __return__.count("fma(") == source.count("fma(")
     """
-    marker = (
-        "                        for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {\n"
-        "                            uint j = group * 4u;\n"
-    )
-    if source.count(marker) != 1:
+    loop = "                        for (uint batch_row = 0u; batch_row < MLXL3_QMV_MB; ++batch_row) {\n"
+    offset = "                            uint j = group * 4u;\n"
+    plain = loop + offset
+    guarded = loop + "                            MLXL3_PLAN_SKIP\n" + offset
+    # Older shaders predate partial groups. In a shader that defines the guard,
+    # moving or dropping it would change which rows consume the decoded weights.
+    marker = guarded if "#define MLXL3_PLAN_SKIP" in source else plain
+    if source.count(marker) != 1 or source.count(plain) + source.count(guarded) != 1:
         raise ValueError("mapped decode loop changed; inspect the source")
     prefix, body = source.split(marker, 1)
     end = "                        }\n                    }\n#endif\n"
