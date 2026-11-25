@@ -4,7 +4,7 @@ import Foundation
 /// "Ran sh test.sh") instead of the raw function name, its server and a status badge.
 /// Pure: built from the saved `ToolActivity`, so restored conversations read the same.
 struct ToolCallPresentation: Equatable {
-    enum Kind: Equatable { case javascript, command, readFile, writeFile, listFiles, unreadable, mcp }
+    enum Kind: Equatable { case javascript, command, readFile, writeFile, editFile, search, findFiles, job, listFiles, unreadable, mcp }
 
     let kind: Kind
     /// SF Symbol of the action.
@@ -41,6 +41,15 @@ struct ToolCallPresentation: Equatable {
             detail = code.flatMap(Self.firstCodeLine)
         case .unreadable, .listFiles:
             detail = nil
+        case .search, .findFiles:
+            // What is looked for, not where: `path` only narrows the search.
+            if let pattern = arguments.object?["pattern"] as? String, !Self.oneLine(pattern).isEmpty {
+                (key, detail) = ("pattern", Self.clipped(Self.oneLine(pattern)))
+            } else {
+                (key, detail) = Self.primaryArgument(arguments.object, fallback: arguments.text)
+            }
+        case .job:
+            detail = (arguments.object?["job_id"]).flatMap { $0 is NSNull ? nil : "#\($0)" }
         default:
             (key, detail) = Self.primaryArgument(arguments.object, fallback: arguments.text)
         }
@@ -49,8 +58,8 @@ struct ToolCallPresentation: Equatable {
         }
         self.detail = detail
         isPath = ["path", "file", "filename", "file_path", "directory", "dir"].contains(key ?? "")
-            || kind == .readFile || kind == .writeFile
-        monospaced = kind == .javascript || kind == .command || isPath
+            || kind == .readFile || kind == .writeFile || kind == .editFile
+        monospaced = kind == .javascript || kind == .command || kind == .search || kind == .findFiles || isPath
         let covered: Bool = {
             guard let object = arguments.object else { return arguments.text == nil }
             guard object.count == 1, let only = object.values.first as? String else { return object.isEmpty }
@@ -78,6 +87,20 @@ struct ToolCallPresentation: Equatable {
         case .writeFile:
             symbol = "square.and.pencil"
             title = running ? L("Écriture", "Writing") : failed ? L("Écriture", "Write file") : L("Fichier écrit", "Wrote")
+        case .editFile:
+            symbol = "pencil.line"
+            title = running ? L("Modification", "Editing") : failed ? L("Modification", "Edit file") : L("Fichier modifié", "Edited")
+        case .search:
+            symbol = "magnifyingglass"
+            title = running ? L("Recherche", "Searching") : failed ? L("Recherche", "Search") : L("Recherche faite", "Searched")
+        case .findFiles:
+            symbol = "folder"
+            title = running ? L("Recherche de fichiers", "Finding files")
+                : failed ? L("Recherche de fichiers", "Find files") : L("Fichiers trouvés", "Found files")
+        case .job:
+            symbol = "clock.arrow.circlepath"
+            title = name == "job_kill" ? L("Tâche de fond arrêtée", "Stopped background job")
+                : name == "job_list" ? L("Tâches de fond", "Background jobs") : L("Tâche de fond", "Background job")
         case .listFiles:
             symbol = "folder"
             title = running ? L("Liste des fichiers", "Listing files")
@@ -110,6 +133,12 @@ struct ToolCallPresentation: Equatable {
             return (L("Code", "Code"), text)
         case .writeFile:
             if let content = object?["content"] as? String { return (L("Contenu", "Content"), content) }
+        case .editFile:
+            // The replaced text, then its replacement, as written: no JSON escapes to read through.
+            if let old = object?["old_string"] as? String, let new = object?["new_string"] as? String {
+                return (L("Modification", "Change"), "- " + old.replacingOccurrences(of: "\n", with: "\n- ")
+                    + "\n+ " + new.replacingOccurrences(of: "\n", with: "\n+ "))
+            }
         default:
             break
         }
@@ -140,8 +169,12 @@ struct ToolCallPresentation: Equatable {
         switch name {
         case "javascript": .javascript
         case "run", "run_command", "shell", "bash": .command
-        case "read_file", "read_text_file": .readFile
-        case "write_file": .writeFile
+        case "read_file", "read_text_file", "read": .readFile
+        case "write_file", "write": .writeFile
+        case "edit": .editFile
+        case "grep": .search
+        case "glob": .findFiles
+        case "job_output", "job_list", "job_kill": .job
         case "list_files", "list_directory": .listFiles
         case "invalid_tool_call": .unreadable
         default: .mcp
@@ -238,6 +271,11 @@ struct ToolCallPresentation: Equatable {
                 return L("Code \(code)", "Exit \(code)")
             }
             if last.hasPrefix("Command stopped") { return L("Arrêtée", "Stopped") }
+            // The native `bash` tool ends its result with `[exit code: N]`.
+            if last.hasSuffix("]"), let mark = last.range(of: "[exit code: ", options: .backwards),
+               let code = Int(last[mark.upperBound...].dropLast()), code != 0 {
+                return last.contains("[stopped by") ? L("Arrêtée", "Stopped") : L("Code \(code)", "Exit \(code)")
+            }
         }
         return failed ? L("Échec", "Failed") : nil
     }

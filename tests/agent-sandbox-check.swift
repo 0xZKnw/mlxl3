@@ -44,10 +44,10 @@ struct AgentSandboxCheck {
     check(
       empty.internet && empty.internetHosts == ["*"] && !saved.internet && saved.internetHosts == ["github.com"],
       "Internet on by default, saved choice kept")
-    let tools = try JSONDecoder().decode(AgentPermissions.self, from: Data(#"{"harness":"tools"}"#.utf8))
+    let tools = try JSONDecoder().decode(AgentPermissions.self, from: Data(#"{"toolHarness":"tools"}"#.utf8))
     check(tools.harness == .tools, "explicit harness decodes")
     do {
-      _ = try JSONDecoder().decode(AgentPermissions.self, from: Data(#"{"harness":"python"}"#.utf8))
+      _ = try JSONDecoder().decode(AgentPermissions.self, from: Data(#"{"toolHarness":"python"}"#.utf8))
       fatalError("unknown harness accepted")
     } catch { count += 1 }
     var classic = AgentPermissions()
@@ -1254,6 +1254,315 @@ struct AgentSandboxCheck {
     check(all.allSatisfy { kill($0.pid, 0) != 0 }, "strays were not stopped")
   }
 
+  /// The native harness (AGENT-2026-11-25-NATIVE-TOOLS): catalogue by permission, argument
+  /// checks, and every tool through a real sandboxed kernel. Oracle of each write: the file's
+  /// bytes read back from disk outside the harness.
+  static func checkNativeTools(temporary: URL, count: inout Int) throws {
+    func check(_ condition: Bool, _ message: String) {
+      guard condition else { fatalError(message) }
+      count += 1
+    }
+    let root = temporary.appendingPathComponent("native project").resolvingSymlinksInPath()
+    try FileManager.default.createDirectory(
+      at: root.appendingPathComponent("src/sub"), withIntermediateDirectories: true)
+    func disk(_ path: String) -> Data? { try? Data(contentsOf: root.appendingPathComponent(path)) }
+    func put(_ path: String, _ text: String) throws { try Data(text.utf8).write(to: root.appendingPathComponent(path)) }
+    try put("src/app.py", "def add(a, b):\n    return a - b\n")
+    try put("src/sub/notes.txt", "alpha\nreturn of the beta\ngamma\n")
+    try put("crlf.txt", "one\r\ntwo\r\nthree\r\n")
+    try put("empty.txt", "")
+    try Data([0x61, 0xff, 0x62]).write(to: root.appendingPathComponent("latin.bin"))
+
+    // The default, and the saved key: the earlier `harness` key is not read any more.
+    var all = AgentPermissions()
+    all.internet = false
+    check(AgentPermissions().harness == .native, "native tools are the default harness")
+    let old = try JSONDecoder().decode(AgentPermissions.self, from: Data(#"{"harness":"javascript","run":false}"#.utf8))
+    check(old.harness == .native && !old.run, "an earlier project.json takes the native tools and keeps its permissions")
+    let chosen = try JSONDecoder().decode(AgentPermissions.self, from: Data(#"{"toolHarness":"javascript"}"#.utf8))
+    check(chosen.harness == .javascript, "a choice saved under the new key is kept")
+    let encoded = try JSONSerialization.jsonObject(with: JSONEncoder().encode(chosen)) as? [String: Any]
+    check(encoded?["toolHarness"] as? String == "javascript" && encoded?["harness"] == nil, "the choice is saved under the new key only")
+    let round = try JSONDecoder().decode(AgentPermissions.self, from: JSONEncoder().encode(all))
+    check(round == all, "permissions survive a round trip")
+
+    // Catalogue by permission.
+    var readOnly = all
+    readOnly.write = false
+    readOnly.run = false
+    var writeOnly = all
+    writeOnly.read = false
+    writeOnly.run = false
+    var nothing = readOnly
+    nothing.read = false
+    var online = all
+    online.internet = true
+    var onlineReadOnly = readOnly
+    onlineReadOnly.internet = true
+    check(AgentTools.names(all) == ["read", "edit", "write", "grep", "glob", "bash", "job_output", "job_list", "job_kill"], "full catalogue")
+    check(AgentTools.names(readOnly) == ["read", "grep", "glob"], "read-only catalogue")
+    check(AgentTools.names(writeOnly) == ["write"], "write-only catalogue has no edit")
+    check(AgentTools.names(nothing).isEmpty, "no tool without permissions")
+    check(AgentTools.names(online).suffix(2) == ["fetch", "download"], "Internet adds fetch and download")
+    check(AgentTools.names(onlineReadOnly) == ["read", "grep", "glob", "fetch"], "download needs write")
+    for permissions in [all, readOnly, writeOnly, nothing, online, onlineReadOnly] {
+      let definitions = AgentTools.definitions(permissions)
+      check(definitions.compactMap { $0["name"] as? String } == AgentTools.names(permissions), "definitions follow the catalogue")
+      for definition in definitions {
+        let schema = definition["inputSchema"] as? [String: Any]
+        let properties = (schema?["properties"] as? [String: Any]) ?? [:]
+        let required = (schema?["required"] as? [String]) ?? ["<missing>"]
+        check(
+          !((definition["description"] as? String) ?? "").isEmpty && schema?["type"] as? String == "object"
+            && required.allSatisfy { properties[$0] != nil } && JSONSerialization.isValidJSONObject(definition),
+          "definition of \(definition["name"] ?? "?") is a valid tool")
+      }
+    }
+    func description(_ name: String, _ permissions: AgentPermissions, wall: Double = 10) -> String {
+      (AgentTools.definitions(permissions, wall: wall).first { $0["name"] as? String == name }?["description"] as? String) ?? ""
+    }
+    var slow = online
+    slow.commandSeconds = 30
+    check(
+      description("bash", all).contains("without network") && description("bash", online).contains("with Internet")
+        && description("bash", all).contains("still running after 5 s")
+        && description("bash", slow, wall: 10).contains("still running after 10 s")
+        && description("bash", slow, wall: 33).contains("still running after 30 s"),
+      "bash states its real network and wait")
+    // No JavaScript in what a native model reads.
+    let prompt = AgentSandbox.instructions(for: all)
+    check(
+      prompt == AgentTools.instructions(all) && prompt.contains("edit") && prompt.contains("[exit code: N]")
+        && !prompt.lowercased().contains("javascript") && !prompt.contains("Internet"),
+      "native prompt: \(prompt)")
+    check(AgentSandbox.instructions(for: online).contains("untrusted data"), "native prompt with Internet")
+    let quiet = AgentTools.instructions(readOnly)
+    check(!quiet.contains("bash") && !quiet.contains("edit") && quiet.contains("read, grep and glob"), "read-only prompt names only its tools: \(quiet)")
+    check(
+      !AgentTools.definitions(online).contains { ($0["description"] as? String ?? "").contains("view(") }, "no JavaScript function in the definitions")
+
+    // Paths: what a model gives for a project file.
+    let roots = [root.path, "/elsewhere/copy"]
+    check(AgentTools.relativePath("src/app.py", roots: roots) == "src/app.py", "relative path")
+    check(AgentTools.relativePath(" ./src/app.py\n", roots: roots) == "src/app.py", "leading ./ and spaces")
+    check(AgentTools.relativePath(root.path + "/src/app.py", roots: roots) == "src/app.py", "absolute path inside the project")
+    check(AgentTools.relativePath("/elsewhere/copy/a", roots: roots) == "a", "absolute path under the second root")
+    check(AgentTools.relativePath(root.path, roots: roots) == "." && AgentTools.relativePath("./", roots: roots) == ".", "the project itself")
+    check(AgentTools.relativePath("src/", roots: roots) == "src", "trailing slash")
+    for bad in ["../x", "src/../../x", "/etc/passwd", root.path + "x/a", ".git/config", "a//b", "a\nb", root.path + "/../x"] {
+      check(AgentTools.relativePath(bad, roots: roots) == nil, "path refused: \(bad)")
+    }
+
+    // Argument values as the engine may hand them over.
+    check(AgentTools.string("x") == "x" && AgentTools.string(42) == "42" && AgentTools.string(true) == "true", "scalars back to text")
+    check(AgentTools.string(["b": 1, "a": [1, 2]] as [String: Any]) == #"{"a":[1,2],"b":1}"# && AgentTools.string(NSNull()) == nil, "decoded JSON back to text")
+    check(AgentTools.integer(3) == 3 && AgentTools.integer("12") == 12 && AgentTools.integer(3.0) == 3, "whole numbers")
+    check(AgentTools.integer(3.5) == nil && AgentTools.integer(true) == nil && AgentTools.integer("x") == nil && AgentTools.integer(nil) == nil, "not whole numbers")
+    check(AgentTools.boolean(true) == true && AgentTools.boolean("False") == false && AgentTools.boolean(1) == nil && AgentTools.boolean("yes") == nil, "booleans")
+    check(
+      (AgentJavaScript.includeGlobs("*.py") ?? []) == ["*.py"] && (AgentJavaScript.includeGlobs("*.{js,ts}") ?? []) == ["*.js", "*.ts"]
+        && (AgentJavaScript.includeGlobs("{a,b}.txt") ?? []) == ["a.txt", "b.txt"],
+      "include globs")
+    for bad in ["", "src/*.py", "!*.py", "*.{a,{b}}", "*.{a", "*.a}", "*.{a,}", "*.{a}{b}", "a\nb", String(repeating: "x", count: 257)] {
+      check(AgentJavaScript.includeGlobs(bad) == nil, "include refused: \(bad.prefix(20))")
+    }
+    func refusal(_ name: String, _ raw: [String: Any], _ permissions: AgentPermissions? = nil) -> String {
+      do {
+        _ = try AgentTools.arguments(name, raw, permissions: permissions ?? all, roots: [root.path])
+        return "<accepted>"
+      } catch { return (error as? AgentSandbox.Refusal)?.text ?? "<other error>" }
+    }
+    check(refusal("read", [:]) == "Error: read: the `file_path` argument is required", "missing argument named")
+    check(refusal("read", ["file_path": NSNull()]) == "Error: read: the `file_path` argument is required", "null argument is missing")
+    check(refusal("read", ["file_path": "../x"]).contains("relative path to a file inside the project"), "outside path refused")
+    check(refusal("read", ["file_path": "."]).contains("relative path to a file"), "a folder is not a file")
+    check(refusal("read", ["file_path": "a", "offset": 0]).contains("`offset` must be a whole number from 1"), "offset from 1")
+    check(refusal("read", ["file_path": "a", "limit": "many"]).contains("`limit` must be a whole number"), "limit is a number")
+    check(refusal("edit", ["file_path": "a", "old_string": "", "new_string": "x"]) == "Error: edit: `old_string` must not be empty", "empty search text")
+    check(refusal("edit", ["file_path": "a", "old_string": "x", "new_string": "y", "replace_all": "maybe"]).contains("`replace_all` must be true or false"), "flag type")
+    check(refusal("write", ["file_path": "a", "content": "a\0b"]).contains("must not contain NUL"), "NUL refused")
+    check(
+      refusal("write", ["file_path": "a", "content": String(repeating: "x", count: AgentJavaScript.maximumFileBytes + 1)])
+        == "Error: write: `content` is \(AgentJavaScript.maximumFileBytes + 1) bytes; the limit is \(AgentJavaScript.maximumFileBytes)",
+      "oversized content refused with its size")
+    check(refusal("write", ["file_path": "a", "content": ""]) == "<accepted>", "an empty file can be written")
+    check(refusal("grep", ["pattern": "x", "include": "src/*.py"]).contains("file-name glob"), "include with a folder refused")
+    check(refusal("job_output", ["job_id": "one"]).contains("`job_id` must be a job number"), "job id type")
+    check(refusal("job_kill", ["job_id": 0]).contains("`job_id` must be a job number"), "job id from 1")
+    check(refusal("bash", ["command": ""]) == "Error: bash: `command` must not be empty", "empty command")
+    check(refusal("bash", ["command": "true"], readOnly) == "Error: bash is not enabled in this task.", "disabled tool refused")
+    check(refusal("fetch", ["url": "https://example.com"]) == "Error: fetch is not enabled in this task.", "fetch needs Internet")
+    check(refusal("javascript", ["code": "1"]) == "Error: javascript is not enabled in this task.", "the JavaScript tool is not a native tool")
+    // Unknown arguments change nothing; decoded values are what the model wrote.
+    let lenient = try AgentTools.arguments(
+      "bash", ["command": "true", "description": "noop", "timeout": 5, "run_in_background": "true"], permissions: all, roots: [root.path])
+    check(lenient.count == 2 && lenient["command"] as? String == "true" && lenient["run_in_background"] as? Bool == true, "extra arguments ignored: \(lenient)")
+    let decoded = try AgentTools.arguments(
+      "write", ["file_path": root.path + "/data.json", "content": ["k": [1, 2]] as [String: Any]], permissions: all, roots: [root.path])
+    check(decoded["file_path"] as? String == "data.json" && decoded["content"] as? String == #"{"k":[1,2]}"#, "decoded content written as text: \(decoded)")
+    let ranged = try AgentTools.arguments("read", ["file_path": "a", "offset": "2", "limit": 3.0], permissions: all, roots: [root.path])
+    check(ranged["offset"] as? Int == 2 && ranged["limit"] as? Int == 3, "numbers as text or floats")
+    check(
+      AgentTools.signature("read", ["b": 1, "a": "x"]) == AgentTools.signature("read", ["a": "x", "b": 1])
+        && AgentTools.signature("read", ["a": "x"]) != AgentTools.signature("grep", ["a": "x"]),
+      "call signature ignores key order, not the tool")
+
+    // Every tool through a real kernel, as the server calls it.
+    let kernel = try AgentJavaScript.Kernel(root: root)
+    defer { kernel.shutdown() }
+    func tool(_ name: String, _ raw: [String: Any] = [:], _ permissions: AgentPermissions? = nil) throws -> AgentJavaScript.Outcome {
+      let allowed = permissions ?? all
+      let arguments = try AgentTools.arguments(name, raw, permissions: allowed, roots: [root.path])
+      return try kernel.run(code: "", tool: (name, arguments), permissions: allowed)
+    }
+
+    // read
+    let whole = try tool("read", ["file_path": "src/app.py"])
+    check(!whole.isError && whole.text == "1| def add(a, b):\n2|     return a - b", "read numbers the lines, without a label: \(whole.text)")
+    let part = try tool("read", ["file_path": "src/sub/notes.txt", "offset": 2, "limit": 1])
+    check(part.text == "2| return of the beta\n(lines 2-2 of 3; read again with offset 3 for more)", "read range: \(part.text)")
+    check(try tool("read", ["file_path": "src/sub/notes.txt", "offset": 3]).text == "3| gamma\n(lines 3-3 of 3)", "last range has no continuation")
+    check(try tool("read", ["file_path": "crlf.txt"]).text == "1| one\n2| two\n3| three", "CRLF lines shown without \\r")
+    check(try tool("read", ["file_path": "empty.txt"]).text == "(empty.txt is empty)", "empty file said so")
+    let beyond = try tool("read", ["file_path": "src/app.py", "offset": 9])
+    check(beyond.isError && beyond.text == "Error: read: src/app.py has 2 lines", "offset past the end: \(beyond.text)")
+    let absent = try tool("read", ["file_path": "nope.txt"])
+    check(absent.isError && absent.text.hasPrefix("Error: read failed: ") && absent.text.contains("nope.txt"), "missing file: \(absent.text)")
+    check(try tool("read", ["file_path": "latin.bin"]).text == "Error: read failed: latin.bin is not UTF-8 text", "binary file refused")
+
+    // edit: exact, tolerant, guarded.
+    let exact = try tool("edit", ["file_path": "src/app.py", "old_string": "a - b", "new_string": "a + b"])
+    check(
+      !exact.isError && exact.text == "Edited src/app.py: 1 replacement, first at line 2.\n1| def add(a, b):\n2|     return a + b",
+      "exact edit: \(exact.text)")
+    check(disk("src/app.py") == Data("def add(a, b):\n    return a + b\n".utf8), "exact edit on disk")
+    // Copied from read with its `N| ` prefixes: the prefixes are not part of the file.
+    let numbered = try tool("edit", ["file_path": "src/app.py", "old_string": "2|     return a + b", "new_string": "2|     return b + a"])
+    check(!numbered.isError && disk("src/app.py") == Data("def add(a, b):\n    return b + a\n".utf8), "edit copied with line numbers: \(numbered.text)")
+    // Other indentation than the file's: the lines still match, the replacement is written as given.
+    let loose = try tool("edit", ["file_path": "src/app.py", "old_string": "def add(a, b):\n\treturn b + a", "new_string": "def add(a, b):\n    return a * b"])
+    check(!loose.isError && disk("src/app.py") == Data("def add(a, b):\n    return a * b\n".utf8), "re-indented edit: \(loose.text)")
+    try put("twice.txt", "x = 1\ny = 2\nx = 1\n")
+    let twice = try tool("edit", ["file_path": "twice.txt", "old_string": "x = 1", "new_string": "x = 3"])
+    check(
+      twice.isError && twice.text.contains("occurs 2 times in twice.txt (lines 1, 3)") && twice.text.contains("set replace_all to true")
+        && !twice.text.contains("pass true") && disk("twice.txt") == Data("x = 1\ny = 2\nx = 1\n".utf8),
+      "ambiguous edit names the argument and writes nothing: \(twice.text)")
+    let every = try tool("edit", ["file_path": "twice.txt", "old_string": "x = 1", "new_string": "x = 3", "replace_all": true])
+    check(every.text.hasPrefix("Edited twice.txt: 2 replacements, first at line 1.") && disk("twice.txt") == Data("x = 3\ny = 2\nx = 3\n".utf8), "replace_all: \(every.text)")
+    let same = try tool("edit", ["file_path": "twice.txt", "old_string": "y = 2", "new_string": "y = 2"])
+    check(same.isError && same.text == "Error: edit: old_string and new_string are the same, nothing would change", "no-op edit refused: \(same.text)")
+    let far = try tool("edit", ["file_path": "twice.txt", "old_string": "zzzzzz qqqq", "new_string": "w"])
+    check(far.isError && far.text.hasSuffix("nothing is close; read or grep the current text") && !far.text.contains("view()"), "missing text names the tools: \(far.text)")
+    let near = try tool("edit", ["file_path": "twice.txt", "old_string": "y = 22", "new_string": "w"])
+    check(near.isError && near.text.contains("Closest lines:\n1| x = 3\n2| y = 2") && !near.text.contains("Completed before the error"), "closest lines shown, no inner steps: \(near.text)")
+    let crlf = try tool("edit", ["file_path": "crlf.txt", "old_string": "two", "new_string": "deux"])
+    check(!crlf.isError && disk("crlf.txt") == Data("one\r\ndeux\r\nthree\r\n".utf8), "CRLF kept by an edit")
+    // Text that a JavaScript literal would mangle: one JSON layer only.
+    try put("esc.py", "print(\"a\\nb\")  # ${x} `y`\n")
+    let escaped = try tool("edit", ["file_path": "esc.py", "old_string": "print(\"a\\nb\")  # ${x} `y`", "new_string": "print('\\\\', \"${z}\", `q`)  # \\u00e9 é"])
+    check(!escaped.isError && disk("esc.py") == Data("print('\\\\', \"${z}\", `q`)  # \\u00e9 é\n".utf8), "edit keeps backslashes, ${ and backticks: \(escaped.text)")
+
+    // write: bytes on disk are the argument.
+    let hostile = "#!/usr/bin/env python3\n# R to reset\ns = `${y}` + '''t''' + \"\\n\\t\\\\\" + '\\u00e9'\r\nprint(f\"{s}\")  # é 👩‍💻 \u{1F}\n"
+      + String(repeating: "it's $(never) `run`\n", count: 16_000)
+    let written = try tool("write", ["file_path": "deep/a b/h.py", "content": hostile])
+    check(!written.isError && written.text.hasPrefix("Wrote deep/a b/h.py (16004 lines)."), "write reports its file: \(written.text.prefix(200))")
+    check(disk("deep/a b/h.py") == Data(hostile.utf8), "hostile content written byte for byte (\(hostile.utf8.count) bytes)")
+    check(try tool("write", ["file_path": "empty2.txt", "content": ""]).text == "Wrote empty2.txt (0 lines)." && disk("empty2.txt") == Data(), "empty file written")
+    let badJSON = try tool("write", ["file_path": "bad.json", "content": "{\"a\": }"])
+    check(!badJSON.isError && badJSON.text.hasPrefix("Wrote bad.json (1 line).\nwarning: write: bad.json is no longer valid JSON"), "JSON warning after the result: \(badJSON.text)")
+    let badPython = try tool("write", ["file_path": "bad.py", "content": "def f(:\n    pass\n"])
+    check(badPython.text.contains("warning: write: syntax error in bad.py"), "syntax warning: \(badPython.text)")
+
+    // grep and glob
+    let found = try tool("grep", ["pattern": "return"])
+    check(found.text.contains("src/app.py:2:     return a * b") && found.text.contains("src/sub/notes.txt:2: return of the beta"), "grep lines: \(found.text.prefix(300))")
+    let python = try tool("grep", ["pattern": "return", "include": "*.py", "path": "src"])
+    check(python.text == "src/app.py:2:     return a * b", "grep include and path: \(python.text)")
+    let both = try tool("grep", ["pattern": "^(alpha|def)", "include": "*.{py,txt}", "path": "./src/"])
+    // grep lists files in its own traversal order.
+    check(both.text.split(separator: "\n").sorted() == ["src/app.py:1: def add(a, b):", "src/sub/notes.txt:1: alpha"], "grep brace include: \(both.text)")
+    check(try tool("grep", ["pattern": "no-such-text-anywhere", "path": "src"]).text == "No matches.", "grep without match")
+    let invalid = try tool("grep", ["pattern": "a(b"])
+    check(invalid.isError && invalid.text.hasPrefix("Error: grep failed: ") && invalid.text.contains("extended regex"), "invalid regex explained: \(invalid.text)")
+    check(try tool("glob", ["pattern": "*.py"]).text.split(separator: "\n").sorted() == ["bad.py", "deep/a b/h.py", "esc.py", "src/app.py"], "glob by name")
+    check(try tool("glob", ["pattern": "src/**/*.txt"]).text == "src/sub/notes.txt", "glob by path")
+    check(try tool("glob", ["pattern": "**/*.txt", "path": "src"]).text == "src/sub/notes.txt", "glob in a folder keeps project paths")
+    check(try tool("glob", ["pattern": "*.py", "path": "src/sub"]).text == "No files match.", "glob without match")
+
+    // bash: exit code marker, the real sandbox, background jobs.
+    let passed = try tool("bash", ["command": "printf 'hi\\n' > made.txt; cat made.txt"])
+    check(!passed.isError && passed.text == "hi\n[exit code: 0]" && disk("made.txt") == Data("hi\n".utf8), "bash result: \(passed.text)")
+    let failing = try tool("bash", ["command": "echo no; exit 3"])
+    check(!failing.isError && failing.text == "no\n[exit code: 3]", "a failing command is a result, not a tool error: \(failing.text)")
+    check(try tool("bash", ["command": "true"]).text == "[exit code: 0]", "silent command")
+    let outside = try tool("bash", ["command": "echo x > \(temporary.path.replacingOccurrences(of: " ", with: "\\ "))/escaped.txt"])
+    check(outside.text.hasSuffix("[exit code: 1]") || outside.text.hasSuffix("[exit code: 2]"), "write outside the project fails: \(outside.text)")
+    check(!FileManager.default.fileExists(atPath: temporary.appendingPathComponent("escaped.txt").path), "nothing written outside the project")
+    let long = try tool("bash", ["command": "seq 1 20000"])
+    check(
+      long.text.contains("bytes of output omitted; all of it is in .mlxl3-scratch/outputs/") && long.text.contains("read it with offset and limit, or grep it")
+        && !long.text.contains("view(path") && long.text.hasSuffix("[exit code: 0]"),
+      "cut output names the tools: \(long.text.suffix(200))")
+    if let start = long.text.range(of: ".mlxl3-scratch/outputs/"), let end = long.text[start.lowerBound...].firstIndex(of: ":") {
+      let spilled = try tool("read", ["file_path": String(long.text[start.lowerBound..<end]), "offset": 10_000, "limit": 2])
+      check(spilled.text.hasPrefix("10000| 10000\n10001| 10001\n"), "the whole output is readable: \(spilled.text)")
+    } else { fatalError("no spill path in \(long.text.suffix(300))") }
+    var brief = all
+    brief.commandSeconds = 1
+    let promoted = try tool("bash", ["command": "sleep 2; echo late"], brief)
+    check(!promoted.isError && promoted.text.contains("[still running: it continues as background job "), "a long command goes on in the background: \(promoted.text)")
+    let jobNumber = Int(promoted.text.components(separatedBy: "background job ").last?.prefix { $0.isNumber } ?? "") ?? -1
+    let waited = try tool("job_output", ["job_id": jobNumber, "wait": true])
+    check(waited.text.hasPrefix("late\n[job \(jobNumber) finished after ") && waited.text.hasSuffix("exit code: 0]"), "job_output waits: \(waited.text)")
+    let started = try tool("bash", ["command": "echo begun; sleep 30", "run_in_background": true])
+    let background = Int(started.text.dropFirst("Started background job ".count).prefix { $0.isNumber }) ?? -1
+    check(started.text.hasPrefix("Started background job \(background): job_output with job_id \(background)"), "background start: \(started.text)")
+    usleep(400_000)
+    let peek = try tool("job_output", ["job_id": background])
+    check(peek.text.hasPrefix("begun\n[job \(background) still running after "), "job_output without wait returns at once: \(peek.text)")
+    check(try tool("job_list").text.contains("[job \(background) still running after "), "job_list shows the running job")
+    let killed = try tool("job_kill", ["job_id": background])
+    check(killed.text.hasPrefix("begun\n[job \(background) stopped after "), "job_kill stops it: \(killed.text)")
+    let unknownJob = try tool("job_output", ["job_id": 999])
+    check(unknownJob.isError && unknownJob.text.contains("there is no job 999"), "unknown job: \(unknownJob.text)")
+    // A job that ended unread is announced by the next result, with the native way to read it.
+    _ = try tool("bash", ["command": "echo quick", "run_in_background": true])
+    usleep(600_000)
+    let announced = try tool("glob", ["pattern": "made.txt"])
+    check(announced.text.hasPrefix("made.txt\n[job ") && announced.text.contains("(job_output with job_id ") && !announced.text.contains("wait("), "finished job announced: \(announced.text)")
+
+    // Permissions hold in the host too, not only in the catalogue.
+    let forcedCalls: [(String, [String: Any])] = [
+      ("write", ["file_path": "forced.txt", "content": "BAD"]),
+      ("edit", ["file_path": "made.txt", "old_string": "hi", "new_string": "BAD"]),
+      ("bash", ["command": "echo BAD > forced.txt"]),
+      ("bash", ["command": "echo BAD > forced.txt", "run_in_background": true]),
+    ]
+    for (name, arguments) in forcedCalls {
+      let forced = try kernel.run(code: "", tool: (name, arguments), permissions: readOnly)
+      check(forced.isError && forced.text.contains("is not enabled in this task"), "\(name) forced past the catalogue is refused: \(forced.text)")
+    }
+    check(disk("forced.txt") == nil && disk("made.txt") == Data("hi\n".utf8), "a read-only task wrote nothing")
+    let ghost = try kernel.run(code: "", tool: ("constructor", [:]), permissions: all)
+    check(ghost.isError && ghost.text == "Error: there is no tool named constructor", "only the kernel's own tools run: \(ghost.text)")
+    // The same kernel still serves a program, with its own wording.
+    var script = all
+    script.harness = .javascript
+    let program = try kernel.run(code: "try { edit('twice.txt', 'x = 3', 'x = 4') } catch (error) { return error.message }", permissions: script)
+    check(program.text.hasPrefix("Result:\n") && program.text.contains("pass true to replace every occurrence"), "a program after a tool call: \(program.text)")
+
+    // Repeat reminder: a call, not a program.
+    var repeats = AgentJavaScript.RepeatGuard()
+    let outcome = AgentJavaScript.Outcome(text: "same", isError: false)
+    let key = AgentTools.signature("read", ["file_path": "a"])
+    check(repeats.note(code: key, outcome: outcome, call: true) == nil && repeats.note(code: key, outcome: outcome, call: true) == nil, "two identical calls pass")
+    let third = repeats.note(code: key, outcome: outcome, call: true) ?? ""
+    check(third.hasPrefix("Note: this exact call has now been made 3 times with the same result. Do not make it again"), "third identical call noted: \(third)")
+    check(repeats.note(code: AgentTools.signature("read", ["file_path": "b"]), outcome: outcome, call: true) == nil, "another call is not a repeat")
+  }
+
   static func jsonString(_ value: Any) -> String {
     String(decoding: try! JSONSerialization.data(withJSONObject: value, options: [.fragmentsAllowed]), as: UTF8.self)
   }
@@ -1480,12 +1789,13 @@ struct AgentSandboxCheck {
         && profile.contains("(deny network-outbound (remote ip \"*:*\"))"),
       "policy is not DeepSeek Harness's write-confined profile: \(profile)")
     try checkJavaScript(temporary: temporary, secret: secret, count: &count)
+    try checkNativeTools(temporary: temporary, count: &count)
     try checkHarness(root: root, check: { check($0, $1) })
     try checkKernel(root: root, check: { check($0, $1) })
     try checkSpill(root: root, check: { check($0, $1) })
     try checkNetwork(temporary: temporary, count: &count)
     print(
-      "Agent sandbox checks passed: \(count), real commands, file/network/child isolation, environment, limits, process cleanup and invalid input; JavaScript harness API, errors, isolation, permissions and limits"
+      "Agent sandbox checks passed: \(count), real commands, file/network/child isolation, environment, limits, process cleanup and invalid input; JavaScript harness API, errors, isolation, permissions and limits; native tools catalogue, arguments, edits, exact writes, search, jobs and permissions"
     )
   }
 }

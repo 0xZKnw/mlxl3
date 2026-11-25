@@ -8,6 +8,10 @@ enum AgentHarness: String, Codable, CaseIterable, Sendable {
   /// One `javascript` tool: the model writes a short program that calls the same operations
   /// as functions, so one call can explore, edit and test (CodeAct / "code mode").
   case javascript
+  /// Native function calls with flat arguments (deepseek-harness' default executor): `read`,
+  /// `edit`, `write`, `grep`, `glob`, `bash` and the job tools (`AgentTools`). The model
+  /// writes no program; the same host functions do the work.
+  case native
 }
 
 /// The single-tool harness. The model's code runs in macOS's JavaScriptCore shell (`jsc`,
@@ -286,7 +290,7 @@ enum AgentJavaScript {
 
     /// One line per job that ended since the last call and was not read: the next result
     /// carries it (Unharnessed's `[bash-done …]`).
-    func notices() -> [String] {
+    func notices(native: Bool = false) -> [String] {
       lock.lock()
       defer { lock.unlock() }
       var lines: [String] = []
@@ -297,7 +301,8 @@ enum AgentJavaScript {
         let seconds = Int(((job.watcher.endedAt ?? job.started) - job.started).rounded())
         let command = job.command.count > 80 ? String(job.command.prefix(77)) + "..." : job.command
         lines.append(
-          "[job \(id) finished: status \(result.status) after \(seconds) s] \(command) (wait(\(id)) shows its output)")
+          "[job \(id) finished: status \(result.status) after \(seconds) s] \(command) "
+            + (native ? "(job_output with job_id \(id) shows its output)" : "(wait(\(id)) shows its output)"))
       }
       return lines
     }
@@ -404,12 +409,17 @@ enum AgentJavaScript {
     /// Runs `code` with the host functions `permissions` allow. Never throws for model errors:
     /// they are part of the outcome the model reads.
     /// `text` is the call's `text` argument: the program reads it as the variable `text`.
+    /// `tool` is a native call (`AgentTools`): the kernel runs the app's own function of that
+    /// name with these arguments as data, and `code` is not read.
     func run(
-      code: String, text: String? = nil, permissions: AgentPermissions, settings: Settings = Settings()
+      code: String, text: String? = nil, tool: (name: String, arguments: [String: Any])? = nil,
+      permissions: AgentPermissions, settings: Settings = Settings()
     ) throws -> Outcome {
-      guard !code.isEmpty, code.utf8.count <= maximumCode, !code.contains("\0") else {
-        return code.utf8.count > maximumCode
-          ? tooLarge(code.utf8.count) : Outcome(text: "Error: the code is empty or contains NUL.", isError: true)
+      if tool == nil {
+        guard !code.isEmpty, code.utf8.count <= maximumCode, !code.contains("\0") else {
+          return code.utf8.count > maximumCode
+            ? tooLarge(code.utf8.count) : Outcome(text: "Error: the code is empty or contains NUL.", isError: true)
+        }
       }
       if let text, text.utf8.count > maximumFileBytes { return textTooLarge(text.utf8.count) }
       guard settings.wall.isFinite, (1...longestWall).contains(settings.wall) else {
@@ -430,7 +440,9 @@ enum AgentJavaScript {
       }
       guard FileManager.default.isExecutableFile(atPath: engine) else {
         return Outcome(
-          text: "Error: JavaScriptCore (jsc) is not available on this Mac; use the structured tools.",
+          text: tool == nil
+            ? "Error: JavaScriptCore (jsc) is not available on this Mac; use the structured tools."
+            : "Error: the tool runtime (JavaScriptCore, jsc) is not available on this Mac.",
           isError: true)
       }
       signal(SIGPIPE, SIG_IGN)
@@ -450,7 +462,10 @@ enum AgentJavaScript {
       }
       if process == nil { try startProcess() }
       if lost {
-        notes.append("the JavaScript kernel had stopped and was restarted: `$` and what was kept in it are gone; `state` was kept")
+        // A native call keeps nothing in the kernel: nothing to tell the model.
+        if tool == nil {
+          notes.append("the JavaScript kernel had stopped and was restarted: `$` and what was kept in it are gone; `state` was kept")
+        }
         lost = false
       }
       guard let process else { throw POSIXError(.EIO) }
@@ -459,6 +474,10 @@ enum AgentJavaScript {
         "persist": settings.stateFile != nil,
       ]
       if let text { request["text"] = text }
+      if let tool {
+        request["tool"] = tool.name
+        request["args"] = tool.arguments
+      }
       var diagnostics = Data()
       var finished: [String: Any]?
       var failure: String?
@@ -518,7 +537,7 @@ enum AgentJavaScript {
         ]
         _ = poll(&descriptors, 2, 20)
       }
-      let finishedJobs = jobs.notices()
+      let finishedJobs = jobs.notices(native: tool != nil)
       if let finished {
         var warnings = notes
         if let file = settings.stateFile {
@@ -532,7 +551,7 @@ enum AgentJavaScript {
             warnings.append("state was not saved: \((finished["stateError"] as? String) ?? "it is not a JSON object")")
           }
         }
-        let result = outcome(finished, warnings: warnings)
+        let result = outcome(finished, warnings: warnings, plain: tool != nil)
         return finishedJobs.isEmpty
           ? result : Outcome(text: result.text + "\n" + finishedJobs.joined(separator: "\n"), isError: result.isError)
       }
@@ -542,8 +561,10 @@ enum AgentJavaScript {
       let detail = String(decoding: diagnostics, as: UTF8.self).trimmingCharacters(
         in: .whitespacesAndNewlines)
       if !detail.isEmpty { text += "\n" + String(detail.prefix(600)) }
-      text += "\nThe JavaScript kernel was restarted: `$` is empty again"
-        + (settings.stateFile != nil ? "; `state` keeps its value from before this call." : ".")
+      if tool == nil {
+        text += "\nThe JavaScript kernel was restarted: `$` is empty again"
+          + (settings.stateFile != nil ? "; `state` keeps its value from before this call." : ".")
+      }
       if !notes.isEmpty { text += "\n" + notes.map { "warning: " + $0 }.joined(separator: "\n") }
       if !finishedJobs.isEmpty { text += "\n" + finishedJobs.joined(separator: "\n") }
       return Outcome(text: text, isError: true)
@@ -567,7 +588,8 @@ enum AgentJavaScript {
     private var history: [(code: String, text: String)] = []
     private var errors: [String] = []
 
-    mutating func note(code: String, text: String? = nil, outcome: Outcome) -> String? {
+    /// `call`: the key is a native call (tool name and arguments), not a program.
+    mutating func note(code: String, text: String? = nil, outcome: Outcome, call: Bool = false) -> String? {
       // The same code with another `text` is another program (the text itself is not kept).
       let key = code.split(whereSeparator: \.isWhitespace).joined(separator: " ")
         + (text.map { "\u{0}\($0.utf8.count):\($0.hashValue)" } ?? "")
@@ -581,7 +603,7 @@ enum AgentJavaScript {
           ?? outcome.text).components(separatedBy: "\nCompleted before the error:")[0] : ""
       errors = outcome.isError ? (errors.last == error ? errors : []) + [error] : []
       if same >= 2 {
-        return "Note: this exact program has now run \(same + 1) times with the same result. Do not run it again: use the result above, or change the approach."
+        return "Note: this exact \(call ? "call has now been made" : "program has now run") \(same + 1) times with the same result. Do not \(call ? "make" : "run") it again: use the result above, or change the approach."
       }
       if errors.count >= 3 {
         return "Note: the same error \(errors.count) times in a row. Change the approach instead of retrying the same fix."
@@ -590,25 +612,32 @@ enum AgentJavaScript {
     }
   }
 
-  static func outcome(_ message: [String: Any], warnings: [String] = []) -> Outcome {
+  /// `plain` (a native tool call): the tool's own text first, then its warnings; no
+  /// "Result:" label and no list of completed functions, which are the tool's inner steps.
+  static func outcome(_ message: [String: Any], warnings: [String] = [], plain: Bool = false) -> Outcome {
     var parts: [String] = []
     let logs = ((message["logs"] as? [String]) ?? []) + warnings.map { "warning: " + $0 }
-    if !logs.isEmpty { parts.append(logs.joined(separator: "\n")) }
+    if !plain, !logs.isEmpty { parts.append(logs.joined(separator: "\n")) }
     let error = message["error"] as? String
-    if let value = message["value"] as? String { parts.append("Result:\n" + value) }
+    if let value = message["value"] as? String { parts.append(plain ? value : "Result:\n" + value) }
     if let error {
       parts.append("Error: " + error)
       // The error names the failed call; list the ones that completed (their effects stay).
       let calls = ((message["calls"] as? [String]) ?? []).filter { !$0.hasPrefix("FAILED ") }
-      if !calls.isEmpty {
+      if !plain, !calls.isEmpty {
         parts.append("Completed before the error: " + calls.suffix(20).joined(separator: ", "))
       }
     }
+    if plain, !logs.isEmpty { parts.append(logs.joined(separator: "\n")) }
     if parts.isEmpty {
-      parts.append("Done, without output: `return` a value or console.log to see results.")
+      parts.append(plain ? "Done." : "Done, without output: `return` a value or console.log to see results.")
     }
     var text = parts.joined(separator: "\n")
     let bytes = Data(text.utf8)
+    // A native `bash` result is a command's output, already cut by the host to 8 + 24 KiB
+    // around the line naming the file that holds all of it, then its exit code: room for
+    // those lines, or this cut (same sizes, same place) would remove exactly that line.
+    let maximumText = plain ? maximumText + 2048 : maximumText
     if bytes.count > maximumText {
       // Start and end: a result, an error or a command summary comes last.
       let head = AgentSandbox.utf8Prefix(bytes.prefix(maximumText / 4))
@@ -758,11 +787,19 @@ enum AgentJavaScript {
       guard path == "." || AgentSandbox.validPath(path) else {
         return failure("use a relative path inside the project")
       }
+      // The native `grep` tool's file-name filter: one `--include` per alternative.
+      var filters = ""
+      if args.count > 2 {
+        guard let include = text(2), let globs = includeGlobs(include) else {
+          return failure("include must be a file-name glob such as *.py or *.{js,ts} (no folder: put it in path)")
+        }
+        filters = globs.map { " --include=" + quote($0) }.joined()
+      }
       // No pipe: the status line carries grep's own exit status (a pipe reports the last
       // command's), and the output limit stops a large search early.
       guard
         let result = sandboxed(
-          "/usr/bin/grep -rnIE --exclude-dir=.git -m \(searchPerFile) -e \(quote(pattern)) -- \(quote(path)); printf '\\n\\036\(searchStatus)%d\\n' \"$?\"",
+          "/usr/bin/grep -rnIE --exclude-dir=.git\(filters) -m \(searchPerFile) -e \(quote(pattern)) -- \(quote(path)); printf '\\n\\036\(searchStatus)%d\\n' \"$?\"",
           limit: searchBytes)
       else { return failure("the sandbox is unavailable") }
       return searchReply(
@@ -939,6 +976,22 @@ enum AgentJavaScript {
     }
   }
 
+  /// The file-name globs of a `grep` filter: `*.py` → itself, `*.{js,ts}` → `*.js`, `*.ts`
+  /// (one brace group; grep's own `--include` has no alternation). Nil: not a file-name glob.
+  static func includeGlobs(_ include: String) -> [String]? {
+    guard !include.isEmpty, include.utf8.count <= 256, !include.contains("/"), !include.hasPrefix("!"),
+      !include.unicodeScalars.contains(where: { $0.value < 32 || $0.value == 127 })
+    else { return nil }
+    guard let open = include.firstIndex(of: "{") else { return include.contains("}") ? nil : [include] }
+    guard let close = include[open...].firstIndex(of: "}") else { return nil }
+    let head = include[..<open], tail = include[include.index(after: close)...]
+    let parts = include[include.index(after: open)..<close].split(separator: ",", omittingEmptySubsequences: false)
+    guard !tail.contains("{"), !tail.contains("}"), !parts.contains(where: { $0.contains("{") }),
+      (1...16).contains(parts.count), !parts.contains(where: \.isEmpty)
+    else { return nil }
+    return parts.map { String(head) + String($0) + String(tail) }
+  }
+
   static let searchMatches = 200
   static let searchPerFile = 50
   static let searchBytes = 64 * 1024
@@ -1088,9 +1141,10 @@ enum AgentJavaScript {
           permissions.commandSeconds = seconds
           permissions.internet = request["internet"] as? Bool == true
           permissions.internetHosts = AgentNetwork.parseHosts(((request["hosts"] as? [String]) ?? []).joined(separator: ","))
+          let tool = (request["tool"] as? String).map { (name: $0, arguments: (request["args"] as? [String: Any]) ?? [:]) }
           outcome =
             (try? kernel.run(
-              code: code, text: request["text"] as? String, permissions: permissions,
+              code: code, text: request["text"] as? String, tool: tool, permissions: permissions,
               settings: Settings(wall: wall, stateFile: stateFile,
                 commandFolder: (request["commandFolder"] as? String).map { URL(fileURLWithPath: $0) })))
             ?? Outcome(text: "Error: the JavaScript sandbox refused the call.", isError: true)
@@ -1196,6 +1250,8 @@ enum AgentJavaScript {
       }
       const logs = [], calls = [];
       let logSize = 0, callCount = 0, persist = false;
+      // A native tool call (`request.tool`): messages name tools and arguments, not functions.
+      let nativeMode = false;
       // `state` goes back to the host with every finished call (also after an error).
       const finish = (fields) => {
         const message = Object.assign({ done: true, logs, calls }, fields);
@@ -1344,7 +1400,8 @@ enum AgentJavaScript {
           if (value > score) { score = value; best = index; }
         }
         if (best < 0 || score < 0.5) {
-          return "the text to find is not in " + path + " and nothing is close; view() or search() the current text";
+          return "the text to find is not in " + path + " and nothing is close; "
+            + (nativeMode ? "read or grep the current text" : "view() or search() the current text");
         }
         const first = Math.max(1, best - 1);
         return "the text to find is not in " + path + ". Closest lines:\n"
@@ -1366,7 +1423,8 @@ enum AgentJavaScript {
           const lines = matches.slice(0, 10).map((match) => lineOf(source, match.start));
           throw hostError(Error, name + ": the text to find occurs " + matches.length + " times in " + path
             + " (lines " + lines.join(", ") + (matches.length > 10 ? ", ..." : "")
-            + "); include more surrounding text, or pass true to replace every occurrence");
+            + "); include more surrounding text, or "
+            + (nativeMode ? "set replace_all to true" : "pass true") + " to replace every occurrence");
         }
         // A line match replaces whole lines: its final newline stays in the file, and a
         // "\r\n" file keeps its line endings.
@@ -1502,6 +1560,110 @@ enum AgentJavaScript {
         kill: (id) => host("kill", [jobId(id)], "kill(" + jobId(id) + ")"),
       };
 
+      // Native tools (`AgentTools`, deepseek-harness' base set): the app's own functions over
+      // the same host operations. Their arguments arrive as data, checked by the server; the
+      // model writes no code. Each returns the text the model reads.
+      const clip = (value) => value.length <= 35000 ? value : value.slice(0, 8000) + "\n[... "
+        + (value.length - 33000) + " characters of the result omitted ...]\n" + value.slice(-25000);
+      const plural = (count, word) => count + " " + word + (count === 1 ? "" : "s");
+      const jobText = (job) => {
+        // The cut marker names the JavaScript functions; a tool call names the tools.
+        let shown = plainOutput(String(job.output ?? ""))
+          .replace(": view(path, offset) or search(regex, path) ...]", ": read it with offset and limit, or grep it ...]");
+        if (shown && !shown.endsWith("\n")) shown += "\n";
+        return shown;
+      };
+      const jobState = (job) => job.running
+        ? "[job " + job.id + " still running after " + job.seconds + " s]"
+        : "[job " + job.id + (job.stopped ? " stopped" : " finished") + " after " + job.seconds + " s; exit code: " + job.status + "]";
+      const tools = {
+        read: (a) => {
+          const offset = a.offset ?? 1, limit = a.limit ?? 200;
+          const source = host("read", [a.file_path], "read");
+          if (source === "") return "(" + a.file_path + " is empty)";
+          const lines = splitLines(source), total = lines.length;
+          if (offset > total) throw hostError(Error, "read: " + a.file_path + " has " + plural(total, "line"));
+          const end = Math.min(total, offset - 1 + Math.min(limit, 2000));
+          let shown = numbered(lines.slice(offset - 1, end), offset);
+          if (offset > 1 || end < total) {
+            shown += "\n(lines " + offset + "-" + end + " of " + total
+              + (end < total ? "; read again with offset " + (end + 1) + " for more" : "") + ")";
+          }
+          return shown;
+        },
+        write: (a) => {
+          host("write", [a.file_path, a.content], "write");
+          checkJSON(a.file_path, a.content, "write");
+          return "Wrote " + a.file_path + " (" + plural(a.content === "" ? 0 : splitLines(a.content).length, "line") + ").";
+        },
+        edit: (a) => {
+          if (a.old_string === a.new_string) {
+            throw hostError(Error, "edit: old_string and new_string are the same, nothing would change");
+          }
+          const source = host("read", [a.file_path], "edit");
+          const edited = change(a.file_path, source, a.old_string, a.new_string, a.replace_all === true, "edit");
+          host("write", [a.file_path, edited.text], "edit");
+          checkJSON(a.file_path, edited.text, "edit");
+          return "Edited " + a.file_path + ": " + plural(edited.count, "replacement") + ", first at line " + edited.line
+            + ".\n" + around(edited.text, edited.line, splitLines(a.new_string).length);
+        },
+        grep: (a) => {
+          const args = [a.pattern, a.path ?? "."];
+          if (a.include !== undefined) args.push(a.include);
+          const matches = host("search", args, "grep");
+          return matches.length
+            ? matches.map((match) => match.path + ":" + match.line + ": " + match.text).join("\n") : "No matches.";
+        },
+        glob: (a) => {
+          const pattern = a.pattern.replace(/^\.\//, "");
+          const folder = (a.path ?? "").replace(/^\.\//, "").replace(/\/+$/, "");
+          const inside = folder && folder !== "." ? folder + "/" : "";
+          const matcher = globPattern(pattern), names = !pattern.includes("/");
+          const found = host("list", [], "glob")
+            .filter((path) => path.startsWith(inside))
+            .filter((path) => {
+              const rest = path.slice(inside.length);
+              return matcher.test(names ? rest.slice(rest.lastIndexOf("/") + 1) : rest);
+            });
+          if (!found.length) return "No files match.";
+          if (found.length > 500) warn("glob: " + found.length + " matches; the first 500 are listed, narrow the pattern");
+          return found.slice(0, 500).join("\n");
+        },
+        bash: (a) => {
+          if (a.run_in_background === true) {
+            const id = host("spawn", [a.command], "bash");
+            return "Started background job " + id + ": job_output with job_id " + id + " reads its output, job_kill stops it.";
+          }
+          const result = host("run", [a.command], "bash");
+          const shown = jobText(result);
+          if (result.job !== undefined) {
+            return shown + "[still running: it continues as background job " + result.job
+              + "; job_output with job_id " + result.job + " reads it (wait: true blocks until it ends), job_kill stops it]";
+          }
+          return shown + (result.stopped ? "[stopped by the time or output limit] " : "") + "[exit code: " + result.status + "]";
+        },
+        job_output: (a) => {
+          const job = host("wait", a.wait === true ? [a.job_id] : [a.job_id, 0], "job_output");
+          return jobText(job) + jobState(job);
+        },
+        job_list: () => {
+          const jobs = host("jobs", [], "job_list");
+          return jobs.length ? jobs.map((job) => jobState(job) + " " + job.command).join("\n") : "No background jobs.";
+        },
+        job_kill: (a) => {
+          const job = host("kill", [a.job_id], "job_kill");
+          return jobText(job) + jobState(job);
+        },
+        fetch: (a) => {
+          const page = host("fetch", [a.url], "fetch");
+          return "HTTP " + page.status + " " + page.type + " " + page.url + "\n\n" + page.text;
+        },
+        download: (a) => {
+          const saved = host("download", [a.url, a.file_path], "download");
+          return "Saved " + plural(saved.bytes, "byte") + " to " + a.file_path + " (HTTP " + saved.status + ", " + saved.url + ").";
+        },
+      };
+
       // The kernel serves calls one after the other: `$` and everything kept in it survive
       // until the kernel stops (Unharnessed's persistent REPL); `state` comes from the host.
       globalThis.$ = {};
@@ -1541,6 +1703,21 @@ enum AgentJavaScript {
           }
           return line;
         };
+        // A native tool call: no code to compile, one finished message.
+        nativeMode = typeof request.tool === "string";
+        if (nativeMode) {
+          let reply;
+          try {
+            if (!Object.prototype.hasOwnProperty.call(tools, request.tool)) {
+              throw hostError(Error, "there is no tool named " + request.tool);
+            }
+            const given = request.args;
+            reply = { value: clip(String(tools[request.tool](given && typeof given === "object" ? given : {}))) };
+          } catch (error) { reply = { error: describe(error) }; }
+          finish(reply);
+          Promise.resolve().then(serveNext);
+          return;
+        }
         // A program that does not compile. jsc counts its lines after the two-line function
         // header and names the prelude as their source, so `describe` would drop the line. A
         // long literal that ended early (a backtick inside a file's content) is the usual

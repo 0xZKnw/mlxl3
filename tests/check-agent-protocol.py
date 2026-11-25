@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
         payload = raw if raw is not None else ''.join(json.dumps(item) + '\n' for item in messages)
         arguments = [helper, '--agent-tools', str(root)]
         if permissions is None:
-            permissions = {'harness': 'tools'}
+            permissions = {'toolHarness': 'tools'}
         if permissions is not False:
             envelope = {'permissions': permissions}
             if command_turn:
@@ -67,7 +67,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
         folder = metadata.parent / 'command-receipts' / turn
         folder.mkdir(parents=True)
         result, responses = exchange([request('tools/call', {'name': name, 'arguments': args})],
-                                     permissions={'harness': harness}, command_turn=turn)
+                                     permissions={'toolHarness': harness}, command_turn=turn)
         check(result.returncode == 0 and len(responses) == 1, f'{harness} returned a tool response')
         recorded = [json.loads(path.read_text()) for path in folder.iterdir()]
         check(recorded == [{'testCommand': False, 'outcome': 'failure'}],
@@ -98,7 +98,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     for path in ('../outside.txt', '/tmp/outside.txt', '.git/config', 'a/../outside', 'bad\nname'):
         _, responses = exchange([request('tools/call', {'name': 'write_file', 'arguments': {'path': path, 'content': 'no'}})])
         check(responses[0]['result']['isError'], 'Unsafe structured path refused')
-    policy = {'read': True, 'write': False, 'run': True, 'commandSeconds': 2, 'harness': 'tools'}
+    policy = {'read': True, 'write': False, 'run': True, 'commandSeconds': 2, 'toolHarness': 'tools'}
     _, responses = exchange([
         request('tools/list'),
         request('tools/call', {'name': 'write_file', 'arguments': {'path': 'refused.txt', 'content': 'BAD'}}, 2),
@@ -114,13 +114,17 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     # Without saved permissions (and for project.json files older than the harness field) the
     # helper uses the default harness.
     _, responses = exchange([request('tools/list')], permissions=False)
-    check([tool['name'] for tool in responses[0]['result']['tools']] == ['javascript'], 'Default harness is JavaScript')
-    _, responses = exchange([request('tools/list')], permissions={'read': True, 'write': True, 'run': True, 'commandSeconds': 5})
-    check([tool['name'] for tool in responses[0]['result']['tools']] == ['javascript'], 'Legacy permissions use the default harness')
+    native_names = ['read', 'edit', 'write', 'grep', 'glob', 'bash', 'job_output', 'job_list', 'job_kill']
+    check([tool['name'] for tool in responses[0]['result']['tools']] == native_names + ['fetch', 'download'], 'Default harness is the native tools')
+    _, responses = exchange([request('tools/list')], permissions={'read': True, 'write': True, 'run': True, 'commandSeconds': 5, 'internet': False})
+    check([tool['name'] for tool in responses[0]['result']['tools']] == native_names, 'Legacy permissions use the default harness')
+    # A project.json written before the native tools named `harness`: that key is no longer read.
+    _, responses = exchange([request('tools/list')], permissions={'harness': 'javascript', 'internet': False})
+    check([tool['name'] for tool in responses[0]['result']['tools']] == native_names, 'The earlier harness key does not keep a workspace on JavaScript')
 
     # Single-tool JavaScript harness through the real MCP helper.
     # Explicitly offline: Internet is on by default since the open sandbox (2026-11-23).
-    js_policy = {'read': True, 'write': True, 'run': True, 'commandSeconds': 3, 'harness': 'javascript', 'internet': False}
+    js_policy = {'read': True, 'write': True, 'run': True, 'commandSeconds': 3, 'toolHarness': 'javascript', 'internet': False}
     _, responses = exchange([request('tools/list')], permissions=js_policy)
     tools = responses[0]['result']['tools']
     check([tool['name'] for tool in tools] == ['javascript'], 'JavaScript harness exposes one tool')
@@ -144,7 +148,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
         result, responses = exchange([request('tools/call', params)], permissions=js_policy)
         check(result.returncode == 0 and responses[0]['result']['isError'], f'Refused under the JavaScript harness: {params["name"]}')
     check(not (root / 'crossed.txt').exists(), 'Structured tools cannot run under the JavaScript harness')
-    tools_policy = dict(js_policy, harness='tools')
+    tools_policy = dict(js_policy, toolHarness='tools')
     _, responses = exchange([request('tools/list'), request('tools/call', {'name': 'javascript', 'arguments': {'code': "write('crossed.txt', 'BAD')"}}, 2)], permissions=tools_policy)
     check('javascript' not in [tool['name'] for tool in responses[0]['result']['tools']] and responses[1]['result']['isError'] and not (root / 'crossed.txt').exists(), 'JavaScript refused under the structured harness')
     _, responses = exchange([request('tools/list')], permissions=dict(js_policy, read=False, write=False, run=False))
@@ -250,7 +254,7 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     text = responses[0]['result']['content'][0]['text']
     check(text == 'Result:\n[\n  0,\n  false,\n  true,\n  true\n]' and (root / 'run-done.txt').read_text() == 'FINISHED\n', f'JavaScript run() finishes a talkative command: {text!r}')
     (root / 'run-done.txt').unlink()
-    _, responses = exchange([request('tools/call', {'name': 'run', 'arguments': {'command': chatty}}, 1)], permissions=dict(js_policy, harness='tools'))
+    _, responses = exchange([request('tools/call', {'name': 'run', 'arguments': {'command': chatty}}, 1)], permissions=dict(js_policy, toolHarness='tools'))
     text = responses[0]['result']['content'][0]['text']
     check(not responses[0]['result']['isError'] and text.endswith('tests: 42 passed\n\nExit status: 0') and 'bytes of output omitted' in text
           and text.startswith('line-0-') and (root / 'run-done.txt').exists(), f'Structured run finishes a talkative command: {text[:80]!r}…{text[-80:]!r}')
@@ -263,9 +267,12 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
           f"state kept between calls, outside the workspace: {second[0]['result']['content'][0]['text']!r}")
     _, listed = exchange([request('tools/list')], permissions=dict(js_policy, commandSeconds=17), long_calls=True)
     _, fresh = exchange([request('tools/list')], permissions=False)
-    long_description, fresh_description = listed[0]['result']['tools'][0]['description'], fresh[0]['result']['tools'][0]['description']
+    long_description = listed[0]['result']['tools'][0]['description']
+    # A task without saved permissions has the native tools (the JavaScript description of a
+    # call without kept state is checked in agent-sandbox-check.swift).
+    fresh_tools = {tool['name']: tool['description'] for tool in fresh[0]['result']['tools']}
     check('Limits per call: 20 s' in long_description and '`$` keeps any value between calls' in long_description and '`state` is also kept on disk' in long_description
-          and 'Each call starts fresh.' in fresh_description and 'Limits per call: 10 s' in fresh_description, 'Call wall and state stated in the description')
+          and 'still running after 5 s' in fresh_tools['bash'], 'Call wall and state stated in the description')
     _, unchanged = exchange([request('tools/list')], permissions=dict(js_policy, commandSeconds=17))
     check('Limits per call: 10 s' in unchanged[0]['result']['tools'][0]['description'], 'Without long calls the wall stays 10 s')
     # Internet through the host: offered only with the setting, refused before any request.
@@ -284,8 +291,8 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
           and refused[1]['result']['isError'] and 'only https' in refused[1]['result']['content'][0]['text']
           and refused[2]['result']['content'][0]['text'] == 'Result:\nfunction'
           and hidden[0]['result']['content'][0]['text'] == 'Result:\nundefined', 'Internet refusals and visibility through MCP')
-    check('fetch(url: string)' in fresh_description and 'allowed hosts (*)' in fresh_description
-          and 'with Internet (curl, git clone, pip, npm)' in fresh_description, 'Internet on by default for a new task')
+    check('allowed hosts (*)' in fresh_tools['fetch'] and 'download' in fresh_tools
+          and 'with Internet (curl, git clone, pip, npm)' in fresh_tools['bash'], 'Internet on by default for a new task')
     # Commands get the network with Internet only, through both harnesses' production paths
     # (supervisor `net:` argument, `--agent-command ... tail+net`): a local listener, no Internet.
     listener = socket.socket()
@@ -299,9 +306,9 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
                              permissions=online)
         _, js_off = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return run(%s).output' % json.dumps(probe)}}, 1)],
                              permissions=js_policy)
-        _, tools_net = exchange([request('tools/call', {'name': 'run', 'arguments': {'command': probe}}, 1)], permissions={'harness': 'tools'})
+        _, tools_net = exchange([request('tools/call', {'name': 'run', 'arguments': {'command': probe}}, 1)], permissions={'toolHarness': 'tools'})
         _, tools_off = exchange([request('tools/call', {'name': 'run', 'arguments': {'command': probe}}, 1)],
-                                permissions={'harness': 'tools', 'internet': False})
+                                permissions={'toolHarness': 'tools', 'internet': False})
     finally:
         listener.close()
     texts = [r[0]['result']['content'][0]['text'] for r in (js_net, js_off, tools_net, tools_off)]
@@ -439,11 +446,13 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
         if child is not None:
             try:
                 os.killpg(child, signal.SIGKILL)
-            except ProcessLookupError:
+            except (ProcessLookupError, PermissionError):
+                # Best-effort cleanup after the assertion. macOS answers EPERM, not ESRCH, for a
+                # group whose remaining members are dead but not reaped yet (hosted runner).
                 pass
 
     # The trusted command supervisor must clean up even if its MCP parent is killed.
-    metadata.write_text(json.dumps({'permissions': {'harness': 'tools'}}))
+    metadata.write_text(json.dumps({'permissions': {'toolHarness': 'tools'}}))
     transport = subprocess.Popen([helper, '--agent-tools', str(root), str(metadata)], stdin=subprocess.PIPE,
                                  stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
     child = None
@@ -475,7 +484,184 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
         if child is not None:
             try:
                 os.killpg(child, signal.SIGKILL)
-            except ProcessLookupError:
+            except (ProcessLookupError, PermissionError):
+                # Best-effort cleanup after the assertion. macOS answers EPERM, not ESRCH, for a
+                # group whose remaining members are dead but not reaped yet (hosted runner).
                 pass
 
-print(f'Agent protocol checks passed: {checks}, real MCP commands, errors, bounded input and parent-death cleanup; JavaScript harness tools, cross-harness refusal and cleanup')
+    # Native tools (deepseek-harness' base set) through the real MCP helper: one server keeps
+    # its kernel, so background jobs and the repeat reminder span the calls.
+    native_policy = {'read': True, 'write': True, 'run': True, 'commandSeconds': 3, 'toolHarness': 'native', 'internet': False}
+    native_root = root / 'native'
+    (native_root / 'src').mkdir(parents=True)
+    (native_root / 'src/app.py').write_text('def add(a, b):\n    return a - b\n')
+
+    def native(calls, permissions=None, **options):
+        messages = [request('tools/call', {'name': name, 'arguments': arguments}, index + 1)
+                    for index, (name, arguments) in enumerate(calls)]
+        result, responses = exchange(messages, permissions=permissions or native_policy, **options)
+        check(result.returncode == 0 and len(responses) == len(calls), f'native server answered every call: {result.stderr[-300:]!r}')
+        return [(row['result']['isError'], row['result']['content'][0]['text']) for row in responses]
+
+    _, responses = exchange([request('tools/list')], permissions=native_policy)
+    tools = responses[0]['result']['tools']
+    check([tool['name'] for tool in tools] == native_names, 'Native harness catalogue')
+    check(all(tool['inputSchema']['type'] == 'object' and set(tool['inputSchema']['required']) <= set(tool['inputSchema']['properties'])
+              and tool['description'] for tool in tools), 'Native tools have flat object schemas')
+    check({tool['name']: tool['inputSchema']['required'] for tool in tools}['edit'] == ['file_path', 'old_string', 'new_string'],
+          'edit takes the text to replace and its replacement as arguments')
+    check('without network' in tools[5]['description'] and 'still running after 3 s' in tools[5]['description'], 'bash states this task\'s limits')
+    # Content a JavaScript literal would break crosses one JSON layer and lands byte for byte.
+    hostile = '#!/usr/bin/env python3\n# R to reset\ns = `${y}` + \'\'\'t\'\'\' + "\\n\\t\\\\" + \'\\u00e9\'\r\nprint(f"{s}")  # é 👩\u200d💻\n'
+    absolute = str(native_root.resolve() / 'src/app.py')
+    rows = native([
+        ('write', {'file_path': 'native/gen/game.py', 'content': hostile}),
+        ('read', {'file_path': 'native/src/app.py'}),
+        ('edit', {'file_path': './native/src/app.py', 'old_string': 'return a - b', 'new_string': 'return a + b  # "fixed" \\o/'}),
+        ('grep', {'pattern': 'return a [+] b', 'path': 'native', 'include': '*.py'}),
+        ('glob', {'pattern': '*.py', 'path': 'native'}),
+        ('bash', {'command': 'cd native && python3 -c "import sys; sys.path.insert(0, \'src\'); import app; print(app.add(2, 3))"'}),
+        ('bash', {'command': 'echo to-stderr >&2; exit 7'}),
+        ('read', {'file_path': absolute}),
+    ])
+    check(rows[0][0] is False and rows[0][1].startswith('Wrote native/gen/game.py (4 lines).'), f'native write: {rows[0]!r}')
+    check((native_root / 'gen/game.py').read_bytes() == hostile.encode(), 'Native write is byte exact')
+    check(rows[1] == (False, '1| def add(a, b):\n2|     return a - b'), f'native read: {rows[1]!r}')
+    check(rows[2][0] is False and rows[2][1].startswith('Edited native/src/app.py: 1 replacement, first at line 2.'), f'native edit: {rows[2]!r}')
+    check((native_root / 'src/app.py').read_text() == 'def add(a, b):\n    return a + b  # "fixed" \\o/\n', 'Native edit is byte exact')
+    check(rows[3] == (False, 'native/src/app.py:2:     return a + b  # "fixed" \\o/'), f'native grep: {rows[3]!r}')
+    check(sorted(rows[4][1].splitlines()) == ['native/gen/game.py', 'native/src/app.py'], f'native glob: {rows[4]!r}')
+    check(rows[5] == (False, '5\n[exit code: 0]'), f'native bash runs the edited code: {rows[5]!r}')
+    check(rows[6] == (False, 'to-stderr\n[exit code: 7]'), f'native bash failure is a result with its exit code: {rows[6]!r}')
+    check(rows[7][0] is False and rows[7][1].startswith('1| def add(a, b):'), f'absolute path of a project file accepted: {rows[7]!r}')
+    # Background job, then the same call three times: the third result carries the reminder.
+    rows = native([
+        ('bash', {'command': 'echo begun; sleep 1; echo ended', 'run_in_background': True}),
+        ('job_output', {'job_id': 1, 'wait': True}),
+        ('job_list', {}),
+        ('read', {'file_path': 'native/src/app.py', 'limit': 1}),
+        ('read', {'limit': 1, 'file_path': 'native/src/app.py'}),
+        ('read', {'file_path': 'native/src/app.py', 'limit': 1}),
+    ], timeout=30)
+    check(rows[0] == (False, 'Started background job 1: job_output with job_id 1 reads its output, job_kill stops it.'), f'native background job: {rows[0]!r}')
+    check(rows[1][0] is False and rows[1][1].startswith('begun\nended\n[job 1 finished after ') and rows[1][1].endswith('exit code: 0]'), f'native job_output: {rows[1]!r}')
+    check(rows[2][1].startswith('[job 1 finished after ') and 'echo begun' in rows[2][1], f'native job_list: {rows[2]!r}')
+    check('Note:' not in rows[3][1] and 'Note:' not in rows[4][1]
+          and rows[5][1].endswith('Note: this exact call has now been made 3 times with the same result. Do not make it again: use the result above, or change the approach.'),
+          f'native repeat reminder: {rows[5]!r}')
+    # Refusals are answers the model reads; the server stays up and nothing is executed.
+    rows = native([
+        ('javascript', {'code': "write('native/crossed.txt', 'BAD')"}),
+        ('run', {'command': 'printf BAD > native/crossed.txt'}),
+        ('write_file', {'path': 'native/crossed.txt', 'content': 'BAD'}),
+        ('read', {}),
+        ('read', {'file_path': '../outside.txt'}),
+        ('read', {'file_path': '/etc/passwd'}),
+        ('write', {'file_path': 'native/.git/config', 'content': 'BAD'}),
+        ('write', {'file_path': 'native/big.txt', 'content': 'x' * ((1 << 20) + 1)}),
+        ('edit', {'file_path': 'native/src/app.py', 'old_string': 'not in the file at all', 'new_string': 'BAD'}),
+        ('bash', {'command': ''}),
+        ('job_kill', {'job_id': 99}),
+        ('read', {'file_path': 'native/src/app.py'}),
+    ], timeout=30)
+    check(all(row[0] for row in rows[:11]), f'native refusals are errors: {[row for row in rows[:11] if not row[0]]!r}')
+    check(all('there is no tool named' in row[1] and '`read`, `edit`, `write`' in row[1] for row in rows[:3]),
+          f'another harness\'s tool is refused with the catalogue: {rows[0]!r}')
+    check(rows[3][1] == 'Error: read: the `file_path` argument is required', f'missing argument: {rows[3]!r}')
+    check('relative path to a file inside the project' in rows[4][1] and 'relative path to a file inside the project' in rows[5][1]
+          and 'relative path to a file inside the project' in rows[6][1], 'paths outside the project and .git refused')
+    check(rows[7][1] == f'Error: write: `content` is {(1 << 20) + 1} bytes; the limit is {1 << 20}', f'oversized write: {rows[7]!r}')
+    check('the text to find is not in native/src/app.py' in rows[8][1] and 'read or grep' in rows[8][1], f'failed edit explains itself: {rows[8]!r}')
+    check(rows[11][0] is False, 'the server still answers after refusals')
+    check(not (native_root / 'crossed.txt').exists() and not (native_root / 'big.txt').exists() and not (native_root / '.git').exists()
+          and (native_root / 'src/app.py').read_text() == 'def add(a, b):\n    return a + b  # "fixed" \\o/\n', 'Refused native calls changed nothing')
+    result, responses = exchange([request('tools/call', {'name': 'read', 'arguments': ['native/src/app.py']}),
+                                  request('tools/call', {'name': 'job_list'}, 2)], permissions=native_policy)
+    check(result.returncode == 0 and responses[0]['result']['isError'] and responses[1]['result']['content'][0]['text'] == 'No background jobs.',
+          'Arguments that are not an object are refused; a call without arguments is served')
+    # The other harnesses refuse the native names.
+    for policy in (js_policy, tools_policy):
+        result, responses = exchange([request('tools/call', {'name': 'bash', 'arguments': {'command': 'printf BAD > native/crossed.txt'}}),
+                                      request('tools/call', {'name': 'write', 'arguments': {'file_path': 'native/crossed.txt', 'content': 'BAD'}}, 2)],
+                                     permissions=policy)
+        check(result.returncode == 0 and all(row['result']['isError'] for row in responses) and not (native_root / 'crossed.txt').exists(),
+              f'Native tools refused under the {policy["toolHarness"]} harness')
+    # Permissions: catalogue and server both hold.
+    native_readonly = dict(native_policy, write=False, run=False)
+    _, responses = exchange([request('tools/list')], permissions=native_readonly)
+    check([tool['name'] for tool in responses[0]['result']['tools']] == ['read', 'grep', 'glob'], 'Read-only native catalogue')
+    rows = native([
+        ('write', {'file_path': 'native/denied.txt', 'content': 'BAD'}),
+        ('edit', {'file_path': 'native/src/app.py', 'old_string': 'add', 'new_string': 'BAD'}),
+        ('bash', {'command': 'printf BAD > native/denied.txt'}),
+        ('read', {'file_path': 'native/src/app.py', 'offset': 2}),
+    ], permissions=native_readonly)
+    check(all(row[0] and 'there is no tool named' in row[1] for row in rows[:3]) and rows[3] == (False, '2|     return a + b  # "fixed" \\o/\n(lines 2-2 of 2)')
+          and not (native_root / 'denied.txt').exists() and 'BAD' not in (native_root / 'src/app.py').read_text(),
+          f'Read-only native task cannot write, edit or run: {rows!r}')
+    _, responses = exchange([request('tools/list')], permissions=dict(native_policy, read=False, write=False, run=False))
+    check(responses[0]['result']['tools'] == [], 'No native tool without any permission')
+    # The real process exit is recorded whatever the command prints, as for the other harnesses.
+    turn = str(uuid.uuid4()).upper()
+    folder = metadata.parent / 'command-receipts' / turn
+    folder.mkdir(parents=True)
+    rows = native([('bash', {'command': 'printf "all tests passed"; exit 4'})], command_turn=turn)
+    check(rows == [(False, 'all tests passed\n[exit code: 4]')]
+          and [json.loads(path.read_text()) for path in folder.iterdir()] == [{'testCommand': False, 'outcome': 'failure'}],
+          f'native bash records the real process exit: {rows!r}')
+    # Network: commands reach a local listener with Internet only.
+    listener = socket.socket()
+    listener.bind(('127.0.0.1', 0))
+    listener.listen(8)
+    try:
+        probe = ("/usr/bin/perl -MIO::Socket::INET -e 'IO::Socket::INET->new(PeerAddr => \"127.0.0.1:%d\", Timeout => 3)"
+                 " or die \"$!\\n\"; print \"CONNECTED\\n\"' 2>&1" % listener.getsockname()[1])
+        native_net = native([('bash', {'command': probe})], permissions=dict(native_policy, internet=True))
+        native_off = native([('bash', {'command': probe})])
+    finally:
+        listener.close()
+    check(native_net == [(False, 'CONNECTED\n[exit code: 0]')] and 'CONNECTED' not in native_off[0][1] and not native_off[0][1].endswith('[exit code: 0]'),
+          f'native bash has the network with Internet only: {native_net!r} {native_off!r}')
+    _, responses = exchange([request('tools/list')], permissions=dict(native_policy, internet=True))
+    check([tool['name'] for tool in responses[0]['result']['tools']] == native_names + ['fetch', 'download'], 'Internet adds fetch and download')
+
+    # A native command must not outlive its MCP parent either (kernel and job stopped).
+    metadata.write_text(json.dumps({'permissions': dict(native_policy, commandSeconds=30)}))
+    transport = subprocess.Popen([helper, '--agent-tools', str(root), str(metadata)], stdin=subprocess.PIPE,
+                                 stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+    child = None
+    try:
+        transport.stdin.write(json.dumps(request('tools/call', {
+            'name': 'bash', 'arguments': {'command': 'echo $$ > native/running.pid; sleep 60'}})) + '\n')
+        transport.stdin.flush()
+        deadline = time.monotonic() + 5
+        while not (native_root / 'running.pid').exists() and time.monotonic() < deadline:
+            time.sleep(0.02)
+        check((native_root / 'running.pid').exists(), 'Native command started before parent-death test')
+        time.sleep(0.1)
+        child = int((native_root / 'running.pid').read_text())
+        transport.kill()
+        transport.wait(timeout=2)
+        deadline = time.monotonic() + 8
+        alive = True
+        while time.monotonic() < deadline:
+            try:
+                os.kill(child, 0)
+            except ProcessLookupError:
+                alive = False
+                break
+            time.sleep(0.02)
+        check(not alive, 'Native sandbox command survived MCP parent death')
+    finally:
+        if transport.poll() is None:
+            transport.kill()
+        transport.communicate(timeout=3)
+        if child is not None:
+            try:
+                os.killpg(child, signal.SIGKILL)
+            except (ProcessLookupError, PermissionError):
+                # Best-effort cleanup after the assertion. macOS answers EPERM, not ESRCH, for a
+                # group whose remaining members are dead but not reaped yet (hosted runner).
+                pass
+
+print(f'Agent protocol checks passed: {checks}, real MCP commands, errors, bounded input and parent-death cleanup; JavaScript harness tools, cross-harness refusal and cleanup; native tools, exact writes, jobs, refusals, permissions, network and cleanup')
