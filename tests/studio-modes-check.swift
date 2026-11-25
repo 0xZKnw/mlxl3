@@ -1039,9 +1039,10 @@ extension StudioModesCheck {
                  ConversationSnapshot(id: active, title: "Active chat", messages: [], createdAt: now)]
     var snapshot = WorkspaceSnapshot(selectedConversationID: active, selectedModelName: nil, conversations: chats,
       temperature: 0, topK: 1, repetitionPenalty: 1, systemPrompt: "")
-    snapshot.labSamples = [row("Atlas", 0, 100, 29, 26.5, firstToken: 2),
-                           row("Birch", 0, 70, 15, 42.5, firstToken: 6),
-                           row("Birch", 14, 192, 10, 67.5, firstToken: 9),
+    // Use distinct three-digit millisecond medians that Vision can read on 1x CI displays.
+    snapshot.labSamples = [row("Atlas", 0, 100, 29, 26.5, firstToken: 0.375),
+                           row("Birch", 0, 70, 15, 42.5, firstToken: 0.875),
+                           row("Birch", 14, 192, 10, 67.5, firstToken: 0.9375),
                            row("Atlas", 45, 316, 35, 92.5), row("Cedar", 45, 10, 0, 0)]
     let file = root.appendingPathComponent("lab-period-switch.json")
     try ConversationStore.write(snapshot, to: file)
@@ -1164,8 +1165,8 @@ extension StudioModesCheck {
     }
     let month = try await expectDisplayed("416", model: "Birch", tokens: "287", average: "55.0", maximum: "67.5")
     expectText("18 tokens", in: month)
-    check(month.contains { $0.text.range(of: #"(?i)\b6\s*s\b"#, options: .regularExpression) != nil },
-      "Expected 6 s for the 30-day median first text, read \(month.map(\.text))")
+    check(month.contains { $0.text.range(of: #"(?i)\b875\s*ms\b"#, options: .regularExpression) != nil },
+      "Expected 875 ms for the 30-day median first text, read \(month.map(\.text))")
     expectText("2 active days", in: month)
     expectText("214 tokens", in: month)
     expectText("361 tokens", in: month)
@@ -1180,8 +1181,8 @@ extension StudioModesCheck {
       let result = try await expectDisplayed(total, model: model, tokens: tokens, average: average, maximum: maximum)
       if title == "Today" {
         expectText("22 tokens", in: result)
-        check(result.contains { $0.text.range(of: #"(?i)\b4\s*s\b"#, options: .regularExpression) != nil },
-          "Expected 4 s for today's median first text, read \(result.map(\.text))")
+        check(result.contains { $0.text.range(of: #"(?i)\b625\s*ms\b"#, options: .regularExpression) != nil },
+          "Expected 625 ms for today's median first text, read \(result.map(\.text))")
         expectText("1 active day", in: result)
       } else {
         expectText("361 tokens", in: result)
