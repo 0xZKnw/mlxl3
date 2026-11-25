@@ -1082,9 +1082,11 @@ struct AgentSandboxCheck {
       "printf in > a.txt; ln a.txt b.txt && cat b.txt; t=/tmp/mlxl3-agent-$$; printf tmp > \"$t\" && cat \"$t\" && rm \"$t\"; echo err > /dev/stderr; rm a.txt b.txt")
     check(inside.status == 0 && inside.output == "intmperr\n", "writes inside the roots: \(inside.output)")
     // Mach services (cfprefsd through `defaults`) and new sessions are no longer refused.
+    // Use the developer Python on the command PATH. The system shim can start Xcode and exhaust this probe's deadline.
     let system = try run(
-      "/usr/bin/defaults read -g >/dev/null && echo MACH; /usr/bin/python3 -c 'import os; os.setsid(); print(\"SESSION\")' 2>&1 | tail -1")
-    check(system.output == "MACH\nSESSION\n", "Mach services and setsid: \(system.output)")
+      #"/usr/bin/defaults read -g >/dev/null && echo MACH && python3 -c 'import os; os.setsid(); print("SESSION")'; exit $?"#)
+    check(system.status == 0 && !system.interrupted && system.output == "MACH\nSESSION\n",
+      "Mach services and setsid: status=\(system.status), interrupted=\(system.interrupted), output=\(system.output.debugDescription)")
     // Network: a local TCP listener (no Internet needed) and a Unix socket outside the copy,
     // like ssh-agent's. TCP only with the setting; Unix sockets always.
     let tcp = socket(AF_INET, SOCK_STREAM, 0)
@@ -1160,7 +1162,8 @@ struct AgentSandboxCheck {
     let probe = Process()
     probe.executableURL = URL(fileURLWithPath: "/usr/bin/xcrun")
     probe.arguments = ["--find", "python3"]
-    probe.standardOutput = FileHandle.nullDevice
+    let pythonPath = Pipe()
+    probe.standardOutput = pythonPath
     probe.standardError = FileHandle.nullDevice
     try probe.run()
     probe.waitUntilExit()
@@ -1206,6 +1209,9 @@ struct AgentSandboxCheck {
       print("Toolchain checks not run: no developer tools on this Mac")
       return
     }
+    let python = String(decoding: pythonPath.fileHandleForReading.readDataToEndOfFile(), as: UTF8.self)
+      .trimmingCharacters(in: .whitespacesAndNewlines)
+    check(python.hasPrefix("/") && FileManager.default.isExecutableFile(atPath: python), "developer Python path: \(python)")
     try Data("int main(void){return 7;}\n".utf8).write(to: root.appendingPathComponent("seven.c"))
     try Data("all:\n\t@echo built\n".utf8).write(to: root.appendingPathComponent("Makefile"))
     for (command, expected) in [
@@ -1233,7 +1239,7 @@ struct AgentSandboxCheck {
     for folder in [inside, outside] {
       let launcher = Process()
       launcher.executableURL = URL(fileURLWithPath: "/usr/bin/sandbox-exec")
-      launcher.arguments = ["-p", "(version 1)(allow default)", "/usr/bin/python3", "-c",
+      launcher.arguments = ["-p", "(version 1)(allow default)", python, "-c",
         "import os, sys; os.chdir(sys.argv[1]); os.posix_spawn('/bin/sleep', ['sleep', '30'], os.environ, setsid=True)",
         folder]
       try launcher.run()
