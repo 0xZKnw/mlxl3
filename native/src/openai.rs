@@ -828,11 +828,28 @@ fn bridge_request(input: &Value, model: &str) -> Result<Value, String> {
     let mut messages = Vec::with_capacity(raw_messages.len());
     for message in raw_messages {
         let role = message["role"].as_str().ok_or("message role is missing")?;
+        // ISSUE-195: OpenAI clients echo `"tool_calls": null` or `[]` (and `"function_call": null`)
+        // on plain text turns; only an actual call is unsupported.
         if !matches!(role, "system" | "user" | "assistant" | "tool")
-            || message.get("tool_calls").is_some()
+            || message
+                .get("tool_calls")
+                .is_some_and(|calls| !calls.is_null() && calls != &json!([]))
+            || message
+                .get("function_call")
+                .is_some_and(|call| !call.is_null())
         {
             return Err("MLXL3 requires text messages without tool calls".into());
         }
+        // ISSUE-195: earlier thinking goes to the chat template verbatim (it trims, as the
+        // reference does) instead of being dropped; elsewhere no template reads it, so reject it.
+        let reasoning = match message.get("reasoning_content") {
+            None | Some(Value::Null) => None,
+            Some(Value::String(text)) if role == "assistant" => Some(text),
+            Some(Value::String(_)) => {
+                return Err("reasoning_content is only supported on assistant messages".into());
+            }
+            Some(_) => return Err("reasoning_content must be a string".into()),
+        };
         #[cfg(feature = "chat")]
         mlxl3_native::vision_input::validate_content(message).map_err(|e| e.to_string())?;
         let content = match &message["content"] {
@@ -846,7 +863,10 @@ fn bridge_request(input: &Value, model: &str) -> Result<Value, String> {
             }
             content => content.clone(),
         };
-        messages.push(json!({"role":role,"content":content}));
+        messages.push(match reasoning {
+            Some(thinking) => json!({"role":role,"content":content,"reasoning_content":thinking}),
+            None => json!({"role":role,"content":content}),
+        });
     }
     let raw_max_tokens = input
         .get("max_completion_tokens")
@@ -1606,6 +1626,274 @@ for line in sys.stdin:
             serde_json::from_slice(&to_bytes(response.into_body()).await.unwrap()).unwrap();
         state.invalidate().await;
         assert_eq!(payload["choices"][0]["finish_reason"], "length");
+    }
+
+    fn history(assistant: serde_json::Value) -> serde_json::Value {
+        json!({"model":"small","messages":[
+            {"role":"user","content":"What is 17 times 23?"}, assistant,
+            {"role":"user","content":"And plus one?"}]})
+    }
+
+    #[test]
+    fn assistant_reasoning_history_reaches_the_bridge_verbatim() {
+        // ISSUE-195: thinking sent back by a client must reach the chat template, not vanish.
+        let thinking = "17 times 23 is 17 times 20 plus 17 times 3, so 391.";
+        let mapped = bridge_request(
+            &history(json!({"role":"assistant","content":"391","reasoning_content":thinking})),
+            "small",
+        )
+        .unwrap();
+        assert_eq!(
+            mapped["messages"][1],
+            json!({"role":"assistant","content":"391","reasoning_content":thinking})
+        );
+        assert_eq!(mapped["messages"].as_array().unwrap().len(), 3);
+        // Verbatim, including empty or padded text: the template trims it, as the reference does.
+        for text in ["", " \n", "\n<b>raw</b> 🦀 </think>\n"] {
+            let mapped = bridge_request(
+                &history(json!({"role":"assistant","content":"391","reasoning_content":text})),
+                "small",
+            )
+            .unwrap();
+            assert_eq!(mapped["messages"][1]["reasoning_content"], text);
+        }
+        for assistant in [
+            json!({"role":"assistant","content":"391"}),
+            json!({"role":"assistant","content":"391","reasoning_content":null}),
+        ] {
+            assert_eq!(
+                bridge_request(&history(assistant), "small").unwrap()["messages"][1],
+                json!({"role":"assistant","content":"391"})
+            );
+        }
+        // Not a string, or on a turn no template reads it from: rejected rather than dropped.
+        for value in [json!(1), json!(true), json!({}), json!(["391"])] {
+            assert!(
+                bridge_request(
+                    &history(json!({"role":"assistant","content":"391","reasoning_content":value})),
+                    "small"
+                )
+                .is_err(),
+                "accepted reasoning_content {value}"
+            );
+        }
+        for role in ["system", "user", "tool"] {
+            let mut request = history(json!({"role":"assistant","content":"391"}));
+            request["messages"][0] = json!({"role":role,"content":"Hi","reasoning_content":"x"});
+            assert!(
+                bridge_request(&request, "small").is_err(),
+                "accepted {role} reasoning"
+            );
+            request["messages"][0]["reasoning_content"] = json!(null);
+            assert!(bridge_request(&request, "small").is_ok(), "rejected {role}");
+        }
+    }
+
+    #[test]
+    fn absent_tool_calls_are_text_and_real_tool_calls_are_rejected() {
+        // ISSUE-195: the OpenAI SDK echoes `"tool_calls": null` or `[]` on plain text turns.
+        for (key, value) in [
+            ("tool_calls", json!(null)),
+            ("tool_calls", json!([])),
+            ("function_call", json!(null)),
+        ] {
+            for role in ["assistant", "user"] {
+                let mut message = json!({"role":role,"content":"391"});
+                message[key] = value.clone();
+                let mapped = bridge_request(&history(message), "small")
+                    .unwrap_or_else(|error| panic!("rejected {role} {key}={value}: {error}"));
+                assert_eq!(mapped["messages"][1], json!({"role":role,"content":"391"}));
+            }
+        }
+        for (key, value) in [
+            (
+                "tool_calls",
+                json!([{"id":"c","type":"function","function":{"name":"f","arguments":"{}"}}]),
+            ),
+            ("tool_calls", json!([null])),
+            ("tool_calls", json!({})),
+            ("tool_calls", json!("none")),
+            ("tool_calls", json!(false)),
+            ("function_call", json!({"name":"f","arguments":"{}"})),
+            ("function_call", json!("auto")),
+        ] {
+            let mut message = json!({"role":"assistant","content":"391"});
+            message[key] = value.clone();
+            assert_eq!(
+                bridge_request(&history(message), "small").unwrap_err(),
+                "MLXL3 requires text messages without tool calls",
+                "{key}={value}"
+            );
+        }
+    }
+
+    #[tokio::test]
+    async fn http_sends_openai_sdk_history_to_the_bridge() {
+        // Real pipes and HTTP/SSE: the bridge echoes the messages it received as its answer.
+        let script = r#"import json,sys
+for line in sys.stdin:
+    r=json.loads(line)
+    print(json.dumps(dict(type='delta', request_id=r['request_id'], phase='answer', text=json.dumps(r['messages']))),flush=True)
+    print(json.dumps(dict(type='complete', request_id=r['request_id'], stop_reason='eos', stats={'prompt_tokens':2,'generated_tokens':1})),flush=True)
+"#;
+        let mut child = Command::new("python3")
+            .args(["-u", "-c", script])
+            .stdin(std::process::Stdio::piped())
+            .stdout(std::process::Stdio::piped())
+            .kill_on_drop(true)
+            .spawn()
+            .unwrap();
+        let state = Arc::new(State {
+            model: "small".into(),
+            api_key: String::new(),
+            bridge_info: json!({}),
+            bridge: Mutex::new(Bridge {
+                stdin: child.stdin.take().unwrap(),
+                stdout: BufReader::new(child.stdout.take().unwrap()),
+            }),
+            child: Arc::new(Mutex::new(child)),
+            admission: Arc::new(Semaphore::new(1)),
+            healthy: AtomicBool::new(true),
+            limits: Limits::default(),
+        });
+        let thinking = "17 times 20 plus 17 times 3";
+        let sent = json!([
+            {"role":"system","content":"Be brief.","tool_calls":null},
+            {"role":"user","content":"What is 17 times 23?"},
+            {"role":"assistant","content":"391","reasoning_content":thinking,
+                "tool_calls":[],"function_call":null},
+            {"role":"user","content":"And plus one?"}]);
+        let expected = json!([
+            {"role":"system","content":"Be brief."},
+            {"role":"user","content":"What is 17 times 23?"},
+            {"role":"assistant","content":"391","reasoning_content":thinking},
+            {"role":"user","content":"And plus one?"}]);
+        let post = |body: serde_json::Value| {
+            let state = state.clone();
+            async move {
+                let response = tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    handle(
+                        Request::builder()
+                            .method("POST")
+                            .uri("/v1/chat/completions")
+                            .body(Body::from(body.to_string()))
+                            .unwrap(),
+                        state,
+                    ),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+                let status = response.status();
+                let body = tokio::time::timeout(
+                    std::time::Duration::from_secs(5),
+                    to_bytes(response.into_body()),
+                )
+                .await
+                .unwrap()
+                .unwrap();
+                (status, String::from_utf8(body.to_vec()).unwrap())
+            }
+        };
+        let (status, body) = post(json!({"model":"small","messages":sent})).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        let payload: serde_json::Value = serde_json::from_str(&body).unwrap();
+        let echoed: serde_json::Value = serde_json::from_str(
+            payload["choices"][0]["message"]["content"]
+                .as_str()
+                .unwrap(),
+        )
+        .unwrap();
+        assert_eq!(echoed, expected);
+        let (status, body) = post(json!({"model":"small","messages":sent,"stream":true})).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert!(body.contains(thinking) && body.contains("[DONE]"), "{body}");
+        // Rejected before inference: the next request still gets its own echo.
+        let mut calls = sent.clone();
+        calls[2]["tool_calls"] =
+            json!([{"id":"c","type":"function","function":{"name":"f","arguments":"{}"}}]);
+        let (status, body) = post(json!({"model":"small","messages":calls})).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST, "{body}");
+        assert!(body.contains("without tool calls"), "{body}");
+        let (status, body) = post(json!({"model":"small","messages":sent})).await;
+        assert_eq!(status, StatusCode::OK, "{body}");
+        assert!(body.contains(thinking), "{body}");
+        state.invalidate().await;
+    }
+
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "requires MLXL3_TOKENIZER_MODEL and local Python transformers; no download"]
+    fn local_transformers_render_openai_history_like_reference() {
+        // ISSUE-195 oracle: the client's raw OpenAI messages through Hugging Face
+        // `apply_chat_template(preserve_thinking=True)`, against this server's mapping and the
+        // bridge's own rendering (`prepare_messages_as`, then the template with no tools).
+        let model = std::env::var("MLXL3_TOKENIZER_MODEL").expect("set MLXL3_TOKENIZER_MODEL");
+        let tokenizer =
+            mlxl3_native::tokenizer::ChatTokenizer::load(std::path::Path::new(&model)).unwrap();
+        let thinking = "17 times 23 is 17 times 20 plus 17 times 3, which is 340 plus 51, so 391.";
+        let cases = [
+            json!([{"role":"user","content":"What is 17 times 23?"},
+                {"role":"assistant","content":"391"},
+                {"role":"user","content":"And plus one?"}]),
+            json!([{"role":"user","content":"What is 17 times 23?"},
+                {"role":"assistant","content":"391","reasoning_content":thinking},
+                {"role":"user","content":"And plus one?"}]),
+            json!([{"role":"system","content":"Be brief.","tool_calls":null},
+                {"role":"user","content":"What is 17 times 23?"},
+                {"role":"assistant","content":"391","reasoning_content":thinking,"tool_calls":[]},
+                {"role":"user","content":"And plus one?"},
+                {"role":"assistant","content":"392","reasoning_content":" \n","tool_calls":null,
+                    "function_call":null},
+                {"role":"user","content":"Thanks."}]),
+        ];
+        let mut lengths = Vec::new();
+        for messages in cases {
+            let output = std::process::Command::new(
+                std::env::var("MLXL3_TEST_PYTHON").unwrap_or("python3".into()),
+            )
+            .env("HF_HUB_OFFLINE", "1")
+            .env("TRANSFORMERS_OFFLINE", "1")
+            .arg("-c")
+            .arg(
+                r#"
+import json, sys
+from transformers import AutoTokenizer
+t = AutoTokenizer.from_pretrained(sys.argv[1], local_files_only=True, trust_remote_code=False)
+prompt = t.apply_chat_template(json.loads(sys.argv[2]), tokenize=False, add_generation_prompt=True, preserve_thinking=True)
+print(json.dumps({'prompt': prompt, 'ids': t.encode(prompt, add_special_tokens=False)}))
+"#,
+            )
+            .arg(&model)
+            .arg(messages.to_string())
+            .output()
+            .unwrap();
+            assert!(
+                output.status.success(),
+                "transformers failed: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let reference: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
+            let mapped =
+                bridge_request(&json!({"model":"small","messages":messages}), "small").unwrap();
+            let (prepared, images) = mlxl3_native::vision_input::prepare_messages_as(
+                mapped["messages"].as_array().unwrap(),
+                None,
+            )
+            .unwrap();
+            assert!(images.is_empty());
+            let prompt = tokenizer
+                .render_values_with_effort(&serde_json::Value::Array(prepared), Some(&[]), None)
+                .unwrap();
+            assert_eq!(prompt, reference["prompt"].as_str().unwrap());
+            let ids = tokenizer.encode(&prompt).unwrap();
+            assert!(!ids.is_empty());
+            assert_eq!(json!(ids), reference["ids"]);
+            lengths.push(ids.len());
+        }
+        // The thinking is really in the prompt, not an empty think block.
+        assert!(lengths[1] > lengths[0], "{lengths:?}");
     }
 }
 
