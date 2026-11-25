@@ -796,6 +796,23 @@ enum AgentSandbox {
               throw Refusal(text: AgentJavaScript.tooLarge(code.utf8.count).text)
             }
             guard !code.isEmpty else { throw Refusal(text: "Error: the code is empty.") }
+            // `text`: a file's content beside the code. A content the engine decoded as JSON
+            // (XML parameters) is written back as JSON: same data, sorted keys, no spacing.
+            var text: String?
+            switch args["text"] {
+            case nil, is NSNull: break
+            case let value as String: text = value
+            case let value?:
+              guard JSONSerialization.isValidJSONObject([value]),
+                let data = try? JSONSerialization.data(
+                  withJSONObject: [value], options: [.sortedKeys, .withoutEscapingSlashes]),
+                let written = String(data: data, encoding: .utf8)
+              else { throw CocoaError(.fileReadCorruptFile) }
+              text = String(written.dropFirst().dropLast())
+            }
+            if let text, text.utf8.count > AgentJavaScript.maximumFileBytes {
+              throw Refusal(text: AgentJavaScript.textTooLarge(text.utf8.count).text)
+            }
             if let current = kernel, !current.process.isRunning {
               kernel = nil
               kernelLost = true
@@ -815,12 +832,13 @@ enum AgentSandbox {
               kernelLines = Data()
             }
             guard let current = kernel else { throw CocoaError(.executableRuntimeMismatch) }
-            let call: [String: Any] = [
+            var call: [String: Any] = [
               "code": code, "read": permissions.read, "write": permissions.write, "run": permissions.run,
               "commandSeconds": permissions.commandSeconds,
               "wall": AgentJavaScript.wall(commandSeconds: permissions.commandSeconds, longCalls: longCalls),
               "internet": permissions.internet, "hosts": permissions.internetHosts,
             ]
+            if let text { call["text"] = text }
             var data = Data()
             do {
               try current.input.write(contentsOf: try JSONSerialization.data(withJSONObject: call) + Data([10]))
@@ -848,7 +866,7 @@ enum AgentSandbox {
                 text: "warning: the JavaScript kernel had stopped and was restarted: `$` and what was kept in it are gone; `state` was kept.\n"
                   + outcome.text, isError: outcome.isError)
             }
-            let note = repeats.note(code: code, outcome: outcome)
+            let note = repeats.note(code: code, text: text, outcome: outcome)
             response["result"] = [
               "content": [["type": "text", "text": outcome.text + (note.map { "\n" + $0 } ?? "")]],
               "isError": outcome.isError,

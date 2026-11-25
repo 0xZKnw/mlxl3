@@ -47,6 +47,13 @@ enum AgentJavaScript {
       isError: true)
   }
 
+  /// The same for the `text` argument, which one `write` must be able to take.
+  static func textTooLarge(_ bytes: Int) -> Outcome {
+    Outcome(
+      text: "Error: `text` is \(bytes) bytes; one call takes at most \(maximumFileBytes) bytes of text (1 MiB). Nothing was run. Write a long file in several calls: write(path, text) for the first part, then write(path, read(path) + text) for each next part.",
+      isError: true)
+  }
+
   /// Per-call settings from the MCP server.
   struct Settings: Sendable {
     /// Wall time of the whole call, host functions included.
@@ -107,7 +114,7 @@ enum AgentJavaScript {
       \(api)
       The JavaScript itself has no direct network, files outside the project, require/import or timers. Limits per call: \(Int(wall)) s, \(maximumCalls) function calls, 32 KiB of output. \(persistent
         ? "`$` keeps any value between calls (emptied if the kernel restarts; a result says so). `state` is also kept on disk (JSON values, \(maximumState / 1024) Ki characters)."
-        : "Each call starts fresh.") Writing is \(permissions.write ? "enabled" : "disabled").
+        : "Each call starts fresh.") Writing is \(permissions.write ? "enabled. A file's content goes in the `text` argument, not in the code: write(path, text) then needs no escaping" : "disabled").
       """
   }
 
@@ -118,7 +125,11 @@ enum AgentJavaScript {
       "code": [
         "type": "string", "maxLength": maximumCode,
         "description": "JavaScript, the body of an async function",
-      ]
+      ],
+      "text": [
+        "type": "string", "maxLength": maximumFileBytes,
+        "description": "Optional raw text (a file's content), read in the code as the variable `text`",
+      ],
     ],
       "required": ["code"], "additionalProperties": false,
     ]
@@ -389,11 +400,15 @@ enum AgentJavaScript {
 
     /// Runs `code` with the host functions `permissions` allow. Never throws for model errors:
     /// they are part of the outcome the model reads.
-    func run(code: String, permissions: AgentPermissions, settings: Settings = Settings()) throws -> Outcome {
+    /// `text` is the call's `text` argument: the program reads it as the variable `text`.
+    func run(
+      code: String, text: String? = nil, permissions: AgentPermissions, settings: Settings = Settings()
+    ) throws -> Outcome {
       guard !code.isEmpty, code.utf8.count <= maximumCode, !code.contains("\0") else {
         return code.utf8.count > maximumCode
           ? tooLarge(code.utf8.count) : Outcome(text: "Error: the code is empty or contains NUL.", isError: true)
       }
+      if let text, text.utf8.count > maximumFileBytes { return textTooLarge(text.utf8.count) }
       guard settings.wall.isFinite, (1...longestWall).contains(settings.wall) else {
         throw CocoaError(.fileReadCorruptFile)
       }
@@ -436,10 +451,11 @@ enum AgentJavaScript {
         lost = false
       }
       guard let process else { throw POSIXError(.EIO) }
-      let request: [String: Any] = [
+      var request: [String: Any] = [
         "code": code, "api": functions(permissions), "state": state,
         "persist": settings.stateFile != nil,
       ]
+      if let text { request["text"] = text }
       var diagnostics = Data()
       var finished: [String: Any]?
       var failure: String?
@@ -533,11 +549,11 @@ enum AgentJavaScript {
 
   /// A one-call kernel: what `run` does in a kernel that is then stopped (with its jobs).
   static func execute(
-    root: URL, code: String, permissions: AgentPermissions, settings: Settings = Settings()
+    root: URL, code: String, text: String? = nil, permissions: AgentPermissions, settings: Settings = Settings()
   ) throws -> Outcome {
     let kernel = try Kernel(root: root)
     defer { kernel.shutdown() }
-    return try kernel.run(code: code, permissions: permissions, settings: settings)
+    return try kernel.run(code: code, text: text, permissions: permissions, settings: settings)
   }
 
   /// Text the model reads: console output, then the result or the error.
@@ -548,8 +564,10 @@ enum AgentJavaScript {
     private var history: [(code: String, text: String)] = []
     private var errors: [String] = []
 
-    mutating func note(code: String, outcome: Outcome) -> String? {
+    mutating func note(code: String, text: String? = nil, outcome: Outcome) -> String? {
+      // The same code with another `text` is another program (the text itself is not kept).
       let key = code.split(whereSeparator: \.isWhitespace).joined(separator: " ")
+        + (text.map { "\u{0}\($0.utf8.count):\($0.hashValue)" } ?? "")
       let same = history.filter { $0.code == key && $0.text == outcome.text }.count
       history.append((key, outcome.text))
       if history.count > 32 { history.removeFirst(history.count - 32) }
@@ -1031,7 +1049,7 @@ enum AgentJavaScript {
   /// prints the outcome as JSON. A separate process survives loss of the MCP transport and
   /// reaps its interpreter.
   /// `--agent-js-kernel <root> <state file|->`: the persistent kernel of an MCP server. Each
-  /// stdin line is a call (`code`, the permissions, `wall`), each stdout line its outcome; the
+  /// stdin line is a call (`code`, `text`, the permissions, `wall`), each stdout line its outcome; the
   /// end of stdin (the server stopped) ends the kernel and its jobs.
   static func kernelMode(arguments: [String]) -> Never {
     guard arguments.count == 4, let kernel = try? Kernel(root: URL(fileURLWithPath: arguments[2])) else { exit(2) }
@@ -1068,7 +1086,9 @@ enum AgentJavaScript {
           permissions.internet = request["internet"] as? Bool == true
           permissions.internetHosts = AgentNetwork.parseHosts(((request["hosts"] as? [String]) ?? []).joined(separator: ","))
           outcome =
-            (try? kernel.run(code: code, permissions: permissions, settings: Settings(wall: wall, stateFile: stateFile)))
+            (try? kernel.run(
+              code: code, text: request["text"] as? String, permissions: permissions,
+              settings: Settings(wall: wall, stateFile: stateFile)))
             ?? Outcome(text: "Error: the JavaScript sandbox refused the call.", isError: true)
         }
         guard let data = try? JSONEncoder().encode(outcome),
@@ -1481,6 +1501,7 @@ enum AgentJavaScript {
       // The kernel serves calls one after the other: `$` and everything kept in it survive
       // until the kernel stops (Unharnessed's persistent REPL); `state` comes from the host.
       globalThis.$ = {};
+      let textGiven = false;
       const serveNext = () => {
         const line = receive();
         // The host closed the kernel: jsc's readline then gives undefined or "" (never a request).
@@ -1497,6 +1518,14 @@ enum AgentJavaScript {
             Object.defineProperty(globalThis, name, { value: api[name], writable: false, configurable: true });
           } else { delete globalThis[name]; }
         }
+        // The call's `text` argument: a file's content kept out of the code, so it crosses no
+        // JavaScript literal. Writable (a program may assign its own `text`), and removed when
+        // the next call gives none.
+        if (typeof request.text === "string") {
+          Object.defineProperty(globalThis, "text",
+            { value: request.text, writable: true, configurable: true, enumerable: true });
+          textGiven = true;
+        } else if (textGiven) { delete globalThis.text; textGiven = false; }
         // The failing line and its text (smolagents): the model sees what to fix.
         let programLines = [];
         const describe = (error) => {
@@ -1508,6 +1537,27 @@ enum AgentJavaScript {
           }
           return line;
         };
+        // A program that does not compile. jsc counts its lines after the two-line function
+        // header and names the prelude as their source, so `describe` would drop the line. A
+        // long literal that ended early (a backtick inside a file's content) is the usual
+        // cause when the program writes a file: the remedy is the `text` argument.
+        const describeSyntax = (error, source) => {
+          if (!(error instanceof SyntaxError)) return describe(error);
+          let line = "SyntaxError: " + error.message;
+          const lines = source.split("\n");
+          const at = typeof error.line === "number" ? error.line - 2 : 0;
+          if (at >= 1 && at <= lines.length) {
+            const shown = lines[at - 1].trim();
+            line += " (line " + at + (shown ? ": " + (shown.length > 120 ? shown.slice(0, 117) + "..." : shown) : "") + ")";
+          } else if (at > lines.length) {
+            line += " (at the end of the code: a string, a template literal or a bracket is not closed)";
+          }
+          if (request.api.includes("write") && typeof request.text !== "string" && /\bwrite\s*\(/.test(source)) {
+            line += "\nNothing was run. If this code holds a file's content, send that content in the `text` argument"
+              + " instead and call write(path, text): there it needs no escaping.";
+          }
+          return line;
+        };
         // Small models often fence their code, send it with literal "\n" escapes or as
         // {"code": ...}, define a function they never call, or write a lone expression: each
         // is run as meant.
@@ -1516,7 +1566,9 @@ enum AgentJavaScript {
           try { const parsed = JSON.parse(code); if (typeof parsed.code === "string") code = parsed.code; } catch (_) {}
         }
         const fenced = /^\s*```[\w+-]*[ \t]*\n([\s\S]*?)\n?```\s*$/.exec(code);
-        const bases = fenced ? [fenced[1], code] : [code];
+        // Only the code inside the fences: the fences themselves compile (tagged templates)
+        // and would hide a syntax error of that code behind a TypeError.
+        const bases = fenced ? [fenced[1]] : [code];
         for (const source of bases.slice()) {
           if (!source.includes("\n") && source.includes("\\n")) {
             bases.push(source.replace(/\\n/g, "\n").replace(/\\t/g, "\t").replace(/\\"/g, "\""));
@@ -1551,8 +1603,7 @@ enum AgentJavaScript {
           }
         }
         if (!program) {
-          programLines = bases[0].split("\n");
-          finish({ error: describe(firstError) });
+          finish({ error: describeSyntax(firstError, bases[0]) });
           Promise.resolve().then(serveNext);
           return;
         }

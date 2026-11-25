@@ -190,6 +190,10 @@ enum ChatTimelineCheck {
         try check(input("javascript", "const a = 1;\nreturn a").map { [$0.title, $0.text] } == ["Code", "const a = 1;\nreturn a"],
                   "JavaScript must show as written")
         try check(input("javascript", #"{"code":"return 2"}"#)?.text == "return 2", "JavaScript inside JSON must show its code")
+        try check(input("javascript", #"{"code":"write('a.py', text)","text":"x = 1\n"}"#)?.text == "write('a.py', text)\n\n— text —\nx = 1\n",
+                  "A JavaScript text argument must follow its code")
+        try check(input("javascript", #"{"code":"x","text":"t","path":"a"}"#)?.text == #"{"code":"x","text":"t","path":"a"}"#,
+                  "Code and text beside other arguments stay as sent")
         try check(input("search", server: "exa", #"{"numResults":5,"query":"a/b"}"#)?.text == "{\n  \"numResults\" : 5,\n  \"query\" : \"a/b\"\n}",
                   "Other arguments must be indented JSON with sorted keys and plain slashes")
         try check(input("search", server: "exa", #"{"query":"abc…"#)?.text == #"{"query":"abc…"#, "Truncated arguments must show as received")

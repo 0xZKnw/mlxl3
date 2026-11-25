@@ -1,0 +1,6 @@
+Traceback (most recent call last):
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-write-text/tests/check-agent-protocol.py", line 177, in <module>
+    check(texts[0] == f'Result:\n{len(trapped.encode("utf-16-le")) // 2}' and (root / 'trapped.py').read_bytes() == trapped.encode()
+  File "/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-write-text/tests/check-agent-protocol.py", line 18, in check
+    assert value, message
+AssertionError: Text written byte for byte through MCP: 'Result:\n18290'

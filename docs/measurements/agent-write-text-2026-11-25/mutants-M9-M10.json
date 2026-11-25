@@ -1,0 +1,14 @@
+[
+ {
+  "mutant": "M9 server drops text",
+  "sandbox": "SURVIVED",
+  "protocol": "caught: AssertionError: Text length seen by the code (19490 bytes): \"Error: ReferenceError: Can't find variable: text (line 1: write('trapped.py', text); retu",
+  "state": "caught"
+ },
+ {
+  "mutant": "M10 server does not refuse oversized text",
+  "sandbox": "SURVIVED",
+  "protocol": "caught: AssertionError: A 9 MiB text is refused by the server and the kernel stays: []",
+  "state": "caught"
+ }
+]

@@ -103,6 +103,10 @@ struct ToolCallPresentation: Equatable {
         switch kind {
         case .javascript:
             if let code = object?["code"] as? String, object?.count == 1 { return (L("Code", "Code"), code) }
+            // The `text` argument (a file's content) follows the code that uses it.
+            if let code = object?["code"] as? String, let content = object?["text"] as? String, object?.count == 2 {
+                return (L("Code", "Code"), code + "\n\n— text —\n" + content)
+            }
             return (L("Code", "Code"), text)
         case .writeFile:
             if let content = object?["content"] as? String { return (L("Contenu", "Content"), content) }

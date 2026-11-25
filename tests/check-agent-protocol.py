@@ -155,6 +155,68 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-protocol-') as directory:
     check(responses[0]['result']['content'][0]['text'] == 'Result:\nwritten' and (root / 'circuit_race.py').read_text() == game and len(game.encode()) > 90000,
           f"Whole program written in one call ({len(game.encode())} bytes): {responses[0]['result']['content'][0]['text'][:200]!r}")
     (root / 'circuit_race.py').unlink()
+    # The `text` argument (AGENT-2026-11-25-WRITE-TEXT): a file's content beside the code.
+    _, listed = exchange([request('tools/list')], permissions=js_policy)
+    tools = listed[0]['result']['tools']
+    schema = tools[0]['inputSchema']
+    check(schema['properties']['text'] == {'type': 'string', 'maxLength': 1 << 20,
+                                           'description': 'Optional raw text (a file\'s content), read in the code as the variable `text`'}
+          and schema['required'] == ['code'] and schema['additionalProperties'] is False
+          and "A file's content goes in the `text` argument" in tools[0]['description'],
+          f'JavaScript tool offers the text argument: {schema!r}')
+    # The same game as below, now with what breaks a template literal: backticks, ${ and \n.
+    trapped = ''.join(f'vitesse_{i} = f"`{{x}}` ${{y}} \\n"  # é — "q" \'s\r\n' for i in range(400))
+    _, responses = exchange([
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': "write('trapped.py', text); return text.length", 'text': trapped}}, 1),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return typeof text'}}, 2),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return typeof text', 'text': None}}, 3),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return text', 'text': {'u': 'http://x/é', 'a': [1]}}}, 4),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return text + 1', 'text': 42}}, 5),
+    ], permissions=js_policy)
+    texts = [r['result']['content'][0]['text'] for r in responses]
+    check(texts[0] == f'Result:\n{len(trapped.encode("utf-16-le")) // 2}' and len(trapped.encode()) > 15000,
+          f'Text length seen by the code ({len(trapped.encode())} bytes): {texts[0][:120]!r}')
+    check((root / 'trapped.py').read_bytes() == trapped.encode(), 'Text written byte for byte through MCP')
+    check(texts[1:3] == ['Result:\nundefined', 'Result:\nundefined'], f'Text is gone on the next call, null is no text: {texts[1:3]!r}')
+    check(texts[3] == 'Result:\n{"a":[1],"u":"http://x/é"}' and texts[4] == 'Result:\n421', f'Decoded JSON text is kept as text: {texts[3:]!r}')
+    (root / 'trapped.py').unlink()
+    result, responses = exchange([
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': "write('over.txt', 'ran')", 'text': 'x' * ((1 << 20) + 1)}}, 1),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return text.length', 'text': 'x' * (1 << 20)}}, 2),
+    ], permissions=js_policy, timeout=large_exchange_timeout)
+    texts = [r['result']['content'][0]['text'] for r in responses]
+    check(result.returncode == 0 and responses[0]['result']['isError'] and '`text` is 1048577 bytes' in texts[0]
+          and not (root / 'over.txt').exists() and texts[1] == f'Result:\n{1 << 20}',
+          f'Oversized text refused with its size, the limit itself runs: {[t[:120] for t in texts]!r}')
+    # Slashes double once escaped for the kernel: the server refuses a large text itself, before
+    # that line outgrows the kernel's input (which would end the kernel instead of answering).
+    result, responses = exchange([
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return 1', 'text': '/' * (9 << 20)}}, 1),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': 'return 2'}}, 2),
+    ], permissions=js_policy, timeout=large_exchange_timeout)
+    texts = [r['result']['content'][0]['text'] for r in responses]
+    check(result.returncode == 0 and responses[0]['result']['isError'] and '`text` is 9437184 bytes' in texts[0] and texts[1] == 'Result:\n2',
+          f'A 9 MiB text is refused by the server and the kernel stays: {[t[:120] for t in texts]!r}')
+    # Another text is another program: no loop note; the same text a third time is one.
+    _, repeated = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "write('part.txt', text)", 'text': part}}, n)
+                            for n, part in enumerate(['a', 'b', 'c', 'c', 'c'], 1)], permissions=js_policy)
+    notes = ['has now run 3 times with the same result' in r['result']['content'][0]['text'] for r in repeated]
+    check(notes == [False, False, False, False, True] and (root / 'part.txt').read_text() == 'c', f'Loop note follows the text: {notes!r}')
+    (root / 'part.txt').unlink()
+    # The reported failure through the real server: a backtick ends the literal early; the
+    # error names the line and the remedy, and the remedy writes the file.
+    broken = "const content = `#!/usr/bin/env python3\n# press `\n# R to reset\nx = 1\n`;\nwrite('game.py', content);"
+    _, responses = exchange([
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': broken}}, 1),
+        request('tools/call', {'name': 'javascript', 'arguments': {'code': "write('game.py', text); return read('game.py') === text",
+                                                                    'text': '#!/usr/bin/env python3\n# press `\n# R to reset\nx = 1\n'}}, 2),
+    ], permissions=js_policy)
+    texts = [r['result']['content'][0]['text'] for r in responses]
+    check(responses[0]['result']['isError'] and texts[0].startswith("Error: SyntaxError: Invalid character: '#' (line 3: # R to reset)\nNothing was run.")
+          and 'send that content in the `text` argument' in texts[0], f'Syntax error with its line and remedy: {texts[0]!r}')
+    check(texts[1] == 'Result:\ntrue' and (root / 'game.py').read_text() == '#!/usr/bin/env python3\n# press `\n# R to reset\nx = 1\n',
+          f'The remedy writes the file: {texts[1]!r}')
+    (root / 'game.py').unlink()
     _, responses = exchange([request('tools/call', {'name': 'javascript', 'arguments': {'code': "return 'r'.repeat(100000)"}})], permissions=js_policy)
     big = responses[0]['result']['content'][0]['text']
     # The result keeps its start and end (it used to keep the start and say "truncated").

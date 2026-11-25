@@ -67,6 +67,7 @@ struct AgentSandboxCheck {
     check(
       AgentJavaScript.toolDescription(readOnly).contains("read(path: string)")
         && !AgentJavaScript.toolDescription(readOnly).contains("write(path")
+        && !AgentJavaScript.toolDescription(readOnly).contains("`text` argument")
         && !AgentJavaScript.toolDescription(readOnly).contains("run(command"),
       "description lists only enabled functions")
     var slow = all
@@ -267,6 +268,7 @@ struct AgentSandboxCheck {
     check(
       AgentJavaScript.toolDescription(all).contains("Limits per call: 10 s")
         && AgentJavaScript.toolDescription(all).contains("Each call starts fresh.")
+        && AgentJavaScript.toolDescription(all).contains("Writing is enabled. A file's content goes in the `text` argument, not in the code: write(path, text) then needs no escaping.")
         && !AgentJavaScript.toolDescription(all).contains("keep state in files"),
       "fresh-call description")
     let longDescription = AgentJavaScript.toolDescription(slow, wall: 33, persistent: true)
@@ -695,6 +697,18 @@ struct AgentSandboxCheck {
     check(js("$.n = 41; return 1") == "Result:\n1", "first call")
     check(js("$.n + 1") == "Result:\n42", "value kept between calls")
     check(js("$.twice = (x) => x * 2; return 0") == "Result:\n0" && (js("$.twice($.n)")) == "Result:\n82", "function kept between calls")
+    // `text` belongs to its call: the next call without one does not see it; `$` keeps a copy.
+    func jsText(_ code: String, _ text: String?) -> String {
+      (try? kernel.run(code: code, text: text, permissions: permissions).text) ?? "<threw>"
+    }
+    check(jsText("$.kept = text; return text", "one") == "Result:\none", "text in a kernel call")
+    check(js("return typeof text + ':' + $.kept") == "Result:\nundefined:one", "text does not leak into the next call")
+    check(
+      jsText("return text", "two") == "Result:\ntwo" && jsText("return text", "three") == "Result:\nthree",
+      "each call reads its own text")
+    check(js("return typeof text") == "Result:\nundefined", "text gone again")
+    // A global the program made itself is left alone, as before.
+    check(js("text = 'mine'; return 1") == "Result:\n1" && js("return text") == "Result:\nmine", "a program's own global text stays")
     // The functions follow each call's permissions; `$` survives a change.
     var readOnly = permissions
     readOnly.write = false
@@ -924,6 +938,72 @@ struct AgentSandboxCheck {
     try expect("{\"code\": \"return 5\"}", "5", "JSON-wrapped code")
     try expect("function helper() { return 1; }\nreturn helper() + 1;", "2", "called helper unchanged")
     try fails("async function main() {\n  missing();\n}", "(line 2: missing();)", "line of a wrapped program")
+    // The `text` argument (AGENT-2026-11-25-WRITE-TEXT): a file's content beside the code,
+    // written byte for byte. Oracle: the file's bytes read back outside the harness.
+    func jsText(_ code: String, _ text: String?, _ allowed: AgentPermissions? = nil) throws -> AgentJavaScript.Outcome {
+      try AgentJavaScript.execute(root: root, code: code, text: text, permissions: allowed ?? permissions)
+    }
+    func bytes(_ path: String) -> Data? { try? Data(contentsOf: root.appendingPathComponent(path)) }
+    let trapped =
+      #"#!/usr/bin/env python3"# + "\n" + #"# press `R` to reset, ${not} JavaScript"# + "\r\n"
+      + #"print("a\nb", '''q''', """d""")"# + "\n\t" + #"path = 'C:\\tmp\x41'  # \u00e9 é — 👩‍💻 </script> "#
+      + "\u{2028}\nend"
+    let wrote = try jsText("write('trap.txt', text); return text.length", trapped)
+    check(!wrote.isError && wrote.text == "Result:\n\(trapped.utf16.count)", "text length seen by the code: \(wrote.text)")
+    check(bytes("trap.txt") == Data(trapped.utf8) && trapped.utf8.count > 150, "text written byte for byte")
+    try expect("return typeof text", "undefined", "no text argument: no variable")
+    // NUL reaches the variable; `write` refuses it as it always did (text files only).
+    check(try jsText("return text.length + ':' + text.charCodeAt(1)", "a\u{0}b").text == "Result:\n3:0", "NUL kept in the variable")
+    check(try jsText("write('nul.txt', text)", "a\u{0}b").isError && bytes("nul.txt") == nil, "write still refuses NUL")
+    check(try jsText("return typeof text + ':' + text.length", "").text == "Result:\nstring:0", "empty text is a string")
+    check(try jsText("text = text + '!'; return text", "a").text == "Result:\na!", "text may be reassigned")
+    check(try jsText("const text = 'local'; return text", "given").text == "Result:\nlocal", "a local text shadows the argument")
+    let python = try jsText("write('ok.py', text); return run('python3 ok.py').output", #"print("a\nb`c`${d}")"# + "\n")
+    check(!python.isError && python.text == "Result:\na\nb`c`${d}\n", "Python source through text runs as written: \(python.text)")
+    // Limit: exactly 1 MiB of text runs, one byte more is refused before anything runs.
+    let full = String(repeating: "é", count: AgentJavaScript.maximumFileBytes / 2)
+    check(
+      try jsText("write('full.txt', text); return text.length", full).text == "Result:\n\(AgentJavaScript.maximumFileBytes / 2)",
+      "text of exactly 1 MiB")
+    check(bytes("full.txt")?.count == AgentJavaScript.maximumFileBytes, "1 MiB of text written")
+    let over = try jsText("write('over.txt', 'ran'); return 1", full + "x")
+    check(
+      over.isError && over == AgentJavaScript.textTooLarge(AgentJavaScript.maximumFileBytes + 1)
+        && over.text.contains("`text` is 1048577 bytes") && bytes("over.txt") == nil,
+      "text over 1 MiB refused, nothing run: \(over.text.prefix(120))")
+    // A program that does not compile: the line, its text, and the remedy when it writes a file.
+    let remedy =
+      "\nNothing was run. If this code holds a file's content, send that content in the `text` argument instead and call write(path, text): there it needs no escaping."
+    let plain = try js("let a = 1;\nlet x = ;")
+    check(
+      plain.isError && plain.text == "Error: SyntaxError: Unexpected token ';' (line 2: let x = ;)",
+      "syntax error line and text: \(plain.text)")
+    // The reported failure: a backtick in the file's content ends the template literal early.
+    let game =
+      "// Write the game file\nconst content = `#!/usr/bin/env python3\n# press `\n# R to reset\nx = 1\n`;\nwrite('game.py', content);"
+    let early = try js(game)
+    check(
+      early.isError && early.text == "Error: SyntaxError: Invalid character: '#' (line 4: # R to reset)" + remedy
+        && bytes("game.py") == nil,
+      "literal ended early: line and remedy: \(early.text)")
+    check(
+      try jsText(game, "given").text == "Error: SyntaxError: Invalid character: '#' (line 4: # R to reset)",
+      "no remedy when text was sent")
+    var cannotWrite = permissions
+    cannotWrite.write = false
+    check(
+      try jsText(game, nil, cannotWrite).text == "Error: SyntaxError: Invalid character: '#' (line 4: # R to reset)",
+      "no remedy without write")
+    let open = try js("const c = `abc\ndef")
+    check(
+      open.isError
+        && open.text == "Error: SyntaxError: Unexpected EOF (at the end of the code: a string, a template literal or a bracket is not closed)",
+      "unclosed literal: \(open.text)")
+    try fails("```js\nlet a = 1;\nlet b = ;\n```", "(line 2: let b = ;)", "line inside fenced code")
+    let wide = try js("let ok = 1;\nlet y = [" + String(repeating: "1, ", count: 60) + "; ]")
+    check(
+      wide.isError && wide.text.hasSuffix("...)") && wide.text.contains("(line 2: let y = [1, 1, ") && wide.text.count < 200,
+      "long line clipped: \(wide.text)")
     // Loop notes: same program and result a third time; same error three calls in a row.
     var guardian = AgentJavaScript.RepeatGuard()
     let same = AgentJavaScript.Outcome(text: "Result:\n1", isError: false)
@@ -942,6 +1022,17 @@ struct AgentSandboxCheck {
         && failing.note(code: "c()", outcome: boom(""))?.contains("same error 3 times in a row") == true,
       "same error three times noted")
     check(failing.note(code: "d()", outcome: same) == nil && failing.note(code: "e()", outcome: boom("")) == nil, "a success resets the error streak")
+    // The same code with another `text` is another program; with the same text it is a loop.
+    var writing = AgentJavaScript.RepeatGuard()
+    let silent = AgentJavaScript.Outcome(text: "", isError: false)
+    check(
+      ["a", "b", "c", "ab"].allSatisfy { writing.note(code: "write('f', text)", text: $0, outcome: silent) == nil },
+      "another text is not a repeat")
+    check(writing.note(code: "write('f', text)", outcome: silent) == nil, "no text differs from any text")
+    check(
+      writing.note(code: "write('f', text)", text: "a", outcome: silent) == nil
+        && writing.note(code: "write('f', text)", text: "a", outcome: silent)?.contains("has now run 3 times") == true,
+      "the same code and text a third time noted")
   }
 
   /// The sandbox of DeepSeek Harness (user decision 2026-11-24, AGENT-2026-11-24-DSH-PISTES):

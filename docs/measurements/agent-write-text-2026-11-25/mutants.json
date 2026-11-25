@@ -1,0 +1,64 @@
+[
+ {
+  "mutant": "M1 text leaks into the next call",
+  "sandbox": "caught: text does not leak into the next call",
+  "state": "caught"
+ },
+ {
+  "mutant": "M2 syntax line off by one",
+  "sandbox": "caught: syntax error line and text: Error: SyntaxError: Unexpected token ';' (at the end of the code: a string, a temp",
+  "state": "caught"
+ },
+ {
+  "mutant": "M3 remedy shown although text was sent",
+  "sandbox": "caught: no remedy when text was sent",
+  "state": "caught"
+ },
+ {
+  "mutant": "M4 remedy shown without write permission",
+  "sandbox": "caught: no remedy without write",
+  "state": "caught"
+ },
+ {
+  "mutant": "M5 repeat guard ignores text",
+  "sandbox": "caught: another text is not a repeat",
+  "state": "caught"
+ },
+ {
+  "mutant": "M6 oversized text not refused by the kernel",
+  "sandbox": "caught: text over 1 MiB refused, nothing run: Result:",
+  "state": "caught"
+ },
+ {
+  "mutant": "M7 text not writable",
+  "sandbox": "caught: text may be reassigned",
+  "state": "caught"
+ },
+ {
+  "mutant": "M8 end-of-code case dropped",
+  "sandbox": "caught: unclosed literal: Error: SyntaxError: Unexpected EOF",
+  "state": "caught"
+ },
+ {
+  "mutant": "M9 server drops text",
+  "state": "compile failed: everMutated]\n834 |               \"code\": code, \"read\": permissions.read, \"write\": permissions.write, \"run\": permissions.run,\n835 |               \"commandSeconds\": permissions.commandSeconds,\n\n[#VariableNeverMutated]: <https://docs.swift.org/compiler/documentation/diagnostics/variable-never-mutated>\n"
+ },
+ {
+  "mutant": "M10 server does not refuse oversized text",
+  "sandbox": "SURVIVED",
+  "protocol": "SURVIVED",
+  "state": "SURVIVED"
+ },
+ {
+  "mutant": "M11 server repeat guard ignores text",
+  "sandbox": "SURVIVED",
+  "protocol": "caught: AssertionError: Loop note follows the text: [False, False, True, False, False]",
+  "state": "caught"
+ },
+ {
+  "mutant": "M12 kernel mode drops text",
+  "sandbox": "SURVIVED",
+  "protocol": "caught: AssertionError: Text length seen by the code (19490 bytes): \"Error: ReferenceError: Can't find variable: text (line 1: write('trapped.py', text); retu",
+  "state": "caught"
+ }
+]
