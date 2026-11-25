@@ -145,6 +145,17 @@ elif command == "bridge":
                 if text == "comparison-empty":
                     emit("complete", request_id=active, stop_reason="eos")
                     continue
+                if text == "comparison-context":
+                    answer = "Text before the context filled"
+                    if model == "compare-test-a":
+                        emit("delta", request_id=active, phase="answer", text=answer)
+                    emit("complete", request_id=active, assistant_context=answer,
+                         stop_reason="context_full", context_full=True)
+                    continue
+                if text == "comparison-context-empty":
+                    emit("complete", request_id=active, assistant_context="",
+                         stop_reason="context_full", context_full=True)
+                    continue
                 if text == "comparison-malformed":
                     print("invalid fixture frame", flush=True)
                     continue

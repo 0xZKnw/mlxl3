@@ -110,7 +110,7 @@ final class ImageGeneration: ObservableObject {
                 status = L("Chargement du modèle…", "Loading the model…")
                 let png = work.appendingPathComponent("image.png")
                 try await run(URL(fileURLWithPath: python),
-                              ["-I", "-u", script.path, "--model", model.path, "--prompt", prompt,
+                              ["-I", "-u", script.path, "--model", model.path, "--prompt=\(prompt)",
                                "--size", String(size), "--steps", String(steps), "--seed", String(seed), "--output", png.path],
                               log: log, stdout: log, timeout: 3600, steps: steps)
                 try Task.checkCancellation()

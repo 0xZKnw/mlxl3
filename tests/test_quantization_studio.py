@@ -17,6 +17,25 @@ studio = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(studio)
 
 
+@pytest.mark.parametrize("status", ["running", "complete", "failed", "interrupted"])
+def test_parent_exit_preserves_terminal_job_reports(tmp_path, monkeypatch, status):
+    record = tmp_path / "job.json"
+    original = {"status": status, "output": "fixture", "error": "original"}
+    record.write_text(json.dumps(original))
+    monkeypatch.setattr(studio, "_JOB_RECORD", record)
+    monkeypatch.setattr(studio.os, "getppid", lambda: 2)
+    monkeypatch.setattr(studio.os, "_exit", sys.exit)
+    with pytest.raises(SystemExit) as exited:
+        studio.watch_parent(1)
+    assert exited.value.code == 130
+    expected = (
+        dict(original, status="interrupted", error="Desktop process exited")
+        if status == "running"
+        else original
+    )
+    assert json.loads(record.read_text()) == expected
+
+
 @pytest.fixture
 def source(tmp_path):
     tmp_path = tmp_path / "source"

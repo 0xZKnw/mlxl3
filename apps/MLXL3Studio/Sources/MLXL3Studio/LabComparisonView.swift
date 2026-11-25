@@ -292,7 +292,8 @@ private struct LabComparisonAnswer: View {
             if run.phase == .complete {
                 let details = [run.generatedTokens.map { L("\($0) tokens générés", "\($0) tokens generated") },
                                run.elapsedSeconds.map(duration),
-                               run.hitTokenLimit ? L("limite atteinte", "limit reached") : nil]
+                               run.hitTokenLimit ? L("limite atteinte", "limit reached") : nil,
+                               run.hitContextLimit ? L("contexte plein", "context full") : nil]
                 Text(details.compactMap { $0 }.joined(separator: " · "))
                     .font(.system(size: 12)).monospacedDigit().foregroundStyle(StudioTheme.quiet)
                 if run.answer.isEmpty {

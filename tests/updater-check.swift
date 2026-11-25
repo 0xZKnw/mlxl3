@@ -402,13 +402,25 @@ final class ChannelProtocol: URLProtocol, @unchecked Sendable {
     let updates = root.appendingPathComponent("Updates")
     try FileManager.default.createDirectory(at: updates, withIntermediateDirectories: true)
     for name in ["MLXL3-Desktop-v2.0.1-b1-Apple-Silicon.dmg", "MLXL3-Desktop-v2.0.2-b2-Apple-Silicon.dmg",
-                 "MLXL3-Engine-v2.0.1-arm64.tar.gz", "notes.txt"] {
+                 "MLXL3-Engine-v2.0.1-arm64.tar.gz", "MLXL3-Desktop-notes.txt", "notes.txt"] {
       try Data(name.utf8).write(to: updates.appendingPathComponent(name))
     }
+    let directory = updates.appendingPathComponent("MLXL3-Desktop-v2.0.0-b1-Apple-Silicon.dmg")
+    try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+    try Data("keep".utf8).write(to: directory.appendingPathComponent("keep"))
     UpdateManager.pruneCache(updates, keeping: updates.appendingPathComponent("MLXL3-Desktop-v2.0.2-b2-Apple-Silicon.dmg"))
     check(try FileManager.default.contentsOfDirectory(atPath: updates.path).sorted()
-      == ["MLXL3-Desktop-v2.0.2-b2-Apple-Silicon.dmg", "MLXL3-Engine-v2.0.1-arm64.tar.gz", "notes.txt"],
+      == ["MLXL3-Desktop-notes.txt", "MLXL3-Desktop-v2.0.0-b1-Apple-Silicon.dmg",
+          "MLXL3-Desktop-v2.0.2-b2-Apple-Silicon.dmg", "MLXL3-Engine-v2.0.1-arm64.tar.gz", "notes.txt"],
       "Only older Desktop downloads are pruned")
+    let olderBeta = updates.appendingPathComponent("MLXL3-Engine-v2.0.1-beta.1-arm64.tar.gz")
+    let engineLink = updates.appendingPathComponent("MLXL3-Engine-v2.0.0-arm64.tar.gz")
+    try Data().write(to: olderBeta)
+    try FileManager.default.createSymbolicLink(at: engineLink, withDestinationURL: updates.appendingPathComponent("notes.txt"))
+    UpdateManager.pruneCache(updates, keeping: updates.appendingPathComponent("MLXL3-Engine-v2.0.1-arm64.tar.gz"))
+    check(!FileManager.default.fileExists(atPath: olderBeta.path)
+          && FileManager.default.fileExists(atPath: engineLink.path),
+          "Only regular engine archives are pruned, including beta archives")
     _ = try UpdateManager.runProcess("/bin/echo", arguments: ["pipe check"])
     fails("helper output bound") {
       _ = try UpdateManager.runProcess("/usr/bin/yes", arguments: [], outputLimit: 1_024)

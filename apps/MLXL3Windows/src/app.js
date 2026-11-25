@@ -7,12 +7,12 @@ import { icon, monogram } from "./icons.js";
 import { addSample, chartPoints, exportJson, history, labSample, latestByModel, METRICS, models as labModels, restoreSamples } from "./lab.js";
 import { engineMessages, escapeHtml, formatBytes, formatStats, renderMarkdown, splitThinking } from "./render.js";
 import {
-  abortTurn, applyEngineEvent, engineExited, engineStarted, initialSession, newConversation, restoreTurns, rewind,
+  abortTurn, applyEngineEvent, engineExited, engineStarted, initialSession, newConversation, rewind,
   startTurn, unloaded,
 } from "./session.js";
 import {
   backupJson, branchOf, filterConversations, formatCount, markdownExport, mergeBackup, greeting, modelSubtitle, newId, percent, pickVariant, recommendedChoices,
-  RECOMMENDED, removeConversation, restoreConversations, revisionLabel, sections, serializeConversations, splitRepo,
+  RECOMMENDED, removeConversation, loadConversationHistory, revisionLabel, sections, writeConversationHistory, splitRepo,
   titleFrom, togglePinned, updateBadge, upsertConversation,
 } from "./store.js";
 import {
@@ -23,8 +23,6 @@ const tauri = window.__TAURI__;
 const invoke = tauri.core.invoke;
 const listen = tauri.event.listen;
 const $ = (id) => document.getElementById(id);
-const CONVERSATIONS_KEY = "mlxl3.conversations.v2";
-const LEGACY_KEY = "mlxl3.conversation.v1";
 const PREFS_KEY = "mlxl3.prefs.v2";
 const SAMPLING_DEFAULTS = { temperature: "0.6", "top-p": "0.95", "top-k": "20", "min-p": "0", rep: "1", "max-tokens": "-1" };
 const WORKSPACE_KEY = "mlxl3.workspace.v1";
@@ -328,11 +326,14 @@ async function importHistory() {
   try {
     const raw = await invoke("open_backup_file");
     if (raw == null) return;
-    const { list, added } = mergeBackup(conversations, raw);
-    conversations = list;
-    persistConversations();
+    const { list, added, skipped } = mergeBackup(conversations, raw);
+    if (added) {
+      if (!persistConversations(list)) return;
+      conversations = list;
+    }
     render();
-    toast(added === 1 ? t("imported1") : t("imported").replace("{n}", String(added)));
+    const imported = added === 1 ? t("imported1") : t("imported").replace("{n}", String(added));
+    toast(skipped ? imported + ". " + t("importCapacity").replace("{n}", String(skipped)) : imported);
   } catch (e) { fail(`${t("importFailed")}: ${message(e)}`); }
 }
 
@@ -399,22 +400,14 @@ function renderSliders() {
 
 // ---------- conversations ----------
 
-function persistConversations() {
-  storage((s) => s.setItem(CONVERSATIONS_KEY, serializeConversations(conversations)));
+function persistConversations(list = conversations) {
+  const saved = storage((s) => { writeConversationHistory(s, list); return true; });
+  if (!saved) toast(t("historyWriteFailed"));
+  return Boolean(saved);
 }
 
 function restoreState() {
-  const raw = storage((s) => s.getItem(CONVERSATIONS_KEY));
-  conversations = raw ? restoreConversations(raw) : [];
-  if (!raw) {
-    // One-time migration of the single conversation kept by the first Windows build.
-    const legacy = restoreTurns(storage((s) => s.getItem(LEGACY_KEY)) || "[]");
-    if (legacy.length) {
-      conversations = [{ id: newId(), title: titleFrom(legacy, t("newChat")), updated: Date.now(), pinned: false, turns: legacy }];
-      persistConversations();
-      storage((s) => s.removeItem(LEGACY_KEY));
-    }
-  }
+  conversations = storage((s) => loadConversationHistory(s, t("newChat"), () => toast(t("historyWriteFailed")))) ?? [];
 }
 
 function saveCurrent(turns) {

@@ -1182,7 +1182,7 @@ enum AgentJavaScript {
         "preciseTime", "predictInt32", "prettyPrint", "print", "printErr", "quit", "read",
         "readFile", "readline", "releaseWeakRefs", "reoptimizationRetryCount", "resetMemoryPeak",
         "resetSuperSamplerState", "run", "runString", "samplingProfilerStackTraces", "setRandomSeed",
-        "setTimeout", "setUnhandledRejectionCallback", "sleepSeconds", "startSamplingProfiler",
+        "setTimeout", "setUnhandledRejectionCallback", "sleepSeconds", "startSamplingProfiler", "structuredClone",
         "testLoopCount", "totalCompileTime", "transferArrayBuffer", "useBigInt32", "version",
         "waitForReport", "waiterListSize", "wasmTestLoopCount", "write", "writeFile", "$vm",
         "$", "agent", "Worker", "WebAssembly"];

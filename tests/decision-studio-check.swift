@@ -236,6 +236,22 @@ import Foundation
     let passed = try DecisionMediaImport.normalizedAudio(wav)
     check(passed == wav, "a 16-bit WAV passes through")
     try? FileManager.default.removeItem(at: wav)
+    // Native PCM WAV files follow the same five-minute limit as converted audio.
+    func makePCM(_ frames: AVAudioFrameCount) throws -> URL {
+      let url = root.appending(path: "mono-\(frames).wav")
+      let format = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 8_000, channels: 1, interleaved: true)!
+      let file = try AVAudioFile(forWriting: url, settings: format.settings, commonFormat: .pcmFormatInt16, interleaved: true)
+      let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: frames)!
+      buffer.int16ChannelData![0].initialize(repeating: 0, count: Int(frames))
+      buffer.frameLength = frames
+      try file.write(from: buffer)
+      return url
+    }
+    let boundary = try makePCM(300 * 8_000)
+    let boundaryResult = try DecisionMediaImport.normalizedAudio(boundary)
+    check(boundaryResult == boundary, "exactly five minutes of PCM passes without conversion")
+    let tooLong = try makePCM(300 * 8_000 + 1)
+    check(throwsMessage { _ = try DecisionMediaImport.normalizedAudio(tooLong) } != nil, "even one frame beyond five minutes is rejected")
     let image = try DecisionMediaImport.prepare(URL(fileURLWithPath: "/tmp/missing.png"))
     check(image.kind == .image, "PNG pictures are passed by path")
 
@@ -252,6 +268,45 @@ import Foundation
     check(parsedBody is [String: Any], "server body is JSON")
     studio.server.stop()
     try await wait("server stopped") { !studio.server.active }
+    check(studio.server.error == nil && studio.server.apiKey == nil, "a normal stop clears the key and leaves no error")
+    let server = studio.server
+    let fixture = root.appending(path: "server-fixture")
+    try """
+      #!/bin/sh
+      case "$2" in
+        loading) echo 'Loading weights'; exec /bin/sleep 10 ;;
+        shutdown-log)
+          trap '/usr/bin/head -c 70000 /dev/zero; exit 0' TERM
+          echo 'Waiting to stop'
+          for attempt in 1 2 3 4 5; do /bin/sleep 0.3; done ;;
+        oversized) /usr/bin/head -c 70000 /dev/zero; exit 4 ;;
+        failed) printf 'Cannot open weights' >&2; exit 4 ;;
+        silent) exit 0 ;;
+      esac
+      """.write(to: fixture, atomically: true, encoding: .utf8)
+    try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: fixture.path)
+    server.startDecision(modelPath: "loading", port: 18_731, executable: fixture)
+    try await wait("loading log") { server.log.contains("Loading weights") }
+    server.stop()
+    try await wait("cancelled startup") { !server.active }
+    check(server.error == nil && server.apiKey == nil, "stopping before ready is a successful cancellation")
+    server.startDecision(modelPath: "shutdown-log", port: 18_731, executable: fixture)
+    try await wait("shutdown fixture started") { server.log.contains("Waiting to stop") }
+    server.stop()
+    try await wait("verbose shutdown finished") { !server.active }
+    check(server.error == nil && server.log.count <= 16_000, "a long shutdown diagnostic is bounded without reporting a failure")
+    server.startDecision(modelPath: "oversized", port: 18_731, executable: fixture)
+    try await wait("oversized startup line") { !server.active }
+    check(server.error?.isEmpty == false && server.log.count <= 16_000, "a long unsolicited message still fails startup")
+    server.startDecision(modelPath: "failed", port: 18_731, executable: fixture)
+    try await wait("failed startup") { !server.active }
+    check(server.error?.contains("Cannot open weights") == true, "unterminated startup diagnostics are retained")
+    server.startDecision(modelPath: "silent", port: 18_731, executable: fixture)
+    try await wait("silent startup exit") { !server.active }
+    check(server.error?.contains("(0)") == true, "a silent exit before readiness still explains why the server stopped")
+    server.startDecision(modelPath: "missing", port: 18_731, executable: root.appending(path: "absent-executable"))
+    try await wait("failed launch") { !server.active }
+    check(server.error != nil && server.apiKey == nil, "a failed launch cannot leave an API key behind")
     unsetenv("MLXL3_FAKE_DECISION_LOG")
     print("decision studio check passed: \(count) checks")
   }

@@ -58,7 +58,10 @@ def write_bridge(path, behavior):
         + """
 import io, json, os, signal, sys, time
 from pathlib import Path
-Path(__file__).with_suffix('.pid').write_text(str(os.getpid()))
+marker = Path(__file__).with_suffix('.pid')
+pending = marker.with_suffix('.pid.tmp')
+pending.write_text(str(os.getpid()))
+pending.replace(marker)
 inject_signal = False
 if behavior == 'cancel_during_write':
     original_raw = sys.stdout.buffer.raw

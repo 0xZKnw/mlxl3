@@ -3,7 +3,19 @@ import SwiftUI
 import Vision
 
 @MainActor enum ModelStorageInterfaceCheck {
+    // At 1x Vision can join the unit to the number, read a decimal comma, or include the row chevron.
+    static func matchesSize(_ displayed: String, expected: String) -> Bool {
+        func compact(_ size: String) -> String {
+            size.lowercased().filter { !$0.isWhitespace }.replacingOccurrences(of: ",", with: ".")
+        }
+        var size = compact(displayed)
+        if size.last == ">" { size.removeLast() }
+        return size == compact(expected)
+    }
+
     static func run() async throws {
+        precondition(matchesSize("1.1mb", expected: "1.1 MB") && matchesSize("1,1 mb >", expected: "1.1 MB"))
+        precondition(!matchesSize("11.1 MB", expected: "1.1 MB") && !matchesSize("1.1 KB", expected: "1.1 MB"))
         let fm = FileManager.default
         let root = fm.temporaryDirectory.appendingPathComponent("mlxl3-storage-ui-\(UUID())").resolvingSymlinksInPath()
         let managed = root.appendingPathComponent("Models")
@@ -47,7 +59,7 @@ import Vision
         let inventory = try ModelStorageInventory.scan(models: studio.models, pending: [])
         let entry = inventory.items.first { $0.registryName == ownedName }!
         precondition(entry.reclaimableBytes >= 1_100_000 && entry.reclaimableBytes < 1_500_000)
-        let expectedEstimate = ByteCountFormatter.string(fromByteCount: entry.reclaimableBytes, countStyle: .file).lowercased()
+        let expectedEstimate = ByteCountFormatter.string(fromByteCount: entry.reclaimableBytes, countStyle: .file)
         let bounds = NSRect(x: 0, y: 0, width: 900, height: 650)
         let window = NSWindow(contentRect: bounds, styleMask: .borderless, backing: .buffered, defer: false)
         window.isReleasedWhenClosed = false
@@ -104,7 +116,7 @@ import Vision
         precondition(listing.contains { $0.text.contains("installed models") }
             && listing.contains { $0.text.contains("external folders") }
             && listing.contains { $0.text.contains("recoverable") }
-            && listing.contains { $0.text.contains(expectedEstimate) },
+            && listing.contains { matchesSize($0.text, expected: expectedEstimate) },
             "Storage must show installed/external items and the estimate: \(listing.map(\.text))")
         guard let row = listing.first(where: { $0.text.contains("qwen image") }) else {
             preconditionFailure("Installed model missing from storage")

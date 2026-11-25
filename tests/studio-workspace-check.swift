@@ -42,6 +42,8 @@ import SwiftUI
     try Data("const value = 1;\n// a comment\nconsole.log('hello');\n".utf8).write(
       to: source.appendingPathComponent("main.js"))
     try Data("old file".utf8).write(to: source.appendingPathComponent("obsolete.txt"))
+    try Data("Moved document".utf8).write(to: source.appendingPathComponent("draft.txt"))
+    try files.setAttributes([.posixPermissions: 0o600], ofItemAtPath: source.appendingPathComponent("blague.txt").path)
     try Data([0, 255, 14]).write(to: source.appendingPathComponent("image.bin"))
     let store = AgentProjectStore(workspace: workspace)
     try store.importProject(source)
@@ -84,6 +86,7 @@ import SwiftUI
     check(
       model.code == "External write" && model.error == nil, "Refresh lost actual workspace state")
     try files.removeItem(at: workspace.appendingPathComponent("obsolete.txt"))
+    try files.moveItem(at: workspace.appendingPathComponent("draft.txt"), to: workspace.appendingPathComponent("final.txt"))
     try AgentProjectStore.write(Data("New file".utf8), path: "new.txt", root: workspace)
     _ = try store.checkpoint("Added and deleted files")
     await model.reload()
@@ -130,6 +133,13 @@ import SwiftUI
         && String(contentsOf: source.appendingPathComponent("new.txt"), encoding: .utf8)
           == "New file",
       "Apply lost additions/deletions")
+    check(
+      try !files.fileExists(atPath: source.appendingPathComponent("draft.txt").path)
+        && String(contentsOf: source.appendingPathComponent("final.txt"), encoding: .utf8) == "Moved document",
+      "Applying a rename must move the document in the original project")
+    check(
+      (try files.attributesOfItem(atPath: source.appendingPathComponent("blague.txt").path)[.posixPermissions] as? NSNumber)?.intValue == 0o600,
+      "Editing a private document must preserve its access permissions")
     for _ in 0..<5 {
       let first = Task { await model.select("blague.txt") }
       await Task.yield()
@@ -142,13 +152,15 @@ import SwiftUI
     }
     let literalSource = root.appendingPathComponent("literal-source")
     try files.createDirectory(at: literalSource, withIntermediateDirectories: true)
-    for name in ["a.txt", "[a].txt"] {
+    for name in ["a.txt", "[a].txt", ":notes.txt"] {
       try Data("Initial text\n".utf8).write(to: literalSource.appendingPathComponent(name))
     }
     let literalStore = AgentProjectStore(
       workspace: root.appendingPathComponent("literal-task/files"))
     try literalStore.importProject(literalSource)
     let literalBefore = try literalStore.versions().first!.id
+    check(try literalStore.contents(":notes.txt", revision: literalBefore) == Data("Initial text\n".utf8),
+      "A leading colon in a filename must survive the initial checkpoint")
     try AgentProjectStore.write(
       Data("UNRELATED_GLOB_MATCH\n".utf8), path: "a.txt", root: literalStore.workspace)
     try AgentProjectStore.write(
@@ -159,6 +171,61 @@ import SwiftUI
       literalDiff.contains("+INTENDED_LITERAL_FILE")
         && !literalDiff.contains("UNRELATED_GLOB_MATCH"),
       "Selected-file diff interpreted a filename as a Git pattern")
+    let renameSource = root.appendingPathComponent("rename-source")
+    try files.createDirectory(at: renameSource, withIntermediateDirectories: true)
+    let renameStore = AgentProjectStore(workspace: root.appendingPathComponent("rename-task/files"))
+    let modes: [(name: String, imported: Int, original: Int, reviewed: Int, expected: Int)] = [
+      ("shared", 0o660, 0o660, 0o660, 0o660),
+      ("restricted", 0o644, 0o600, 0o644, 0o600),
+      ("tool", 0o644, 0o600, 0o755, 0o700),
+      ("was-executable", 0o754, 0o740, 0o644, 0o640),
+      ("group-execute", 0o650, 0o650, 0o650, 0o650),
+    ]
+    func fileMode(_ url: URL) throws -> Int {
+      (try files.attributesOfItem(atPath: url.path)[.posixPermissions] as! NSNumber).intValue
+    }
+    for fixture in modes {
+      let url = renameSource.appendingPathComponent(fixture.name)
+      try Data(fixture.name.utf8).write(to: url)
+      try files.setAttributes([.posixPermissions: fixture.imported], ofItemAtPath: url.path)
+    }
+    try renameStore.importProject(renameSource)
+    for fixture in modes {
+      let sourceFile = renameSource.appendingPathComponent(fixture.name)
+      try files.setAttributes([.posixPermissions: fixture.original], ofItemAtPath: sourceFile.path)
+      let workspaceFile = renameStore.workspace.appendingPathComponent(fixture.name)
+      let renamed = renameStore.workspace.appendingPathComponent("new-" + fixture.name)
+      try files.moveItem(at: workspaceFile, to: renamed)
+      try files.setAttributes([.posixPermissions: fixture.reviewed], ofItemAtPath: renamed.path)
+    }
+    try AgentProjectStore.write(Data("child".utf8), path: "zz-blocked/child", root: renameStore.workspace)
+    let renameRevision = try renameStore.checkpoint("Renamed documents")
+    let collision = renameSource.appendingPathComponent("new-tool")
+    let blocker = renameSource.appendingPathComponent("zz-blocked")
+    // A destination collision is caught in preflight. A blocked directory exercises rollback.
+    for url in [collision, blocker] {
+      try Data("keep".utf8).write(to: url)
+      do {
+        try renameStore.apply(reviewedRevision: renameRevision)
+        preconditionFailure("A blocked rename must fail")
+      } catch { count += 1 }
+      check(try String(contentsOf: url, encoding: .utf8) == "keep", "A collision must preserve the existing file")
+      for fixture in modes {
+        let original = renameSource.appendingPathComponent(fixture.name)
+        let renamed = renameSource.appendingPathComponent("new-" + fixture.name)
+        check(try fileMode(original) == fixture.original && Data(contentsOf: original) == Data(fixture.name.utf8),
+          "A failed apply must restore permissions and bytes for \(fixture.name)")
+        check(renamed == url || !files.fileExists(atPath: renamed.path), "A failed apply left a new destination")
+      }
+      try files.removeItem(at: url)
+    }
+    try renameStore.apply(reviewedRevision: renameRevision)
+    for fixture in modes {
+      let original = renameSource.appendingPathComponent(fixture.name)
+      let renamed = renameSource.appendingPathComponent("new-" + fixture.name)
+      check(try fileMode(renamed) == fixture.expected && Data(contentsOf: renamed) == Data(fixture.name.utf8)
+        && !files.fileExists(atPath: original.path), "A rename lost the source access rights or bytes: \(fixture.name)")
+    }
     let attributeSource = root.appendingPathComponent("attribute-source")
     try files.createDirectory(at: attributeSource, withIntermediateDirectories: true)
     let raw = Data("Windows line endings\r\nSecond line\r\n".utf8)

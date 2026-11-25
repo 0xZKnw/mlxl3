@@ -110,7 +110,7 @@ final class QuantizationModel: ObservableObject {
         guard ticket == operation, !Task.isCancelled else { return }
         let line = result.split(separator: 10).last ?? result[...]
         guard let event = try JSONSerialization.jsonObject(with: Data(line)) as? [String: Any],
-              event["type"] as? String == "result", let value = event["result"] else {
+              event["type"] as? String == "result", let value = event["result"] as? [String: Any] else {
           throw MLXL3BridgeError.invalidResponse
         }
         let decoder = JSONDecoder()
@@ -140,7 +140,13 @@ final class QuantizationModel: ObservableObject {
     phase = L("Libération du modèle interactif…", "Unloading the interactive model…")
     let settings = settings
     task = Task {
-      defer { if ticket == operation { converting = false } }
+      defer {
+        if ticket == operation {
+          if stopRequested { markRunningJobInterrupted() }
+          job = nil
+          converting = false
+        }
+      }
       await prepare()
       guard !Task.isCancelled, ticket == operation else { return }
       do {
@@ -165,20 +171,33 @@ final class QuantizationModel: ObservableObject {
         let final = try await runner.output(
           [], input: JSONSerialization.data(withJSONObject: request)
         ) { [weak self = self] line in
-          guard let self, self.operation == ticket, self.converting, !self.stopRequested else {
+          guard let self, self.operation == ticket, self.converting else {
             return
           }
-          self.receive(line, destination: destination)
+          self.receive(line)
         }
         guard !Task.isCancelled, ticket == operation else { return }
-        if let last = final.split(separator: 10).last {
-          receive(Data(last), destination: destination)
-        }
-        if output == nil {
+        guard error == nil,
+          let event = try? JSONSerialization.jsonObject(with: final) as? [String: Any],
+          event["type"] as? String == "result", let result = event["result"] as? [String: Any],
+          result["status"] as? String == "complete", result["output"] as? String == destination.path
+        else {
           throw MLXL3BridgeError.commandFailed(
             L(
               "Conversion terminée sans validation complète.",
               "Conversion ended without complete validation."))
+        }
+        output = destination
+        progress = 1
+        phase = L(
+          "Conversion EXL3 terminée et fichiers vérifiés",
+          "EXL3 conversion complete; checkpoint files verified")
+        if let metrics = result["quality"] as? [String: Any], let ppl = metrics["ppl"] as? Double,
+          let teacher = metrics["teacher_ppl"] as? Double, let kl = metrics["kl"] as? Double
+        {
+          quality = String(
+            format: "PPL %.4f · Source %.4f · KL %.6f · %@ tokens", ppl, teacher, kl,
+            String(describing: metrics["tokens"] ?? 0))
         }
       } catch {
         if ticket == operation && !Task.isCancelled && self.error == nil {
@@ -188,9 +207,9 @@ final class QuantizationModel: ObservableObject {
     }
   }
 
-  private func receive(_ line: Data, destination: URL) {
+  private func receive(_ line: Data) {
     guard let event = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
-      let type = event["type"] as? String
+      let type = event["type"] as? String, !stopRequested || type == "job"
     else { return }
     switch type {
     case "progress":
@@ -204,43 +223,32 @@ final class QuantizationModel: ObservableObject {
       logs = String((logs + (event["text"] as? String ?? "") + "\n").suffix(24_000))
     case "job": job = (event["path"] as? String).map { URL(fileURLWithPath: $0) }
     case "error": error = event["text"] as? String
-    case "result":
-      guard let result = event["result"] as? [String: Any],
-        result["status"] as? String == "complete", result["output"] as? String == destination.path
-      else { return }
-      output = destination
-      progress = 1
-      phase = L(
-        "Conversion EXL3 terminée et fichiers vérifiés",
-        "EXL3 conversion complete; checkpoint files verified")
-      if let metrics = result["quality"] as? [String: Any], let ppl = metrics["ppl"] as? Double,
-        let teacher = metrics["teacher_ppl"] as? Double, let kl = metrics["kl"] as? Double
-      {
-        quality = String(
-          format: "PPL %.4f · Source %.4f · KL %.6f · %@ tokens", ppl, teacher, kl,
-          String(describing: metrics["tokens"] ?? 0))
-      }
     default: break
     }
   }
 
   func cancel() {
+    guard inspecting || converting else { return }
     stopRequested = true
     task?.cancel()
     command?.cancel()
+    guard converting else { return }
     progress = nil
     phase = L(
       "Arrêt demandé. Les fichiers partiels restent hors de la bibliothèque.",
       "Stop requested. Partial files remain outside the library.")
+  }
+
+  private func markRunningJobInterrupted() {
     if let job, let data = try? Data(contentsOf: job.appendingPathComponent("job.json")),
-      var state = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+      var state = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+      state["status"] as? String == "running"
     {
       state["status"] = "interrupted"
       if let saved = try? JSONSerialization.data(withJSONObject: state, options: .prettyPrinted) {
         try? saved.write(to: job.appendingPathComponent("job.json"), options: .atomic)
       }
     }
-    job = nil
   }
 }
 

@@ -75,6 +75,7 @@ final class LocalServer: ObservableObject {
   @Published private(set) var error: String?
   @Published private(set) var log = ""
   private var process: Process?
+  private var stopping = false
   private var ticket = UUID()
   private var pending = Data()
   private var watchdog: Task<Void, Never>?
@@ -90,6 +91,7 @@ final class LocalServer: ObservableObject {
     guard !active else { return }
     let launchTicket = UUID()
     ticket = launchTicket
+    stopping = false
     busy = true
     error = nil
     resolution = Task { [weak self] in
@@ -146,6 +148,7 @@ final class LocalServer: ObservableObject {
     pending = Data()
     do { try process.run() } catch {
       self.process = nil
+      self.apiKey = nil
       busy = false
       self.error = error.localizedDescription
       return
@@ -172,16 +175,18 @@ final class LocalServer: ObservableObject {
     guard self.ticket == ticket else { return }
     pending.append(data)
     if pending.count > 65_536 {
-      error = L("Réponse serveur trop longue.", "Server response too long.")
       pending = Data()
-      stop()
+      if !stopping {
+        error = L("Réponse serveur trop longue.", "Server response too long.")
+        stop()
+      }
       return
     }
     while let end = pending.firstIndex(of: 10) {
       let line = Data(pending[..<end])
       pending.removeSubrange(...end)
       log = String((log + String(decoding: line, as: UTF8.self) + "\n").suffix(16_000))
-      if let event = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
+      if !stopping, let event = try? JSONSerialization.jsonObject(with: line) as? [String: Any],
         event["type"] as? String == "ready", let port = event["port"] as? Int,
         (1024...65535).contains(port)
       {
@@ -196,10 +201,20 @@ final class LocalServer: ObservableObject {
   private func exited(ticket: UUID, status: Int32) {
     guard self.ticket == ticket else { return }
     watchdog?.cancel()
-    if status != 0 && !busy {
-      error = L("Le serveur s’est arrêté (\(status)).", "Server exited (\(status)).")
+    if !pending.isEmpty {
+      log = String((log + String(decoding: pending, as: UTF8.self)).suffix(16_000))
+      pending.removeAll()
     }
-    if port == nil && error == nil && status != 0 { error = String(log.suffix(2000)) }
+    if !stopping && error == nil {
+      let detail = log.trimmingCharacters(in: .whitespacesAndNewlines)
+      if port == nil {
+        error = detail.isEmpty
+          ? L("Le serveur s’est arrêté avant d’être prêt (\(status)).", "Server exited before becoming ready (\(status)).")
+          : String(detail.suffix(2000))
+      } else {
+        error = L("Le serveur s’est arrêté (\(status)).", "Server exited (\(status)).")
+      }
+    }
     process = nil
     running = false
     busy = false
@@ -208,6 +223,7 @@ final class LocalServer: ObservableObject {
   }
 
   func stop() {
+    stopping = true
     resolution?.cancel()
     resolution = nil
     if process == nil { ticket = UUID() }

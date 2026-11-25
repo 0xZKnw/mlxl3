@@ -356,7 +356,7 @@ struct AgentProjectStore: Sendable {
     for start in stride(from: 0, to: inventory.paths.count, by: 100) {
       _ = try git(
         ["add", "-f", "--"]
-          + Array(inventory.paths[start..<min(start + 100, inventory.paths.count)]))
+          + inventory.paths[start..<min(start + 100, inventory.paths.count)].map { ":(literal)" + $0 })
     }
     let indexed = String(decoding: try git(["ls-files", "--stage", "-z"]), as: UTF8.self).split(
       separator: "\0")
@@ -455,9 +455,20 @@ struct AgentProjectStore: Sendable {
       try git(["diff", "--no-ext-diff", "--no-textconv", "--name-only", latest, "--"]).isEmpty
     else { throw Self.changedWorkspace() }
     let reviewedPaths = Set(try paths(at: latest))
-    let changes = String(
-      decoding: try git(["diff", "--name-only", "-z", baseline, latest, "--"]), as: UTF8.self
-    ).split(separator: "\0").map(String.init)
+    var fields = String(
+      decoding: try git(["diff", "--find-renames", "--name-status", "-z", baseline, latest, "--"]), as: UTF8.self
+    ).split(separator: "\0").makeIterator()
+    var changes: [String] = []
+    var renamedFrom: [String: String] = [:]
+    while let status = fields.next() {
+      guard let path = fields.next() else { throw CocoaError(.fileReadCorruptFile) }
+      changes.append(String(path))
+      if status.first == "R" {
+        guard let destination = fields.next() else { throw CocoaError(.fileReadCorruptFile) }
+        changes.append(String(destination))
+        renamedFrom[String(destination)] = String(path)
+      }
+    }
     // Check the whole change set before writing any original file.
     var replacements: [String: FileSnapshot] = [:]
     var originals: [String: FileSnapshot] = [:]
@@ -471,7 +482,7 @@ struct AgentProjectStore: Sendable {
       let current = old.map { Self.digest($0.data) }
       let baselineFile = try baselinePaths.contains(path) ? treeFile(path, revision: baseline) : nil
       guard current == state.originalHashes[path],
-        old.map({ $0.mode & 0o111 != 0 }) == baselineFile.map({ $0.mode & 0o111 != 0 }) else {
+        old.map({ $0.mode & 0o100 }) == baselineFile.map({ $0.mode & 0o100 }) else {
         throw NSError(
           domain: "MLXL3.Project", code: 1,
           userInfo: [
@@ -479,14 +490,28 @@ struct AgentProjectStore: Sendable {
           ])
       }
       originals[path] = old
-      if reviewedPaths.contains(path) {
-        let reviewed = try treeFile(path, revision: latest)
-        let live = try Self.diskFile(path, root: workspace)
-        guard
-          reviewed.data == live.data && (reviewed.mode & 0o111 != 0) == (live.mode & 0o111 != 0)
-        else { throw Self.changedWorkspace() }
-        replacements[path] = reviewed
+    }
+    for path in changes where reviewedPaths.contains(path) {
+      let reviewed = try treeFile(path, revision: latest)
+      let live = try Self.diskFile(path, root: workspace)
+      guard reviewed.data == live.data, reviewed.mode & 0o100 == live.mode & 0o100
+      else { throw Self.changedWorkspace() }
+      var mode = reviewed.mode & live.mode
+      if let original = originals[renamedFrom[path] ?? path] {
+        // Git tracks only the owner's execute bit. Preserve current source permissions
+        // across edits and renames, including restrictions applied after import.
+        mode = original.mode
+        if reviewed.mode & 0o100 != mode & 0o100 {
+          if reviewed.mode & 0o100 == 0 {
+            mode &= ~0o111
+          } else {
+            // Grant execution to group/others only if they can still read the original.
+            let executeForCurrentReaders = (mode & 0o444) >> 2
+            mode |= live.mode & (0o100 | executeForCurrentReaders)
+          }
+        }
       }
+      replacements[path] = FileSnapshot(data: reviewed.data, mode: mode)
     }
     var applied: [String] = []
     do {

@@ -317,18 +317,18 @@ enum DecisionMediaImport {
     do { input = try AVAudioFile(forReading: url) } catch {
       throw DecisionDraftError(L("Fichier audio illisible.", "Unreadable audio file."))
     }
-    let file = input.fileFormat.settings
-    if url.pathExtension.lowercased() == "wav", (file[AVLinearPCMBitDepthKey] as? Int) == 16,
-      (file[AVLinearPCMIsFloatKey] as? Bool) != true, (file[AVFormatIDKey] as? UInt32) == kAudioFormatLinearPCM
-    {
-      return url
-    }
     let format = input.processingFormat
     guard format.channelCount >= 1, format.channelCount <= 8 else {
       throw DecisionDraftError(L("Audio : 1 à 8 canaux.", "Audio: 1 to 8 channels."))
     }
     guard Double(input.length) / format.sampleRate <= 300 else {
       throw DecisionDraftError(L("Un clip audio dure au plus 5 minutes.", "An audio clip is at most five minutes long."))
+    }
+    let file = input.fileFormat.settings
+    if url.pathExtension.lowercased() == "wav", (file[AVLinearPCMBitDepthKey] as? Int) == 16,
+      (file[AVLinearPCMIsFloatKey] as? Bool) != true, (file[AVFormatIDKey] as? UInt32) == kAudioFormatLinearPCM
+    {
+      return url
     }
     let out = try destination(extension: "wav")
     let settings: [String: Any] = [
