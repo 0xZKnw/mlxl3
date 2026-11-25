@@ -111,6 +111,17 @@ into the generator for another run. [View a saved generation on an M5](docs/imag
 
 ### Agent
 
+In an Agent conversation on macOS, choose **Tools → Attach files to read…**
+to ask about individual files, or **Work in a folder…** to attach a project
+to the current task. Select the folder name in the composer to see its
+permissions. After a reply, **Review** opens the changes recorded for that
+turn. The command summary shows exit results recorded by the local tools.
+
+You can send a follow-up instruction while the Agent is working. Engines
+with cooperative pause support finish the current action before handling
+the instruction. Older engines deliver it after the current turn. Pressing
+**Stop** keeps a queued instruction in the draft.
+
 Each task works in an isolated project copy. **Agent Studio** combines a file
 browser, code editor, diffs, Git history, checkpoints and ZIP export. Review a
 revision before applying it to the original folder. Conflicting external edits
