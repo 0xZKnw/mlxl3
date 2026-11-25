@@ -377,8 +377,9 @@ struct AgentSandboxCheck {
     check(hanging.isError && hanging.text.contains("ended before finishing"), "never-settling await")
 
     // Isolation: no shell helper survives, the interpreter cannot read or write files.
-    let names = try jscGlobalCandidates()
-    check(names.count > 100, "jsc name extraction")
+    let candidates = try jscGlobalCandidates()
+    check(candidates.count > 100, "jsc name extraction")
+    let names = Array(Set(candidates + ["structuredClone"])).sorted()
     let probe = try js("""
       const names = \(jsonString(names));
       const api = \(jsonString(AgentJavaScript.functions(all) + ["console", "print", "state", "$"]));
