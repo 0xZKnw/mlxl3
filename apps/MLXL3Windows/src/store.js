@@ -3,6 +3,8 @@
 import { restoreTurns, serializeTurns } from "./session.js";
 
 export const MAX_CONVERSATIONS = 200;
+const CONVERSATIONS_KEY = "mlxl3.conversations.v2";
+const LEGACY_KEY = "mlxl3.conversation.v1";
 
 export function newId(now = Date.now(), random = Math.random) {
   return `c${now.toString(36)}${Math.floor(random() * 1e9).toString(36)}`;
@@ -50,10 +52,35 @@ export function serializeConversations(list) {
   })));
 }
 
+export function writeConversationHistory(storage, list) {
+  storage.setItem(CONVERSATIONS_KEY, serializeConversations(list));
+}
+
+export function loadConversationHistory(storage, fallbackTitle, onWriteError) {
+  const raw = storage.getItem(CONVERSATIONS_KEY);
+  if (raw !== null) return restoreConversations(raw);
+  const turns = restoreTurns(storage.getItem(LEGACY_KEY) ?? "[]");
+  if (!turns.length) return [];
+  const list = [{ id: newId(), title: titleFrom(turns, fallbackTitle), updated: Date.now(), pinned: false, turns }];
+  try {
+    writeConversationHistory(storage, list);
+  } catch {
+    onWriteError();
+    return list;
+  }
+  // A leftover legacy copy is harmless once the new history has been saved.
+  try { storage.removeItem(LEGACY_KEY); } catch {}
+  return list;
+}
+
 /** Parse stored conversations; drops anything malformed instead of failing. */
 export function restoreConversations(raw) {
   let parsed;
   try { parsed = JSON.parse(raw); } catch { return []; }
+  return sortedConversations(parsed).slice(0, MAX_CONVERSATIONS);
+}
+
+function sortedConversations(parsed) {
   if (!Array.isArray(parsed)) return [];
   const seen = new Set();
   const result = [];
@@ -68,7 +95,7 @@ export function restoreConversations(raw) {
       agent: item.agent === true,
     });
   }
-  return result.sort((a, b) => b.updated - a.updated).slice(0, MAX_CONVERSATIONS);
+  return result.sort((a, b) => b.updated - a.updated);
 }
 
 export const BACKUP_FORMAT = "mlxl3-windows-conversations";
@@ -93,10 +120,12 @@ export function mergeBackup(list, raw) {
     : parsed && parsed.format === BACKUP_FORMAT && Array.isArray(parsed.conversations) ? parsed.conversations : null;
   if (!items) throw new Error("not an MLXL3 conversation backup");
   const known = new Set(list.map((c) => c.id));
-  const incoming = restoreConversations(JSON.stringify(items)).filter((c) => !known.has(c.id) && c.turns.length);
-  const merged = [...incoming, ...list].sort((a, b) => b.updated - a.updated).slice(0, MAX_CONVERSATIONS);
-  const kept = new Set(merged.map((c) => c.id));
-  return { list: merged, added: incoming.filter((c) => kept.has(c.id)).length };
+  const incoming = sortedConversations(items).filter((c) => !known.has(c.id) && c.turns.length);
+  const admitted = incoming.slice(0, Math.max(0, MAX_CONVERSATIONS - list.length));
+  return {
+    list: [...list, ...admitted].sort((a, b) => b.updated - a.updated),
+    added: admitted.length, skipped: incoming.length - admitted.length,
+  };
 }
 
 /**

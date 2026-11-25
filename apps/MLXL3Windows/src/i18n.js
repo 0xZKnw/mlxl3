@@ -85,6 +85,8 @@ const STRINGS = {
     signedInEnv: "Using HF_TOKEN from the environment", signedOut: "Not signed in", signedIn: "Signed in", hfInvalid: "A Hugging Face token starts with hf_.",
     notificationTitle: "Response complete", notificationBody: "MLXL3 has finished generating its response.",
     exported: "Exported", imported: "{n} conversations imported", importFailed: "Import failed",
+    importCapacity: "History is full. Skipped {n}.",
+    historyWriteFailed: "Couldn’t save conversation history. You can still export a backup.",
     noConversation: "No conversation to export.", branchFromHere: "Branch from here", branch: "branch", readAloud: "Read aloud", stopReading: "Stop reading", imported1: "1 conversation imported", autoUnloaded: "Model unloaded after inactivity.",
     // modes, projects and blocked-send reasons (Mac StudioModes / WorkspaceFeatures)
     newTask: "New task", noProject: "No project", conversationProject: "Conversation project",
@@ -266,6 +268,8 @@ const STRINGS = {
     signedInAs: "Connecté en tant que {name}", signedInEnv: "HF_TOKEN de l'environnement utilisé", signedOut: "Non connecté", signedIn: "Connecté", hfInvalid: "Un token Hugging Face commence par hf_.",
     notificationTitle: "Réponse terminée", notificationBody: "MLXL3 a fini de générer sa réponse.",
     exported: "Exporté", imported: "{n} conversations importées", importFailed: "Échec de l'import",
+    importCapacity: "L’historique est plein. Conversations ignorées : {n}.",
+    historyWriteFailed: "Impossible d’enregistrer l’historique. Tu peux encore exporter une sauvegarde.",
     noConversation: "Aucune conversation à exporter.", branchFromHere: "Créer une branche ici", branch: "branche", readAloud: "Lire à voix haute", stopReading: "Arrêter la lecture", imported1: "1 conversation importée", autoUnloaded: "Modèle déchargé après inactivité.",
     newTask: "Nouvelle tâche", noProject: "Sans projet", conversationProject: "Projet de la conversation",
     projectsProfiles: "Projets et profils", projectsSavedProfiles: "Projets et profils enregistrés", mcp: "MCP",

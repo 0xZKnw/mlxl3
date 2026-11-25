@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import {
   GREETING_POOLS, greeting, greetingPeriod, MAX_CONVERSATIONS, modelSubtitle, pickVariant, recommendedChoices, RECOMMENDED,
-  restoreConversations, revisionLabel, sections, serializeConversations, titleFrom, togglePinned, updateBadge,
+  restoreConversations, revisionLabel, sections, serializeConversations, titleFrom, togglePinned, updateBadge, loadConversationHistory,
   upsertConversation, formatCount, percent, splitRepo, backupJson, branchOf, mergeBackup, markdownExport, BACKUP_FORMAT,
 } from "../src/store.js";
 import { translator } from "../src/i18n.js";
@@ -164,6 +164,51 @@ test("import respects the conversation cap", () => {
   const { list, added } = mergeBackup(many, old);
   assert.equal(list.length, MAX_CONVERSATIONS);
   assert.equal(added, 0, "an older conversation that does not fit is not counted");
+  const incoming = backupJson([0, 1, 2].map((i) => ({
+    id: `new${i}`, title: "Backup", updated: 3000 + i, turns: [turn("user", "imported")],
+  })));
+  for (const free of [0, 1, 2, 3]) {
+    const local = many.slice(free);
+    const merged = mergeBackup(local, incoming);
+    assert.equal(merged.added, free);
+    assert.equal(merged.skipped, 3 - free);
+    assert.ok(local.every((chat) => merged.list.includes(chat)), "import must preserve every existing chat");
+    assert.deepEqual(merged.list.filter((chat) => chat.id.startsWith("new")).map((chat) => chat.id),
+      ["new2", "new1", "new0"].slice(0, free));
+  }
+  const oversized = backupJson([...many, { id: "more", title: "Extra", updated: 9000, turns: [turn("user", "x")] }]);
+  const merged = mergeBackup([], oversized);
+  assert.equal(merged.added, MAX_CONVERSATIONS);
+  assert.equal(merged.skipped, 1);
+});
+
+test("a failed legacy migration preserves the only copy and retries on the next launch", () => {
+  const oldKey = "mlxl3.conversation.v1";
+  const newKey = "mlxl3.conversations.v2";
+  const turns = [turn("user", "Only copy")];
+  const legacy = JSON.stringify(turns);
+  const items = new Map([[oldKey, legacy]]);
+  let quotaExceeded = true;
+  let errors = 0;
+  const storage = {
+    getItem: (key) => items.get(key) ?? null,
+    setItem(key, value) {
+      if (quotaExceeded) throw new Error("QuotaExceededError");
+      items.set(key, value);
+    },
+    removeItem: (key) => items.delete(key),
+  };
+  const load = () => loadConversationHistory(storage, "Chat", () => { errors++; });
+  assert.deepEqual(load()[0].turns, turns);
+  assert.equal(errors, 1);
+  assert.equal(items.get(oldKey), legacy);
+  assert.ok(!items.has(newKey));
+  quotaExceeded = false;
+  const migrated = load();
+  assert.deepEqual(migrated[0].turns, turns);
+  assert.ok(items.has(newKey) && !items.has(oldKey));
+  assert.equal(load()[0].id, migrated[0].id);
+  assert.equal(errors, 1);
 });
 
 test("Markdown export matches the Mac layout", () => {
