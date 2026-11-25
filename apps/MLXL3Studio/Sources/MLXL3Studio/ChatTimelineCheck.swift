@@ -151,6 +151,34 @@ enum ChatTimelineCheck {
         try check(!tool("write_file", #"{"content":"x\ny","path":"b.txt"}"#).detailCoversArguments, "Written content must stay visible")
         try check(tool("list_files", "{}").detail == nil && tool("list_files", "{}").detailCoversArguments, "Listing has no object")
 
+        // Native tools (AGENT-2026-11-25-NATIVE-TOOLS): an action and its object, like the others.
+        let nativeRead = tool("sandbox.read", #"{"file_path":"src/app.py","offset":40}"#)
+        try check(nativeRead.kind == .readFile && nativeRead.title == "Read" && nativeRead.detail == "src/app.py" && nativeRead.isPath,
+                  "Native read wrong: \(nativeRead)")
+        let nativeEdit = tool("edit", #"{"file_path":"a.py","old_string":"x = 1\ny = 2","new_string":"x = 3"}"#)
+        try check(nativeEdit.kind == .editFile && nativeEdit.title == "Edited" && nativeEdit.detail == "a.py" && nativeEdit.isPath
+                  && !nativeEdit.detailCoversArguments, "Native edit wrong: \(nativeEdit)")
+        try check(tool("edit", #"{"file_path":"a.py"}"#, .running).title == "Editing", "Edit running tense wrong")
+        try check(tool("write", #"{"file_path":"b.py","content":"x\ny"}"#).kind == .writeFile
+                  && tool("write", #"{"file_path":"b.py","content":"x\ny"}"#).detail == "b.py", "Native write must name its file")
+        let nativeGrep = tool("grep", #"{"path":"src","pattern":"def \\w+","include":"*.py"}"#)
+        try check(nativeGrep.kind == .search && nativeGrep.title == "Searched" && nativeGrep.detail == "def \\w+" && nativeGrep.monospaced
+                  && !nativeGrep.isPath, "Search must show its pattern, not its folder: \(nativeGrep)")
+        let nativeGlob = tool("glob", #"{"pattern":"**/*.swift"}"#)
+        try check(nativeGlob.kind == .findFiles && nativeGlob.title == "Found files" && nativeGlob.detail == "**/*.swift" && !nativeGlob.isPath,
+                  "File search wrong: \(nativeGlob)")
+        let nativeBash = tool("bash", #"{"command":"sh test.sh"}"#, result: "FAIL\n[exit code: 1]")
+        try check(nativeBash.kind == .command && nativeBash.detail == "sh test.sh" && nativeBash.outcome == "Exit 1",
+                  "Native command must show its exit code: \(nativeBash)")
+        try check(tool("bash", #"{"command":"true"}"#, result: "[exit code: 0]").outcome == nil, "A passing native command shows no outcome")
+        try check(tool("bash", #"{"command":"yes"}"#, result: "y\n[stopped by the time or output limit] [exit code: 143]").outcome == "Stopped",
+                  "A stopped native command must say so")
+        try check(tool("bash", #"{"command":"echo '[exit code: 9]'; true"}"#, result: "[exit code: 9]\n[exit code: 0]").outcome == nil,
+                  "Only the last line is the command's status")
+        let nativeJob = tool("job_output", #"{"job_id":3,"wait":true}"#)
+        try check(nativeJob.kind == .job && nativeJob.title == "Background job" && nativeJob.detail == "#3", "Job call wrong: \(nativeJob)")
+        try check(tool("job_kill", #"{"job_id":3}"#).title == "Stopped background job" && tool("job_list", "{}").detail == nil, "Job titles wrong")
+
         let failedRun = tool("run", #"{"command":"sh test.sh"}"#, .failed, result: "FAIL\nExit status: 1\n")
         try check(failedRun.kind == .command && failedRun.detail == "sh test.sh" && failedRun.outcome == "Exit 1",
                   "Failed command must show its exit status: \(failedRun)")
@@ -185,6 +213,11 @@ enum ChatTimelineCheck {
         }
         try check(input("read_file", #"{"path":"a"}"#) == nil, "A single argument shown on the line must not repeat")
         try check(input("list_files", "{}") == nil && input("run", nil) == nil, "No arguments, no input section")
+        try check(input("write", #"{"content":"line 1\nline 2","file_path":"b"}"#).map { [$0.title, $0.text] } == ["Content", "line 1\nline 2"],
+                  "A native write must show its content as text")
+        try check(input("edit", #"{"file_path":"a","old_string":"x = 1\ny = \"2\"","new_string":"x = 3"}"#).map { [$0.title, $0.text] }
+                  == ["Change", "- x = 1\n- y = \"2\"\n+ x = 3"], "An edit must show what it replaces and with what")
+        try check(input("read", #"{"file_path":"a"}"#) == nil, "A read shown on its line has no input section")
         try check(input("write_file", #"{"content":"line 1\nline 2","path":"b"}"#).map { [$0.title, $0.text] } == ["Content", "line 1\nline 2"],
                   "Written content must read as text, not escaped JSON")
         try check(input("javascript", "const a = 1;\nreturn a").map { [$0.title, $0.text] } == ["Code", "const a = 1;\nreturn a"],

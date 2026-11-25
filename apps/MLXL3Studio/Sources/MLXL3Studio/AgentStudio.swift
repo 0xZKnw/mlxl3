@@ -609,13 +609,22 @@ struct AgentStudioView: View {
               }
             })
         ) {
+          Text(L("Outils natifs", "Native tools")).tag(AgentHarness.native)
           Text("JavaScript").tag(AgentHarness.javascript)
-          Text(L("Outils séparés", "Separate tools")).tag(AgentHarness.tools)
+          // The earlier four-tool set is no longer offered; a workspace that still names it
+          // keeps a visible selection.
+          if model.state.permissions.harness == .tools {
+            Text(L("Quatre outils", "Four tools")).tag(AgentHarness.tools)
+          }
         }
         .pickerStyle(.segmented).labelsHidden()
         .accessibilityIdentifier("agent.harness")
         Text(
-          model.state.permissions.harness == .javascript
+          model.state.permissions.harness == .native
+            ? L(
+              "Le modèle appelle directement lire, modifier, écrire, chercher et lancer une commande, plusieurs par message si besoin.",
+              "The model calls read, edit, write, search and run a command directly, several per message when useful.")
+            : model.state.permissions.harness == .javascript
             ? L(
               "Un seul outil : le modèle écrit un court programme JavaScript qui lit, modifie et teste en un appel.",
               "One tool: the model writes a short JavaScript program that reads, edits and tests in one call.")
