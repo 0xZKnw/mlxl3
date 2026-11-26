@@ -40,12 +40,21 @@ struct AgentTurnResult: Equatable, Sendable {
   struct File: Equatable, Sendable {
     let path: String
     let added: Bool
+    let deleted: Bool
+
+    init(path: String, added: Bool, deleted: Bool = false) {
+      self.path = path
+      self.added = added
+      self.deleted = deleted
+    }
   }
   let before: String
   let after: String
   let files: [File]
   let commands: AgentCommandSummary
   let newDocument: String?
+
+  var deliverableFiles: [File] { files.filter { !$0.deleted } }
 }
 
 struct AgentProjectStore: Sendable {
@@ -184,7 +193,8 @@ struct AgentProjectStore: Sendable {
       for index in stride(from: 0, to: fields.count, by: 2) {
         let path = String(fields[index + 1])
         guard Self.validPath(path) else { throw CocoaError(.fileReadCorruptFile) }
-        files.append(.init(path: path, added: fields[index] == "A"))
+        let status = fields[index]
+        files.append(.init(path: path, added: status == "A", deleted: status == "D"))
       }
     }
     var newDocument: String?
@@ -194,6 +204,14 @@ struct AgentProjectStore: Sendable {
     }
     return AgentTurnResult(before: before, after: after, files: files,
       commands: state.commandReceipts?[assistant.uuidString] ?? AgentCommandSummary(), newDocument: newDocument)
+  }
+
+  /// Read the exact bytes the response left behind, even after another turn edits the file.
+  func deliverableContents(_ path: String, in result: AgentTurnResult) throws -> Data {
+    guard result.deliverableFiles.contains(where: { $0.path == path }) else {
+      throw CocoaError(.fileReadNoPermission)
+    }
+    return try treeFile(path, revision: result.after).data
   }
 
   /// Each branch retains its own baseline. Applying one branch makes overlapping
