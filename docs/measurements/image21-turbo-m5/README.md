@@ -183,11 +183,9 @@ cancellation. The rebuilt executable has SHA-256
 
 ## Native 2K generation
 
-Studio's size picker and worker now accept all seven native 2K formats published
-for Qwen Image 2.1 Base and Turbo. The 512, 768 and 1024 square settings remain
-available. The CLI accepts a square side such as `--size 2048` or an ordered
-pair such as `--size 2752x1536`. Studio saves both axes and restores portrait
-and landscape settings from the gallery.
+Studio's size picker and worker offer four square sizes for Qwen Image 2.1
+Base and Turbo. The new 2048 × 2048 choice joins the existing 512, 768 and
+1024 px sizes. The worker accepts `--size 2048`.
 [Qwen’s size table](https://huggingface.co/Qwen/Qwen-Image-2.1-Turbo/blob/fc13ba1986fcb905854dc8de2f52eee395f49b5b/README.md#supported-aspect-ratios)
 · [Studio with 2048 × 2048 selected](native-size-studio-fr.jpg)
 
@@ -202,8 +200,10 @@ was running on battery. This was one timed render of one prompt and seed.
 
 Studio's gallery code validated the original 4,350,205-byte PNG, saved it,
 reopened its dimensions and generation settings, and exported identical bytes.
-The worker test suite checked both orientations and all supported sizes across
-336 CLI configurations with model dependencies simulated. The physical 2K
-run covered Turbo in square format. Base and the six rectangular formats
-were exercised by automated tests. The earlier memory comparison at 1024 px
-remains specific to that resolution.
+The worker test suite covers all four sizes with model dependencies simulated.
+The physical 2K run covered Turbo. Base at 2048 px was exercised by automated
+tests. After the picker was narrowed to squares, 32 before-and-after CLI traces
+matched for the retained sizes, including the eight-step 2048 run settings and
+its 512 MiB cache limit and restoration. The denoiser loader and decode
+functions match the physical-run source. The new worker SHA-256 is
+`a3fadc41f010e77c22c12d53c2a5d60b92a31ff5ff3c66c38440d01262ac7e3e`.

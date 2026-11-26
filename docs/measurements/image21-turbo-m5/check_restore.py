@@ -28,9 +28,9 @@ with patch.dict(
 
 def check_size(value: str) -> tuple[int, int]:
     """
-    post: __return__ == (0, 0) or value == "%dx%d" % __return__ or (value == str(__return__[0]) and __return__[0] == __return__[1])
-    post: __return__ == (0, 0) or all(512 <= axis <= 2752 and axis % 16 == 0 for axis in __return__)
-    post: __return__[0] * __return__[1] <= 2400 * 1792
+    post: __return__ in ((0, 0), (512, 512), (768, 768), (1024, 1024), (2048, 2048))
+    post: __return__ == (0, 0) or value in (str(__return__[0]), "%dx%d" % __return__)
+    post: __return__ != (0, 0) or value not in ("512", "768", "1024", "2048", "512x512", "768x768", "1024x1024", "2048x2048")
     """
     try:
         return worker.image_dimensions(value)

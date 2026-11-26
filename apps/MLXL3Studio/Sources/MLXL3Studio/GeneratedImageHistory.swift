@@ -8,17 +8,9 @@ struct Image21Size: Hashable, Sendable {
 
     static func square(_ side: Int) -> Self { Self(width: side, height: side) }
 
-    // Published text-to-image sizes of the Qwen Image 2.1 Base and Turbo checkpoints.
-    static let nativePresets: [Self] = [
-        .square(2048),
-        Self(width: 2400, height: 1792), Self(width: 1792, height: 2400),
-        Self(width: 2528, height: 1696), Self(width: 1696, height: 2528),
-        Self(width: 2752, height: 1536), Self(width: 1536, height: 2752)
-    ]
-    static let presets: [Self] = [.square(512), .square(768), .square(1024)] + nativePresets
+    static let presets: [Self] = [.square(512), .square(768), .square(1024), .square(2048)]
 
     var label: String { "\(width) × \(height)" }
-    var workerArgument: String { width == height ? String(width) : "\(width)x\(height)" }
 }
 
 enum Image21Variant: String, Codable, CaseIterable, Sendable {

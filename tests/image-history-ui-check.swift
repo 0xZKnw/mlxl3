@@ -244,12 +244,10 @@ struct ImageHistoryInterfaceCheck {
         studio.setLanguage(.en)
         ocr.recognitionLanguages = ["en-US"]
         try await checkMemorySubmission(1)
-        let landscape = Image21Size(width: 2752, height: 1536)
-        engine.size = Image21Size(width: 1536, height: 2752)
-        try expect(["1536", "2752"], in: await words())
-        engine.size = landscape
+        let twoK = Image21Size.square(2048)
+        engine.size = twoK
         let native = try await words()
-        try expect(["2752", "1536", "reduce memory use"], in: native)
+        try expect(["2048", "reduce memory use"], in: native)
         try await checkMemorySubmission(1)
         engine.size = .square(1024)
         engine.prompt = ""
@@ -282,9 +280,9 @@ struct ImageHistoryInterfaceCheck {
         let store = GeneratedImageHistory(directory: images)
         let saved = try store.save(png: sample, prompt: "A cobalt blue teapot", modelName: "Fixture model",
                                    size: .square(512), steps: 17, seed: 371)
-        try StudioImageFixtures.writePNG(to: sample, width: landscape.width, height: landscape.height)
+        try StudioImageFixtures.writePNG(to: sample, width: twoK.width, height: twoK.height)
         let fast = try store.save(png: sample, prompt: "A mint bicycle", modelName: "Fixture model", variant: .turbo,
-                                  size: landscape, steps: 8, seed: 492)
+                                  size: twoK, steps: 8, seed: 492)
         let legacy = images.appendingPathComponent("Image-29-\(UUID().uuidString).png")
         try fileManager.copyItem(at: example, to: legacy)
         await engine.refreshHistory()
@@ -328,14 +326,14 @@ struct ImageHistoryInterfaceCheck {
         }
         try click("history", in: await words())
         try click("a mint bicycle", in: await words())
-        let rectangle = try await words()
-        try expect(["variant", "turbo", "2752", "1536", "492"], in: rectangle)
-        try await download(rectangle, filename: "Image-492.png", accept: true, source: fast.fileURL)
-        try click("reuse settings", in: rectangle)
-        try expect(["8 steps", "installed on this mac", "2752", "1536"], in: await words())
+        let twoKDetails = try await words()
+        try expect(["variant", "turbo", "2048", "492"], in: twoKDetails)
+        try await download(twoKDetails, filename: "Image-492.png", accept: true, source: fast.fileURL)
+        try click("reuse settings", in: twoKDetails)
+        try expect(["8 steps", "installed on this mac", "2048"], in: await words())
         guard engine.variant == .turbo && engine.prompt == "A mint bicycle" && engine.steps == 8 && engine.seed == 492
-              && engine.size == landscape && !engine.running && fileManager.fileExists(atPath: fast.fileURL.path) else {
-            throw HistoryUIError(message: "Reusing Turbo must select its eight-step generator")
+              && engine.size == twoK && !engine.running && fileManager.fileExists(atPath: fast.fileURL.path) else {
+            throw HistoryUIError(message: "Reusing Turbo must restore its 2048 px setting and eight steps")
         }
         // One recent image of each variant already exists in the fixture's gallery.
         let now = Date()

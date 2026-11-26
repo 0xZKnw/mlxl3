@@ -118,12 +118,12 @@ struct ImageGenerationCheck {
             }
             preconditionFailure("Timed out waiting for the isolated image worker")
         }
-        // Independent list from the model cards; check the exact dimensions sent after the interpreter handoff.
-        let expectedSizes = ["512", "768", "1024", "2048", "2400x1792", "1792x2400", "2528x1696",
-                             "1696x2528", "2752x1536", "1536x2752"]
-        check(Image21Size.presets.map(\.workerArgument) == expectedSizes && engine.size == .square(512))
-        for (size, argument) in zip(Image21Size.presets, expectedSizes) {
-            let expected = argument == "1024" ? 1 : 0
+        let expectedSides = [512, 768, 1024, 2048]
+        check(Image21Size.presets == expectedSides.map { Image21Size(width: $0, height: $0) },
+              "Studio must offer exactly the four square sizes")
+        check(engine.size == .square(512))
+        for (size, side) in zip(Image21Size.presets, expectedSides) {
+            let expected = side == 1024 ? 1 : 0
             engine.size = size
             check(engine.offersLowMemory(at: engine.size) == (expected == 1))
             var draftLowMemory = true
@@ -133,7 +133,7 @@ struct ImageGenerationCheck {
             try await wait { !engine.running }
             check(!draftLowMemory && engine.error == "low-memory=\(expected)")
             let submitted = try String(contentsOf: model.appendingPathComponent("last-size"), encoding: .utf8)
-            check(submitted == argument)
+            check(submitted == String(side))
         }
         engine.start(model: model, prompt: "--low-memory", size: .square(1024), steps: 2, seed: 123)
         try await wait { !engine.running }
@@ -223,14 +223,14 @@ struct ImageGenerationCheck {
             try await wait { !engine.running }
             check(engine.error == "Turbo uses 8 steps." && !fm.fileExists(atPath: turbo.appendingPathComponent("last-prompt").path))
         }
-        for (size, argument) in zip(Image21Size.presets, expectedSizes) {
-            let expected = ["512", "768"].contains(argument) ? 0 : 1
+        for (size, side) in zip(Image21Size.presets, expectedSides) {
+            let expected = [1024, 2048].contains(side) ? 1 : 0
             check(engine.offersLowMemory(at: size) == (expected == 1))
             engine.start(model: turbo, prompt: "--low-memory", size: size, steps: 8, seed: 123, lowMemory: true)
             try await wait { !engine.running }
             check(engine.error == "low-memory=\(expected)")
             let submitted = try String(contentsOf: turbo.appendingPathComponent("last-size"), encoding: .utf8)
-            check(submitted == argument)
+            check(submitted == String(side))
         }
         engine.start(model: turbo, prompt: "--low-memory", size: .square(1024), steps: 8, seed: 123)
         try await wait { !engine.running }
@@ -388,7 +388,7 @@ struct ImageGenerationCheck {
         try StudioImageFixtures.publish(fixtures.catalog.package(for: .turbo).files, at: model)
         let png = model.appendingPathComponent("sample.png")
         try StudioImageFixtures.writePNG(to: png, width: 1792, height: 2400)
-        let reference = try Data(contentsOf: png)
+        let oldPortrait = try Data(contentsOf: png)
         let store = GeneratedImageHistory(directory: base.appendingPathComponent("gallery"))
         let suite = "mlxl3.native-sizes." + UUID().uuidString
         let prefs = UserDefaults(suiteName: suite)!
@@ -396,40 +396,50 @@ struct ImageGenerationCheck {
         prefs.set(true, forKey: ImageGeneration.autoSavePreferenceKey)
         let engine = ImageGeneration(supported: true, lowMemoryAvailable: true, historyDirectory: store.directory,
                                      worker: try StudioImageFixtures.worker(in: base), preferences: prefs, catalog: fixtures.catalog)
-        let size = Image21Size(width: 1792, height: 2400)
         func render(_ request: Image21Size) async throws {
-            engine.start(model: model, prompt: "portrait", size: request, steps: 8, seed: 543)
+            engine.start(model: model, prompt: "teapot", size: request, steps: 8, seed: 543)
             let deadline = ContinuousClock.now.advanced(by: .seconds(10))
             while engine.running && ContinuousClock.now < deadline { try await Task.sleep(for: .milliseconds(20)) }
-            precondition(!engine.running, "Timed out waiting for rectangular worker")
+            precondition(!engine.running, "Timed out waiting for image worker")
         }
-        try await render(.square(4096))
-        precondition(engine.error == "Choose an image size offered for this model.")
+        for (width, height) in [(4096, 4096), (1536, 1536), (1792, 2400), (2400, 1792),
+                                (1696, 2528), (2528, 1696), (1536, 2752), (2752, 1536)] {
+            try await render(Image21Size(width: width, height: height))
+            precondition(engine.error == "Choose an image size offered for this model.")
+        }
         precondition(!FileManager.default.fileExists(atPath: model.appendingPathComponent("last-size").path))
-        try await render(Image21Size(width: 2400, height: 1792))
+        try await render(.square(2048))
         precondition(engine.error == "The engine returned an unreadable image." && engine.history.isEmpty)
-        try await render(size)
-        guard engine.error == nil, let record = engine.history.first else { preconditionFailure("Missing rectangular output") }
-        precondition(record.width == 1792 && record.height == 2400 && record.variant == .turbo && record.steps == 8)
+        try StudioImageFixtures.writePNG(to: png, width: 2048, height: 2048)
+        try await render(.square(2048))
+        guard engine.error == nil, let record = engine.history.first else { preconditionFailure("Missing 2048 px square") }
+        precondition(record.width == 2048 && record.height == 2048 && record.variant == .turbo && record.steps == 8)
         let loaded = try store.records()
-        precondition(loaded == [record] && record.prompt == "portrait" && record.seed == 543)
+        precondition(loaded == [record] && record.prompt == "teapot" && record.seed == 543)
         let destination = base.appendingPathComponent("export.png")
-        try await record.export(to: destination)
+        // An earlier version offered rectangular generation and wrote version 3 sidecars.
+        let old = store.directory.appendingPathComponent("Image-42-4C9F37DF-382E-4EB7-97F5-54B4A8EAFF26.png")
+        try oldPortrait.write(to: old)
+        let sidecar = store.directory.appendingPathComponent("." + old.lastPathComponent + ".json")
+        let fields: [String: Any] = ["version": 3, "filename": old.lastPathComponent, "createdAt": 0,
+                                     "prompt": "portrait", "modelName": "archived Turbo", "variant": "turbo",
+                                     "width": 1792, "height": 2400, "steps": 8, "seed": 42]
+        try JSONSerialization.data(withJSONObject: fields).write(to: sidecar)
+        let archived = try store.records().first { $0.seed == 42 }
+        guard let archived else { preconditionFailure("Missing archived rectangle") }
+        precondition(archived.prompt == "portrait" && archived.variant == .turbo && archived.width == 1792 && archived.height == 2400)
+        try await archived.export(to: destination)
         let exported = try Data(contentsOf: destination)
-        precondition(exported == reference, "Export changed the rectangular PNG")
-        let sidecar = store.directory.appendingPathComponent("." + record.fileURL.lastPathComponent + ".json")
-        let fields = try JSONSerialization.jsonObject(with: Data(contentsOf: sidecar)) as! [String: Any]
-        precondition(fields["version"] as? Int == 3 && fields["size"] == nil)
-        precondition(fields["width"] as? Int == 1792 && fields["height"] as? Int == 2400)
+        precondition(exported == oldPortrait, "Export changed the archived rectangular PNG")
         for (key, badValue) in [("width", 2400), ("height", 1792), ("version", 2), ("size", 1792)] {
             var bad = fields
             bad[key] = badValue
             try JSONSerialization.data(withJSONObject: bad).write(to: sidecar, options: .atomic)
-            let fallback = try store.records()
-            precondition(fallback.count == 1 && fallback[0].width == 1792 && fallback[0].height == 2400)
-            precondition(fallback[0].variant == nil && fallback[0].prompt == nil, "Damaged dimensions must disable metadata reuse")
+            let fallback = try store.records().first { $0.seed == 42 }
+            precondition(fallback?.width == 1792 && fallback?.height == 2400)
+            precondition(fallback?.variant == nil && fallback?.prompt == nil, "Damaged dimensions must disable metadata reuse")
         }
-        print("Rectangular generation, transposed output rejection, gallery reload, PNG export and four invalid sidecars passed")
+        print("2048 square generation, unsupported dimensions rejected, archived rectangular gallery, PNG export and four invalid sidecars passed")
     }
 
     @MainActor static func checkTimeouts() {
@@ -438,9 +448,9 @@ struct ImageGenerationCheck {
         let inputs = ["Loading tokenizer", "0%| | 0/8 [00:00]", "12%|#| 1/8 [00:09]",
                       "12%|#| 1/8 [00:16]", "0%| | 0/8 [00:17]", "200%|##| 9/8 [00:17]",
                       "100%|##| 2/2 [00:17]"]
-        for size in Image21Size.presets.map(Optional.some) + [nil] {
+        for size in Image21Size.presets.map(Optional.some) + [Image21Size(width: 2400, height: 1792), nil] {
             var deadline = ImageWorkerDeadline(start: start, interval: interval, size: size, steps: 8)
-            let renews = size.map { $0.width > 1024 && $0.height > 1024 } ?? false
+            let renews = size?.width == 2048 && size?.height == 2048
             for (offset, line) in zip([0, 5, 9, 9, 9, 9, 9], inputs) {
                 let progress = ImageGeneration.progress(in: line, steps: 8)
                 precondition(deadline.isActive(at: start.advanced(by: .seconds(offset)), completedStep: progress?.completedStep))
@@ -461,7 +471,7 @@ struct ImageGenerationCheck {
             let expired = deadline.end
             precondition(!deadline.isActive(at: expired, completedStep: 8), "Expired workers cannot rearm their deadline")
         }
-        print("Worker deadlines: ten image presets and setup, fresh progress, repeated/stale lines, invalid totals and silence checked")
+        print("Worker deadlines: four square presets, archived rectangle and setup, fresh progress, repeated/stale lines, invalid totals and silence checked")
     }
 
     @MainActor static func main() async throws {

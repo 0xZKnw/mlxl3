@@ -34,7 +34,7 @@ struct ImageWorkerDeadline {
 
     init(start: ContinuousClock.Instant, interval: Duration, size: Image21Size?, steps: Int?) {
         self.interval = interval
-        renewableSteps = size.map(Image21Size.nativePresets.contains) == true ? steps : nil
+        renewableSteps = size == .square(2048) ? steps : nil
         end = start.advanced(by: interval)
     }
 
@@ -268,7 +268,7 @@ final class ImageGeneration: ObservableObject {
 
     func offersLowMemory(at size: Image21Size) -> Bool {
         supported && lowMemoryAvailable &&
-            (size == .square(1024) || (variant == .turbo && Image21Size.nativePresets.contains(size)))
+            (size == .square(1024) || (variant == .turbo && size == .square(2048)))
     }
 
     func start(model: URL, prompt: String, size: Image21Size, steps: Int, seed: UInt32, lowMemory: Bool = false) {
@@ -324,7 +324,7 @@ final class ImageGeneration: ObservableObject {
                 status = L("Chargement du modèle…", "Loading the model…")
                 let png = work.appendingPathComponent("image.png")
                 var arguments = ["-I", "-u", script.path, "--variant", variant.rawValue, "--model", model.path, "--prompt=\(prompt)",
-                                 "--size", size.workerArgument, "--steps", String(steps), "--seed", String(seed), "--output", png.path]
+                                 "--size", String(size.width), "--steps", String(steps), "--seed", String(seed), "--output", png.path]
                 if useLowMemory { arguments.append("--low-memory") }
                 try await run(URL(fileURLWithPath: python), arguments, log: log, stdout: log, timeout: 3600,
                               steps: steps, size: size)

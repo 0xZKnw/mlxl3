@@ -346,26 +346,14 @@ def capped_decode(decode, latent):
         mx.set_cache_limit(previous)
 
 
-# Legacy Studio squares followed by Qwen's native 2K text-to-image presets.
-IMAGE_SIZES = (
-    (512, 512),
-    (768, 768),
-    (1024, 1024),
-    (2048, 2048),
-    (2400, 1792),
-    (1792, 2400),
-    (2528, 1696),
-    (1696, 2528),
-    (2752, 1536),
-    (1536, 2752),
-)
+IMAGE_SIDES = (512, 768, 1024, 2048)
 
 
 def image_dimensions(value: str) -> tuple[int, int]:
-    for width, height in IMAGE_SIZES:
-        if value == f"{width}x{height}" or (width == height and value == str(width)):
-            return width, height
-    raise argparse.ArgumentTypeError("expected a Studio square size or a native Qwen 2K preset")
+    for side in IMAGE_SIDES:
+        if value in (str(side), f"{side}x{side}"):
+            return side, side
+    raise argparse.ArgumentTypeError("expected a square of 512, 768, 1024 or 2048 pixels per side")
 
 
 def main():
@@ -380,8 +368,10 @@ def main():
         "--size",
         type=image_dimensions,
         default=(512, 512),
-        metavar="SIDE|WIDTHxHEIGHT",
-        help="Square side or one of: " + ", ".join(f"{w}x{h}" for w, h in IMAGE_SIZES),
+        metavar="SIDE",
+        help="Square side in pixels: "
+        + ", ".join(map(str, IMAGE_SIDES))
+        + " (e.g. 2048 or 2048x2048).",
     )
     parser.add_argument(
         "--low-memory",
@@ -389,7 +379,7 @@ def main():
         help=(
             "On an Apple M5 with 24 GiB of memory, limit the free Metal buffer cache to 512 MiB "
             "throughout Base rendering at 1024 px or during the final Turbo decode at 1024 px "
-            "and native 2K sizes. This can increase render time."
+            "or 2048 px. This can increase render time."
         ),
     )
     args = parser.parse_args()
@@ -416,7 +406,10 @@ def main():
     # Studio launches this worker for one image. Each component can be released after its phase.
     model.callbacks.register(MemorySaver(model, keep_transformer=False, cache_limit_bytes=None))
     cap_turbo_decode = (
-        args.variant == "turbo" and args.low_memory and m5_24gib and min(args.size) >= 1024
+        args.variant == "turbo"
+        and args.low_memory
+        and m5_24gib
+        and args.size in ((1024, 1024), (2048, 2048))
     )
     decode = capped_decode if cap_turbo_decode else checked_decode
     model.vae.decode = partial(decode, model.vae.decode)

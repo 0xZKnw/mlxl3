@@ -17,8 +17,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
-# Expected CLI spellings and output axes from the Studio legacy sizes and Qwen's
-# published list for Base and Turbo. Keep independent from the worker table.
+# CLI spellings and dimensions for the four squares offered by Studio.
 IMAGE_SIZE_CASES = (
     ("512", (512, 512)),
     ("512x512", (512, 512)),
@@ -28,12 +27,6 @@ IMAGE_SIZE_CASES = (
     ("1024x1024", (1024, 1024)),
     ("2048", (2048, 2048)),
     ("2048x2048", (2048, 2048)),
-    ("2400x1792", (2400, 1792)),
-    ("1792x2400", (1792, 2400)),
-    ("2528x1696", (2528, 1696)),
-    ("1696x2528", (1696, 2528)),
-    ("2752x1536", (2752, 1536)),
-    ("1536x2752", (1536, 2752)),
 )
 
 
@@ -327,13 +320,11 @@ class ImageWorkerTest(unittest.TestCase):
                     capped_sizes = low_memory_sizes if low_memory else default_sizes
                     if variant == "turbo":
                         capped_sizes = (512,)
-                    expected = (
-                        [call.limit(cap)] if width == height and width in capped_sizes else []
-                    )
+                    expected = [call.limit(cap)] if width in capped_sizes else []
                     expected.append(call.build(self.root, variant))
                     if (
                         variant == "turbo"
-                        and dimensions not in ((512, 512), (768, 768))
+                        and width in (1024, 2048)
                         and low_memory
                         and 1024 in low_memory_sizes
                     ):
@@ -383,10 +374,31 @@ class ImageWorkerTest(unittest.TestCase):
         self.build.assert_not_called()
         self.image.save.assert_not_called()
 
-    def test_rejects_a_transposed_image_before_writing(self):
-        self.image.size = (1536, 2752)
-        with self.assertRaisesRegex(ValueError, "image dimensions"):
-            self.run_worker("--variant", "turbo", "--size", "2752x1536")
+    def test_rejects_previous_rectangular_presets_before_setup(self):
+        for variant, value in product(
+            ("base", "turbo"),
+            ("2400x1792", "1792x2400", "2528x1696", "1696x2528", "2752x1536", "1536x2752"),
+        ):
+            with (
+                self.subTest(variant=variant, value=value),
+                contextlib.redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit) as cm,
+            ):
+                self.run_worker("--variant", variant, "--size", value, "--low-memory")
+            self.assertEqual(cm.exception.code, 2)
+        self.core.device_info.assert_not_called()
+        self.build.assert_not_called()
+        self.image.save.assert_not_called()
+
+    def test_checks_both_output_dimensions_before_writing(self):
+        for size in ((2048, 1024), (1024, 2048), (1024, 1024)):
+            with self.subTest(size=size):
+                self.image.size = size
+                self.saver.reset_mock()
+                self.model.callbacks.reset_mock()
+                self.model.vae.decode = self.decode
+                with self.assertRaisesRegex(ValueError, "image dimensions"):
+                    self.run_worker("--variant", "turbo", "--size", "2048")
         self.image.save.assert_not_called()
 
     def test_two_steps(self):
