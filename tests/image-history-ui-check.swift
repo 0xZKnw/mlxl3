@@ -180,11 +180,36 @@ struct ImageHistoryInterfaceCheck {
         try expect(["installé sur ce mac"], in: await words(snapshot: "studio-image-turbo-installed-fr.png"))
         studio.setLanguage(.en)
         ocr.recognitionLanguages = ["en-US"]
+        let reference = temporary.appendingPathComponent("Retouch reference.png")
+        try fileManager.copyItem(at: example, to: reference)
+        let imageView = ImageGenerationView(engine: engine, close: {})
+        engine.size = 768
+        try expect(["drop an image"], in: await words())
+        guard !imageView.acceptReferenceDrop([reference, reference]),
+              !imageView.acceptReferenceDrop([URL(string: "https://example.com/reference.png")!]),
+              imageView.acceptReferenceDrop([reference]) else {
+            throw HistoryUIError(message: "Reference drop must accept exactly one local file")
+        }
+        let importDeadline = ContinuousClock.now.advanced(by: .seconds(4))
+        while engine.referenceImage == nil && engine.referenceError == nil && ContinuousClock.now < importDeadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        try expect(["edit an image", "retouch reference.png", "describe what to change", "512"],
+                   in: await words(snapshot: "studio-image-retouch-en.png"))
+        guard !engine.referenceImporting, engine.referenceImage?.name == "Retouch reference.png", engine.size == 768 else {
+            throw HistoryUIError(message: "Import must enter edit mode without changing the text-to-image size")
+        }
+        engine.removeReference()
+        try expect(["generate an image", "drop an image"], in: await words())
         guard let picker = variantPicker(in: host) else { throw HistoryUIError(message: "Missing image model picker") }
         picker.selectedSegment = 1
         guard picker.sendAction(picker.action, to: picker.target) else { throw HistoryUIError(message: "Image picker has no action") }
         try expect(["2 to 50", "recreate a base", "download"], in: await words())
         guard engine.variant == .base && engine.steps == 40 else { throw HistoryUIError(message: "Base picker failed") }
+        try expect(["use turbo"], in: await words())
+        guard !imageView.acceptReferenceDrop([reference]) else {
+            throw HistoryUIError(message: "Base accepted a Turbo-only image drop")
+        }
         try click("history", in: await words())
         try expect(["image history", "no images"], in: await words())
         let sample = temporary.appendingPathComponent("worker.png")
@@ -329,6 +354,6 @@ struct ImageHistoryInterfaceCheck {
         }
         try expectImageCounts([12, 12], for: .turbo, in: recovered)
         try await checkImageSaveSettings(studio: studio, window: window, preferences: preferences)
-        print("Image history interface passed: PNG download and cancellation, image library, reuse, Lab counts in both periods and live refresh, saving preference")
+        print("Image history interface passed: reference drop and Turbo settings, PNG download and cancellation, image library, reuse, Lab counts in both periods and live refresh, saving preference")
     }
 }

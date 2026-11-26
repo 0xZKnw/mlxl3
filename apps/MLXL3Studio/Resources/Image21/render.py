@@ -4,7 +4,7 @@
 # [tool.uv]
 # exclude-newer = "2026-11-22T20:00:00Z"
 # ///
-"""Studio's local Qwen-Image-2.1 text-to-image worker on Apple M5 Metal."""
+"""Studio's local Qwen-Image-2.1 worker on Apple M5 Metal."""
 
 import argparse
 import hashlib
@@ -311,6 +311,125 @@ def build(folder, variant="base"):
     return model
 
 
+def build_editor(folder):
+    from dataclasses import replace
+    from runpy import run_path
+
+    from huggingface_hub import snapshot_download
+    from mflux.models.common.compute_precision import ComputePrecision
+    from mflux.models.common.config import ModelConfig
+    from mflux.models.common.tokenizer import TokenizerLoader
+    from mflux.models.qwen21.model.qwen21_text_encoder.processor import QwenImage21Processor
+    from mflux.models.qwen21.model.qwen21_text_encoder.text_encoder import QwenImage21TextEncoder
+    from mflux.models.qwen21.model.qwen21_transformer.qwen_image21_transformer import (
+        QwenImage21Transformer,
+    )
+    from mflux.models.qwen21.model.qwen21_vae.blocks import Resample
+    from mflux.models.qwen21.model.qwen21_vae.vae import QwenImage21VAE
+    from mflux.models.qwen21.qwen21_initializer import Qwen21Initializer as Init
+    from mflux.models.qwen21.variants.edit.qwen_image_21_edit import QwenImage21Edit
+    from mflux.models.qwen21.weights.qwen_image21_weight_definition import (
+        QwenImage21WeightDefinition,
+    )
+
+    class SharedVAEWeights(QwenImage21WeightDefinition):
+        @staticmethod
+        def get_components():
+            return [
+                replace(c, skip_quantization=False)
+                for c in QwenImage21WeightDefinition.get_components()
+                if c.name == "vae"
+            ]
+
+    print("Loading edit encoder", flush=True)
+    # The worker runs with Python -I, which excludes the script's directory from sys.path.
+    assets = run_path(str(Path(__file__).with_name("edit_vision.py")))["prepare_edit_vision"]()
+    model = QwenImage21Edit.__new__(QwenImage21Edit)
+    nn.Module.__init__(model)
+    Init.init_config(model, ModelConfig.qwen_image_21_turbo())
+    model.transformer = QwenImage21Transformer(
+        json.loads((assets / "transformer/config.json").read_text())
+    )
+    print("Loading EXL3 denoiser", flush=True)
+    load_turbo_denoiser(model.transformer, folder)
+
+    print("Loading tokenizer and VAE", flush=True)
+    aux = Path(
+        snapshot_download(
+            AUX,
+            revision=AUX_REVISION,
+            allow_patterns=["processor/*", "text_encoder/*", "vae/*", "LICENSE"],
+        )
+    )
+    model.vae = QwenImage21VAE(json.loads((assets / "vae/config.json").read_text()))
+    for _, layer in model.vae.named_modules():
+        # These Conv2d placeholders exist to round-trip the full checkpoint.
+        # MFLUX's single-frame Resample never uses them, and the text VAE omits them.
+        if isinstance(layer, Resample) and hasattr(layer, "time_conv"):
+            del layer.time_conv
+    Init.load_components(model, aux, SharedVAEWeights, None, validate=True)
+    model.tokenizers = TokenizerLoader.load_all(
+        QwenImage21WeightDefinition.get_tokenizers(), str(aux)
+    )
+    model.processor = QwenImage21Processor(
+        assets / "processor", model.tokenizers["qwen21"].tokenizer
+    )
+    model.text_encoder = QwenImage21TextEncoder(
+        json.loads((assets / "text_encoder/config.json").read_text())
+    )
+    model.bits = load_edit_encoder(model.text_encoder, aux, assets / "vision.safetensors")
+    Init.apply_lora(model, None, None, True)
+    model.compute_precision = ComputePrecision(None)
+    return model
+
+
+def load_edit_encoder(model, aux, vision_path):
+    from mflux.models.common.weights.loading.weight_applier import WeightApplier
+    from mflux.models.common.weights.loading.weight_loader import WeightLoader
+    from mflux.models.qwen21.qwen21_initializer import Qwen21Initializer as Init
+    from mflux.models.qwen21.weights.qwen21_weight_definition import Qwen21WeightDefinition
+    from mflux.models.qwen21.weights.qwen_image21_weight_definition import (
+        QwenImage21WeightDefinition,
+    )
+    from mlx.utils import tree_unflatten
+
+    name = "text_encoder"
+    component = next(c for c in Qwen21WeightDefinition.get_components() if c.name == name)
+    weights = WeightLoader.load_single_local(component, aux)
+    if weights.meta_data.quantization_level != 4:
+        raise ValueError("Expected the shared 4-bit Qwen Image text encoder")
+    language = dict(tree_flatten(weights.components[name]))
+    vision = mx.load(str(vision_path))
+    if not vision or any(not key.startswith("visual.") for key in vision):
+        raise ValueError("Unexpected tensors in the reference image encoder")
+    combined = {f"language_model.{key}": value for key, value in language.items()} | vision
+    weights.components[name] = tree_unflatten(list(combined.items()))
+    component = next(c for c in QwenImage21WeightDefinition.get_components() if c.name == name)
+    bits = WeightApplier.apply_and_quantize_single(
+        weights, model, component, None, QwenImage21WeightDefinition.quantization_predicate
+    )
+    Init._validate_weights(name, model, combined, QwenImage21WeightDefinition)
+    return bits
+
+
+def load_reference(path):
+    from PIL import Image
+
+    if not path.is_file() or path.stat().st_size > 64 * 1024**2:
+        raise ValueError("Reference image is missing or exceeds 64 MiB")
+    try:
+        with Image.open(path, formats=["PNG"]) as image:
+            shortest = min(image.size)
+            longest = max(image.size)
+            if not shortest or longest > 4096 or longest > 8 * shortest or image.n_frames != 1:
+                raise ValueError(
+                    "Reference must be a still PNG no larger than 4096 px with an aspect ratio up to 8:1"
+                )
+            return image.copy()
+    except Image.DecompressionBombError as exc:
+        raise ValueError("Reference image exceeds safe decode dimensions") from exc
+
+
 def require_supported_gpu():
     version = platform.mac_ver()[0].split(".")
     if (
@@ -328,7 +447,7 @@ def require_supported_gpu():
 
 
 def checked_decode(decode, latent):
-    # Check on both sides of the VAE, before MFLUX clips and casts pixels to uint8.
+    # Validate the VAE input and decoded pixels before MFLUX converts them to uint8.
     if not latent.size or not mx.all(mx.isfinite(latent)).item():
         raise ValueError("Image generation produced empty or non-finite latents")
     pixels = decode(latent)
@@ -343,6 +462,7 @@ def main():
     parser.add_argument("--variant", choices=("base", "turbo"), default="base")
     parser.add_argument("--prompt", required=True)
     parser.add_argument("--output", required=True, type=Path)
+    parser.add_argument("--reference-image", type=Path, help="Edit one PNG with Turbo at 512 px")
     parser.add_argument("--seed", required=True, type=int)
     parser.add_argument("--steps", type=int, choices=range(2, 51), metavar="2..50")
     parser.add_argument("--size", type=int, default=512, choices=(512, 768, 1024))
@@ -353,22 +473,36 @@ def main():
         parser.error("--variant turbo requires exactly 8 steps")
     if not args.prompt.strip() or not 0 <= args.seed < 2**32:
         parser.error("Invalid prompt or seed")
+    reference = None
+    if args.reference_image is not None:
+        if args.variant != "turbo" or args.size != 512:
+            parser.error("--reference-image requires Turbo at 512 px")
+        try:
+            reference = load_reference(args.reference_image)
+        except (OSError, ValueError) as exc:
+            parser.error(f"Invalid reference image: {exc}")
     print(require_supported_gpu(), flush=True)
     from mflux.callbacks.instances.memory_saver import MemorySaver
 
     if args.size == 512:
         # Limit unused Metal buffers before the worker loads the model.
         mx.set_cache_limit(512 * 1024**2)
-    model = build(args.model, args.variant)
+    model = build_editor(args.model) if reference is not None else build(args.model, args.variant)
     # Studio launches this worker for one image. Each component can be released after its phase.
     model.callbacks.register(MemorySaver(model, keep_transformer=False, cache_limit_bytes=None))
     model.vae.decode = partial(checked_decode, model.vae.decode)
+    editing = (
+        {"image_paths": [reference], "output_resolution": args.size}
+        if reference is not None
+        else {}
+    )
     im = model.generate_image(
         seed=args.seed,
         prompt=args.prompt,
         width=args.size,
         height=args.size,
         num_inference_steps=args.steps,
+        **editing,
     )
     image = im.image
     if image.size != (args.size, args.size):

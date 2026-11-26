@@ -20,6 +20,7 @@ struct GeneratedImageRecord: Identifiable, Equatable, Sendable {
     let height: Int
     let steps: Int?
     let seed: UInt32?
+    var isEdit = false
 
     func export(to destination: URL) async throws {
         try await Task.detached(priority: .userInitiated) {
@@ -58,10 +59,11 @@ struct GeneratedImageHistory: Sendable {
         let size: Int
         let steps: Int
         let seed: UInt32
+        let isEdit: Bool?
 
         func record(at url: URL) -> GeneratedImageRecord {
             GeneratedImageRecord(fileURL: url, createdAt: createdAt, prompt: prompt, modelName: modelName,
-                                 variant: variant ?? .base, width: size, height: size, steps: steps, seed: seed)
+                                 variant: variant ?? .base, width: size, height: size, steps: steps, seed: seed, isEdit: isEdit ?? false)
         }
     }
 
@@ -113,7 +115,7 @@ struct GeneratedImageHistory: Sendable {
     }
 
     func save(verifiedPNG: VerifiedPNG, prompt: String, modelName: String, variant: Image21Variant,
-              steps: Int, seed: UInt32, id: UUID, createdAt: Date) throws -> GeneratedImageRecord {
+              steps: Int, seed: UInt32, id: UUID, createdAt: Date, isEdit: Bool = false) throws -> GeneratedImageRecord {
         guard variant.stepRange.contains(steps) else {
             throw NSError(domain: "MLXL3.ImageGeneration", code: 1,
                           userInfo: [NSLocalizedDescriptionKey: L("Nombre d’étapes incompatible avec le modèle.",
@@ -124,7 +126,8 @@ struct GeneratedImageHistory: Sendable {
         let filename = "Image-\(seed)-\(id.uuidString).png"
         let image = directory.appendingPathComponent(filename)
         let metadata = Metadata(version: 2, filename: filename, createdAt: createdAt, prompt: prompt,
-                                modelName: modelName, variant: variant, size: verifiedPNG.size, steps: steps, seed: seed)
+                                modelName: modelName, variant: variant, size: verifiedPNG.size, steps: steps, seed: seed,
+                                isEdit: isEdit ? true : nil)
         let settings = sidecar(for: image)
         // Stage on the destination volume. Readers see the complete PNG only after
         // its settings have been written, even when the worker's temporary volume differs.
