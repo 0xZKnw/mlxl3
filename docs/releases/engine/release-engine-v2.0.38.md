@@ -16,11 +16,22 @@ Install the archive through the Desktop engine updater, or extract all its files
 
 ## Verification and limits
 
-_To be completed with the build._
+Checks run on these sources on an Apple M5, before publication.
+
+- `cargo fmt --check`; `cargo clippy --all-targets -- -D warnings` with `mlx,chat`, `chat` and `direct-metal,chat`; `cargo test --no-default-features --features chat`: 593 passed, 0 failed, 13 ignored (library).
+- New deterministic tests with a scripted model: earlier turns summarized when they fill the context, with and without tool history; a conversation that never used a tool; a summary that cannot be used changes nothing; a turn interrupted after a summary keeps only its own exchanges; a single turn or a small conversation is never summarized; the cut and its fallbacks to older cuts. 9 temporary mutants of this code were all detected.
+- **One real-model run with the binary of this archive** and the sandbox server of Desktop 2.1.0: Inkling 2 Mini EXL3 3.33 bpw, temperature 1, 16,384-token context, six fabricated exchanges then a question. One `history_summary` (`kept_from` 11, ten messages replaced, prompt 13,139 → 4,331 tokens), `complete` with `eos`; the next turn, rebuilt from the event, had 4,671 prompt tokens and completed. The summary kept the two planted facts and both answers gave them. Script and report: `docs/measurements/agent-history-summary-2026-11-26/`.
+- **Not verified:** any other model (Qwen, Flash Next), a cut across images or tool history on a real model, the quality of summaries in general (one run, one conversation, temperature 1), a second summary in the same request on a real model. Kani was not run.
+- CI of `main` for this source had not finished when these notes were written; see the Desktop release for the state read before tagging.
 
 ## Artifacts
 
-_To be completed with the build._
+| File | Size | SHA-256 |
+|---|---|---|
+| `MLXL3-Engine-v2.0.38-arm64.tar.gz` | 69,321,677 bytes | `b3ab6b63223c62dd26aa14480d81fed3476b50c795d8df41765e074001636a47` |
+| `MLXL3-Engine-v2.0.38-arm64.tar.gz.sha256` | 100 bytes | |
+
+Source: `20473fd12` (tag `engine-v2.0.38`). The archive was extracted into a new directory: `mlxl3` passes a strict signature check and is arm64 (SHA-256 `7ca8ce1444b2ea5f46d90c58fee59190d175e9a513f241e30b4b6867f493bbfb`), its manifest reports 2.0.38 and `engine-v2.0.38`, and its five files are identical to those bundled in Desktop 2.1.0. That binary is the one used in the real-model run above.
 
 ## Thanks
 

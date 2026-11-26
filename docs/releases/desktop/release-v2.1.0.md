@@ -38,11 +38,25 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Verification and limits
 
-_To be completed with the build._
+Checks run on these sources on an Apple M5, before publication.
+
+- **One real-model run, on the files of this release** (the bundled engine and the app's own sandbox server): Inkling 2 Mini EXL3 3.33 bpw, temperature 1, 16,384-token context, a fabricated conversation of six long exchanges followed by a question. The engine summarized ten earlier messages (prompt 13,139 â†’ 4,331 tokens), answered, and the next turn, rebuilt the way the app does, was sent with 4,671 prompt tokens and answered. The summary kept the two facts planted in the first two messages and both answers gave them. One run, one model, one conversation: it shows the path works, not how good summaries are in general.
+- Studio modes check with a fake engine: 2,534 checks (summary stored, applied to the next request and to branches, invalid events ignored; the approval question shown, answered, dropped on Stop, never answered for another command; earlier chats opened as tasks; the user's MCP servers merged into the Agent registry).
+- Agent sandbox check: 621 passed, and 153 through the production entry of the sandbox server (commands asked, allowed, refused, unanswered; no question outside a user's folder).
+- The full Desktop suite passed except its last step, which could not start (`pytest` missing from the system Python); that step's two scripts were run with the project's Python and passed (65 and 96 checks).
+- Engine: `cargo fmt --check`; Clippy with `-D warnings` on `mlx,chat`, `chat` and `direct-metal,chat`; `cargo test --no-default-features --features chat`: 593 passed, 0 failed, 13 ignored (library).
+- 22 temporary mutants of the new guards (9 engine, 6 sandbox server, 7 app) were all detected.
+- A defect found while reading the final diff was fixed before this release: the approval alert answered the *current* request and treated its own dismissal as a refusal, so depending on the order in which the system closes an alert, **Allow** could have been recorded as a refusal, or applied to a command asked after the one displayed.
+- **Not verified:** real clicks in the app (the alert, the menus, the sidebar: their logic is tested through the app model and one rendered screenshot was inspected; the app of this DMG was not launched); a summary with Qwen or any model other than Inkling 2 Mini; a conversation with images or tool history across the cut on a real model; one of your MCP servers being slow or stuck when the Agent starts; the speed of a plain conversation now that it carries tool definitions. Kani was not run.
+- CI: on the previous `main` commit the Windows, Rust, Apple compatibility, EXL3 and profile workflows passed; `Regression checks` failed on a save-panel check of the image history that also fails on unrelated branches of the hosted runner and passes locally.
 
 ## Source and download
 
-_To be completed with the build._
+- Source: [`20473fd12`](https://github.com/0xZKnw/mlxl3/commit/20473fd12) (tag `v2.1.0`).
+- `MLXL3-Desktop-v2.1.0-b88-Apple-Silicon.dmg`: 255,366,284 bytes, SHA-256 `b831ce22ee9b64d56f9fcb52cfd7ebb91d2385027bb0893e023c36113b5ec4a8`.
+- `MLXL3-Desktop-v2.1.0-b88-Apple-Silicon.dmg.sha256`: 109 bytes.
+- Bundled engine: MLXL3 engine 2.0.38, the five files of [`engine-v2.0.38`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.38) (compared byte for byte with the extracted archive).
+- This DMG: `hdiutil verify` valid, `codesign --deep --strict` passed on the app of the mounted DMG, version 2.1.0 / build 88, `build-info` has commit `20473fd12` with no tracked changes, MLX 0.32.2 and engine 2.0.38 (`engine-v2.0.38`). The app binary of the DMG is the one whose sandbox server was used in the real-model run.
 
 ## Acknowledgements
 
