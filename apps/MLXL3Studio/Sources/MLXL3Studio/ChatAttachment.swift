@@ -21,11 +21,16 @@ struct ChatAttachment: Codable, Identifiable, Sendable, Equatable {
   let fileBytes: Int
   var image: ChatImage? = nil
 
+  var isAudioTranscript: Bool {
+    image == nil && AudioFileTranscription.supports(URL(fileURLWithPath: fileName))
+  }
+
   static func promptContent(_ message: String, attachments: [ChatAttachment]) -> String {
     let documents = attachments.filter { $0.image == nil }
     guard !documents.isEmpty else { return message }
     let content = documents.map {
-      "--- File: \(String(reflecting: $0.fileName)) ---\n\($0.text)\n--- End of file ---"
+      let label = $0.isAudioTranscript ? "Audio transcript" : "File"
+      return "--- \(label): \(String(reflecting: $0.fileName)) ---\n\($0.text)\n--- End of file ---"
     }.joined(separator: "\n\n")
     return message + "\n\nAttached documents (reference material):\n\n" + content
   }
@@ -35,6 +40,7 @@ enum AttachmentImportError: Error, LocalizedError, Equatable {
   case unsupported, notAFile, fileTooLarge, textTooLarge, empty, invalidText, invalidPDF, lockedPDF
   case tooManyFiles, totalTooLarge
   case invalidImage, unsupportedImage, imagesTooLarge, imageResolution
+  case invalidAudio, audioTooLarge, audioTooLong, noSpeech, speechLanguageUnavailable, speechAssetsUnavailable
 
   var errorDescription: String? {
     switch self {
@@ -70,6 +76,16 @@ enum AttachmentImportError: Error, LocalizedError, Equatable {
       L(
         "Le texte des pièces jointes dépasse 512 Kio au total. Retirez un fichier ou divisez les documents.",
         "Attachment text exceeds 512 KiB in total. Remove a file or split the documents.")
+    case .invalidAudio:
+      L("Fichier audio illisible. Choisissez un fichier M4A, WAV ou MP3.", "Unreadable audio file. Choose an M4A, WAV or MP3 file.")
+    case .audioTooLarge: L("Le fichier audio dépasse 64 Mio.", "The audio file exceeds 64 MiB.")
+    case .audioTooLong: L("Le fichier audio dépasse 5 minutes.", "The audio file is longer than 5 minutes.")
+    case .noSpeech: L("Aucune parole détectée dans ce fichier.", "No speech was detected in this file.")
+    case .speechLanguageUnavailable:
+      L("La transcription locale n’est pas disponible pour cette langue.", "On-device transcription is unavailable for this language.")
+    case .speechAssetsUnavailable:
+      L("Impossible de préparer la langue de transcription. Vérifiez la connexion et réessayez.",
+        "Could not prepare the transcription language. Check your connection and try again.")
     case .invalidImage: L("L’image est illisible ou endommagée.", "The image is unreadable or damaged.")
     case .unsupportedImage: L("Choisissez une image PNG, JPEG ou WebP.", "Choose a PNG, JPEG or WebP image.")
     case .imagesTooLarge: L("Les images jointes dépassent 8 Mio au total.", "Attached images exceed 8 MiB in total.")
@@ -111,6 +127,32 @@ enum ChatAttachmentImporter {
       do {
         try Task.checkCancellation()
         attachments = try adding(read(url, allowImages: allowImages), to: attachments)
+      } catch {
+        errors.append("\(url.lastPathComponent): \(error.localizedDescription)")
+      }
+    }
+    return Batch(attachments: attachments, errors: errors)
+  }
+
+  static func loadChatFiles(
+    _ urls: [URL], existing: [ChatAttachment], allowImages: Bool, locale: Locale,
+    recognize: AudioFileTranscription.Recognize
+  ) async -> Batch {
+    var attachments = existing
+    var errors: [String] = []
+    for url in urls {
+      if Task.isCancelled { break }
+      do {
+        let attachment: ChatAttachment
+        if AudioFileTranscription.supports(url) {
+          guard attachments.count < maxFiles else { throw AttachmentImportError.tooManyFiles }
+          attachment = try await AudioFileTranscription.read(url, locale: locale, recognize: recognize)
+        } else {
+          attachment = try read(url, allowImages: allowImages)
+        }
+        attachments = try adding(attachment, to: attachments)
+      } catch is CancellationError {
+        break
       } catch {
         errors.append("\(url.lastPathComponent): \(error.localizedDescription)")
       }

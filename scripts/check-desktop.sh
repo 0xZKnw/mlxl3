@@ -402,7 +402,7 @@ run_after_preferences() {
     run_fixture_check "${test_dir}/model-card-check" "${test_python}" "$PWD/tests/desktop-transfer-fixture.py"
     run_fixture_check "${test_dir}/model-card-check" "${test_python}" "$PWD/tests/slow-model-card-fixture.py"
     await_compile file-import
-    "${test_dir}/file-import-check" "$PWD/tests/fake-desktop-engine.py"
+    run_fixture_check "${test_dir}/file-import-check" "$PWD/tests/fake-desktop-engine.py"
     await_compile image-input
     run_fixture_check "${test_dir}/image-input-check" "$PWD/tests/fake-desktop-engine.py" "$PWD/tests/fixtures/image-input"
     await_compile image-history-ui

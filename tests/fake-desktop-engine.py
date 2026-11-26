@@ -176,7 +176,7 @@ if len(sys.argv) > 1 and sys.argv[1] == 'mtp-head':
     print(json.dumps({'type': 'installed', 'path': head}), flush=True)
     sys.exit(0)
 
-model = sys.argv[2]
+model = sys.argv[4] if sys.argv[1] == '--registry' and sys.argv[3] == 'bridge' else sys.argv[2]
 if model == 'bridge-oversized':
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
 cancelled = False
@@ -345,6 +345,9 @@ for line in sys.stdin:
             emit(prefix+'_tune_complete', request_id=request['request_id'], tuning_key=tuning_key+(':dflash-v2' if prefix == 'dflash' else ''),
                  best_depth=0 if model in ('mtp-baseline', 'dflash-baseline') else 2, rows=rows)
         continue
+    if model == 'audio-file-import' and request['type'] == 'set_mcp':
+        emit('mcp_status', request_id=request['request_id'], mcp_servers=1, mcp_tools=1, mcp_errors={})
+        continue
     if request['type'] != 'generate':
         continue
     if model == 'bridge-oversized':
@@ -376,7 +379,7 @@ for line in sys.stdin:
             time.sleep(0.005)
         emit('delta', request_id=request['request_id'], phase='answer', text='```\n\nFinished: 73.\n')
     else:
-        answer = json.dumps(request['messages'], ensure_ascii=False) if model in ('file-import', 'image-import') else (
+        answer = json.dumps(request['messages'], ensure_ascii=False) if model in ('file-import', 'image-import', 'audio-file-import') else (
             json.dumps({'mtp': request.get('mtp'), 'mtp_depth': request.get('mtp_depth'), 'mtp_head_path': request.get('mtp_head_path'), 'dflash2': request.get('dflash2'), 'dflash_draft_path': request.get('dflash_draft_path'), 'dflash_mode': request.get('dflash_mode'), 'temperature': request.get('temperature'), 'top_k': request.get('top_k'), 'repetition_penalty': request.get('repetition_penalty')}) if model.startswith(('mtp-', 'flash')) else json.dumps({'dflash2': request.get('dflash2'), 'dflash_mode': request.get('dflash_mode')}) if model.startswith('dflash-') else 'hello')
         emit('delta', request_id=request['request_id'], phase='answer', text=answer)
     if model == 'crash':
