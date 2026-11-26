@@ -29,11 +29,11 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Source and download
 
-- Source: [`SOURCE_SHA`](https://github.com/0xZKnw/mlxl3/commit/SOURCE_SHA) (tag `v2.1.2`).
-- `MLXL3-Desktop-v2.1.2-b90-Apple-Silicon.dmg`: DMG_SIZE bytes, SHA-256 `DMG_SHA`.
-- `MLXL3-Desktop-v2.1.2-b90-Apple-Silicon.dmg.sha256`: DMGSUM_SIZE bytes.
+- Source: [`21768f7da`](https://github.com/0xZKnw/mlxl3/commit/21768f7da) (tag `v2.1.2`).
+- `MLXL3-Desktop-v2.1.2-b90-Apple-Silicon.dmg`: 253,845,742 bytes, SHA-256 `dc131cf9ea329e399964ddf12a0c066bb92c767fef6bf42b681ede634c2a6550`.
+- `MLXL3-Desktop-v2.1.2-b90-Apple-Silicon.dmg.sha256`: 109 bytes.
 - Bundled engine: MLXL3 engine 2.0.39 (`engine-v2.0.39`).
-- DMG_CHECKS
+- This DMG: `hdiutil verify` valid, `codesign --deep --strict` passed on the app of the mounted DMG, version 2.1.2 / build 90, `build-info` has commit `21768f7da` with no tracked changes, MLX 0.32.2 and engine 2.0.39 (`engine-v2.0.39`); the five engine files are identical to those of the engine archive (`mlxl3` SHA-256 `91f5e8facc9a319915de9507e34f439f0f66a7aa3f9c0dacced7c02290318dfe`). That engine binary was smoke-run on Inkling 2 Mini through the bridge, not through the app.
 
 ## Acknowledgements
 

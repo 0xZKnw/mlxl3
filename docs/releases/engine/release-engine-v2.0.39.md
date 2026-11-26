@@ -42,10 +42,10 @@ Checks run on these sources on an Apple M5, before publication. **The final veri
 
 | File | Size | SHA-256 |
 |---|---|---|
-| `MLXL3-Engine-v2.0.39-arm64.tar.gz` | ARCHIVE_SIZE bytes | `ARCHIVE_SHA` |
-| `MLXL3-Engine-v2.0.39-arm64.tar.gz.sha256` | SUM_SIZE bytes | |
+| `MLXL3-Engine-v2.0.39-arm64.tar.gz` | 69,333,165 bytes | `78b8710780c79da920a3019c417f9f1281c2a2d60d324147310cac3a4e588613` |
+| `MLXL3-Engine-v2.0.39-arm64.tar.gz.sha256` | 100 bytes | |
 
-Source: `SOURCE_SHA` (tag `engine-v2.0.39`). ARCHIVE_CHECKS
+Source: `21768f7da` (tag `engine-v2.0.39`). The archive was extracted into a new directory: `mlxl3` passes a strict signature check and is arm64 (15,600,720 bytes, SHA-256 `91f5e8facc9a319915de9507e34f439f0f66a7aa3f9c0dacced7c02290318dfe`), and its five files are identical to those bundled in Desktop 2.1.2, whose build information records 2.0.39 and `engine-v2.0.39`. **One smoke run with this binary** on Inkling 2 Mini (5-turn greedy conversation with `live_prompt_cache`): it reports version 2.0.39, commit `21768f7dabfb` and `live_prompt_cache_supported`, every turn after the first went on from the live state (148, 793, 22 and 21 tokens read), and the two questions were answered correctly.
 
 ## Thanks
 
