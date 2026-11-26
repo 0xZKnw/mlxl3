@@ -26,6 +26,28 @@ enum Image21Hardware {
     }
 }
 
+struct ImageWorkerDeadline {
+    private let interval: Duration
+    private let renewableSteps: Int?
+    private var lastStep = 0
+    private(set) var end: ContinuousClock.Instant
+
+    init(start: ContinuousClock.Instant, interval: Duration, size: Image21Size?, steps: Int?) {
+        self.interval = interval
+        renewableSteps = size == .square(2048) ? steps : nil
+        end = start.advanced(by: interval)
+    }
+
+    mutating func isActive(at now: ContinuousClock.Instant, completedStep: Int?) -> Bool {
+        guard now < end else { return false }
+        if let renewableSteps, let completedStep, completedStep > lastStep, completedStep <= renewableSteps {
+            lastStep = completedStep
+            end = now.advanced(by: interval)
+        }
+        return true
+    }
+}
+
 enum ImageModelAvailability: Equatable {
     case checking
     case missing(Int64)
@@ -54,7 +76,7 @@ final class ImageGeneration: ObservableObject {
     typealias Transfer = @Sendable ([ImageModelDownloadFile], URL, @escaping @Sendable (Int64, Int64) async -> Void) async throws -> Void
 
     @Published var prompt = ""
-    @Published var size = 512
+    @Published var size: Image21Size = .square(512)
     @Published var baseSteps = 40
     var steps: Int { variant == .turbo ? 8 : baseSteps }
     @Published private(set) var variant: Image21Variant
@@ -244,11 +266,12 @@ final class ImageGeneration: ObservableObject {
         }
     }
 
-    func offersLowMemory(at size: Int) -> Bool {
-        supported && lowMemoryAvailable && variant == .base && size == 1024
+    func offersLowMemory(at size: Image21Size) -> Bool {
+        supported && lowMemoryAvailable &&
+            (size == .square(1024) || (variant == .turbo && size == .square(2048)))
     }
 
-    func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32, lowMemory: Bool = false) {
+    func start(model: URL, prompt: String, size: Image21Size, steps: Int, seed: UInt32, lowMemory: Bool = false) {
         guard !running, !isDownloading else { return }
         let variant = self.variant
         let autoSave = preferences.bool(forKey: Self.autoSavePreferenceKey)
@@ -262,6 +285,9 @@ final class ImageGeneration: ObservableObject {
             defer { finalizing = false; running = false; task = nil; process = nil }
             do {
                 guard supported else { throw failure(Image21Hardware.requirement) }
+                guard Image21Size.presets.contains(size) else {
+                    throw failure(L("Choisis une taille d’image proposée pour ce modèle.", "Choose an image size offered for this model."))
+                }
                 guard variant.stepRange.contains(steps) else {
                     if variant == .turbo { throw failure(L("Turbo utilise 8 étapes.", "Turbo uses 8 steps.")) }
                     throw failure(L("Choisis entre 2 et 50 étapes.", "Choose between 2 and 50 steps."))
@@ -298,9 +324,10 @@ final class ImageGeneration: ObservableObject {
                 status = L("Chargement du modèle…", "Loading the model…")
                 let png = work.appendingPathComponent("image.png")
                 var arguments = ["-I", "-u", script.path, "--variant", variant.rawValue, "--model", model.path, "--prompt=\(prompt)",
-                                 "--size", String(size), "--steps", String(steps), "--seed", String(seed), "--output", png.path]
+                                 "--size", String(size.width), "--steps", String(steps), "--seed", String(seed), "--output", png.path]
                 if useLowMemory { arguments.append("--low-memory") }
-                try await run(URL(fileURLWithPath: python), arguments, log: log, stdout: log, timeout: 3600, steps: steps)
+                try await run(URL(fileURLWithPath: python), arguments, log: log, stdout: log, timeout: 3600,
+                              steps: steps, size: size)
                 try Task.checkCancellation()
                 let verified = try await Task.detached(priority: .userInitiated) { [historyStore] in
                     try historyStore.validatedPNG(at: png, size: size)
@@ -367,23 +394,25 @@ final class ImageGeneration: ObservableObject {
         return String(decoding: data, as: UTF8.self)
     }
 
-    static func progressMessage(in log: String, steps: Int) -> String? {
+    static func progress(in log: String, steps: Int) -> (message: String, completedStep: Int?)? {
         for line in log.split(whereSeparator: \.isNewline).reversed() {
             let trimmed = line.trimmingCharacters(in: .whitespaces)
             if let bar = trimmed.prefixMatch(of: /^\d{1,3}%\|[^|]*\|\s*(\d+)\/(\d+)\s/),
                Int(bar.2) == steps, let done = Int(bar.1), (0...steps).contains(done) {
-                return done == steps
+                let message = done == steps
                     ? L("Finalisation de l’image…", "Finishing the image…")
                     : L("Étape \(done) sur \(steps)", "Step \(done) of \(steps)")
+                return (message, done)
             }
             if trimmed.hasPrefix("Loading tokenizer") {
-                return L("Chargement de l’encodeur de texte et du VAE…", "Loading the text encoder and VAE…")
+                return (L("Chargement de l’encodeur de texte et du VAE…", "Loading the text encoder and VAE…"), nil)
             }
         }
         return nil
     }
 
-    private func run(_ executable: URL, _ arguments: [String], log: URL, stdout: URL, timeout: Int, steps: Int? = nil) async throws {
+    private func run(_ executable: URL, _ arguments: [String], log: URL, stdout: URL, timeout: Int,
+                     steps: Int? = nil, size: Image21Size? = nil) async throws {
         try Task.checkCancellation()
         let fm = FileManager.default
         guard fm.createFile(atPath: log.path, contents: nil) else { throw failure("Cannot create worker log") }
@@ -400,16 +429,15 @@ final class ImageGeneration: ObservableObject {
         child.standardInput = FileHandle.nullDevice
         process = child
         try child.run()
-        let deadline = ContinuousClock.now.advanced(by: .seconds(timeout))
+        var deadline = ImageWorkerDeadline(start: ContinuousClock.now, interval: .seconds(timeout), size: size, steps: steps)
         do {
             while child.isRunning {
                 try await Task.sleep(for: .milliseconds(400))
-                guard ContinuousClock.now < deadline else {
+                let progress = steps.flatMap { Self.progress(in: tail(log), steps: $0) }
+                guard deadline.isActive(at: ContinuousClock.now, completedStep: progress?.completedStep) else {
                     throw failure(L("Le moteur image a dépassé le délai.", "The image engine timed out."))
                 }
-                if let steps, let message = Self.progressMessage(in: tail(log), steps: steps) {
-                    status = message
-                }
+                if let progress { status = progress.message }
             }
             try Task.checkCancellation()
         } catch {

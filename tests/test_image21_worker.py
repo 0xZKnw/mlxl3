@@ -17,6 +17,18 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import Mock, call, patch
 
+# CLI spellings and dimensions for the four squares offered by Studio.
+IMAGE_SIZE_CASES = (
+    ("512", (512, 512)),
+    ("512x512", (512, 512)),
+    ("768", (768, 768)),
+    ("768x768", (768, 768)),
+    ("1024", (1024, 1024)),
+    ("1024x1024", (1024, 1024)),
+    ("2048", (2048, 2048)),
+    ("2048x2048", (2048, 2048)),
+)
+
 
 class ImageWorkerTest(unittest.TestCase):
     def setUp(self):
@@ -269,6 +281,9 @@ class ImageWorkerTest(unittest.TestCase):
 
     def test_allocator_cache_for_variant_size_and_hardware(self):
         gib = 1024**3
+        cap = 512 * 1024**2
+        previous = 4 * gib
+        self.core.set_cache_limit.return_value = previous
         for gpu, memory, default_sizes, low_memory_sizes in (
             ("Apple M5", 24 * gib, (512, 768), (512, 768, 1024)),
             ("Apple M5", 16 * gib, (512,), (512,)),
@@ -281,33 +296,110 @@ class ImageWorkerTest(unittest.TestCase):
             if memory is not None:
                 device["memory_size"] = memory
             self.core.device_info.return_value = device
-            for variant, size, low_memory in product(
-                ("base", "turbo"), (512, 768, 1024), (False, True)
+            for variant, (spec, dimensions), low_memory in product(
+                ("base", "turbo"), IMAGE_SIZE_CASES, (False, True)
             ):
                 with self.subTest(
-                    variant=variant, size=size, gpu=gpu, memory=memory, low_memory=low_memory
+                    variant=variant, size=spec, gpu=gpu, memory=memory, low_memory=low_memory
                 ):
                     self.core.reset_mock()
                     self.build.reset_mock()
                     self.saver.reset_mock()
                     self.model.callbacks.reset_mock()
                     self.model.vae.decode = self.decode
-                    self.image.size = (size, size)
+                    width, height = dimensions
+                    self.image.size = dimensions
+                    self.image.save.reset_mock()
                     order = Mock()
                     order.attach_mock(self.core.set_cache_limit, "limit")
                     order.attach_mock(self.build, "build")
+                    order.attach_mock(self.decode, "decode")
                     flags = ["--low-memory"] if low_memory else []
-                    self.run_worker("--variant", variant, "--size", str(size), *flags)
+                    output = self.run_worker("--variant", variant, "--size", spec, *flags)
                     self.core.device_info.assert_called_once_with()
                     capped_sizes = low_memory_sizes if low_memory else default_sizes
                     if variant == "turbo":
                         capped_sizes = (512,)
-                    expected = [call.limit(512 * 1024**2)] if size in capped_sizes else []
-                    self.assertEqual(
-                        order.method_calls, expected + [call.build(self.root, variant)]
+                    expected = [call.limit(cap)] if width in capped_sizes else []
+                    expected.append(call.build(self.root, variant))
+                    if (
+                        variant == "turbo"
+                        and width in (1024, 2048)
+                        and low_memory
+                        and 1024 in low_memory_sizes
+                    ):
+                        expected.extend(
+                            [call.limit(cap), call.decode(self.latent), call.limit(previous)]
+                        )
+                    else:
+                        expected.append(call.decode(self.latent))
+                    self.assertEqual(order.method_calls, expected)
+                    self.model.generate_image.assert_called_with(
+                        seed=371,
+                        prompt="oak",
+                        width=width,
+                        height=height,
+                        num_inference_steps=8 if variant == "turbo" else 40,
                     )
-                    self.assertEqual(self.model.generate_image.call_args.kwargs["width"], size)
-                    self.assertEqual(self.model.generate_image.call_args.kwargs["height"], size)
+                    self.image.save.assert_called_once_with(output, format="PNG")
+
+    def test_rejects_unknown_or_malformed_sizes_before_setup(self):
+        for value in (
+            "",
+            "0",
+            "-2048",
+            "4096",
+            "4096x4096",
+            "3840x2160",
+            "2048x2047",
+            "2048x1536",
+            "2752",
+            "2752x",
+            "x1536",
+            "2752x1536x1",
+            "2752X1536",
+            "2752×1536",
+            "x",
+            "9" * 5000,
+        ):
+            with (
+                self.subTest(value=value),
+                contextlib.redirect_stderr(io.StringIO()) as err,
+                self.assertRaises(SystemExit) as cm,
+            ):
+                self.run_worker("--size", value)
+            self.assertEqual(cm.exception.code, 2)
+            self.assertIn("--size", err.getvalue())
+        self.core.device_info.assert_not_called()
+        self.build.assert_not_called()
+        self.image.save.assert_not_called()
+
+    def test_rejects_previous_rectangular_presets_before_setup(self):
+        for variant, value in product(
+            ("base", "turbo"),
+            ("2400x1792", "1792x2400", "2528x1696", "1696x2528", "2752x1536", "1536x2752"),
+        ):
+            with (
+                self.subTest(variant=variant, value=value),
+                contextlib.redirect_stderr(io.StringIO()),
+                self.assertRaises(SystemExit) as cm,
+            ):
+                self.run_worker("--variant", variant, "--size", value, "--low-memory")
+            self.assertEqual(cm.exception.code, 2)
+        self.core.device_info.assert_not_called()
+        self.build.assert_not_called()
+        self.image.save.assert_not_called()
+
+    def test_checks_both_output_dimensions_before_writing(self):
+        for size in ((2048, 1024), (1024, 2048), (1024, 1024)):
+            with self.subTest(size=size):
+                self.image.size = size
+                self.saver.reset_mock()
+                self.model.callbacks.reset_mock()
+                self.model.vae.decode = self.decode
+                with self.assertRaisesRegex(ValueError, "image dimensions"):
+                    self.run_worker("--variant", "turbo", "--size", "2048")
+        self.image.save.assert_not_called()
 
     def test_two_steps(self):
         self.run_worker("--steps", "2")
@@ -382,6 +474,25 @@ class ImageWorkerTest(unittest.TestCase):
                     self.run_worker()
         self.decode.assert_not_called()
         self.image.save.assert_not_called()
+
+    def test_capped_decode_restores_previous_limit_on_errors(self):
+        cap = 512 * 1024**2
+        for previous, latent, result, error, calls in (
+            (0, self.tensor([math.nan]), self.pixels, ValueError, 0),
+            (12345, self.latent, self.tensor([math.inf]), ValueError, 1),
+            (cap, self.latent, RuntimeError("decode failed"), RuntimeError, 1),
+            (8 * 1024**3, self.latent, KeyboardInterrupt(), KeyboardInterrupt, 1),
+        ):
+            with self.subTest(previous=previous, error=error):
+                self.core.set_cache_limit.reset_mock()
+                self.core.set_cache_limit.return_value = previous
+                decode = Mock(side_effect=[result])
+                with self.assertRaises(error):
+                    self.worker.capped_decode(decode, latent)
+                self.assertEqual(decode.call_count, calls)
+                self.assertEqual(
+                    self.core.set_cache_limit.call_args_list, [call(cap), call(previous)]
+                )
 
     def test_rejects_invalid_pixels_before_png(self):
         for values in ([0, float("nan")], [float("inf")], [-float("inf")], []):

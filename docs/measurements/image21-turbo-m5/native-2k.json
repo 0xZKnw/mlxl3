@@ -1,0 +1,327 @@
+{
+  "experiment": "IMAGE21-NATIVE-SIZE-07",
+  "status": "passed",
+  "start_utc": "2026-11-25T21:59:48.984158+00:00",
+  "end_utc": "2026-11-25T22:13:04.619663+00:00",
+  "scope": "One instrumented offline physical render at 2048×2048 using Turbo EXL3 4-bit, followed by PNG and gallery verification.",
+  "device": {
+    "chip": "Apple M5",
+    "unified_memory_bytes": 25769803776,
+    "macos": "27.3",
+    "power": "battery",
+    "battery_percent_before": 80,
+    "battery_percent_after": 73
+  },
+  "runtime": {
+    "python": "3.12.15",
+    "python_executable_sha256": "fe5e57e7f0dc374654e314d4e8f20cf2a345bda8a4e03032046f407027628a32",
+    "packages": {
+      "mflux": "0.24.0",
+      "mlx": "0.32.4",
+      "mlx-metal": "0.32.4",
+      "numpy": "2.5.5",
+      "transformers": "5.24.0",
+      "Pillow": "13.0.0",
+      "huggingface_hub": "1.33.0"
+    },
+    "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+    "mflux_repository": "https://github.com/mflux-community/mflux.git",
+    "offline_environment": {
+      "HF_HUB_OFFLINE": "1",
+      "TRANSFORMERS_OFFLINE": "1",
+      "UV_OFFLINE": "1",
+      "PYTHONNOUSERSITE": "1"
+    }
+  },
+  "checkpoint": {
+    "repository": "jyohukuchan/Qwen-Image-2.1-Turbo-EXL3",
+    "revision": "f362145b8e8ebc88d6639c445eb9f31beab7c0b4",
+    "quantization_manifest_sha256": "60f7f2bd2f679faf6fa1e3423f1538af8ce0a80940c4b7b9f7cb82e015e87924",
+    "packaged_catalog": "apps/MLXL3Studio/Resources/Image21/image-models.json",
+    "catalog_sha256": "d5e494d1548eaf4578395e2cf79741bc8b98947e89f59702152896c53f5e51de",
+    "local_files_rehashed_after_render_against_catalog": {
+      "file_count": 229,
+      "total_bytes": 3766859807,
+      "sorted_sha256sum_list_sha256": "362547c31e549248a406e589a01f6581181faaf85d0b051382c6158529a295c4"
+    },
+    "auxiliary_repository": "mlx-community/Qwen-Image-2.1-mflux-q4",
+    "auxiliary_revision": "746a58556820933a2df5c75887a2570f1ad200c0",
+    "auxiliary_files_rehashed_after_render": {
+      "file_count": 9,
+      "total_bytes": 5593247182,
+      "sorted_sha256sum_list_sha256": "0edb75b98ad50322d44e2f9d1a54dad801da63b283391f8642367aa363f34540",
+      "files": [
+        {
+          "name": "LICENSE",
+          "sha256": "8dc973f024ff95966bea25866efa443fd16776dcb1001e681e3d467ea572b28d",
+          "size": 7831
+        },
+        {
+          "name": "processor/chat_template.jinja",
+          "sha256": "3636d0f0bd6bef02654cdffdc447b79cb2cef8ab02cc75267345946291a489e4",
+          "size": 5292
+        },
+        {
+          "name": "processor/tokenizer.json",
+          "sha256": "be75606093db2094d7cd20f3c2f385c212750648bd6ea4fb2bf507a6a4c55506",
+          "size": 11422650
+        },
+        {
+          "name": "processor/tokenizer_config.json",
+          "sha256": "bfbbc1983aa3f46c0f496d90a37fbbea8047581fbd7250534f112445be84b5a6",
+          "size": 417
+        },
+        {
+          "name": "text_encoder/0.safetensors",
+          "sha256": "c1cb30320ce8a482d353dd821f8123f15b773ddb00981580142c1a1434326c9f",
+          "size": 2138739328
+        },
+        {
+          "name": "text_encoder/1.safetensors",
+          "sha256": "5f611e1d8ac0a245f80a79a03b1bfbe0e0ab4164462b8ed2579d16a225a0d601",
+          "size": 2119029339
+        },
+        {
+          "name": "text_encoder/model.safetensors.index.json",
+          "sha256": "6b92f45be542f40de5e297c97ff7b341e985e5c2850b3dd674b1dc97d309ba90",
+          "size": 51332
+        },
+        {
+          "name": "vae/0.safetensors",
+          "sha256": "4ef2508826e6a0679ae43160073df9249061237a82e745bfb196c3505f0543f6",
+          "size": 1323975289
+        },
+        {
+          "name": "vae/model.safetensors.index.json",
+          "sha256": "b6755e8ad45dff83500666799fbce77839d606b49c9c0b1ae7dce25c72c566a7",
+          "size": 15704
+        }
+      ]
+    },
+    "list_digest_format": "For each file sorted by its relative filename, SHA-256 hex, two spaces, filename and LF, encoded as UTF-8."
+  },
+  "resources_sha256": {
+    "render.py": "22c296a4bd91f1b592deeea6e9da61d5ce6435b51724269fd0fdf3c7d5f447b0",
+    "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+    "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e"
+  },
+  "observer_and_supervisor_sha256": {
+    "physical.py": "a2f0b45b385c28bb311b1be092ee9919c261148c9afc7ca825c01bd7bb2e82d6",
+    "phases.py": "350a53986b2f8f8e2eb28d6bc953f642052f7f51b1296d2db23f5d8ce441b7fb",
+    "campaign.py": "2358b5209ab346d04840be464f74990210c04b6d997e279d0061148840fde80c"
+  },
+  "command_argv": [
+    "/usr/bin/time",
+    "-l",
+    "<python>",
+    "-IBu",
+    "<phase-observer>",
+    "<phase-log>",
+    "<packaged-render.py>",
+    "--model",
+    "<turbo-checkpoint>",
+    "--variant",
+    "turbo",
+    "--prompt",
+    "A studio photograph of a cobalt blue ceramic teapot on a pale peach tabletop, soft morning light, simple composition.",
+    "--seed",
+    "987406473",
+    "--steps",
+    "8",
+    "--size",
+    "2048",
+    "--low-memory",
+    "--output",
+    "teapot-2048.png"
+  ],
+  "worker_cli_argv_with_portable_paths": [
+    "<python>",
+    "<packaged-render.py>",
+    "--model",
+    "<turbo-checkpoint>",
+    "--variant",
+    "turbo",
+    "--prompt",
+    "A studio photograph of a cobalt blue ceramic teapot on a pale peach tabletop, soft morning light, simple composition.",
+    "--seed",
+    "987406473",
+    "--steps",
+    "8",
+    "--size",
+    "2048",
+    "--low-memory",
+    "--output",
+    "teapot-2048.png"
+  ],
+  "generation": {
+    "steps": 8,
+    "seed": 987406473,
+    "size_px": [
+      2048,
+      2048
+    ],
+    "low_memory": true,
+    "decode_cache_limit_bytes": 536870912,
+    "vae_decode": "MFLUX Qwen21VAE LOW_MEMORY row strips",
+    "outer_tiling": false,
+    "resampling_before_png_write": false,
+    "repetitions": 1
+  },
+  "measurements": {
+    "source": "macOS /usr/bin/time -l for the observed worker process",
+    "wall_seconds": 795.2,
+    "denoising_seconds_tqdm_whole": 738,
+    "seconds_per_step_final_tqdm": 92.26,
+    "capped_vae_including_finiteness_checks_seconds": 49.941,
+    "maximum_resident_set_bytes": 4814798848,
+    "peak_process_footprint_bytes": 10999515920
+  },
+  "pressure": {
+    "source": "kern.memorystatus_vm_pressure_level",
+    "guard_poll_seconds": 2,
+    "record_interval_seconds_approx": 12,
+    "recorded_samples": 65,
+    "normal_level_1": 65,
+    "warning_level_2": 0,
+    "critical_level_4": 0,
+    "external_inference_compiler_or_verifier_detected": false,
+    "global_timeout_seconds": 3600,
+    "silence_timeout_seconds": 720
+  },
+  "phases": {
+    "reference": "Seconds from observer entry. DiT call returns schedule lazy GPU work. Completed steps are reported by the generation loop.",
+    "dit_calls": 8,
+    "dit_inputs_and_outputs_shape": [
+      1,
+      16384,
+      64
+    ],
+    "dit_entry_offsets_seconds": [
+      6.292,
+      79.971,
+      164.527,
+      257.123,
+      350.303,
+      446.496,
+      542.534,
+      646.216
+    ],
+    "completed_steps": 8,
+    "vae_and_save": [
+      {
+        "event": "capped-vae-enter",
+        "offset_seconds": 744.444,
+        "shape": [
+          1,
+          64,
+          1,
+          128,
+          128
+        ]
+      },
+      {
+        "event": "vae-decode-start",
+        "offset_seconds": 744.452,
+        "shape": [
+          1,
+          64,
+          1,
+          128,
+          128
+        ]
+      },
+      {
+        "event": "vae-decode-returned",
+        "offset_seconds": 794.365,
+        "shape": [
+          1,
+          3,
+          2048,
+          2048
+        ]
+      },
+      {
+        "event": "capped-vae-finite",
+        "offset_seconds": 794.385,
+        "shape": [
+          1,
+          3,
+          2048,
+          2048
+        ]
+      },
+      {
+        "event": "png-saved",
+        "offset_seconds": 794.707
+      }
+    ],
+    "decoder_input_and_output_checked_finite": true
+  },
+  "output": {
+    "file": "teapot-2048.png",
+    "format": "PNG",
+    "pixel_format": "RGB8",
+    "shape_hwc": [
+      2048,
+      2048,
+      3
+    ],
+    "file_bytes": 4350205,
+    "file_sha256": "4b17d0e17db833dce36e1157199ce9a75cdb4fea055e6d021e9350e8bde3bab8",
+    "decoded_rgb_bytes": 12582912,
+    "decoded_rgb_sha256": "2f26246cf78cf91968ca49d6b447ce7fd144e85880ebb77de6e35c41134f8e6c",
+    "channel_min_max": [
+      [
+        0,
+        255
+      ],
+      [
+        0,
+        255
+      ],
+      [
+        0,
+        255
+      ]
+    ],
+    "validation": "Pillow verified the PNG, reopened it, decoded every RGB pixel and checked each channel varied."
+  },
+  "gallery": {
+    "saved_reopened_and_exported": true,
+    "reopened_metadata": [
+      "variant",
+      "width",
+      "height",
+      "prompt",
+      "modelName",
+      "seed",
+      "steps"
+    ],
+    "reopened_and_exported_files_equal_to_original": true,
+    "exported_png_sha256": "4b17d0e17db833dce36e1157199ce9a75cdb4fea055e6d021e9350e8bde3bab8",
+    "method": "The production Swift gallery stored and reopened the PNG produced by the worker, then exported it in an isolated directory."
+  },
+  "preview": {
+    "file": "teapot-2k-preview.jpg",
+    "format": "JPEG",
+    "size_px": [
+      720,
+      720
+    ],
+    "file_bytes": 96815,
+    "sha256": "f93354c96c9c8ea9f6353b639ec9ad4745e54d25b52250682b6c36fbf67956e6",
+    "conversion": "macOS sips, 720×720, JPEG quality 93, entire frame",
+    "visual_inspection": "One glazed cobalt-blue teapot with lid, spout and handle, on a pale peach surface with a soft shadow. No visible tile boundaries or duplicate objects at preview scale."
+  },
+  "limits": [
+    "One square Turbo render on a single M5 24 GiB on battery. Base and six rectangular native formats were outside this physical run.",
+    "There was no independent 2K pixel baseline or second run. Reported times and memory describe this execution only.",
+    "Pressure readings are discrete observations. Process footprint and RSS are separate operating-system metrics."
+  ],
+  "raw_evidence_sha256": {
+    "results.json": "34ba0f1e26da77d8b417a25a87b0f8a7123646df2ce2826598984de25673cea4",
+    "phases.jsonl": "77a2495b2bbd0bf1494035c94a81b25b10d5a3951740c5676fb999487806f0ab",
+    "telemetry.jsonl": "a4433d526e31dc58e14c2bf963b7d2b69254f840fb04a30974c4fc4d65d57880",
+    "worker.log": "d41956d167dc9e544f1e8f6ac2228bcf5161716d25fecef4a5ff3bd4e7c340e6"
+  }
+}

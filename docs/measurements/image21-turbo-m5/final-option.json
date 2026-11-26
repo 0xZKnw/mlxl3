@@ -1,0 +1,993 @@
+{
+  "final-option-01/results.json": {
+    "original_sha256": "e59e7ec7ab694e76865932122ee3d576af98f63c3920691d1be934f8611ba4cb",
+    "record": {
+      "status": "complete",
+      "started": "2026-11-25T21:41:22.660148+00:00",
+      "low_memory": true,
+      "max_footprint_bytes": 10000000000,
+      "reference": {
+        "A": {
+          "label": "qual-A",
+          "arm": "A",
+          "instrumented": true,
+          "status": "complete",
+          "started_utc": "2026-11-25T20:48:26.249549+00:00",
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "$STUDY/runtime/bin/python",
+            "-I",
+            "-B",
+            "-u",
+            "$STUDY/full/observe.py",
+            "$STUDY/full-run-1024/qual-A.jsonl",
+            "-",
+            "$STUDY/A/render.py",
+            "--variant",
+            "turbo",
+            "--model",
+            "$HOME/Library/Application Support/io.mlxl3.desktop/ImageModels/Qwen-Image-2.1-Turbo-EXL3-4bit",
+            "--prompt",
+            "A studio photograph of a cobalt blue ceramic teapot on a pale peach tabletop, soft morning light, simple composition.",
+            "--steps",
+            "8",
+            "--size",
+            "1024",
+            "--seed",
+            "987406473",
+            "--output",
+            "$STUDY/full-run-1024/qual-A.png"
+          ],
+          "log": "$STUDY/full-run-1024/qual-A.log",
+          "image_path": "$STUDY/full-run-1024/qual-A.png",
+          "trace": "$STUDY/full-run-1024/qual-A.jsonl",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0\t72%; discharging; 2:38 remaining present: true",
+          "worker_started_utc": "2026-11-25T20:48:26.299295+00:00",
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0\t70%; discharging; 2:26 remaining present: true",
+          "wall_cs": 17780,
+          "rss_bytes": 3922526208,
+          "footprint_bytes": 18705222656,
+          "wall_s": 177.8,
+          "loop_s_whole_seconds": 150,
+          "step_s_tqdm": 18.84,
+          "image": {
+            "png": "be53936baaafd930fb930dc27daf3399a8930d552a9a1f721b37e9b03e145c72",
+            "rgb": "c6ba408c4dd81c3769c8362640b129df5140fdd449ac0ad6c825bdb6a1188d9e",
+            "rgb_bytes": 3145728
+          },
+          "states": [
+            {
+              "step": 0,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -4.5625,
+                "max": 4.5,
+                "sha256": "d5b339c8505b5719272790b9675e76f37e4ae4dabdce921d4ce5572271e086a4"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -7.8125,
+                "max": 8.125,
+                "sha256": "8016b01df24a7bccb2cfdf5708492962c9227e562c182f7897a4b4000b429f11"
+              }
+            },
+            {
+              "step": 1,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -4.5,
+                "max": 4.40625,
+                "sha256": "55b5a15a573929b37eea24431bd6de45687c8de6e4738f5b315dc1697b7ecae1"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -7.34375,
+                "max": 7.15625,
+                "sha256": "61fb816c91ca1a56ae7c1bd99edd91de82b2bd4fdefa4c0ef789adc87c73b0ba"
+              }
+            },
+            {
+              "step": 2,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -4.40625,
+                "max": 4.28125,
+                "sha256": "51b069d497138c995f595bcd88f48a14ca569959b598d0130f03c744baa28b62"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -7.125,
+                "max": 6.96875,
+                "sha256": "c07b79c4a181833fd11819668ad7417dd3312c2d3c5380045971593bb6431ac0"
+              }
+            },
+            {
+              "step": 3,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -4.28125,
+                "max": 4.15625,
+                "sha256": "a6a1cde04fcb99b27b3868131dde48125b519dc687be5fe8e037ea72becc2800"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -7.0,
+                "max": 6.9375,
+                "sha256": "542e8cc0648fb495f6c0f3188aee00089472f40908e8abcaebaec7b534e96515"
+              }
+            },
+            {
+              "step": 4,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -4.15625,
+                "max": 4.0,
+                "sha256": "b6d9b8df1cdc6bc7de16db44ab1e6a2c585ce40a05f4f00d2cbb40456f98975e"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -6.90625,
+                "max": 6.90625,
+                "sha256": "068f9dac8c532c94c9bf49edbb78efcd9b4b7dd269964e4b427e985590b77a1a"
+              }
+            },
+            {
+              "step": 5,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -3.953125,
+                "max": 3.75,
+                "sha256": "e45028cffd79fe0ca5c72fe780796224c5ffcf98ac3be0d21d17275b56aa9c72"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -6.84375,
+                "max": 6.90625,
+                "sha256": "b09d73c45dcfdb5326c1885a4a98171df8dc7060e9b40ed93a1fc133f98bb180"
+              }
+            },
+            {
+              "step": 6,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -3.359375,
+                "max": 3.703125,
+                "sha256": "4f976fab1f10e52d946c2598076fede5c479229e9728d7c79acf00a646ee58f4"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -6.8125,
+                "max": 6.8125,
+                "sha256": "d56ffdadd0bed3b6c5fcdbdf4c5414c1639895a0285b71050d8b274149d22afb"
+              }
+            },
+            {
+              "step": 7,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -3.453125,
+                "max": 3.578125,
+                "sha256": "be0b609958c2c41655f5f304069524dfed6730478ca89c5b3cf351a259856814"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -6.59375,
+                "max": 6.4375,
+                "sha256": "8a1d631c9bd3059023d161a1e63371cc130a71cfd1d6b60f4d6810d4a0186be5"
+              }
+            }
+          ],
+          "ended_utc": "2026-11-25T20:51:24.683183+00:00",
+          "reused_from": "$STUDY/full-run-1024"
+        },
+        "D": {
+          "label": "qual-D",
+          "arm": "D",
+          "status": "complete",
+          "instrumented": true,
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "$STUDY/runtime/bin/python",
+            "-I",
+            "-B",
+            "-u",
+            "$STUDY/full/observe.py",
+            "$STUDY/full-decode-02/qual-D.jsonl",
+            "$STUDY/full-run-1024/qual-A.jsonl",
+            "$STUDY/D/render.py",
+            "--variant",
+            "turbo",
+            "--model",
+            "$HOME/Library/Application Support/io.mlxl3.desktop/ImageModels/Qwen-Image-2.1-Turbo-EXL3-4bit",
+            "--prompt",
+            "A studio photograph of a cobalt blue ceramic teapot on a pale peach tabletop, soft morning light, simple composition.",
+            "--size",
+            "1024",
+            "--seed",
+            "987406473",
+            "--steps",
+            "8",
+            "--output",
+            "$STUDY/full-decode-02/qual-D.png"
+          ],
+          "log": "$STUDY/full-decode-02/qual-D.log",
+          "image_path": "$STUDY/full-decode-02/qual-D.png",
+          "trace": "$STUDY/full-decode-02/qual-D.jsonl",
+          "started_utc": "2026-11-25T21:03:28.645610+00:00",
+          "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0\t65%; discharging; 2:51 remaining present: true",
+          "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0\t63%; discharging; 2:24 remaining present: true",
+          "wall_cs": 16144,
+          "rss_bytes": 4873519104,
+          "footprint_bytes": 8116521936,
+          "wall_s": 161.44,
+          "loop_s_whole_seconds": 144,
+          "step_s_tqdm": 18.01,
+          "image": {
+            "png": "be53936baaafd930fb930dc27daf3399a8930d552a9a1f721b37e9b03e145c72",
+            "rgb": "c6ba408c4dd81c3769c8362640b129df5140fdd449ac0ad6c825bdb6a1188d9e",
+            "rgb_bytes": 3145728
+          },
+          "states": [
+            {
+              "step": 0,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -4.5625,
+                "max": 4.5,
+                "sha256": "d5b339c8505b5719272790b9675e76f37e4ae4dabdce921d4ce5572271e086a4"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -7.8125,
+                "max": 8.125,
+                "sha256": "8016b01df24a7bccb2cfdf5708492962c9227e562c182f7897a4b4000b429f11"
+              }
+            },
+            {
+              "step": 1,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -4.5,
+                "max": 4.40625,
+                "sha256": "55b5a15a573929b37eea24431bd6de45687c8de6e4738f5b315dc1697b7ecae1"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -7.34375,
+                "max": 7.15625,
+                "sha256": "61fb816c91ca1a56ae7c1bd99edd91de82b2bd4fdefa4c0ef789adc87c73b0ba"
+              }
+            },
+            {
+              "step": 2,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -4.40625,
+                "max": 4.28125,
+                "sha256": "51b069d497138c995f595bcd88f48a14ca569959b598d0130f03c744baa28b62"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -7.125,
+                "max": 6.96875,
+                "sha256": "c07b79c4a181833fd11819668ad7417dd3312c2d3c5380045971593bb6431ac0"
+              }
+            },
+            {
+              "step": 3,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -4.28125,
+                "max": 4.15625,
+                "sha256": "a6a1cde04fcb99b27b3868131dde48125b519dc687be5fe8e037ea72becc2800"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -7.0,
+                "max": 6.9375,
+                "sha256": "542e8cc0648fb495f6c0f3188aee00089472f40908e8abcaebaec7b534e96515"
+              }
+            },
+            {
+              "step": 4,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -4.15625,
+                "max": 4.0,
+                "sha256": "b6d9b8df1cdc6bc7de16db44ab1e6a2c585ce40a05f4f00d2cbb40456f98975e"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -6.90625,
+                "max": 6.90625,
+                "sha256": "068f9dac8c532c94c9bf49edbb78efcd9b4b7dd269964e4b427e985590b77a1a"
+              }
+            },
+            {
+              "step": 5,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -3.953125,
+                "max": 3.75,
+                "sha256": "e45028cffd79fe0ca5c72fe780796224c5ffcf98ac3be0d21d17275b56aa9c72"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -6.84375,
+                "max": 6.90625,
+                "sha256": "b09d73c45dcfdb5326c1885a4a98171df8dc7060e9b40ed93a1fc133f98bb180"
+              }
+            },
+            {
+              "step": 6,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -3.359375,
+                "max": 3.703125,
+                "sha256": "4f976fab1f10e52d946c2598076fede5c479229e9728d7c79acf00a646ee58f4"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -6.8125,
+                "max": 6.8125,
+                "sha256": "d56ffdadd0bed3b6c5fcdbdf4c5414c1639895a0285b71050d8b274149d22afb"
+              }
+            },
+            {
+              "step": 7,
+              "latent": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -3.453125,
+                "max": 3.578125,
+                "sha256": "be0b609958c2c41655f5f304069524dfed6730478ca89c5b3cf351a259856814"
+              },
+              "noise": {
+                "shape": [
+                  1,
+                  4096,
+                  64
+                ],
+                "dtype": "bfloat16",
+                "count": 262144,
+                "min": -6.59375,
+                "max": 6.4375,
+                "sha256": "8a1d631c9bd3059023d161a1e63371cc130a71cfd1d6b60f4d6810d4a0186be5"
+              }
+            }
+          ],
+          "ended_utc": "2026-11-25T21:06:11.705509+00:00",
+          "reused_from": "$STUDY/full-decode-02"
+        }
+      },
+      "provenance": {
+        "resources": {
+          "A": {
+            "render.py": "ba9a25e78dfd70fd91fe06a8260343d3ff139677651fd7d5dfff4d181808744a",
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e"
+          },
+          "D": {
+            "render.py": "838ad3db9e4c6112408deae5cc86a9028f07a547f0aba1cf61ba9a525f65adeb",
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e"
+          },
+          "E": {
+            "render.py": "121bd8b81a55f9effb89d84b5c22ce8223e8212c7d62e9f69574a27d0ee6870e",
+            "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+            "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e"
+          }
+        },
+        "model": "$HOME/Library/Application Support/io.mlxl3.desktop/ImageModels/Qwen-Image-2.1-Turbo-EXL3-4bit",
+        "model_manifest_sha256": "60f7f2bd2f679faf6fa1e3423f1538af8ce0a80940c4b7b9f7cb82e015e87924",
+        "auxiliary": "$HOME/.cache/huggingface/hub/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+        "python": "$STUDY/runtime/bin/python",
+        "python_sha256": "fe5e57e7f0dc374654e314d4e8f20cf2a345bda8a4e03032046f407027628a32",
+        "python_version": "3.12.15",
+        "packages": {
+          "mflux": "0.24.0",
+          "mlx": "0.32.4",
+          "mlx-metal": "0.32.4",
+          "numpy": "2.5.5",
+          "transformers": "5.24.0",
+          "Pillow": "13.0.0",
+          "huggingface_hub": "1.33.0"
+        },
+        "mflux_source": {
+          "url": "https://github.com/mflux-community/mflux.git",
+          "vcs_info": {
+            "vcs": "git",
+            "commit_id": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+            "requested_revision": "d39c9639e6ac22407a725432cc221a83fab19f1b"
+          }
+        },
+        "image_size": 1024,
+        "candidate": "D",
+        "seed": 987406473,
+        "steps": 8,
+        "prompt": "A studio photograph of a cobalt blue ceramic teapot on a pale peach tabletop, soft morning light, simple composition.",
+        "hardware": "Apple M5",
+        "memory_bytes": 25769803776,
+        "macos": "27.3",
+        "os_build": "26C5047e",
+        "environment": {
+          "HF_HUB_OFFLINE": "1",
+          "TRANSFORMERS_OFFLINE": "1",
+          "UV_OFFLINE": "1",
+          "PYTHONNOUSERSITE": "1"
+        },
+        "harness": {
+          "observe.py": "65b69e782959f053045b920f5de99e5701e45a73804a8681b1fcfb30946c9259",
+          "campaign.py": "2358b5209ab346d04840be464f74990210c04b6d997e279d0061148840fde80c"
+        },
+        "decode_harness_sha256": "5839eadc4b30aa471cef90ec6a03e01a74d7cab42b2e0cc92bcf8d379fb54c95"
+      },
+      "source_commit": "2c4c761522c980f1641ba4154a7290fb7b1c298c",
+      "source_base": "df1d4411521bd369c62fa5f0a894876f59e0cc15",
+      "package": "$STUDY/option/dist/MLXL3 Desktop Test.app/Contents/Resources/Image21",
+      "qualification_sha256": "2d8926b1f7b24b8bdce2a612a241441daaf41780262d8abaaf916dfd505c2bc8",
+      "package_sha256": {
+        "render.py": "fcebbc7e50c0130c950964a7e0a98fd3544cbe6ad8095d4860567763347b2a42",
+        "image-models.json": "d5e494d1548eaf4578395e2cf79741bc8b98947e89f59702152896c53f5e51de",
+        "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+        "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+        "studio-image21-m5.png": "7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd"
+      },
+      "command": [
+        "/usr/bin/time",
+        "-l",
+        "$STUDY/runtime/bin/python",
+        "-I",
+        "-B",
+        "-u",
+        "$STUDY/full/observe.py",
+        "$STUDY/final-option-01/option.jsonl",
+        "$STUDY/full-run-1024/qual-A.jsonl",
+        "$STUDY/option/dist/MLXL3 Desktop Test.app/Contents/Resources/Image21/render.py",
+        "--variant",
+        "turbo",
+        "--model",
+        "$HOME/Library/Application Support/io.mlxl3.desktop/ImageModels/Qwen-Image-2.1-Turbo-EXL3-4bit",
+        "--prompt",
+        "A studio photograph of a cobalt blue ceramic teapot on a pale peach tabletop, soft morning light, simple composition.",
+        "--size",
+        "1024",
+        "--steps",
+        "8",
+        "--seed",
+        "987406473",
+        "--low-memory",
+        "--output",
+        "$STUDY/final-option-01/option.png"
+      ],
+      "log": "$STUDY/final-option-01/option.log",
+      "image_path": "$STUDY/final-option-01/option.png",
+      "trace": "$STUDY/final-option-01/option.jsonl",
+      "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0\t79%; charging; 1:08 remaining present: true",
+      "launch_utc": "2026-11-25T21:41:55.562604+00:00",
+      "wall_cs": 18764,
+      "rss_bytes": 4846354432,
+      "footprint_bytes": 8111311632,
+      "wall_s": 187.64,
+      "loop_s_whole_seconds": 169,
+      "step_s_tqdm": 21.17,
+      "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0\t80%; AC attached; not charging present: true",
+      "image": {
+        "png": "be53936baaafd930fb930dc27daf3399a8930d552a9a1f721b37e9b03e145c72",
+        "rgb": "c6ba408c4dd81c3769c8362640b129df5140fdd449ac0ad6c825bdb6a1188d9e",
+        "rgb_bytes": 3145728
+      },
+      "states": [
+        {
+          "step": 0,
+          "latent": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -4.5625,
+            "max": 4.5,
+            "sha256": "d5b339c8505b5719272790b9675e76f37e4ae4dabdce921d4ce5572271e086a4"
+          },
+          "noise": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -7.8125,
+            "max": 8.125,
+            "sha256": "8016b01df24a7bccb2cfdf5708492962c9227e562c182f7897a4b4000b429f11"
+          }
+        },
+        {
+          "step": 1,
+          "latent": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -4.5,
+            "max": 4.40625,
+            "sha256": "55b5a15a573929b37eea24431bd6de45687c8de6e4738f5b315dc1697b7ecae1"
+          },
+          "noise": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -7.34375,
+            "max": 7.15625,
+            "sha256": "61fb816c91ca1a56ae7c1bd99edd91de82b2bd4fdefa4c0ef789adc87c73b0ba"
+          }
+        },
+        {
+          "step": 2,
+          "latent": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -4.40625,
+            "max": 4.28125,
+            "sha256": "51b069d497138c995f595bcd88f48a14ca569959b598d0130f03c744baa28b62"
+          },
+          "noise": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -7.125,
+            "max": 6.96875,
+            "sha256": "c07b79c4a181833fd11819668ad7417dd3312c2d3c5380045971593bb6431ac0"
+          }
+        },
+        {
+          "step": 3,
+          "latent": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -4.28125,
+            "max": 4.15625,
+            "sha256": "a6a1cde04fcb99b27b3868131dde48125b519dc687be5fe8e037ea72becc2800"
+          },
+          "noise": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -7.0,
+            "max": 6.9375,
+            "sha256": "542e8cc0648fb495f6c0f3188aee00089472f40908e8abcaebaec7b534e96515"
+          }
+        },
+        {
+          "step": 4,
+          "latent": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -4.15625,
+            "max": 4.0,
+            "sha256": "b6d9b8df1cdc6bc7de16db44ab1e6a2c585ce40a05f4f00d2cbb40456f98975e"
+          },
+          "noise": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -6.90625,
+            "max": 6.90625,
+            "sha256": "068f9dac8c532c94c9bf49edbb78efcd9b4b7dd269964e4b427e985590b77a1a"
+          }
+        },
+        {
+          "step": 5,
+          "latent": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -3.953125,
+            "max": 3.75,
+            "sha256": "e45028cffd79fe0ca5c72fe780796224c5ffcf98ac3be0d21d17275b56aa9c72"
+          },
+          "noise": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -6.84375,
+            "max": 6.90625,
+            "sha256": "b09d73c45dcfdb5326c1885a4a98171df8dc7060e9b40ed93a1fc133f98bb180"
+          }
+        },
+        {
+          "step": 6,
+          "latent": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -3.359375,
+            "max": 3.703125,
+            "sha256": "4f976fab1f10e52d946c2598076fede5c479229e9728d7c79acf00a646ee58f4"
+          },
+          "noise": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -6.8125,
+            "max": 6.8125,
+            "sha256": "d56ffdadd0bed3b6c5fcdbdf4c5414c1639895a0285b71050d8b274149d22afb"
+          }
+        },
+        {
+          "step": 7,
+          "latent": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -3.453125,
+            "max": 3.578125,
+            "sha256": "be0b609958c2c41655f5f304069524dfed6730478ca89c5b3cf351a259856814"
+          },
+          "noise": {
+            "shape": [
+              1,
+              4096,
+              64
+            ],
+            "dtype": "bfloat16",
+            "count": 262144,
+            "min": -6.59375,
+            "max": 6.4375,
+            "sha256": "8a1d631c9bd3059023d161a1e63371cc130a71cfd1d6b60f4d6810d4a0186be5"
+          }
+        }
+      ],
+      "parity": true,
+      "footprint_pass": true,
+      "ended": "2026-11-25T21:45:03.729585+00:00"
+    }
+  },
+  "final-studio-option-01/results.json": {
+    "original_sha256": "6c73915c0d138bacf5be006d4caec53be6bd198961faafce6a2934b89977294e",
+    "record": {
+      "status": "complete",
+      "started_utc": "2026-11-25T21:45:12.173355+00:00",
+      "command": [
+        "$STUDY/studio/physical-turbo",
+        "$STUDY/option/dist/MLXL3 Desktop Test.app/Contents/Resources/Image21/render.py",
+        "$STUDY/full-run-1024/qual-A.png",
+        "1024",
+        "$STUDY/final-studio-option-01/studio",
+        "--low-memory"
+      ],
+      "environment": {
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1",
+        "UV_OFFLINE": "1",
+        "PYTHONNOUSERSITE": "1"
+      },
+      "package": {
+        "render.py": "fcebbc7e50c0130c950964a7e0a98fd3544cbe6ad8095d4860567763347b2a42",
+        "image-models.json": "d5e494d1548eaf4578395e2cf79741bc8b98947e89f59702152896c53f5e51de",
+        "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+        "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+        "studio-image21-m5.png": "7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd"
+      },
+      "executable_sha256": "6c7b421b86eae4cc7d8a0e7f4e7d3786454bfaa5f333e0d9c2f9dd29db002b08",
+      "launcher_sha256": "2f7be1879e3337eef20875c0f80ef033337305d0405efc5d72642d6292f66b3b",
+      "source_sha256": "924c539280fc3cc8c5c8b8e797417b25413b27271917243d6f5284c195e7175b",
+      "pid": 54598,
+      "launch_utc": "2026-11-25T21:45:12.295325+00:00",
+      "worker_command_observed": "$HOME/.cache/uv/environments-v2/render-e6dcb744608224a5/bin/python -I -u $STUDY/option/dist/MLXL3 Desktop Test.app/Contents/Resources/Image21/render.py --variant turbo --model $HOME/Library/Application Support/io.mlxl3.desktop/ImageModels/Qwen-Image-2.1-Turbo-EXL3-4bit --prompt=A studio photograph of a cobalt blue ceramic teapot on a pale peach tabletop, soft morning light, simple composition. --size 1024 --steps 8 --seed 987406473 --output $TMPDIR/470D8148-46F8-417C-BDDE-6CDE38FAB085/image.png --low-memory",
+      "observed_children": {
+        "54609": [
+          "Wed Nov 25 22:45:13 2026",
+          "$HOME/.cache/uv/environments-v2/render-e6dcb744608224a5/bin/python"
+        ],
+        "54603": [
+          "Wed Nov 25 22:45:12 2026",
+          "$HOME/.local/bin/uv"
+        ],
+        "54616": [
+          "Wed Nov 25 22:45:13 2026",
+          "$HOME/.cache/uv/environments-v2/render-e6dcb744608224a5/bin/python"
+        ],
+        "54670": [
+          "Wed Nov 25 22:45:25 2026",
+          "$HOME/.cache/uv/environments-v2/render-e6dcb744608224a5/bin/python"
+        ]
+      },
+      "parity": true,
+      "swift": {
+        "auto_save": true,
+        "explicit_low_memory": true,
+        "gallery_png": "$STUDY/final-studio-option-01/studio/gallery/Image-987406473-C9912330-C9F8-45CF-9C00-69E9B7B84E50.png",
+        "golden": "$STUDY/full-run-1024/qual-A.png",
+        "launcher": "$HOME/.local/bin/uv",
+        "model": "$HOME/Library/Application Support/io.mlxl3.desktop/ImageModels/Qwen-Image-2.1-Turbo-EXL3-4bit",
+        "png_bytes": 1079260,
+        "png_sha256": "be53936baaafd930fb930dc27daf3399a8930d552a9a1f721b37e9b03e145c72",
+        "prompt": "A studio photograph of a cobalt blue ceramic teapot on a pale peach tabletop, soft morning light, simple composition.",
+        "seed": 987406473,
+        "size": 1024,
+        "status": "complete",
+        "steps": 8,
+        "variant": "turbo",
+        "worker": "$STUDY/option/dist/MLXL3 Desktop Test.app/Contents/Resources/Image21/render.py",
+        "worker_sha256": "fcebbc7e50c0130c950964a7e0a98fd3544cbe6ad8095d4860567763347b2a42"
+      },
+      "gallery": {
+        "png": "be53936baaafd930fb930dc27daf3399a8930d552a9a1f721b37e9b03e145c72",
+        "rgb": "c6ba408c4dd81c3769c8362640b129df5140fdd449ac0ad6c825bdb6a1188d9e",
+        "rgb_bytes": 3145728
+      },
+      "ended_utc": "2026-11-25T21:48:18.737235+00:00"
+    }
+  },
+  "source_comparison": {
+    "physical_checks_commit": "2c4c761522c980f1641ba4154a7290fb7b1c298c",
+    "physical_checks_base": "df1d4411521bd369c62fa5f0a894876f59e0cc15",
+    "rebased_code_commit": "a1d819d38c9eae790978aad611c93b16315917bd",
+    "rebased_code_base": "820d77e6daa23f61de99a980a1a718349bf625cd",
+    "file_sha256_by_commit": {
+      "2c4c761522c980f1641ba4154a7290fb7b1c298c": {
+        "apps/MLXL3Studio/Resources/Image21/render.py": "fcebbc7e50c0130c950964a7e0a98fd3544cbe6ad8095d4860567763347b2a42",
+        "apps/MLXL3Studio/Resources/Image21/image-models.json": "d5e494d1548eaf4578395e2cf79741bc8b98947e89f59702152896c53f5e51de",
+        "native/shaders/_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+        "native/shaders/_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+        "docs/images/studio-image21-m5.png": "7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd",
+        "apps/MLXL3Studio/Sources/MLXL3Studio/ImageGeneration.swift": "ab67c5683cadd2fbaea413ea7ceb90103bafdf5ca695fba78e61a0464acf1914",
+        "apps/MLXL3Studio/Sources/MLXL3Studio/ImageGenerationView.swift": "f4bd3417c83ab7e1214070f426766ea84bbe101606c021189613957586f8a71d"
+      },
+      "a1d819d38c9eae790978aad611c93b16315917bd": {
+        "apps/MLXL3Studio/Resources/Image21/render.py": "fcebbc7e50c0130c950964a7e0a98fd3544cbe6ad8095d4860567763347b2a42",
+        "apps/MLXL3Studio/Resources/Image21/image-models.json": "d5e494d1548eaf4578395e2cf79741bc8b98947e89f59702152896c53f5e51de",
+        "native/shaders/_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+        "native/shaders/_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+        "docs/images/studio-image21-m5.png": "7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd",
+        "apps/MLXL3Studio/Sources/MLXL3Studio/ImageGeneration.swift": "ab67c5683cadd2fbaea413ea7ceb90103bafdf5ca695fba78e61a0464acf1914",
+        "apps/MLXL3Studio/Sources/MLXL3Studio/ImageGenerationView.swift": "f113cdda27257f79a9c2190e47e6093b6244c4d8a25a5e40326e78d241f118a8"
+      }
+    }
+  }
+}
