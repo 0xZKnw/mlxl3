@@ -1735,6 +1735,14 @@ impl FlashNext {
     pub fn offset(&self) -> i32 {
         self.offset
     }
+    #[cfg(feature = "chat")]
+    pub fn supports_agent_live_cache(&self) -> bool {
+        self.verification.is_none()
+            && self.request_memory_limit().is_none()
+            && !self.dflash2_active()
+            && self.lookahead_depth == 0
+            && matches!(self.prompt_mode, PromptMode::Serial | PromptMode::FinalHead)
+    }
     pub fn io_stats(&self) -> (u64, u64, u64) {
         let bytes = self
             .lookahead_pool
@@ -2143,6 +2151,112 @@ mod tests {
             ensure!(
                 tensor_state_bytes(&model.forward(28)?)? == expected,
                 "grouped expert logits mismatch"
+            );
+        }
+        Ok(())
+    }
+
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "physical Apple GPU and installed Flash checkpoint; AR tool-round replay oracle"]
+    fn flash_agent_live_tool_prefix_matches_cold_prefill() -> Result<()> {
+        use crate::live_cache::{committed_stream, live_start};
+
+        fn prefill(model: &mut FlashNext, tokens: &[u32], mut start: usize) -> Result<Array> {
+            let cancelled = AtomicBool::new(false);
+            let mut logits = None;
+            while let Some(end) = crate::prefill_span_end_merged(
+                start,
+                tokens.len(),
+                flash_support::PREFILL_CHUNK,
+                1,
+                crate::Q36_MOE_TAIL_MIN,
+            ) {
+                let chunk = &tokens[start..end];
+                start = end;
+                if !model.advance_chat_prompt(chunk, tokens.len(), end, &cancelled)? {
+                    logits = Some(model.forward_tokens(chunk)?);
+                }
+            }
+            logits.context("missing tool-round logits")
+        }
+
+        fn checked_logits(logits: &Array) -> Result<Vec<f32>> {
+            ensure!(logits.shape().iter().product::<i32>() == 248_320);
+            let values = logits.astype(Dtype::Float32)?.to_f32()?;
+            ensure!(values.len() == 248_320 && values.iter().all(|x| x.is_finite()));
+            Ok(values)
+        }
+
+        let model_path = std::env::var("MLXL3_FLASH_MODEL")?;
+        let model_path = Path::new(&model_path);
+        let checkpoint = crate::checkpoint::inspect(model_path)?;
+        let tokenizer = crate::tokenizer::ChatTokenizer::load(model_path)?;
+        let mut model = FlashNext::from_checkpoint(&checkpoint)?;
+        ensure!(
+            model.supports_agent_live_cache(),
+            "use plain Flash AR settings"
+        );
+        let first_prompt =
+            "<|im_start|>user\nRead stock.txt.\n<|im_end|>\n<|im_start|>assistant\n<think>\n";
+        let tool_call = "I will read the file.\n</think>\n\n<tool_call>\n<function=read_file>\n<parameter=path>\nstock.txt\n</parameter>\n</function>\n</tool_call>";
+        let tool_result = "<|im_end|>\n<|im_start|>user\n<tool_response>\n17\n</tool_response><|im_end|>\n<|im_start|>assistant\n<think>\n";
+        let first = tokenizer.encode(first_prompt)?;
+        let through_call = tokenizer.encode(&format!("{first_prompt}{tool_call}"))?;
+        let next = tokenizer.encode(&format!("{first_prompt}{tool_call}{tool_result}"))?;
+        ensure!(!first.is_empty() && through_call.starts_with(&first));
+        ensure!(next.len() > through_call.len() && next.starts_with(&through_call));
+        let emitted = &through_call[first.len()..];
+        ensure!(emitted.len() > 1);
+
+        for mode in [PromptMode::Serial, PromptMode::FinalHead] {
+            model.reset();
+            model.prompt_mode = mode;
+            let cold = prefill(&mut model, &next, 0)?;
+            ensure!(usize::try_from(model.offset())? == next.len());
+            let cold_state = state_bytes(&model)?;
+            ensure!(!cold_state.is_empty() && cold_state.iter().all(|bytes| !bytes.is_empty()));
+            let cold_values = checked_logits(&cold)?;
+            let greedy = cold.chat_greedy_ids()?;
+            ensure!(greedy.len() == 1);
+
+            model.reset();
+            prefill(&mut model, &first, 0)?;
+            for &token in &emitted[..emitted.len() - 1] {
+                model.forward(token)?;
+            }
+            // The decoder returned its last token without forwarding it.
+            let position = usize::try_from(model.offset())?;
+            ensure!(position + 1 == through_call.len());
+            let committed = committed_stream(first.len(), emitted, None, position)
+                .context("made-up or missing decoded rows")?;
+            let start = live_start(&first, &committed, &next, Some(position))
+                .context("a valid tool-round prefix was not reusable")?;
+            ensure!(start == position && next[start] == emitted[emitted.len() - 1]);
+            let warm = prefill(&mut model, &next, start)?;
+            ensure!(usize::try_from(model.offset())? == next.len());
+            ensure!(cold.shape() == warm.shape() && warm.chat_greedy_ids()? == greedy);
+            let warm_values = checked_logits(&warm)?;
+            let (square_error, square_reference) = cold_values.iter().zip(warm_values).fold(
+                (0.0, 0.0),
+                |(error, reference), (&a, b)| {
+                    let a = f64::from(a);
+                    let diff = a - f64::from(b);
+                    (error + diff * diff, reference + a * a)
+                },
+            );
+            ensure!(square_reference > 0.0);
+            let l2 = (square_error / square_reference).sqrt();
+            ensure!(l2 <= 0.05, "Flash tool-round logit relative L2 was {l2}");
+            ensure!(
+                state_bytes(&model)? == cold_state,
+                "Flash tool-round states differ"
+            );
+            println!(
+                "Flash tool-round oracle: final-head={}, held={start}, full={}, states={}, relative L2={l2}",
+                matches!(mode, PromptMode::FinalHead),
+                next.len(),
+                cold_state.len(),
             );
         }
         Ok(())
