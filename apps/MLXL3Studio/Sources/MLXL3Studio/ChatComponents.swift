@@ -316,7 +316,7 @@ private struct AssistantMessageView: View {
                 }
                 if let agentWorkspace, startID != nil, !message.isStreaming, !savingAgentTurn {
                     switch turnOutcome {
-                    case .success(let result?) where !result.files.isEmpty || !result.commands.isEmpty:
+                    case .success(let result?) where !result.files.isEmpty:
                         AgentTurnResultRow(workspace: agentWorkspace, result: result)
                     case .failure(let error):
                         Label(L("Résultat du tour indisponible", "Turn result unavailable"), systemImage: "exclamationmark.circle")
