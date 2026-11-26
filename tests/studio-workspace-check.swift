@@ -1,8 +1,14 @@
 import AppKit
 import Foundation
+import QuickLookUI
 import SwiftUI
 
 @main struct StudioWorkspaceCheck {
+  private struct DeliverableCheckError: LocalizedError {
+    let message: String
+    var errorDescription: String? { message }
+  }
+
   @MainActor static func main() {
     _ = NSApplication.shared
     NSApp.setActivationPolicy(.regular)
@@ -34,6 +40,14 @@ import SwiftUI
     }
     // The assistant's result stays pinned to its own request and response, across later edits.
     let task = AgentProjectStore(workspace: root.appendingPathComponent("turn-results/files"))
+    func deliverableDenied(_ path: String, _ result: AgentTurnResult) throws -> Bool {
+      do {
+        _ = try task.deliverableContents(path, in: result)
+        return false
+      } catch let error as CocoaError {
+        return error.code == .fileReadNoPermission
+      }
+    }
     let user = UUID(), assistant = UUID()
     try task.checkpoint(messageID: user, startingTurn: true)
     let receipts = AgentCommandReceipt.folder(metadata: task.metadata, turn: user)
@@ -56,9 +70,15 @@ import SwiftUI
     try files.removeItem(at: task.workspace.appendingPathComponent(path))
     try AgentProjectStore.write(Data("unrelated".utf8), path: "next.txt", root: task.workspace)
     try task.checkpoint(messageID: nextAssistant)
-    let secondTurn = try task.turnResult(user: nextUser, assistant: nextAssistant)
-    check(secondTurn?.files.count == 2 && secondTurn?.newDocument == nil && secondTurn?.commands.isEmpty == true,
+    guard let secondTurn = try task.turnResult(user: nextUser, assistant: nextAssistant) else {
+      preconditionFailure("Turn with an added and a deleted file did not produce a result")
+    }
+    check(secondTurn.files.count == 2 && secondTurn.newDocument == nil && secondTurn.commands.isEmpty,
       "Added/deleted files or command results crossed into another turn")
+    check(secondTurn.deliverableFiles.map(\.path) == ["next.txt"], "A deleted file was offered for export")
+    check(try deliverableDenied(path, secondTurn), "A deleted deliverable was readable")
+    check(try task.deliverableContents(path, in: result) == Data("first version".utf8),
+      "A later deletion prevented exporting the historical bytes")
     check(try task.turnResult(user: user, assistant: assistant) == result,
       "Later edits or a late background job changed a historical result")
     check(try task.turnResult(user: UUID(), assistant: assistant) == nil,
@@ -83,9 +103,46 @@ import SwiftUI
     try task.checkpoint(messageID: binaryRequest, startingTurn: true)
     try AgentProjectStore.write(Data([0, 255]), path: "actually-binary.md", root: task.workspace)
     try task.checkpoint(messageID: binaryResponse)
-    let binaryResult = try task.turnResult(user: binaryRequest, assistant: binaryResponse)
-    check(binaryResult?.files.count == 1 && binaryResult?.newDocument == nil,
+    guard let binaryResult = try task.turnResult(user: binaryRequest, assistant: binaryResponse) else {
+      preconditionFailure("Turn with binary data did not produce a result")
+    }
+    check(binaryResult.files.count == 1 && binaryResult.newDocument == nil,
       "A misleading extension offered to open binary bytes as a document")
+    check(try task.deliverableContents("actually-binary.md", in: binaryResult) == Data([0, 255]),
+      "Exporting a binary deliverable changed its bytes")
+    check(try deliverableDenied("next.txt", binaryResult), "An unchanged file was readable as a deliverable")
+    check(try deliverableDenied("../next.txt", binaryResult), "An invalid relative path was readable")
+    let reportRequest = UUID(), reportResponse = UUID()
+    try task.checkpoint(messageID: reportRequest, startingTurn: true)
+    let firstReport = "reports [A]/summary.csv", secondReport = "reports B/summary.csv"
+    let originalReport = Data("Score,Note\n5,\"été\"\n".utf8)
+    try AgentProjectStore.write(originalReport, path: firstReport, root: task.workspace)
+    try AgentProjectStore.write(Data(), path: secondReport, root: task.workspace)
+    try AgentProjectStore.write(Data("updated".utf8), path: "next.txt", root: task.workspace)
+    try task.checkpoint(messageID: reportResponse)
+    guard let reports = try task.turnResult(user: reportRequest, assistant: reportResponse) else {
+      preconditionFailure("Turn with several deliverables did not produce a result")
+    }
+    check(Set(reports.deliverableFiles.map(\.path)) == [firstReport, secondReport, "next.txt"],
+      "A turn lost a nested or modified deliverable")
+    let firstReportURL = task.workspace.appendingPathComponent(firstReport)
+    let outsideURL = root.appendingPathComponent("outside-workspace.csv")
+    let outsideContents = Data("outside".utf8)
+    try outsideContents.write(to: outsideURL)
+    try files.removeItem(at: firstReportURL)
+    try files.createSymbolicLink(at: firstReportURL, withDestinationURL: outsideURL)
+    check(try task.deliverableContents(firstReport, in: reports) == originalReport,
+      "Export used a live symlink instead of the archived literal path")
+    check(try task.deliverableContents(secondReport, in: reports).isEmpty,
+      "A same-name file with zero bytes could not be exported separately")
+    check(try task.deliverableContents("next.txt", in: reports) == Data("updated".utf8)
+      && task.deliverableContents("next.txt", in: secondTurn) == Data("unrelated".utf8),
+      "Exporting a modified file did not respect both historical versions")
+    check(try Data(contentsOf: outsideURL) == outsideContents
+      && files.destinationOfSymbolicLink(atPath: firstReportURL.path) == outsideURL.path,
+      "Reading a deliverable modified the live workspace or its link target")
+    try files.removeItem(at: firstReportURL)
+    try originalReport.write(to: firstReportURL)
     let userWithoutReceipts = UUID(), responseWithoutReceipts = UUID()
     try task.checkpoint(messageID: userWithoutReceipts, startingTurn: true)
     let damagedReceipts = AgentCommandReceipt.folder(metadata: task.metadata, turn: userWithoutReceipts)
@@ -513,6 +570,7 @@ import SwiftUI
       }
     }
     projectWindow.orderOut(nil)
+    count += try await checkDeliverableActions(studio: studio, root: root)
     if ProcessInfo.processInfo.environment["MLXL3_STUDIO_INTERACTIVE"] == "1" {
       NSApp.setActivationPolicy(.regular)
       NSApp.activate(ignoringOtherApps: true)
@@ -525,5 +583,153 @@ import SwiftUI
     print(
       "Workspace checks passed: \(count), CPU-only Git/controller/native full-window navigation; no model, Metal or WebGL test"
     )
+  }
+
+  @MainActor private static func checkDeliverableActions(studio: StudioModel, root: URL) async throws -> Int {
+    let files = FileManager.default
+    let workspace = root.appendingPathComponent("deliverable-task/files")
+    let store = AgentProjectStore(workspace: workspace)
+    let removed = "Discarded Draft.txt"
+    let csv = "Quarterly Dataset.csv"
+    let pdf = "Warehouse Graph.pdf"
+    let csvBytes = Data("region,units\r\nwest,17\r\n".utf8)
+    let pdfBuffer = NSMutableData()
+    var mediaBox = CGRect(x: 0, y: 0, width: 144, height: 144)
+    guard let consumer = CGDataConsumer(data: pdfBuffer),
+      let context = CGContext(consumer: consumer, mediaBox: &mediaBox, nil)
+    else { throw DeliverableCheckError(message: "Cannot create the PDF fixture") }
+    context.beginPDFPage(nil)
+    context.fill(CGRect(x: 10, y: 10, width: 124, height: 124))
+    context.endPDFPage()
+    context.closePDF()
+    let pdfBytes = Data(referencing: pdfBuffer)
+    try files.createDirectory(at: workspace, withIntermediateDirectories: true)
+    try AgentProjectStore.write(Data("remove this".utf8), path: removed, root: workspace)
+    let user = UUID(), assistant = UUID()
+    try store.checkpoint(messageID: user, startingTurn: true)
+    try AgentProjectStore.write(csvBytes, path: csv, root: workspace)
+    try AgentProjectStore.write(pdfBytes, path: pdf, root: workspace)
+    try files.removeItem(at: workspace.appendingPathComponent(removed))
+    try store.checkpoint(messageID: assistant)
+    guard let result = try store.turnResult(user: user, assistant: assistant) else {
+      throw DeliverableCheckError(message: "Cannot load the completed turn")
+    }
+    let changed = Data("new live version".utf8)
+    try AgentProjectStore.write(changed, path: csv, root: workspace)
+    try files.removeItem(at: workspace.appendingPathComponent(pdf))
+    _ = try store.checkpoint("Later edits to both deliverables")
+
+    studio.setLanguage(.en)
+    let originalDocument = studio.studioDocument
+    defer { studio.studioDocument = originalDocument }
+    var requests: [String] = []
+    var destination: URL?
+    let margin: CGFloat = 24
+    let host = NSHostingView(rootView: AgentTurnResultRow(workspace: workspace, result: result, selectDestination: { panel in
+      requests.append(panel.nameFieldStringValue)
+      return destination
+    }).environmentObject(studio).padding(margin).background(StudioTheme.canvas).preferredColorScheme(.dark))
+    let window = NSWindow(
+      contentRect: CGRect(x: 80, y: 80, width: 900, height: 420),
+      styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+    window.isReleasedWhenClosed = false
+    window.contentView = host
+    window.makeKeyAndOrderFront(nil)
+    defer { window.close() }
+
+    func click(x: CGFloat, fromTop y: CGFloat) async throws {
+      // Use the fixture's fixed width and the row's fixed-height Studio buttons.
+      // Clicking the wrong action or file is detected by the expected path and bytes.
+      try await Task.sleep(for: .milliseconds(125))
+      host.layoutSubtreeIfNeeded()
+      let y = host.isFlipped ? y : host.bounds.height - y
+      let location = host.convert(CGPoint(x: x, y: y), to: nil)
+      func event(_ type: NSEvent.EventType) -> NSEvent {
+        NSEvent.mouseEvent(with: type, location: location, modifierFlags: [],
+          timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: window.windowNumber,
+          context: nil, eventNumber: 0, clickCount: 1, pressure: 1)!
+      }
+      NSApp.postEvent(event(.leftMouseUp), atStart: false)
+      window.sendEvent(event(.leftMouseDown))
+      if let up = NSApp.nextEvent(matching: .leftMouseUp, until: .distantPast, inMode: .default, dequeue: true) {
+        window.sendEvent(up)
+      }
+    }
+    func clickFile(_ row: Int, save: Bool) async throws {
+      let top = margin + 6 + StudioPageMetrics.control / 2
+      let stride = StudioPageMetrics.control + 7
+      let trailing: CGFloat = save ? 66 : 156
+      try await click(x: host.bounds.width - trailing, fromTop: top + CGFloat(row) * stride)
+    }
+    func waitFor<T>(_ message: String, _ read: () throws -> T?) async throws -> T {
+      let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+      while ContinuousClock.now < deadline {
+        if let value = try read() { return value }
+        try await Task.sleep(for: .milliseconds(25))
+      }
+      throw DeliverableCheckError(message: message)
+    }
+    func quickLook(in view: NSView) -> QLPreviewView? {
+      if let preview = view as? QLPreviewView,
+        preview.accessibilityIdentifier() == "agent.deliverable.quicklook" { return preview }
+      return view.subviews.lazy.compactMap { quickLook(in: $0) }.first
+    }
+    func expect(_ condition: Bool, _ message: String) throws {
+      guard condition else { throw DeliverableCheckError(message: message) }
+    }
+    func snapshot(_ view: NSView, name: String) throws {
+      guard let folder = ProcessInfo.processInfo.environment["MLXL3_STUDIO_UI_SNAPSHOTS"],
+        let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds)
+      else { return }
+      view.cacheDisplay(in: view.bounds, to: bitmap)
+      try bitmap.representation(using: .png, properties: [:])?.write(
+        to: URL(fileURLWithPath: folder).appendingPathComponent(name))
+    }
+
+    for (row, pair) in [(csv, csvBytes), (pdf, pdfBytes)].enumerated() {
+      let (name, expected) = pair
+      try await clickFile(row, save: false)
+      let item = try await waitFor("Preview did not open for \(name)") { () -> URL? in
+        window.sheets.first?.contentView.flatMap { quickLook(in: $0)?.previewItem?.previewItemURL }
+      }
+      try expect(item.lastPathComponent == name && Data(contentsOf: item) == expected,
+        "The preview read the live file instead of the historical \(name)")
+      guard let sheet = window.sheets.first, let content = sheet.contentView else {
+        throw DeliverableCheckError(message: "The file preview closed unexpectedly")
+      }
+      if ProcessInfo.processInfo.environment["MLXL3_STUDIO_UI_SNAPSHOTS"] != nil {
+        try await Task.sleep(for: .milliseconds(400))
+        try snapshot(content, name: "agent-deliverable-preview-\(item.pathExtension).png")
+      }
+      guard let escape = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+        timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: sheet.windowNumber,
+        context: nil, characters: "\u{1B}", charactersIgnoringModifiers: "\u{1B}", isARepeat: false, keyCode: 53)
+      else { throw DeliverableCheckError(message: "Cannot construct the preview's Escape shortcut") }
+      sheet.sendEvent(escape)
+      _ = try await waitFor("The file preview did not close") { window.sheets.isEmpty ? true : nil }
+
+      let target = root.appendingPathComponent("Saved \(name)")
+      destination = target
+      try await clickFile(row, save: true)
+      let saved = try await waitFor("Save did not write \(name)") {
+        files.fileExists(atPath: target.path) ? try Data(contentsOf: target) : nil
+      }
+      try expect(saved == expected, "Save changed the historical bytes of \(name)")
+    }
+    destination = nil
+    try await clickFile(0, save: true)
+    _ = try await waitFor("The canceled Save did not reach the save panel") { requests.count == 3 ? true : nil }
+    try expect(requests == [csv, pdf, csv], "Save suggested the wrong filename")
+    try expect(try Data(contentsOf: workspace.appendingPathComponent(csv)) == changed
+      && !files.fileExists(atPath: workspace.appendingPathComponent(pdf).path),
+      "Preview, Save or cancellation changed the working copy")
+    studio.studioDocument = nil
+    try await click(x: margin + 55, fromTop: margin + 19 + StudioPageMetrics.control * 2.5)
+    _ = try await waitFor("Review changes did not open") { studio.studioDocument }
+    try expect(studio.studioDocument?.turnResult?.files.contains(where: { $0.path == removed }) == true,
+      "A deleted file disappeared from the review")
+    try snapshot(host, name: "agent-deliverables.png")
+    print("Agent deliverables: CSV and PDF previews and exports preserve turn bytes, cancellation and deleted-file review passed")
+    return 7
   }
 }
