@@ -34,7 +34,7 @@ Requires **Apple Silicon and macOS 26.2+**. Download the DMG below, or check for
 
 The DMG is ad-hoc signed. First launch may require approval in System Settings → Privacy & Security.
 
-**Windows:** the Windows app does not have these three changes (it still has Chat and Agent, and no folder mode).
+**Windows:** `MLXL3-Desktop-v2.1.0-Windows-x64-setup.exe` is attached, built by CI from this tag. It is the first Windows installer since 2.0.32 and carries the Windows fixes announced in [2.0.33](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.33) (no time limit on an Agent turn, a tool server restarts after a stopped or failed call). The Windows app does not have the three changes above: it still has Chat and Agent, and no folder mode.
 
 ## Verification and limits
 
@@ -55,6 +55,7 @@ Checks run on these sources on an Apple M5, before publication.
 - Source: [`20473fd12`](https://github.com/0xZKnw/mlxl3/commit/20473fd12) (tag `v2.1.0`).
 - `MLXL3-Desktop-v2.1.0-b88-Apple-Silicon.dmg`: 255,366,284 bytes, SHA-256 `b831ce22ee9b64d56f9fcb52cfd7ebb91d2385027bb0893e023c36113b5ec4a8`.
 - `MLXL3-Desktop-v2.1.0-b88-Apple-Silicon.dmg.sha256`: 109 bytes.
+- `MLXL3-Desktop-v2.1.0-Windows-x64-setup.exe`: 25,917,330 bytes, with its `.sha256` (108 bytes); built and attached by the `Windows Desktop` workflow (its three jobs passed). Not downloaded or installed for these notes.
 - Bundled engine: MLXL3 engine 2.0.38, the five files of [`engine-v2.0.38`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.38) (compared byte for byte with the extracted archive).
 - This DMG: `hdiutil verify` valid, `codesign --deep --strict` passed on the app of the mounted DMG, version 2.1.0 / build 88, `build-info` has commit `20473fd12` with no tracked changes, MLX 0.32.2 and engine 2.0.38 (`engine-v2.0.38`). The app binary of the DMG is the one whose sandbox server was used in the real-model run.
 
