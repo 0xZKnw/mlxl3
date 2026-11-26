@@ -1,0 +1,17 @@
+    Finished `release` profile [optimized] target(s) in 0.07s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-5470b9362b97a5d4)
+
+running 1 test
+test inkling2::tests::prompt_cache_resume_matches_cold_prefill ... first 300: prefix retains 47620096 bytes
+first 300 boundary 256 prompt 540 values 7802262 resumed differing 0 conv mutation differing 7756165 sliding mutation differing 0
+first 1300: prefix retains 173977008 bytes
+first 1300 boundary 1280 prompt 1540 values 7802262 resumed differing 0 conv mutation differing 7737491 sliding mutation differing 7768832
+prompt cache parity: 15604524 values identical to the bit
+prefix bytes after a 128-row call and after a 640-row call: [172351488, 172114432, 172478976, 172196864]
+after a 640-row call: 3400986 values, resumed differing 0, shifted copy differing 3387069
+ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 1058 filtered out; finished in 95.66s
+

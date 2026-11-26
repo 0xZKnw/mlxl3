@@ -1681,6 +1681,28 @@ struct KvBuffer {
     zero: i32,
 }
 
+impl KvBuffer {
+    /// CACHE-2026-11-26-INK2M-SNAPSHOT-BUDGET: `a`'s committed rows behind a zero sink row, in an array of
+    /// their own (`base` 1, `zero` 0): the rows an attended call reads before its chunk, in the same order,
+    /// without the room the buffer keeps for the next calls.
+    fn live_copy(&self, a: &Array) -> Result<Array> {
+        let shape = a.shape();
+        ensure!(
+            shape.len() == 4 && self.len > 0,
+            "Inkling cache has no rows"
+        );
+        #[cfg(test)]
+        let from = self.base - i32::from(PREFIX_MUTATION.with(std::cell::Cell::get) == 3);
+        #[cfg(not(test))]
+        let from = self.base;
+        Array::zeros_dtype(
+            &[shape[0], shape[1], self.len + 1, shape[3]],
+            Dtype::Float16,
+        )?
+        .slice_update(&a.slice(2, from, from + self.len)?, &[0, 0, 1, 0])
+    }
+}
+
 const KV_STEP: i32 = 256;
 
 /// Buffer rows for a call that needs `needed` rows (sink, past, chunk of `time` rows). Full visits grow by
@@ -1702,7 +1724,8 @@ thread_local! {
     /// Mutation for the parity test: skip the sink rewrite of sliding visits.
     static KV_SKIP_SINK: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// SPEED-2026-11-23-INK2M-MAYA PC mutations of `resume_prefix`: 1 keeps the live convolution windows,
-    /// 2 keeps the live sliding K/V instead of the saved ones.
+    /// 2 keeps the live sliding K/V instead of the saved ones. CACHE-2026-11-26-INK2M-SNAPSHOT-BUDGET
+    /// mutation of `prefix_snapshot`: 3 copies the sliding rows one row early.
     static PREFIX_MUTATION: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
     /// SPEED-INK2M-P13: `run` submits by `async_eval` and returns without waiting for the GPU.
     static ASYNC_SUBMIT: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
@@ -4146,8 +4169,9 @@ fn next_epoch() -> u64 {
 /// SPEED-2026-11-23-INK2M-MAYA PC: the committed state at a prefill chunk boundary, kept for the next turn
 /// of the conversation (bridge prompt cache). Full visits stored in place keep only their row count: their
 /// rows `[1, 1 + len)` are never rewritten afterwards (fixed zero sink at row 0, growth copies the rows),
-/// so the live buffers still hold them when the next turn resumes. Every other visit keeps references of
-/// its arrays at the capture point (MLX copies a buffer on the next write while it is referenced here).
+/// so the live buffers still hold them when the next turn resumes. A sliding visit stored in place keeps a
+/// copy of its committed rows (CACHE-2026-11-26-INK2M-SNAPSHOT-BUDGET); every other visit keeps references
+/// of its arrays at the capture point (MLX copies a buffer on the next write while it is referenced here).
 pub struct InklingPrefix {
     epoch: u64,
     offset: i32,
@@ -4173,6 +4197,12 @@ enum PrefixKv {
 impl InklingPrefix {
     pub fn offset(&self) -> i32 {
         self.offset
+    }
+
+    /// AGENT-2026-11-26-LIVE-CACHE: `model` has not been reset since this prefix was taken and is at or
+    /// past its position.
+    pub fn same_lineage(&self, model: &Inkling2) -> bool {
+        self.epoch == model.epoch && self.offset <= model.offset
     }
 
     /// Bytes this prefix keeps alive beyond the live state (saved buffers and convolution windows).
@@ -4473,6 +4503,13 @@ impl Inkling2 {
         }
     }
 
+    /// AGENT-2026-11-26-LIVE-CACHE: the number of committed positions, or None while a verify call is
+    /// uncommitted.
+    pub fn committed_offset(&self) -> Option<i32> {
+        (self.pending.is_none() && self.states.iter().all(|s| s.pending_kv.is_none()))
+            .then_some(self.offset)
+    }
+
     /// SPEED-2026-11-23-INK2M-MAYA PC: the committed state now (no uncommitted verify call), to resume a
     /// later prompt that starts with the same `offset()` tokens.
     pub fn prefix_snapshot(&self) -> Result<InklingPrefix> {
@@ -4480,12 +4517,29 @@ impl Inkling2 {
             self.pending.is_none() && self.states.iter().all(|s| s.pending_kv.is_none()),
             "Inkling prefix taken during an uncommitted call"
         );
+        // `MLXL3_CACHE_COMPACTION=0` keeps the whole buffers (the layout before
+        // CACHE-2026-11-26-INK2M-SNAPSHOT-BUDGET), for A/B checks
+        let compact = std::env::var("MLXL3_CACHE_COMPACTION").as_deref() != Ok("0");
+        let mut copies = Vec::new();
         let mut visits = Vec::with_capacity(self.states.len());
         for (visit, state) in self.states.iter().enumerate() {
             let full = self.layers[self.visits[visit]].attention.window.is_none();
             let kv = match &state.kv_buffer {
                 Some(buffer) if full && buffer.base == 1 && buffer.zero == 0 => {
                     PrefixKv::Rows(buffer.len)
+                }
+                // CACHE-2026-11-26-INK2M-SNAPSHOT-BUDGET: a sliding visit keeps its window - 1 rows, not the
+                // buffer around them (window + the rows of the largest call so far, rounded up): what the
+                // prefix retains no longer depends on how the prompt was split into calls
+                Some(buffer) if compact && !full && buffer.len > 0 => {
+                    let keys = buffer.live_copy(&buffer.keys)?;
+                    let values = buffer.live_copy(&buffer.values)?;
+                    copies.extend([keys.try_clone()?, values.try_clone()?]);
+                    PrefixKv::Saved {
+                        keys: Some(keys.slice(2, 1, 1 + buffer.len)?),
+                        values: Some(values.slice(2, 1, 1 + buffer.len)?),
+                        buffer: Some((keys, values, 1, buffer.len, 0)),
+                    }
                 }
                 buffer => PrefixKv::Saved {
                     keys: state.keys.as_ref().map(Array::try_clone).transpose()?,
@@ -4511,6 +4565,8 @@ impl Inkling2 {
             }
             visits.push(PrefixVisit { kv, conv });
         }
+        // computed now: afterwards the copies no longer refer to the live buffers
+        Array::eval_many(&copies.iter().collect::<Vec<_>>())?;
         Ok(InklingPrefix {
             epoch: self.epoch,
             offset: self.offset,
@@ -7509,6 +7565,82 @@ mod tests {
             total += cold.len();
         }
         println!("prompt cache parity: {total} values identical to the bit");
+        // CACHE-2026-11-26-INK2M-SNAPSHOT-BUDGET: past the window, a prefix retains the same bytes, to within
+        // 1 MiB (the convolution windows keep their views below the compaction threshold), whatever the size
+        // of the call before its capture (one chunk, or five chunks at once after a resume: 84 MB more when
+        // the sliding visits kept their whole buffers); the
+        // prefix taken after the large call resumes to the bit once the live state has moved on, and a copy
+        // of the wrong rows (mutation 3) is detected
+        ensure!(text.len() >= 2112, "not enough tokens");
+        let after_capture = |model: &mut Inkling2| -> Result<Vec<f32>> {
+            let mut out = model.forward_tokens(&text[1920..2048])?.to_f32()?;
+            for &t in &text[2048..2064] {
+                out.extend(model.forward(t)?.to_f32()?);
+            }
+            Ok(out)
+        };
+        let mut sizes = Vec::new();
+        let mut runs = Vec::new();
+        for mutation in [0u8, 3] {
+            model.reset();
+            let mut scratch = Vec::new();
+            let small = prefill(
+                &mut model,
+                &text[..1280],
+                0,
+                &mut scratch,
+                false,
+                Some(1280),
+            )?
+            .context("no prefix captured")?;
+            sizes.push(small.retained_bytes()?);
+            ensure!(model.resume_prefix(small)?, "the prefix did not resume");
+            model.forward_tokens(&text[1280..1920])?;
+            PREFIX_MUTATION.with(|m| m.set(mutation));
+            let large = model.prefix_snapshot();
+            PREFIX_MUTATION.with(|m| m.set(0));
+            let large = large?;
+            sizes.push(large.retained_bytes()?);
+            let live = after_capture(&mut model)?;
+            ensure!(model.resume_prefix(large)?, "the prefix did not resume");
+            ensure!(model.offset() == 1920, "resumed offset");
+            runs.push((live, after_capture(&mut model)?));
+        }
+        println!("prefix bytes after a 128-row call and after a 640-row call: {sizes:?}");
+        ensure!(
+            sizes[0] > 0
+                && sizes
+                    .iter()
+                    .all(|&bytes| bytes.abs_diff(sizes[0]) <= 1 << 20),
+            "the prefix size depends on the call before its capture: {sizes:?}"
+        );
+        ensure!(
+            sizes[0] <= crate::memory_policy::DEFAULT_PROMPT_CACHE_BYTES,
+            "the prefix exceeds the default prompt cache budget"
+        );
+        let differing = |(a, b): &(Vec<f32>, Vec<f32>)| {
+            a.iter()
+                .zip(b)
+                .filter(|(x, y)| x.to_bits() != y.to_bits())
+                .count()
+        };
+        ensure!(
+            runs.iter().all(|(live, resumed)| !live.is_empty()
+                && live.len() == resumed.len()
+                && live.iter().all(|x| x.is_finite())),
+            "empty, non-finite or unequal value counts"
+        );
+        println!(
+            "after a 640-row call: {} values, resumed differing {}, shifted copy differing {}",
+            runs[0].0.len(),
+            differing(&runs[0]),
+            differing(&runs[1])
+        );
+        ensure!(
+            differing(&runs[0]) == 0,
+            "the compact prefix changed values"
+        );
+        ensure!(differing(&runs[1]) > 0, "the shifted copy was not detected");
         Ok(())
     }
 

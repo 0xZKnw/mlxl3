@@ -125,6 +125,8 @@ elif command == "bridge":
         reasoning_effort_levels=["none", "minimal", "low", "medium", "high", "xhigh", "max"],
         # AGENT-2026-11-23-BOUCLE: a newer engine when the test leaves this marker file
         agent_loop_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
+        # AGENT-2026-11-26-LIVE-CACHE: announced with the same marker (a newer engine)
+        live_prompt_cache_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
     )
     if model.startswith("compare-test-no-reader-"):
         time.sleep(60)

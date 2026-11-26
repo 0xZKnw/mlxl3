@@ -131,6 +131,7 @@ mod lfm3_vision;
 pub mod linear;
 #[cfg(feature = "mlx")]
 pub mod ling;
+pub mod live_cache;
 pub mod mcp;
 pub mod memory_policy;
 #[cfg(any(feature = "mlx", test, kani))]
@@ -156,6 +157,7 @@ mod qwen35_config;
 #[cfg(feature = "mlx")]
 pub mod qwen4;
 pub mod qwen_profile;
+pub mod raw_history;
 pub mod registry;
 #[cfg(any(all(target_os = "macos", feature = "direct-metal"), test, kani))]
 mod resident_scratch_policy;

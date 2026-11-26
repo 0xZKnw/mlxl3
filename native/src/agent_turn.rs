@@ -81,6 +81,9 @@ pub struct Turn<'a> {
     /// For each of those messages, the index of the client message it came from (a stored
     /// turn expands to several). Empty: one to one.
     pub origins: &'a [usize],
+    /// AGENT-2026-11-26-LIVE-CACHE: each step that calls tools also keeps its text as the
+    /// model wrote it (`raw`, thinking included), in the dialogue and in `turn_context`.
+    pub keep_raw: bool,
 }
 
 /// How the turn ended, for the bridge's `complete` event.
@@ -561,24 +564,35 @@ fn run_steps(
             } else {
                 text
             };
-            dialogue.push(json!({"role":"assistant", "content":tool_text}));
+            let mut written = json!({"role":"assistant", "content":tool_text});
+            if turn.keep_raw {
+                written["raw"] = json!(raw);
+            }
+            dialogue.push(written);
             dialogue.push(json!({"role":"user", "content":note}));
             round += 1;
             continue;
         }
         // A bare tool name that a single offered tool carries is that tool: the call runs and
         // the dialogue keeps the full name.
+        let mut renamed = false;
         let calls: Vec<tool_call::ToolCall> = calls
             .into_iter()
             .map(|mut call| {
                 if let Some(full) = tool_call::offered_name(&call.name, &offered) {
                     call.name = full.to_owned();
+                    renamed = true;
                 }
                 call
             })
             .collect();
         let assistant_index = dialogue.len();
         dialogue.push(json!({"role":"assistant", "content":answer, "tool_calls":[]}));
+        // H1: the step as the model wrote it, unless the dialogue keeps another call than the
+        // one written (a completed name here; a call that was not dispatched below).
+        if turn.keep_raw && !renamed {
+            dialogue[assistant_index]["raw"] = json!(raw);
+        }
         let mut calls = calls.into_iter();
         // Check before the first call, between individual calls in a batch, and after the
         // final result. The transcript contains only calls that were actually dispatched.
@@ -594,6 +608,12 @@ fn run_steps(
                 ToolBoundary::Yield => {
                     let ran_tools = dialogue.len() > assistant_index + 1;
                     if ran_tools {
+                        // the calls left were written but never ran
+                        if !calls.as_slice().is_empty()
+                            && let Some(written) = dialogue[assistant_index].as_object_mut()
+                        {
+                            written.remove("raw");
+                        }
                         dialogue.push(json!({"role":"assistant", "content":""}));
                     } else {
                         dialogue[assistant_index] = json!({"role":"assistant", "content":answer});
@@ -1059,6 +1079,7 @@ mod tests {
 
     fn turn(context_limit: usize, tool_rounds: usize) -> Turn<'static> {
         Turn {
+            keep_raw: false,
             request_id: "r1",
             context_limit,
             max_tokens: -1,
@@ -1162,6 +1183,95 @@ mod tests {
                 .starts_with("Your tool call could not be read (unfinished tool call; nothing executed); nothing was executed.")
         );
         assert_eq!((end.rounds, end.stop_reason), (1, "eos"));
+        Ok(())
+    }
+
+    /// AGENT-2026-11-26-LIVE-CACHE H1: with `keep_raw`, a step that calls tools keeps its text as
+    /// the model wrote it, for the next step and in the stored turn; without it nothing is added.
+    #[test]
+    fn a_step_keeps_its_own_text_only_when_asked() -> Result<()> {
+        let written = call("return 1").raw;
+        for keep_raw in [false, true] {
+            let mut host = ScriptHost::new(vec![call("return 1"), answer("It returns 1.")]);
+            let settings = Turn {
+                keep_raw,
+                ..turn(100_000, 8)
+            };
+            let end = run_turn(&mut host, dialogue(), &tools(), &settings)?;
+            let step = &host.requests[1].dialogue[2];
+            assert_eq!(step["tool_calls"][0]["function"]["name"], "javascript");
+            assert_eq!(step["content"], "");
+            let history: Vec<Value> = serde_json::from_str(end.turn_context.as_deref().unwrap())?;
+            if keep_raw {
+                assert_eq!(step["raw"], written);
+                assert_eq!(history[0]["raw"], written);
+            } else {
+                assert!(step.get("raw").is_none() && history[0].get("raw").is_none());
+            }
+            // results and the final message never carry one
+            assert!(
+                history[1..]
+                    .iter()
+                    .all(|message| message.get("raw").is_none())
+            );
+            assert_eq!(history[2]["content"], "It returns 1.");
+        }
+        Ok(())
+    }
+
+    /// The dialogue keeps another call than the one written (a completed name, a call of a batch
+    /// that never ran): the step is rendered from its calls, without its own text.
+    #[test]
+    fn a_rewritten_step_does_not_keep_its_own_text() -> Result<()> {
+        let keep = Turn {
+            keep_raw: true,
+            ..turn(100_000, 8)
+        };
+        let offered = vec![
+            json!({"type":"function", "function":{"name":"sandbox.javascript", "parameters":{}}}),
+        ];
+        let mut host = ScriptHost::new(vec![call("return 1"), answer("ok")]);
+        run_turn(&mut host, dialogue(), &offered, &keep)?;
+        let step = &host.requests[1].dialogue[2];
+        assert_eq!(
+            step["tool_calls"][0]["function"]["name"],
+            "sandbox.javascript"
+        );
+        assert!(step.get("raw").is_none(), "{step}");
+        for (ran, kept) in [(0usize, false), (1, false), (2, true)] {
+            let mut batch = call("first");
+            batch.tool_text += &call("second").tool_text;
+            let mut host = ScriptHost::new(vec![batch]);
+            host.yield_after = Some(ran);
+            let end = run_turn(&mut host, dialogue(), &tools(), &keep)?;
+            let history: Vec<Value> = serde_json::from_str(end.turn_context.as_deref().unwrap())?;
+            assert_eq!(history[0].get("raw").is_some(), kept, "{ran} calls ran");
+        }
+        Ok(())
+    }
+
+    /// A call the parser could not read goes back with the text the model wrote.
+    #[test]
+    fn an_unreadable_step_keeps_its_own_text_when_asked() -> Result<()> {
+        for keep_raw in [false, true] {
+            let mut broken = call("");
+            broken.tool_text = "<tool_call>{\"name\":".into();
+            broken.raw = "thinking<tool_call>{\"name\":".into();
+            let mut host = ScriptHost::new(vec![broken, answer("ok")]);
+            let settings = Turn {
+                keep_raw,
+                ..turn(100_000, 8)
+            };
+            run_turn(&mut host, dialogue(), &tools(), &settings)?;
+            let step = &host.requests[1].dialogue[2];
+            assert_eq!(step["content"], "<tool_call>{\"name\":");
+            assert_eq!(
+                step.get("raw"),
+                keep_raw
+                    .then(|| json!("thinking<tool_call>{\"name\":"))
+                    .as_ref()
+            );
+        }
         Ok(())
     }
 

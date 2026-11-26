@@ -1,0 +1,13 @@
+    Finished `release` profile [optimized] target(s) in 0.79s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-5470b9362b97a5d4)
+
+running 1 test
+test inkling2_draft::tests::dspark_grouped_prefill_matches_chunks ... len 300 group 2: identical true
+len 300 group 4: identical true
+len 300 group 8: identical true
+error: test failed, to rerun pass `--lib`
+
+Caused by:
+  process didn't exit successfully: `/Users/justin/Documents/mix-stq1_0/.claude/worktrees/agent-cache-hit/target/release/deps/mlxl3_native-5470b9362b97a5d4 --ignored --exact 'inkling2_draft::tests::dspark_grouped_prefill_matches_chunks' --nocapture --test-threads=1` (signal: 15, SIGTERM: termination signal)

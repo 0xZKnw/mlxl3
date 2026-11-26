@@ -1,0 +1,25 @@
+    Finished `release` profile [optimized] target(s) in 0.07s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-5470b9362b97a5d4)
+
+running 1 test
+test inkling2_draft::tests::dspark_prompt_cache_resume_matches_cold_prefill ... first 300: prefix at 256 retains 50814976 bytes (drafter context 3145728)
+first 300: prefix recaptured at 512 retains 95862784 bytes (drafter context 6291456)
+first 300: recaptured drafter context slack 0 bytes in 6 arrays
+first 300: prompt 539 tokens, resumed 256, cold (10372788068082678947, 361693015458333374, 5273822655820228506, 5782651682067370859)
+first 300: mutation 1: context true last feature false decode true
+first 1300: prefix at 1280 retains 186838848 bytes (drafter context 14680064)
+first 1300: prefix recaptured at 1536 retains 187875328 bytes (drafter context 15728640)
+first 1300: recaptured drafter context slack 1048576 bytes in 6 arrays
+Error: the saved drafter context keeps 1048576 bytes beyond its rows
+FAILED
+
+failures:
+
+failures:
+    inkling2_draft::tests::dspark_prompt_cache_resume_matches_cold_prefill
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1058 filtered out; finished in 32.92s
+
+error: test failed, to rerun pass `--lib`

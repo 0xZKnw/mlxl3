@@ -2665,6 +2665,12 @@ struct BridgeRequest {
     #[serde(default)]
     #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
     lookup: Option<bool>,
+    /// AGENT-2026-11-26-LIVE-CACHE: Inkling 2 keeps each step's output in the prompt as the model
+    /// wrote it and goes on from the state it decoded with (not the bits of a cold prefill).
+    /// Omitted = off: saved prefill boundaries only, as before.
+    #[serde(default)]
+    #[cfg_attr(not(feature = "mlx"), allow(dead_code))]
+    live_prompt_cache: bool,
     /// Requested `reasoning_effort` (one of `tokenizer::REASONING_EFFORTS`); omitted = the
     /// chat template's default.
     #[serde(default)]
@@ -2851,6 +2857,127 @@ thread_local! {
     static DSPARK_REQUESTED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
     /// SPEED-2026-11-23-INK2M-MAYA LK: prompt lookup choice of the request being served (`None` = default).
     static LOOKUP_REQUESTED: std::cell::Cell<Option<bool>> = const { std::cell::Cell::new(None) };
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+thread_local! {
+    /// AGENT-2026-11-26-LIVE-CACHE: the request asked for the live prompt cache.
+    static LIVE_CACHE_REQUESTED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+}
+
+/// Sets the live prompt cache choice for the duration of one request; dropping it turns it off.
+#[cfg(all(feature = "mlx", feature = "chat"))]
+struct LiveCacheRequest;
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl LiveCacheRequest {
+    fn set(enabled: bool) -> Self {
+        LIVE_CACHE_REQUESTED.with(|cell| cell.set(enabled));
+        Self
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl Drop for LiveCacheRequest {
+    fn drop(&mut self) {
+        LIVE_CACHE_REQUESTED.with(|cell| cell.set(false));
+    }
+}
+
+/// AGENT-2026-11-26-LIVE-CACHE: this request keeps the outputs of `model` as it wrote them
+/// (Inkling 2 with the request's `live_prompt_cache`).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn live_cache_active(model: &NativeChatModel) -> bool {
+    matches!(model, NativeChatModel::Inkling(..)) && LIVE_CACHE_REQUESTED.with(std::cell::Cell::get)
+}
+
+#[cfg(all(
+    not(feature = "mlx"),
+    feature = "chat",
+    target_os = "macos",
+    feature = "direct-metal"
+))]
+fn live_cache_active(_: &NativeChatModel) -> bool {
+    false
+}
+
+/// Renders `messages` for the model. With `verbatim` (AGENT-2026-11-26-LIVE-CACHE), an
+/// assistant message that carries a whole output is written as the model wrote it; a template
+/// that does not frame it as expected gets the usual rendering.
+#[cfg(all(
+    feature = "chat",
+    any(feature = "mlx", all(target_os = "macos", feature = "direct-metal"))
+))]
+fn render_dialogue(
+    tokenizer: &mlxl3_native::tokenizer::ChatTokenizer,
+    messages: &[Value],
+    tools: &[Value],
+    image_format: Option<mlxl3_native::vision_input::ImageFormat>,
+    verbatim: bool,
+) -> Result<(String, Vec<mlxl3_native::lfm3::PreparedImage>)> {
+    let render = |messages: &[Value]| {
+        let (prepared, images) =
+            mlxl3_native::vision_input::prepare_messages_as(messages, image_format)?;
+        let rendered = REASONING_REQUESTED.with(|effort| {
+            tokenizer.render_values_with_effort(
+                &Value::Array(prepared),
+                Some(tools),
+                effort.borrow().as_deref(),
+            )
+        })?;
+        let rendered =
+            mlxl3_native::vision_input::expand_image_placeholders(image_format, rendered, &images)?;
+        Ok::<_, anyhow::Error>((rendered, images))
+    };
+    let mut marked = messages.to_vec();
+    let outputs = mlxl3_native::raw_history::mark(&mut marked, verbatim);
+    let (rendered, images) = render(&marked)?;
+    if outputs.is_empty() {
+        return Ok((rendered, images));
+    }
+    if let Some(spliced) = mlxl3_native::raw_history::splice(&rendered, &outputs) {
+        return Ok((spliced, images));
+    }
+    let mut plain = messages.to_vec();
+    mlxl3_native::raw_history::mark(&mut plain, false);
+    render(&plain)
+}
+
+/// AGENT-2026-11-26-LIVE-CACHE: the tokens of the prompt `rendered` when its text goes on, at a
+/// control token, from the text the saved live state holds: the held tokens as the model wrote
+/// them, then the rest. None otherwise (the caller encodes the whole text).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn live_prompt_tokens(
+    model: &NativeChatModel,
+    cache: Option<&PromptCache>,
+    conversation: &str,
+    rendered: &str,
+    tokenizer: &mlxl3_native::tokenizer::ChatTokenizer,
+) -> Result<Option<Vec<u32>>> {
+    if !live_cache_active(model) {
+        return Ok(None);
+    }
+    let Some((saved, tail, text)) = cache
+        .filter(|saved| saved.conversation == conversation)
+        .and_then(|saved| {
+            let tail = saved.tail.as_ref()?;
+            Some((saved, tail, tail.text.as_deref()?))
+        })
+    else {
+        return Ok(None);
+    };
+    let held = [saved.tokens.as_slice(), &tail.tokens].concat();
+    mlxl3_native::live_cache::extend_tokens(
+        &held,
+        text,
+        rendered,
+        |rest| tokenizer.encode(rest),
+        |token| {
+            tokenizer
+                .decode(&[token])
+                .is_ok_and(|text| text.len() > 4 && text.starts_with("<|") && text.ends_with("|>"))
+        },
+    )
 }
 
 /// Sets the prompt lookup choice for the duration of one request; dropping it restores the default.
@@ -3240,6 +3367,12 @@ struct PromptCache {
     logits: mlxl3_native::array::Array,
     draft: Option<mlxl3_native::dflash::DFlashCache>,
     mtp: Option<mlxl3_native::mtp::Cache>,
+    /// AGENT-2026-11-26-LIVE-CACHE: what the live model state holds after `tokens`, set at the end
+    /// of a round that asked for the live prompt cache.
+    tail: Option<mlxl3_native::live_cache::LiveTail>,
+    /// AGENT-2026-11-26-LIVE-CACHE: taken in a state that went on from decoded rows: not the
+    /// bits of a cold prefill, so a request without the live prompt cache does not resume it.
+    warm: bool,
 }
 
 /// The saved model state of a `PromptCache`.
@@ -3315,6 +3448,8 @@ impl PromptCache {
                 logits: logits.compact_for_cache()?,
                 draft: None,
                 mtp: None,
+                tail: None,
+                warm: false,
             };
             return saved.within_budget();
         }
@@ -3356,6 +3491,8 @@ impl PromptCache {
                 .map(|session| session.cache.try_clone()?.compact_for_cache())
                 .transpose()?,
             mtp: None,
+            tail: None,
+            warm: false,
         };
         saved.within_budget()
     }
@@ -3381,36 +3518,101 @@ impl PromptCache {
             logits: logits.compact_for_cache()?,
             draft: None,
             mtp: None,
+            tail: None,
+            warm: false,
         }
         .within_budget()
     }
 
     fn within_budget(self) -> Result<Option<Self>> {
         let budget = prompt_cache_budget()?;
-        let fits = mlxl3_native::memory_policy::cache_fits(
-            [
-                self.state.retained_bytes()?,
-                self.logits.retained_bytes()?,
-                self.draft
-                    .as_ref()
-                    .map(|cache| cache.retained_bytes())
-                    .transpose()?
-                    .unwrap_or(0),
-                self.mtp
-                    .as_ref()
-                    .map(|cache| cache.retained_bytes())
-                    .transpose()?
-                    .unwrap_or(0),
-                self.tokens
-                    .len()
-                    .checked_mul(4)
-                    .context("token cache size overflow")?,
-                self.conversation.len(),
-            ],
+        let components = [
+            self.state.retained_bytes()?,
+            self.logits.retained_bytes()?,
+            self.draft
+                .as_ref()
+                .map(|cache| cache.retained_bytes())
+                .transpose()?
+                .unwrap_or(0),
+            self.mtp
+                .as_ref()
+                .map(|cache| cache.retained_bytes())
+                .transpose()?
+                .unwrap_or(0),
+            self.tokens
+                .len()
+                .checked_mul(4)
+                .context("token cache size overflow")?,
+            self.conversation.len(),
+        ];
+        let fits = mlxl3_native::memory_policy::cache_fits(components, budget);
+        // CACHE-2026-11-26-INK2M-SNAPSHOT-BUDGET: a refused snapshot costs the next turn a prefill from
+        // scratch; it is no longer silent
+        if let Some(line) = prompt_cache_report(
+            self.tokens.len(),
+            components,
             budget,
-        );
+            fits,
+            std::env::var("MLXL3_PROMPT_CACHE_TRACE").as_deref() == Ok("1"),
+        ) {
+            eprintln!("{line}");
+        }
         Ok(fits.then_some(self))
     }
+}
+
+/// The stderr line of a prompt-cache capture: always for a snapshot the budget refuses (the next turn
+/// then reads its whole prompt again), for every capture with `MLXL3_PROMPT_CACHE_TRACE=1`; nothing
+/// when the cache is off (budget 0).
+#[cfg(all(feature = "mlx", feature = "chat"))]
+fn prompt_cache_report(
+    tokens: usize,
+    [state, logits, draft, mtp, ids, name]: [usize; 6],
+    budget: usize,
+    fits: bool,
+    trace: bool,
+) -> Option<String> {
+    if budget == 0 || (fits && !trace) {
+        return None;
+    }
+    let total = [state, logits, draft, mtp, ids, name]
+        .into_iter()
+        .fold(0usize, usize::saturating_add);
+    Some(format!(
+        "Prompt cache: snapshot at {tokens} tokens {} ({total} bytes: state {state}, logits {logits}, \
+         draft {draft}, MTP {mtp}, tokens {ids}; budget {budget})",
+        if fits {
+            "saved"
+        } else {
+            "NOT saved, over the MLXL3_PROMPT_CACHE_MIB budget: the next turn reads its whole prompt again"
+        }
+    ))
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn prompt_cache_report_names_a_refused_snapshot_and_traces_on_request() {
+    let parts = [300, 20, 0, 0, 8, 4];
+    assert_eq!(prompt_cache_report(2, parts, 0, false, true), None);
+    assert_eq!(prompt_cache_report(2, parts, 400, true, false), None);
+    assert_eq!(
+        prompt_cache_report(2, parts, 400, true, true).as_deref(),
+        Some(
+            "Prompt cache: snapshot at 2 tokens saved (332 bytes: state 300, logits 20, draft 0, \
+             MTP 0, tokens 8; budget 400)"
+        )
+    );
+    let refused =
+        prompt_cache_report(2, parts, 331, false, false).expect("a refused snapshot is reported");
+    assert!(
+        refused.contains("NOT saved")
+            && refused.contains("332 bytes")
+            && refused.contains("budget 331")
+    );
+    assert!(
+        prompt_cache_report(1, [usize::MAX, 1, 0, 0, 0, 0], 1, false, false)
+            .is_some_and(|line| line.contains(&usize::MAX.to_string()))
+    );
 }
 
 /// Strict `MLXL3_Q36_MOE_GROUP`; an invalid value fails the request.
@@ -3445,29 +3647,90 @@ fn prefill_dspark_round(
     conversation: &str,
     reuse: bool,
     cancelled: &AtomicBool,
-) -> Result<(mlxl3_native::array::Array, usize)> {
+) -> Result<(mlxl3_native::array::Array, usize, usize)> {
     const CHUNK: usize = mlxl3_native::inkling2_draft::DsparkSession::PREFILL_CHUNK;
     // a state computed from image features is neither resumed nor saved for a later turn
     let reuse = reuse && images.is_empty() && inkling_prompt_cache();
+    let live = LIVE_CACHE_REQUESTED.with(std::cell::Cell::get);
     let previous = cache.take().filter(|saved| {
         reuse
             && saved.conversation == conversation
             && saved.draft.is_none()
             && saved.mtp.is_none()
             && matches!(saved.state, CacheState::InklingDspark(_))
-            && mlxl3_native::reusable_prefix_len(&saved.tokens, tokens, CHUNK) > 0
+            && if saved.warm {
+                // taken where a live prefill ended a chunk: any position
+                live && !saved.tokens.is_empty() && tokens.starts_with(&saved.tokens)
+            } else {
+                mlxl3_native::reusable_prefix_len(&saved.tokens, tokens, CHUNK) > 0
+            }
     });
-    let resume = match previous {
-        Some(PromptCache {
-            state: CacheState::InklingDspark(prefix),
-            logits,
-            ..
-        }) => Some((prefix, logits)),
-        _ => None,
-    };
+    // AGENT-2026-11-26-LIVE-CACHE: the prompt goes on from what the live state holds (the snapshot's
+    // tokens, then the tail the last round left): nothing is restored
+    let position = target
+        .committed_offset()
+        .and_then(|position| usize::try_from(position).ok());
+    let live_at = previous.as_ref().filter(|_| live).and_then(|saved| {
+        let (CacheState::InklingDspark(prefix), Some(tail)) = (&saved.state, &saved.tail) else {
+            return None;
+        };
+        let start = prefix
+            .same_lineage(target)
+            .then(|| {
+                mlxl3_native::live_cache::live_start(&saved.tokens, &tail.tokens, tokens, position)
+            })
+            .flatten();
+        if std::env::var("MLXL3_PROMPT_CACHE_TRACE").as_deref() == Ok("1") {
+            match start {
+                Some(at) => eprintln!(
+                    "Prompt cache: live state continued at {at} of {} tokens (snapshot at {})",
+                    tokens.len(),
+                    saved.tokens.len()
+                ),
+                None => eprintln!(
+                    "Prompt cache: live state not continued ({}); snapshot at {} resumed",
+                    if prefix.same_lineage(target) {
+                        mlxl3_native::live_cache::refusal(
+                            &saved.tokens,
+                            &tail.tokens,
+                            tokens,
+                            position,
+                        )
+                    } else {
+                        "the model was reset since".into()
+                    },
+                    saved.tokens.len()
+                ),
+            }
+        }
+        start
+    });
+    let warm = live_at.is_some() || previous.as_ref().is_some_and(|saved| saved.warm);
+    // the last whole chunk counted from where this prefill starts (a span end); a live prefill that reads
+    // less than a chunk keeps the snapshot it has
+    let base = live_at
+        .or(previous.as_ref().map(|saved| saved.tokens.len()))
+        .unwrap_or(0);
     let checkpoint = (reuse && prompt_cache_budget()? > 0)
-        .then_some(tokens.len() / CHUNK * CHUNK)
-        .filter(|&boundary| boundary > 0);
+        .then_some(base + (tokens.len() - base) / CHUNK * CHUNK)
+        .filter(|&boundary| boundary > 0 && live_at.is_none_or(|at| boundary > at));
+    // a live prefill does not consume the snapshot: it stays the saved boundary until a later one is taken
+    let (resume, kept, snapshot) = match (live_at, previous) {
+        (Some(_), Some(mut saved)) => {
+            saved.tail = None;
+            let snapshot = saved.tokens.len();
+            (None, Some(saved), snapshot)
+        }
+        (
+            None,
+            Some(PromptCache {
+                state: CacheState::InklingDspark(prefix),
+                logits,
+                ..
+            }),
+        ) => (Some((prefix, logits)), None, 0),
+        _ => (None, None, 0),
+    };
     let mut saved = None;
     let (logits, cached) = session.prefill_resumable(
         target,
@@ -3475,17 +3738,21 @@ fn prefill_dspark_round(
         tokens,
         images,
         resume,
+        live_at,
         checkpoint,
         &mut |prefix, logits| {
             let boundary = usize::try_from(prefix.offset())?;
             saved = PromptCache::capture_dspark(conversation, &tokens[..boundary], prefix, logits)?;
+            if let Some(saved) = &mut saved {
+                saved.warm = warm;
+            }
             Ok(())
         },
         &|| cancelled.load(Ordering::Relaxed),
         &mut |done| report_prefill_progress(done, tokens.len()),
     )?;
-    *cache = saved;
-    Ok((logits, cached))
+    *cache = saved.or(kept);
+    Ok((logits, cached, live_at.map_or(0, |at| at - snapshot)))
 }
 
 #[cfg(all(feature = "mlx", feature = "chat"))]
@@ -4244,6 +4511,10 @@ struct NativeStats {
     model_size_gb: f64,
     cached_prompt_tokens: usize,
     evaluated_prompt_tokens: usize,
+    /// AGENT-2026-11-26-LIVE-CACHE: with the live prompt cache, the cached tokens the live state
+    /// held past the saved snapshot (0: the round resumed at the snapshot, or prefilled it all).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    live_prompt_tokens: Option<usize>,
     context_used: usize,
     context_limit: usize,
     elapsed_seconds: f64,
@@ -4342,6 +4613,9 @@ impl NativeStats {
         self.generated_tokens += round.generated_tokens;
         self.cached_prompt_tokens += round.cached_prompt_tokens;
         self.evaluated_prompt_tokens += round.evaluated_prompt_tokens;
+        if let Some(value) = round.live_prompt_tokens {
+            *self.live_prompt_tokens.get_or_insert(0) += value;
+        }
         self.prepare_seconds += round.prepare_seconds;
         self.prefill_seconds += round.prefill_seconds;
         self.decode_seconds += round.decode_seconds;
@@ -4883,18 +5157,23 @@ fn bridge_generate_round(
         "max_tokens must be positive, or -1"
     );
     let image_format = chat_image_format(model);
-    let (prepared, images) =
-        mlxl3_native::vision_input::prepare_messages_as(messages, image_format)?;
-    let rendered = REASONING_REQUESTED.with(|effort| {
-        tokenizer.render_values_with_effort(
-            &Value::Array(prepared),
-            Some(tools),
-            effort.borrow().as_deref(),
-        )
-    })?;
-    let rendered =
-        mlxl3_native::vision_input::expand_image_placeholders(image_format, rendered, &images)?;
-    let mut tokens = tokenizer.encode(&rendered)?;
+    let (rendered, images) = render_dialogue(
+        tokenizer,
+        messages,
+        tools,
+        image_format,
+        live_cache_active(model),
+    )?;
+    // AGENT-2026-11-26-LIVE-CACHE: a prompt that goes on from the live state keeps the tokens the
+    // model wrote; the rest is encoded after them
+    #[cfg(feature = "mlx")]
+    let extended = live_prompt_tokens(model, cache.as_ref(), conversation, &rendered, tokenizer)?;
+    #[cfg(not(feature = "mlx"))]
+    let extended: Option<Vec<u32>> = None;
+    let mut tokens = match extended {
+        Some(tokens) => tokens,
+        None => tokenizer.encode(&rendered)?,
+    };
     anyhow::ensure!(!tokens.is_empty(), "chat template produced no tokens");
     // AGENT-2026-11-23-BOUCLE: the same assistant message resumed after a forced end of thinking
     tokens.extend_from_slice(continuation);
@@ -5055,6 +5334,9 @@ fn bridge_generate_round(
     };
     let prepare_seconds = started.elapsed().as_secs_f64();
     let prefill_started = Instant::now();
+    // AGENT-2026-11-26-LIVE-CACHE: tokens of the resumed part that the live state held past the snapshot
+    #[cfg(feature = "mlx")]
+    let mut live_tokens = 0usize;
     #[cfg(feature = "mlx")]
     let (mut logits, mut dflash, cached, mut mtp_session) = {
         let (logits, mut dflash, cached) =
@@ -5062,7 +5344,7 @@ fn bridge_generate_round(
                 (dspark.as_mut(), &mut *model)
             {
                 // DSPARK-2026-11-24-INK2M-MAYA2-D1: the prompt cache with DSpark
-                let (logits, cached) = prefill_dspark_round(
+                let (logits, cached, live) = prefill_dspark_round(
                     session,
                     target,
                     drafter.as_mut(),
@@ -5073,6 +5355,7 @@ fn bridge_generate_round(
                     reuse,
                     cancelled,
                 )?;
+                live_tokens = live;
                 (logits, None, cached)
             } else if let Some(head) = mtp.as_deref_mut() {
                 match head {
@@ -5267,6 +5550,9 @@ fn bridge_generate_round(
     #[cfg(not(feature = "mlx"))]
     let mut mtp_pending = std::collections::VecDeque::new();
     let mut eos_observed = false;
+    // AGENT-2026-11-26-LIVE-CACHE: the end token the round stopped on (never delivered)
+    #[cfg(feature = "mlx")]
+    let mut end_token = None;
     for _ in 0..budget {
         if cancelled.load(Ordering::Relaxed) {
             model.reset();
@@ -5300,6 +5586,10 @@ fn bridge_generate_round(
         };
         if tokenizer.eos_ids().contains(&next) {
             eos_observed = true;
+            #[cfg(feature = "mlx")]
+            {
+                end_token = Some(next);
+            }
             break;
         }
         first_token.get_or_insert_with(|| started.elapsed().as_secs_f64());
@@ -5598,6 +5888,43 @@ fn bridge_generate_round(
             }
         }
     }
+    // AGENT-2026-11-26-LIVE-CACHE L1: what the live state holds past the saved snapshot, for the next
+    // round: the rest of this prompt and the part of the generated stream the target committed
+    #[cfg(feature = "mlx")]
+    if let Some(saved) = cache.as_mut() {
+        saved.tail = None;
+        if dspark.is_some()
+            && live_cache_active(model)
+            && saved.conversation == conversation
+            && let NativeChatModel::Inkling(target, Some(drafter), _) = &*model
+            && let CacheState::InklingDspark(prefix) = &saved.state
+            && prefix.same_lineage(target)
+            && let Some(position) = target.committed_offset()
+            && mlxl3_native::inkling2_draft::BlockDrafter::context_offset(drafter.as_ref())
+                == position
+            && tokens.starts_with(&saved.tokens)
+            && let Some(stream) = mlxl3_native::live_cache::committed_stream(
+                tokens.len(),
+                &generated,
+                end_token,
+                usize::try_from(position)?,
+            )
+        {
+            // the prompt as text only when it was its rendered text and nothing else
+            let text = if continuation.is_empty() {
+                Some(format!("{rendered}{}", tokenizer.decode(&stream)?))
+            } else {
+                None
+            };
+            let mut held = tokens[saved.tokens.len()..].to_vec();
+            held.extend(stream);
+            saved.tail = Some(mlxl3_native::live_cache::LiveTail { tokens: held, text });
+        } else if live_cache_active(model)
+            && std::env::var("MLXL3_PROMPT_CACHE_TRACE").as_deref() == Ok("1")
+        {
+            eprintln!("Prompt cache: no live state kept after this round");
+        }
+    }
     let complete = tokenizer.decode(&generated)?;
     let tail = complete
         .strip_prefix(&decoded)
@@ -5670,6 +5997,10 @@ fn bridge_generate_round(
         model_size_gb: resident_gb,
         cached_prompt_tokens: cached,
         evaluated_prompt_tokens: tokens.len() - cached,
+        #[cfg(feature = "mlx")]
+        live_prompt_tokens: live_cache_active(model).then_some(live_tokens),
+        #[cfg(not(feature = "mlx"))]
+        live_prompt_tokens: None,
         context_used: tokens.len() + generated.len(),
         context_limit,
         elapsed_seconds: elapsed,
@@ -5934,6 +6265,8 @@ fn bridge_generate(
         })
         .collect();
     let image_format = chat_image_format(model);
+    // AGENT-2026-11-26-LIVE-CACHE: outputs kept as the model wrote them
+    let keep_raw = live_cache_active(model);
     let mut host = BridgeHost {
         model,
         tokenizer,
@@ -5953,6 +6286,7 @@ fn bridge_generate(
         conversation,
         reuse,
         image_format,
+        keep_raw,
         started,
         first_text: None,
         summary: None,
@@ -5974,6 +6308,7 @@ fn bridge_generate(
             original_length,
             // JSON output has no tools, so no summary: its added system message shifts nothing.
             origins: &origins,
+            keep_raw,
         },
     )?;
     let mut stats = host.summary.context("missing generation statistics")?;
@@ -6040,6 +6375,7 @@ struct BridgeHost<'a, M, H> {
     conversation: &'a str,
     reuse: bool,
     image_format: Option<mlxl3_native::vision_input::ImageFormat>,
+    keep_raw: bool,
     started: Instant,
     first_text: Option<f64>,
     summary: Option<NativeStats>,
@@ -6107,7 +6443,13 @@ impl mlxl3_native::agent_turn::Host for BridgeHost<'_, HostModel<'_>, HostMtp<'_
     }
 
     fn prompt_tokens(&mut self, dialogue: &[Value], tools: &[Value]) -> Result<usize> {
-        bridge_prompt_tokens(self.tokenizer, dialogue, tools, self.image_format)
+        bridge_prompt_tokens(
+            self.tokenizer,
+            dialogue,
+            tools,
+            self.image_format,
+            self.keep_raw,
+        )
     }
 
     fn encode(&mut self, text: &str) -> Result<Vec<u32>> {
@@ -6165,18 +6507,9 @@ fn bridge_prompt_tokens(
     dialogue: &[Value],
     tools: &[Value],
     image_format: Option<mlxl3_native::vision_input::ImageFormat>,
+    verbatim: bool,
 ) -> Result<usize> {
-    let (prepared, images) =
-        mlxl3_native::vision_input::prepare_messages_as(dialogue, image_format)?;
-    let rendered = REASONING_REQUESTED.with(|effort| {
-        tokenizer.render_values_with_effort(
-            &Value::Array(prepared),
-            Some(tools),
-            effort.borrow().as_deref(),
-        )
-    })?;
-    let rendered =
-        mlxl3_native::vision_input::expand_image_placeholders(image_format, rendered, &images)?;
+    let (rendered, _) = render_dialogue(tokenizer, dialogue, tools, image_format, verbatim)?;
     Ok(tokenizer.encode(&rendered)?.len())
 }
 
@@ -6381,6 +6714,8 @@ fn native_bridge(
         "mcp_servers":0, "mcp_tools":0, "mcp_errors":{}, "workspace_features":true,
         "context_limit":context_limit, "model_context_limit":model_limit
     });
+    // AGENT-2026-11-26-LIVE-CACHE: `live_prompt_cache` per request (Inkling 2)
+    ready["live_prompt_cache_supported"] = json!(matches!(model, NativeChatModel::Inkling(..)));
     // DECISION-2026-11-25-INK2M-DFLASH2-ON (set apart: the macro above is at its recursion limit)
     ready["dspark_default"] = json!(inkling_speculation_requested(
         None,
@@ -6784,6 +7119,8 @@ fn native_bridge(
                     #[cfg(feature = "mlx")]
                     let _dspark = DsparkRequest::set(dspark);
                     let _lookup = LookupRequest::set(request.lookup);
+                    #[cfg(feature = "mlx")]
+                    let _live_cache = LiveCacheRequest::set(request.live_prompt_cache);
                     let _reasoning = ReasoningRequest::set(request.reasoning_effort.clone())?;
                     bridge_generate(
                         &mut model,

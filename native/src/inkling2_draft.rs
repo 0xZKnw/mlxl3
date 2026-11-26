@@ -118,9 +118,12 @@ pub(crate) struct DraftCache {
 }
 
 impl DraftCache {
-    /// D1: the cache with its views copied to their own rows (same values).
+    /// D1: the cache with its views copied to their own rows (same values). Any slack is dropped
+    /// (CACHE-2026-11-26-INK2M-SNAPSHOT-BUDGET): a windowed layer is a view of the last concatenation, which
+    /// keeps the rows added since the last flush as well.
     pub(crate) fn compacted(&self) -> Result<Self> {
-        let compact = |a: &Option<Array>| a.as_ref().map(Array::compact_for_cache).transpose();
+        let compact =
+            |a: &Option<Array>| a.as_ref().map(Array::compact_exact_for_cache).transpose();
         Ok(Self {
             keys: compact(&self.keys)?,
             values: compact(&self.values)?,
@@ -155,6 +158,24 @@ impl DraftContext {
                 .context("DSpark context size overflow")?;
         }
         Ok(bytes)
+    }
+}
+
+#[cfg(test)]
+impl DraftContext {
+    /// Bytes kept beyond the caches' own rows, and the number of arrays.
+    fn slack(&self) -> Result<(usize, usize)> {
+        let (mut bytes, mut arrays) = (0usize, 0usize);
+        for a in self
+            .caches
+            .iter()
+            .flat_map(|c| [&c.keys, &c.values])
+            .flatten()
+        {
+            bytes += a.retained_bytes()?.saturating_sub(a.byte_len()?);
+            arrays += 1;
+        }
+        Ok((bytes, arrays))
     }
 }
 
@@ -505,18 +526,11 @@ impl Inkling2Draft {
     /// arrays and never writes a saved one, so these references keep the values of the capture point; views
     /// that retain a larger buffer (the windowed layers' slices) are copied to their own rows (same values).
     pub fn context_snapshot(&self) -> Result<DraftContext> {
-        let compact = |a: &Option<Array>| a.as_ref().map(Array::compact_for_cache).transpose();
         Ok(DraftContext {
             caches: self
                 .caches
                 .iter()
-                .map(|c| {
-                    Ok(DraftCache {
-                        keys: compact(&c.keys)?,
-                        values: compact(&c.values)?,
-                        offset: c.offset,
-                    })
-                })
+                .map(DraftCache::compacted)
                 .collect::<Result<_>>()?,
         })
     }
@@ -938,6 +952,9 @@ pub trait BlockDrafter {
     fn append_context(&mut self, features: &Array) -> Result<()>;
     fn context_snapshot(&self) -> Result<DraftContext>;
     fn restore_context(&mut self, saved: &DraftContext) -> Result<()>;
+    /// AGENT-2026-11-26-LIVE-CACHE: absolute position of the next context row (the target position the
+    /// context has followed).
+    fn context_offset(&self) -> i32;
     /// Deterministic proposals after `anchor` (`[1]` u32): `[count]` u32. `last_feature` `[1, taps * D]`: the
     /// features of the last committed token (drafters that keep their own context may ignore it).
     fn propose(
@@ -1024,6 +1041,9 @@ impl BlockDrafter for Inkling2Draft {
     fn restore_context(&mut self, saved: &DraftContext) -> Result<()> {
         Inkling2Draft::restore_context(self, saved)
     }
+    fn context_offset(&self) -> i32 {
+        self.caches.first().map_or(0, |cache| cache.offset)
+    }
     fn propose(
         &self,
         target: &Inkling2,
@@ -1106,6 +1126,9 @@ impl BlockDrafter for InklingDrafter {
     }
     fn restore_context(&mut self, saved: &DraftContext) -> Result<()> {
         drafter_dispatch!(self, d => BlockDrafter::restore_context(d, saved))
+    }
+    fn context_offset(&self) -> i32 {
+        drafter_dispatch!(self, d => BlockDrafter::context_offset(d))
     }
     fn propose(
         &self,
@@ -1273,6 +1296,12 @@ pub struct DsparkPrefix {
 impl DsparkPrefix {
     pub fn offset(&self) -> i32 {
         self.target.offset()
+    }
+
+    /// AGENT-2026-11-26-LIVE-CACHE: `target` still runs the lineage this prefix was taken from, at or past
+    /// its position.
+    pub fn same_lineage(&self, target: &Inkling2) -> bool {
+        self.target.same_lineage(target)
     }
 
     /// Bytes this prefix keeps alive beyond the live state.
@@ -1510,6 +1539,7 @@ impl DsparkSession {
                 images,
                 None,
                 None,
+                None,
                 &mut |_, _| Ok(()),
                 cancelled,
                 &mut |_| Ok(()),
@@ -1532,15 +1562,18 @@ impl DsparkSession {
         tokens: &[u32],
         images: &[crate::lfm3::PreparedImage],
         resume: Option<(DsparkPrefix, Array)>,
+        live: Option<usize>,
         checkpoint: Option<usize>,
         capture: &mut dyn FnMut(DsparkPrefix, &Array) -> Result<()>,
         cancelled: &dyn Fn() -> bool,
         progress: &mut dyn FnMut(usize) -> Result<()>,
     ) -> Result<(Array, usize)> {
         ensure!(!tokens.is_empty(), "DSpark prefill needs tokens");
+        // the checkpoint is a span end: whole chunks counted from where the prefill starts (the start of the
+        // prompt, a resumed prefix, or a live state)
         ensure!(
-            checkpoint.is_none_or(|c| c > 0 && c <= tokens.len() && c % Self::PREFILL_CHUNK == 0),
-            "DSpark checkpoint must be a chunk boundary of the prompt"
+            checkpoint.is_none_or(|c| c > 0 && c <= tokens.len()),
+            "DSpark checkpoint outside the prompt"
         );
         let t = Instant::now();
         self.pending.clear();
@@ -1555,7 +1588,6 @@ impl DsparkSession {
                 images.is_empty()
                     && offset > 0
                     && offset <= tokens.len()
-                    && offset % Self::PREFILL_CHUNK == 0
                     && prefix.context.offset() == Some(prefix.target.offset()),
                 "invalid DSpark prefix"
             );
@@ -1583,6 +1615,22 @@ impl DsparkSession {
                 logits = Some(saved_logits);
             }
         }
+        // AGENT-2026-11-26-LIVE-CACHE: the target and the drafter already hold `tokens[..at]` (the last
+        // prompt and what was decoded after it); nothing is restored and the prefill goes on from there
+        if let Some(at) = live {
+            let position = i32::try_from(at)?;
+            ensure!(
+                start == 0
+                    && images.is_empty()
+                    && at > 0
+                    && at < tokens.len()
+                    && target.committed_offset() == Some(position)
+                    && draft.context_offset() == position
+                    && checkpoint.is_none_or(|c| c > at),
+                "invalid live DSpark state"
+            );
+            start = at;
+        }
         if start == 0 {
             target.reset();
             draft.reset();
@@ -1595,11 +1643,19 @@ impl DsparkSession {
             )?;
         }
         // SPEED-2026-11-25-INK2M-PREFILL-G: a span is 1 to `group` whole chunks (their experts computed
-        // together) or the final partial chunk alone; group 1 is the chunk-by-chunk prefill
+        // together) or the final partial chunk alone; group 1 is the chunk-by-chunk prefill.
+        // AGENT-2026-11-26-LIVE-CACHE: chunks are counted from `start`. A cold prefill and a prefix saved at a
+        // chunk boundary keep the spans they always had; a live state (any position) reads what is new in as
+        // few calls as a prompt of that length would (each call has a fixed cost).
         let group = crate::inkling2::moe_group()?;
         let mut position = start;
-        while let Some(end) =
-            crate::prefill_span_end(position, tokens.len(), Self::PREFILL_CHUNK, group)
+        while let Some(end) = crate::prefill_span_end(
+            position - start,
+            tokens.len() - start,
+            Self::PREFILL_CHUNK,
+            group,
+        )
+        .map(|end| end + start)
         {
             ensure!(!cancelled(), "generation cancelled");
             // tokens already read, before each span: the bridge shows them while a long context is read
@@ -4223,6 +4279,7 @@ mod tests {
             prompt,
             &[],
             resume,
+            None,
             checkpoint,
             &mut |prefix, logits| {
                 *saved = Some((prefix, logits.try_clone()?));
@@ -4276,6 +4333,139 @@ mod tests {
             decode,
             tokens,
         })
+    }
+
+    /// AGENT-2026-11-26-LIVE-CACHE: a prompt that goes on from the live state of a DSpark round (its prompt and
+    /// the tokens it committed while decoding) against a cold prefill of the same prompt, before and past the
+    /// 1 024-row windows, with 200 and with 8 new tokens. Not the same bits (decoded rows do not have the shapes
+    /// of prefilled ones): the last logits must have the same top token and a relative L2 error of 5 % at most.
+    /// A live state built from the text one token later (mutation) must be at least five times further from the
+    /// cold prefill of the prompt it is claimed to hold when 8 tokens follow (printed only when 200 do). The
+    /// committed tokens are a prefix of the delivered ones.
+    #[test]
+    #[ignore = "requires an Apple GPU, MLXL3_INKLING_MODEL and MLXL3_INKLING_ROWS"]
+    fn dspark_live_state_continues_like_a_cold_prefill() -> Result<()> {
+        let dir = std::path::PathBuf::from(std::env::var("MLXL3_INKLING_MODEL")?);
+        let mut target = Inkling2::load(&dir)?;
+        let mut draft = Inkling2Draft::load(&dir, &target)?;
+        let vocab = target.unpadded_vocab() as u32;
+        let text: Vec<u32> = text_rows()?.into_iter().map(|t| t % vocab).collect();
+        const ANSWER: usize = 40;
+        let last_logits = |target: &mut Inkling2,
+                           draft: &mut Inkling2Draft,
+                           prompt: &[u32],
+                           live: Option<usize>|
+         -> Result<Vec<f32>> {
+            let mut session = DsparkSession::new(draft, DsparkSession::DEFAULT_WIDTH)?;
+            let (logits, cached) = session.prefill_resumable(
+                target,
+                draft,
+                prompt,
+                &[],
+                None,
+                live,
+                None,
+                &mut |_, _| Ok(()),
+                &|| false,
+                &mut |_| Ok(()),
+            )?;
+            ensure!(cached == live.unwrap_or(0), "resumed {cached} tokens");
+            ensure!(
+                target.committed_offset() == Some(prompt.len() as i32)
+                    && BlockDrafter::context_offset(draft) == prompt.len() as i32,
+                "the prefill did not end at the prompt's end"
+            );
+            logits.to_f32()
+        };
+        let relative = |a: &[f32], b: &[f32]| -> Result<(f64, bool)> {
+            ensure!(
+                !a.is_empty() && a.len() == b.len() && a.iter().chain(b).all(|x| x.is_finite()),
+                "empty, unequal or non-finite logits"
+            );
+            let square = |x: f64| x * x;
+            let error: f64 = a
+                .iter()
+                .zip(b)
+                .map(|(x, y)| square(f64::from(*x) - f64::from(*y)))
+                .sum();
+            let norm: f64 = b.iter().map(|y| square(f64::from(*y))).sum();
+            let top = |v: &[f32]| {
+                v.iter()
+                    .enumerate()
+                    .max_by(|x, y| x.1.total_cmp(y.1))
+                    .map(|(i, _)| i)
+            };
+            Ok(((error / norm).sqrt(), top(a) == top(b)))
+        };
+        let mut results = Vec::new();
+        for first in [300usize, 1300] {
+            for extra in [200usize, 8] {
+                ensure!(text.len() >= first + 1 + extra, "not enough tokens");
+                // turn 1 on `source`: a cold prefill, then a greedy DSpark decode; returns the tokens it committed
+                let turn1 = |target: &mut Inkling2,
+                             draft: &mut Inkling2Draft,
+                             source: &[u32]|
+                 -> Result<Vec<u32>> {
+                    let mut session = DsparkSession::new(draft, DsparkSession::DEFAULT_WIDTH)?;
+                    let mut saved = None;
+                    let run = d1_run(
+                        &mut session,
+                        target,
+                        draft,
+                        source,
+                        None,
+                        None,
+                        &mut saved,
+                        ANSWER,
+                    )?;
+                    let position =
+                        usize::try_from(target.committed_offset().context("uncommitted rows")?)?;
+                    let committed = position
+                        .checked_sub(source.len())
+                        .context("before the prompt's end")?;
+                    ensure!(
+                        committed >= 1 && committed <= run.tokens.len(),
+                        "{committed} rows committed for {} delivered tokens",
+                        run.tokens.len()
+                    );
+                    Ok(run.tokens[..committed].to_vec())
+                };
+                let new = &text[first + 1..first + 1 + extra];
+                let mut held = text[..first].to_vec();
+                held.extend(turn1(&mut target, &mut draft, &text[..first])?);
+                let prompt = [held.as_slice(), new].concat();
+                let live = last_logits(&mut target, &mut draft, &prompt, Some(held.len()))?;
+                let cold = last_logits(&mut target, &mut draft, &prompt, None)?;
+                let (error, same_top) = relative(&live, &cold)?;
+                // mutation: the state was built from the text one token later, and the prompt claims the
+                // text itself in front of what that state committed
+                let shifted = turn1(&mut target, &mut draft, &text[1..=first])?;
+                let claimed = [&text[..first], shifted.as_slice(), new].concat();
+                let at = first + shifted.len();
+                let mutant_live = last_logits(&mut target, &mut draft, &claimed, Some(at))?;
+                let mutant_cold = last_logits(&mut target, &mut draft, &claimed, None)?;
+                let (mutant_error, _) = relative(&mutant_live, &mutant_cold)?;
+                println!(
+                    "first {first} held {} new {extra}: relative L2 error {error:.6}, same top token {same_top}; \
+                     state shifted by one token {mutant_error:.6} ({:.1} times)",
+                    held.len(),
+                    mutant_error / error.max(f64::MIN_POSITIVE)
+                );
+                results.push((extra, error, same_top, mutant_error));
+            }
+        }
+        ensure!(results.len() == 4, "cases checked");
+        for (extra, error, same_top, mutant_error) in results {
+            ensure!(same_top, "the live state changes the top token");
+            ensure!(error <= 0.05, "relative L2 error {error} above 5 %");
+            // measured: after 200 new tokens the last logits depend too little on the shift (1.4 and 3.1
+            // times the error of the live state); with 8 new tokens it is 12 to 14 times
+            ensure!(
+                extra != 8 || mutant_error >= 5.0 * error,
+                "a shifted state was not detected ({mutant_error} against {error})"
+            );
+        }
+        Ok(())
     }
 
     /// SPEED-2026-11-25-INK2M-PREFILL-G: a DSpark session whose prefill computes the experts of 2, 4 or 8
@@ -4349,7 +4539,9 @@ mod tests {
         const ANSWER: usize = 40;
         const STEPS: usize = 48;
         // (first prompt length, extra tokens after the answer; 0 = the next prompt is the saved prefix itself)
-        for (first, extra) in [(300usize, 199usize), (1300, 199), (256, 0)] {
+        // (1300, 900): CACHE-2026-11-26-INK2M-SNAPSHOT-BUDGET, the prefix recaptured after a resume and a span
+        // of seven chunks
+        for (first, extra) in [(300usize, 199usize), (1300, 199), (256, 0), (1300, 900)] {
             ensure!(text.len() >= first + extra + 2, "not enough tokens");
             let boundary = first / 128 * 128;
             // turn 1: prefill with the capture, then a DSpark decode; returns the prefix and the next prompt
@@ -4411,6 +4603,24 @@ mod tests {
             ensure!(
                 next_prefix.0.offset() as usize == checkpoint,
                 "recaptured offset"
+            );
+            let recaptured = next_prefix.0.retained_bytes()?;
+            println!(
+                "first {first}: prefix recaptured at {checkpoint} retains {recaptured} bytes (drafter context {})",
+                next_prefix.0.context.retained_bytes()?
+            );
+            ensure!(
+                recaptured <= crate::memory_policy::DEFAULT_PROMPT_CACHE_BYTES,
+                "the recaptured DSpark prefix exceeds the default prompt cache budget"
+            );
+            // no saved context array keeps 64 KiB or more beyond its own rows
+            let (slack, arrays) = next_prefix.0.context.slack()?;
+            println!(
+                "first {first}: recaptured drafter context slack {slack} bytes in {arrays} arrays"
+            );
+            ensure!(
+                arrays > 0 && slack < arrays * 65_536,
+                "the saved drafter context keeps {slack} bytes beyond its rows"
             );
             // the same prompt from scratch
             let mut unused = None;

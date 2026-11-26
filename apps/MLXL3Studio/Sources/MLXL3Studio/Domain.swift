@@ -214,6 +214,9 @@ struct BridgeEvent: Decodable {
     /// Engines whose Agent loop has no total budget: `reasoning_budget`, up to 512 rounds,
     /// context pruning and a stop for repeated identical calls.
     var agentLoopSupported: Bool? = nil
+    /// Engines that accept `live_prompt_cache` for the loaded model (Inkling 2): each Agent step
+    /// goes on from the state the model decoded with instead of reading its own output again.
+    var livePromptCacheSupported: Bool? = nil
     var agentYieldSupported: Bool? = nil
     /// `tool_start`: the call's arguments, shown with the tool (the code of a JS call).
     var arguments: ToolArguments? = nil
@@ -286,6 +289,7 @@ struct BridgeEvent: Decodable {
         case toolRoundsSupported = "tool_rounds_supported"
         case mcpCallTimeoutSupported = "mcp_call_timeout_supported"
         case agentLoopSupported = "agent_loop_supported"
+        case livePromptCacheSupported = "live_prompt_cache_supported"
         case agentYieldSupported = "agent_yield_supported"
         case arguments
         case bridgeProtocol = "bridge_protocol"
@@ -415,6 +419,9 @@ struct GenerationRequest: Encodable {
     var reasoningEffort: String? = nil
     /// Tool rounds before the final answer (Agent mode); nil keeps the engine default.
     var toolRounds: Int? = nil
+    /// Agent turns on an engine that announces it: the model's own output stays in the prompt
+    /// as it wrote it (reasoning included) and is not read again. Omitted (nil) otherwise.
+    var livePromptCache: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -438,6 +445,7 @@ struct GenerationRequest: Encodable {
         case responseSchema = "response_schema"
         case reasoningEffort = "reasoning_effort"
         case toolRounds = "tool_rounds"
+        case livePromptCache = "live_prompt_cache"
     }
 }
 

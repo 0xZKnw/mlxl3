@@ -857,6 +857,13 @@ extension StudioModel {
     check(
       limitedRequest["reasoning_budget"] == nil,
       "An older engine is not sent a reasoning budget")
+    // AGENT-2026-11-26-LIVE-CACHE: only an Agent turn on an engine that announces it asks for it.
+    check(
+      loopRequest["live_prompt_cache"] as? Bool == true,
+      "An Agent turn asks an engine that announces it for the live prompt cache: \(loopRequest["live_prompt_cache"] ?? "nil")")
+    check(
+      limitedRequest["live_prompt_cache"] == nil,
+      "An older engine is not sent the live prompt cache")
     looping.selectMode(.chat)
     try await wait { !looping.mcpUpdating && looping.engineState.isReady }
     let chatBefore = looping.currentConversation?.messages.count ?? 0
@@ -876,8 +883,8 @@ extension StudioModel {
         with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
     check(
       chatRequest["max_tokens"] as? Int == -1 && chatRequest["tool_rounds"] == nil
-        && chatRequest["reasoning_budget"] == nil,
-      "Chat keeps its request without Agent budgets")
+        && chatRequest["reasoning_budget"] == nil && chatRequest["live_prompt_cache"] == nil,
+      "Chat keeps its request without Agent budgets or the live prompt cache")
     // Deliver the same engine completion again after it has already closed the request.
     let completedStats = try JSONEncoder().encode(looping.currentConversation!.messages.last!.stats!)
     let replay: [String: Any] = ["type": "complete", "request_id": chatRequest["request_id"] as! String,

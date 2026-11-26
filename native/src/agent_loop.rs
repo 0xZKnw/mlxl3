@@ -256,6 +256,7 @@ pub fn prune_context(
         if message["role"] != "assistant" {
             continue;
         }
+        let before_arguments = pruned.arguments;
         let Some(calls) = message.get_mut("tool_calls").and_then(Value::as_array_mut) else {
             continue;
         };
@@ -288,6 +289,12 @@ pub fn prune_context(
                 pruned.arguments += 1;
                 pruned.freed += before.saturating_sub(after);
             }
+        }
+        // AGENT-2026-11-26-LIVE-CACHE: the step's own text still holds the whole arguments
+        if pruned.arguments > before_arguments
+            && let Some(written) = message.as_object_mut()
+        {
+            written.remove("raw");
         }
     }
     // (3) last resort: old outputs replaced by a notice
@@ -1030,6 +1037,32 @@ mod tests {
             long
         );
         assert_eq!(dialogue[1]["content"], "ok");
+    }
+
+    /// AGENT-2026-11-26-LIVE-CACHE: a step whose arguments are shortened loses its own text (it
+    /// still holds the whole arguments); a step left as it is keeps it.
+    #[test]
+    fn prune_drops_the_own_text_of_a_step_it_shortens() {
+        let long = "w".repeat(6_000);
+        let mut old = call(&long);
+        old["raw"] = json!(format!("thinking {long}"));
+        let mut short = call("tiny");
+        short["raw"] = json!("thinking tiny");
+        let mut recent = call(&long);
+        recent["raw"] = json!(format!("thinking {long}"));
+        let mut dialogue = vec![
+            old,
+            tool("ok"),
+            short,
+            tool("ok"),
+            recent, // after the newest kept output's call: kept
+            tool(&"n".repeat(400)),
+        ];
+        let pruned = prune_context(&mut dialogue, 9_000, 10_000, &mut bytes).unwrap();
+        assert_eq!(pruned.arguments, 1);
+        assert!(dialogue[0].get("raw").is_none());
+        assert_eq!(dialogue[2]["raw"], "thinking tiny");
+        assert_eq!(dialogue[4]["raw"], format!("thinking {long}"));
     }
 
     #[test]

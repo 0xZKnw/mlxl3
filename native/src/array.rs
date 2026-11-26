@@ -1146,6 +1146,16 @@ impl Array {
         }
         Self::output(|out| unsafe { mlxl3_array_compact_copy(self.handle.as_ptr(), out) })
     }
+    /// `compact_for_cache` for a prompt-cache snapshot kept under a byte budget: any view that
+    /// keeps 64 KiB or more beyond its own rows is copied (same values).
+    pub fn compact_exact_for_cache(&self) -> Result<Self> {
+        if std::env::var("MLXL3_CACHE_COMPACTION").as_deref() == Ok("0")
+            || !crate::memory_policy::compact_slack_view(self.byte_len()?, self.retained_bytes()?)
+        {
+            return self.try_clone();
+        }
+        Self::output(|out| unsafe { mlxl3_array_compact_copy(self.handle.as_ptr(), out) })
+    }
     pub(crate) fn pack_embedding(&self) -> Result<Vec<Self>> {
         let mut pointers = [std::ptr::null_mut(); 3];
         checked(unsafe { mlxl3_pack_embedding(self.handle.as_ptr(), pointers.as_mut_ptr()) })?;

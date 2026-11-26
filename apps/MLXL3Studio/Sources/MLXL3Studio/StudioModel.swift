@@ -190,6 +190,8 @@ final class StudioModel: ObservableObject {
     private(set) var engineLongToolCalls = false
     /// The running engine announces `agent_loop_supported` (reported at ready).
     private(set) var engineAgentLoop = false
+    /// The running engine announces `live_prompt_cache_supported` for the loaded model.
+    private(set) var engineLivePromptCache = false
     private var engineCanYieldAgentTurn = false
     private var activeEngineAcknowledged = false
     private var didRequestAgentYield = false
@@ -1634,7 +1636,8 @@ final class StudioModel: ObservableObject {
                     responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema,
                     reasoningEffort: requestReasoningEffort,
                     toolRounds: selectedMode == .agent
-                        ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil
+                        ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil,
+                    livePromptCache: selectedMode == .agent && engineLivePromptCache ? true : nil
                 )
             )
         } catch {
@@ -2602,6 +2605,7 @@ final class StudioModel: ObservableObject {
             let rewriteAgentRegistry = longCalls != engineLongToolCalls
             engineLongToolCalls = longCalls
             engineAgentLoop = event.agentLoopSupported == true
+            engineLivePromptCache = event.livePromptCacheSupported == true
             workspaceFeaturesAvailable = event.workspaceFeatures == true
             imagesSupported = event.imagesSupported == true
             if let tools = event.mcpToolCatalog { mcpTools = tools }

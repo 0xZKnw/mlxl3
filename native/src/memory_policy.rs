@@ -8,6 +8,13 @@ pub fn compact_wasteful_view(logical: usize, retained: usize) -> bool {
         && retained.saturating_sub(logical) >= 65_536
 }
 
+/// A saved prompt-cache array whose view keeps at least 64 KiB beyond its own rows is copied
+/// to those rows: what a snapshot retains must not depend on the size of the call that
+/// produced it (CACHE-2026-11-26-INK2M-SNAPSHOT-BUDGET).
+pub fn compact_slack_view(logical: usize, retained: usize) -> bool {
+    logical > 0 && retained.saturating_sub(logical) >= 65_536
+}
+
 pub fn capture_matches(target: &[u8], request: &[u8], already_captured: bool) -> bool {
     !already_captured && !target.is_empty() && target == request
 }
@@ -123,6 +130,19 @@ mod tests {
         for mib in [4097, usize::MAX] {
             assert_eq!(allocator_cache_key(Some(mib)), None);
         }
+    }
+    #[test]
+    fn compact_slack_view_copies_any_material_slack() {
+        // under twice its rows: kept by `compact_wasteful_view`, copied here
+        assert!(!compact_wasteful_view(65_536, 131_072));
+        assert!(compact_slack_view(65_536, 131_072));
+        assert!(compact_slack_view(1 << 30, (1 << 30) + 65_536));
+        assert!(!compact_slack_view(1 << 30, (1 << 30) + 65_535));
+        assert!(!compact_slack_view(4096, 4096));
+        assert!(!compact_slack_view(4096, 0));
+        assert!(!compact_slack_view(0, usize::MAX));
+        assert!(!compact_slack_view(usize::MAX, usize::MAX));
+        assert!(compact_slack_view(1, usize::MAX));
     }
     #[test]
     fn compact_view_requires_material_waste_without_overflow() {
