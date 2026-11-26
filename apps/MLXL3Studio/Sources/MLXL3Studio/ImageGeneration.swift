@@ -10,9 +10,16 @@ enum Image21Hardware {
         return gpu == "Apple M5" || gpu.hasPrefix("Apple M5 ")
     }
 
-    static let available = supports(gpu: MTLCreateSystemDefaultDevice()?.name,
+    static func supportsLowMemory(gpu: String?, memory: UInt64) -> Bool {
+        gpu == "Apple M5" && memory == 24 * 1_024 * 1_024 * 1_024
+    }
+
+    private static let gpu = MTLCreateSystemDefaultDevice()?.name
+    static let available = supports(gpu: gpu,
                                     os: ProcessInfo.processInfo.operatingSystemVersion,
                                     disabled: ProcessInfo.processInfo.environment["MLXL3_DISABLE_TENSOR_OPS"] != nil)
+    static let lowMemoryAvailable = available && supportsLowMemory(gpu: gpu, memory: ProcessInfo.processInfo.physicalMemory)
+
     static var requirement: String {
         L("Qwen Image nécessite un GPU Apple M5 et macOS 26.3 ou ultérieur avec TensorOps activé.",
           "Qwen Image requires an Apple M5 GPU and macOS 26.3 or later with TensorOps enabled.")
@@ -79,6 +86,7 @@ final class ImageGeneration: ObservableObject {
     private var process: Process?
 
     private let supported: Bool
+    private let lowMemoryAvailable: Bool
     private let worker: (launcher: URL, script: URL)?
     private let preferences: UserDefaults
     private let catalog: ImageModelCatalog
@@ -86,13 +94,15 @@ final class ImageGeneration: ObservableObject {
     private var downloadTask: Task<Void, Never>?
     private var modelLookup = UUID()
 
-    init(supported: Bool = Image21Hardware.available, historyDirectory: URL = GeneratedImageHistory.defaultDirectory,
+    init(supported: Bool = Image21Hardware.available, lowMemoryAvailable: Bool = Image21Hardware.lowMemoryAvailable,
+         historyDirectory: URL = GeneratedImageHistory.defaultDirectory,
          worker: (launcher: URL, script: URL)? = nil, preferences: UserDefaults = .standard,
          catalog: ImageModelCatalog = ImageModelCatalog(),
          download: @escaping Transfer = { files, destination, progress in
              try await ImageModelDownload().install(files: files, to: destination, progress: progress)
          }) {
         self.supported = supported
+        self.lowMemoryAvailable = lowMemoryAvailable
         self.historyStore = GeneratedImageHistory(directory: historyDirectory)
         self.usageStore = ImageGenerationUsage(historyDirectory: historyDirectory)
         self.worker = worker
@@ -234,10 +244,15 @@ final class ImageGeneration: ObservableObject {
         }
     }
 
-    func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32) {
+    func offersLowMemory(at size: Int) -> Bool {
+        supported && lowMemoryAvailable && variant == .base && size == 1024
+    }
+
+    func start(model: URL, prompt: String, size: Int, steps: Int, seed: UInt32, lowMemory: Bool = false) {
         guard !running, !isDownloading else { return }
         let variant = self.variant
         let autoSave = preferences.bool(forKey: Self.autoSavePreferenceKey)
+        let useLowMemory = lowMemory && offersLowMemory(at: size)
         running = true
         // An unsuccessful retry should not discard the only copy of an unsaved image.
         if result?.savedURL != nil { result = nil }
@@ -282,10 +297,10 @@ final class ImageGeneration: ObservableObject {
                 }
                 status = L("Chargement du modèle…", "Loading the model…")
                 let png = work.appendingPathComponent("image.png")
-                try await run(URL(fileURLWithPath: python),
-                              ["-I", "-u", script.path, "--variant", variant.rawValue, "--model", model.path, "--prompt=\(prompt)",
-                               "--size", String(size), "--steps", String(steps), "--seed", String(seed), "--output", png.path],
-                              log: log, stdout: log, timeout: 3600, steps: steps)
+                var arguments = ["-I", "-u", script.path, "--variant", variant.rawValue, "--model", model.path, "--prompt=\(prompt)",
+                                 "--size", String(size), "--steps", String(steps), "--seed", String(seed), "--output", png.path]
+                if useLowMemory { arguments.append("--low-memory") }
+                try await run(URL(fileURLWithPath: python), arguments, log: log, stdout: log, timeout: 3600, steps: steps)
                 try Task.checkCancellation()
                 let verified = try await Task.detached(priority: .userInitiated) { [historyStore] in
                     try historyStore.validatedPNG(at: png, size: size)

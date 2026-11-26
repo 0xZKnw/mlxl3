@@ -28,6 +28,11 @@ be attributed to Base or Turbo.
 Base accepts 2–50 steps. Start with 512 × 512 and 40 steps. Turbo uses its
 trained eight-step sampling schedule. Saved generations record which variant
 was used, and **Reuse settings** restores it.
+
+On an Apple M5 with 24 GiB, Base limits its cache of unused GPU buffers to
+512 MiB at 768 × 768. At 1024 × 1024, enable **Reduce memory use** to apply
+the same limit. This can make generation slower. [Measurements on the M5](measurements/image21-m5-large-cache/README.md)
+
 The feature requires an Apple M5-family GPU, macOS 26.3 or later and TensorOps enabled.
 Studio checks eligibility before it starts uv or downloads components. The physical validation used an M5 with 24 GiB of memory.
 

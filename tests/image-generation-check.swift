@@ -109,7 +109,7 @@ struct ImageGenerationCheck {
         prefs.set(model.path, forKey: "image21ModelDirectory")
         prefs.set("base", forKey: "image21Variant")
         let turbo = fixtures.catalog.destination(for: .turbo)
-        let engine = ImageGeneration(supported: true, historyDirectory: images, worker: worker,
+        let engine = ImageGeneration(supported: true, lowMemoryAvailable: true, historyDirectory: images, worker: worker,
                                      preferences: prefs, catalog: fixtures.catalog)
         func wait(_ predicate: @MainActor () -> Bool) async throws {
             for _ in 0..<500 {
@@ -118,6 +118,27 @@ struct ImageGenerationCheck {
             }
             preconditionFailure("Timed out waiting for the isolated image worker")
         }
+        // Read the argument count from the actual child after the interpreter handoff.
+        for (size, expected) in [(512, 0), (768, 0), (1024, 1)] {
+            engine.size = size
+            check(engine.offersLowMemory(at: engine.size) == (expected == 1))
+            var draftLowMemory = true
+            engine.start(model: model, prompt: "--low-memory", size: engine.size, steps: 2, seed: 123, lowMemory: draftLowMemory)
+            draftLowMemory = false
+            engine.size = 512
+            try await wait { !engine.running }
+            check(!draftLowMemory && engine.error == "low-memory=\(expected)")
+        }
+        engine.start(model: model, prompt: "--low-memory", size: 1024, steps: 2, seed: 123)
+        try await wait { !engine.running }
+        check(engine.error == "low-memory=0", "The worker must keep its default without an explicit choice")
+        let otherHardware = ImageGeneration(supported: true, lowMemoryAvailable: false,
+                                            historyDirectory: images, worker: worker, preferences: prefs, catalog: fixtures.catalog)
+        check(!otherHardware.offersLowMemory(at: 1024))
+        otherHardware.start(model: model, prompt: "--low-memory", size: 1024, steps: 2, seed: 123, lowMemory: true)
+        try await wait { !otherHardware.running }
+        check(otherHardware.error == "low-memory=0")
+
         await engine.refreshModelDirectory()
         await engine.refreshHistory()
         check(engine.variant == .base && engine.modelDirectory?.path == model.path && engine.steps == 40)
@@ -195,6 +216,12 @@ struct ImageGenerationCheck {
             engine.start(model: turbo, prompt: "turbo", size: 512, steps: wrongSteps, seed: 123)
             try await wait { !engine.running }
             check(engine.error == "Turbo uses 8 steps." && !fm.fileExists(atPath: turbo.appendingPathComponent("last-prompt").path))
+        }
+        for size in [512, 768, 1024] {
+            check(!engine.offersLowMemory(at: size), "Only Base offers the measured memory policy")
+            engine.start(model: turbo, prompt: "--low-memory", size: size, steps: 8, seed: 123, lowMemory: true)
+            try await wait { !engine.running }
+            check(engine.error == "low-memory=0", "Turbo must keep its native memory policy at every size")
         }
         engine.start(model: model, prompt: "turbo", size: 512, steps: 8, seed: 123)
         try await wait { !engine.running }
@@ -354,6 +381,14 @@ struct ImageGenerationCheck {
         }
         for gpu in [nil, "Apple M1", "Apple M2 Pro", "Apple M3 Ultra", "Apple M4 Max", "Apple M50"] as [String?] {
             precondition(!Image21Hardware.supports(gpu: gpu, os: minimum, disabled: false))
+        }
+        let gib: UInt64 = 1_024 * 1_024 * 1_024
+        precondition(Image21Hardware.supportsLowMemory(gpu: "Apple M5", memory: 24 * gib))
+        for gpu in [nil, "Apple M5 Pro", "Apple M5 Max", "Apple M4"] as [String?] {
+            precondition(!Image21Hardware.supportsLowMemory(gpu: gpu, memory: 24 * gib))
+        }
+        for memory in [16 * gib, 32 * gib] {
+            precondition(!Image21Hardware.supportsLowMemory(gpu: "Apple M5", memory: memory))
         }
         let suite = "mlxl3.image-errors." + UUID().uuidString
         let preferences = UserDefaults(suiteName: suite)!

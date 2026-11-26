@@ -1,0 +1,996 @@
+{
+  "campaign": "IMAGE21-M5-LARGECACHE-19",
+  "final_worker": "C",
+  "paths": "Paths in commands and artifact records are relative to the parent workspace. $HF_HUB_CACHE denotes the Hugging Face Hub cache root.",
+  "bundle": {
+    "path": "build/image21-large-cache/app/dist/MLXL3 Desktop Test.app",
+    "version": "2.0.31",
+    "build": "84",
+    "executable": "build/image21-large-cache/app/dist/MLXL3 Desktop Test.app/Contents/MacOS/MLXL3Studio",
+    "executable_bytes": 21192224,
+    "executable_sha256": "d30af4f28cd10224c767d15ac3e57439c2c9ce7dd5ef6c22b0e612fd02a87668",
+    "bundle_tree_sha256": "5299dee5c2773acb3bb819ee6caa2a4aed152e1e941b7304269e05e565cf13e5",
+    "tree_encoding": "UTF-8 compact, key-sorted JSON of relative file paths mapped to sha256 and bytes, or symlink mapped to its literal target; directories excluded.",
+    "file_or_link_count": 20,
+    "packaged_image21_sha256": {
+      "render.py": "1bdda0db7f85ad97732aa80d7e66413ee3e300f2bec3454ba02b4de6e122f7d7",
+      "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+      "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+      "studio-image21-m5.png": "7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd"
+    },
+    "worker_and_swift_source_sha256": {
+      "build/image21-large-cache/app/apps/MLXL3Studio/Resources/Image21/render.py": "1bdda0db7f85ad97732aa80d7e66413ee3e300f2bec3454ba02b4de6e122f7d7",
+      "build/image21-large-cache/app/native/shaders/_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+      "build/image21-large-cache/app/native/shaders/_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+      "build/image21-large-cache/app/docs/images/studio-image21-m5.png": "7b018ca8fc9418ba2d6659cc6909a0d013dde0baaa12558fdb9fd710c1cd87cd",
+      "build/image21-large-cache/app/apps/MLXL3Studio/Sources/MLXL3Studio/ImageGeneration.swift": "1c439716db91bb46d9f18d789482a97075b9386cc8feb785284d29d0dc4cb8b4",
+      "build/image21-large-cache/app/apps/MLXL3Studio/Sources/MLXL3Studio/ImageGenerationView.swift": "bdd858b41ab9daf61e4d912ee874a342e026ad025ab77d4b5f3c91c363393543",
+      "build/image21-large-cache/app/apps/MLXL3Studio/Sources/MLXL3Studio/GeneratedImageHistory.swift": "7152d7df85ecb476564ee0f8d36943b99793f5b35c79c13a5df055ac8bb942ce",
+      "build/image21-large-cache/app/apps/MLXL3Studio/Sources/MLXL3Studio/Localization.swift": "d4d9419b45052420b65bf7423f9cacd6e2a951ddcf9c1b577af1b461ff0129c7"
+    }
+  },
+  "isolated_qualification": {
+    "pilot-768-auto": {
+      "record": {
+        "status": "complete",
+        "parity": true,
+        "phase": "pilot",
+        "size": 768,
+        "steps": 2,
+        "seed": 371,
+        "prompt": "An old oak tree beside a quiet river in autumn light.",
+        "low_memory": false,
+        "command": [
+          "/usr/bin/time",
+          "-l",
+          "build/image21-studio/venv/bin/python",
+          "-I",
+          "-u",
+          "build/image21-large-cache/state.py",
+          "build/image21-large-cache/C/render.py",
+          "--model",
+          "models/Qwen-Image-2.1-EXL3-4bpw",
+          "--size",
+          "768",
+          "--steps",
+          "2",
+          "--seed",
+          "371",
+          "--prompt",
+          "An old oak tree beside a quiet river in autumn light.",
+          "--output",
+          "build/image21-large-cache/final-c-isolated/pilot-768-auto/C.png"
+        ],
+        "candidate": "C",
+        "image": "build/image21-large-cache/final-c-isolated/pilot-768-auto/C.png",
+        "log": "build/image21-large-cache/final-c-isolated/pilot-768-auto/C.log",
+        "provenance": {
+          "source_commit": "458098f2709094db97e497f0047f01a886228957",
+          "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+          "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+          "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+          "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+          "resources": {
+            "A": {
+              "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+              "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+              "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+            },
+            "C": {
+              "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+              "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+              "render.py": "1bdda0db7f85ad97732aa80d7e66413ee3e300f2bec3454ba02b4de6e122f7d7"
+            }
+          },
+          "versions": {
+            "mflux": "0.24.0",
+            "mlx": "0.32.4",
+            "transformers": "5.24.0",
+            "huggingface_hub": "1.33.0",
+            "Pillow": "13.0.0",
+            "numpy": "2.5.5"
+          },
+          "python": "build/image21-studio/venv/bin/python",
+          "python_version": "3.12.14",
+          "macos": "27.3",
+          "harness": {
+            "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+            "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+            "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0",
+            "final_checks.py": "1a1aa28efbee7546458cd62ec7986992167a38cef11c46a627cf88be3ef9f52e"
+          },
+          "environment": {},
+          "worker_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "PYTHONNOUSERSITE": "1"
+          }
+        },
+        "reference": {
+          "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+          "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8",
+          "states": [
+            "f65fc590ca66b3c6c4091a779b5697e72ff6f7664abb77e59a1e8e248df593cc",
+            "bdeddd97e5a1003e864370b3b10c375ec1800ba5488bb07298aefafe0f050104"
+          ]
+        },
+        "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t38%; charging; (no estimate) present: true",
+        "observed": {
+          "wall_s": 29.36,
+          "rss_bytes": 4252631040,
+          "footprint_bytes": 7035161816,
+          "step_s": 9.75,
+          "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+          "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8",
+          "states": [
+            "f65fc590ca66b3c6c4091a779b5697e72ff6f7664abb77e59a1e8e248df593cc",
+            "bdeddd97e5a1003e864370b3b10c375ec1800ba5488bb07298aefafe0f050104"
+          ],
+          "allocator": [
+            {
+              "phase": "before_step",
+              "monotonic_ns": 111984938144375,
+              "active_bytes": 9710368,
+              "cache_bytes": 0,
+              "peak_bytes": 9759908
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 111995324197666,
+              "active_bytes": 3580511022,
+              "cache_bytes": 554638326,
+              "peak_bytes": 4188095278
+            },
+            {
+              "phase": "before_step",
+              "monotonic_ns": 111995325767416,
+              "active_bytes": 3579921198,
+              "cache_bytes": 535830172,
+              "peak_bytes": 4188095278
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 112004428095208,
+              "active_bytes": 3580805934,
+              "cache_bytes": 554671772,
+              "peak_bytes": 4222468910
+            },
+            {
+              "phase": "before_vae",
+              "monotonic_ns": 112004500714666,
+              "active_bytes": 1720758,
+              "cache_bytes": 0,
+              "peak_bytes": 4222468910
+            },
+            {
+              "phase": "after_vae",
+              "monotonic_ns": 112010181213041,
+              "active_bytes": 1037763082,
+              "cache_bytes": 424673280,
+              "peak_bytes": 6535922650
+            }
+          ]
+        },
+        "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t39%; charging; 1:44 remaining present: true"
+      },
+      "source_sha256": {
+        "build/image21-large-cache/final-c-isolated/pilot-768-auto/results.json": "7554fb320aecfa2989cd084dbe4afe17eff046242b2a5336d550db5aa4eab255",
+        "build/image21-large-cache/final-c-isolated/pilot-768-auto/C.log": "1f360a5bd5e464438a4fe8732543b93afb403fb39bf8854502d72b167f972c51",
+        "build/image21-large-cache/final-c-isolated/pilot-768-auto/C.png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93"
+      }
+    },
+    "pilot-1024-auto": {
+      "record": {
+        "status": "complete",
+        "parity": true,
+        "phase": "pilot",
+        "size": 1024,
+        "steps": 2,
+        "seed": 371,
+        "prompt": "An old oak tree beside a quiet river in autumn light.",
+        "low_memory": false,
+        "command": [
+          "/usr/bin/time",
+          "-l",
+          "build/image21-studio/venv/bin/python",
+          "-I",
+          "-u",
+          "build/image21-large-cache/state.py",
+          "build/image21-large-cache/C/render.py",
+          "--model",
+          "models/Qwen-Image-2.1-EXL3-4bpw",
+          "--size",
+          "1024",
+          "--steps",
+          "2",
+          "--seed",
+          "371",
+          "--prompt",
+          "An old oak tree beside a quiet river in autumn light.",
+          "--output",
+          "build/image21-large-cache/final-c-isolated/pilot-1024-auto/C.png"
+        ],
+        "candidate": "C",
+        "image": "build/image21-large-cache/final-c-isolated/pilot-1024-auto/C.png",
+        "log": "build/image21-large-cache/final-c-isolated/pilot-1024-auto/C.log",
+        "provenance": {
+          "source_commit": "458098f2709094db97e497f0047f01a886228957",
+          "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+          "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+          "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+          "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+          "resources": {
+            "A": {
+              "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+              "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+              "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+            },
+            "C": {
+              "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+              "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+              "render.py": "1bdda0db7f85ad97732aa80d7e66413ee3e300f2bec3454ba02b4de6e122f7d7"
+            }
+          },
+          "versions": {
+            "mflux": "0.24.0",
+            "mlx": "0.32.4",
+            "transformers": "5.24.0",
+            "huggingface_hub": "1.33.0",
+            "Pillow": "13.0.0",
+            "numpy": "2.5.5"
+          },
+          "python": "build/image21-studio/venv/bin/python",
+          "python_version": "3.12.14",
+          "macos": "27.3",
+          "harness": {
+            "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+            "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+            "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0",
+            "final_checks.py": "1a1aa28efbee7546458cd62ec7986992167a38cef11c46a627cf88be3ef9f52e"
+          },
+          "environment": {},
+          "worker_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "PYTHONNOUSERSITE": "1"
+          }
+        },
+        "reference": {
+          "png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04",
+          "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967",
+          "states": [
+            "3dc50363f0299fff59cbf57b0445ec5c91108df9b9bf4378b2adfba5e8e30986",
+            "3b98462d44a7ee6f326471b6189fb81ed6e097273c40869e466afb739a26b22e"
+          ]
+        },
+        "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t39%; charging; 1:44 remaining present: true",
+        "observed": {
+          "wall_s": 81.83,
+          "rss_bytes": 4731158528,
+          "footprint_bytes": 18705517736,
+          "step_s": 19.41,
+          "png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04",
+          "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967",
+          "states": [
+            "3dc50363f0299fff59cbf57b0445ec5c91108df9b9bf4378b2adfba5e8e30986",
+            "3b98462d44a7ee6f326471b6189fb81ed6e097273c40869e466afb739a26b22e"
+          ],
+          "allocator": [
+            {
+              "phase": "before_step",
+              "monotonic_ns": 112017925220000,
+              "active_bytes": 9710368,
+              "cache_bytes": 0,
+              "peak_bytes": 9751204
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 112035443281666,
+              "active_bytes": 3582453582,
+              "cache_bytes": 1573036514,
+              "peak_bytes": 4285482830
+            },
+            {
+              "phase": "before_step",
+              "monotonic_ns": 112035444060125,
+              "active_bytes": 3581405006,
+              "cache_bytes": 1574085090,
+              "peak_bytes": 4285482830
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 112056749467625,
+              "active_bytes": 3582977870,
+              "cache_bytes": 1606066658,
+              "peak_bytes": 4320085838
+            },
+            {
+              "phase": "before_vae",
+              "monotonic_ns": 112056871860458,
+              "active_bytes": 2638262,
+              "cache_bytes": 0,
+              "peak_bytes": 4320085838
+            },
+            {
+              "phase": "after_vae",
+              "monotonic_ns": 112094129479333,
+              "active_bytes": 1030833278,
+              "cache_bytes": 16843015980,
+              "peak_bytes": 7901382354
+            }
+          ]
+        },
+        "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t41%; charging; 1:43 remaining present: true"
+      },
+      "source_sha256": {
+        "build/image21-large-cache/final-c-isolated/pilot-1024-auto/results.json": "b30f660e2936f7bc58d6f7166bc988a9200dba232e19c75b763c028da74a4cd3",
+        "build/image21-large-cache/final-c-isolated/pilot-1024-auto/C.log": "88d9e942969ade25e614f503f18c68befaf64222ac845ca522e401b3bdad7276",
+        "build/image21-large-cache/final-c-isolated/pilot-1024-auto/C.png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04"
+      }
+    },
+    "pilot-1024-low-memory": {
+      "record": {
+        "status": "complete",
+        "parity": true,
+        "phase": "pilot",
+        "size": 1024,
+        "steps": 2,
+        "seed": 371,
+        "prompt": "An old oak tree beside a quiet river in autumn light.",
+        "low_memory": true,
+        "command": [
+          "/usr/bin/time",
+          "-l",
+          "build/image21-studio/venv/bin/python",
+          "-I",
+          "-u",
+          "build/image21-large-cache/state.py",
+          "build/image21-large-cache/C/render.py",
+          "--model",
+          "models/Qwen-Image-2.1-EXL3-4bpw",
+          "--size",
+          "1024",
+          "--steps",
+          "2",
+          "--seed",
+          "371",
+          "--prompt",
+          "An old oak tree beside a quiet river in autumn light.",
+          "--output",
+          "build/image21-large-cache/final-c-isolated/pilot-1024-low-memory/C.png",
+          "--low-memory"
+        ],
+        "candidate": "C",
+        "image": "build/image21-large-cache/final-c-isolated/pilot-1024-low-memory/C.png",
+        "log": "build/image21-large-cache/final-c-isolated/pilot-1024-low-memory/C.log",
+        "provenance": {
+          "source_commit": "458098f2709094db97e497f0047f01a886228957",
+          "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+          "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+          "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+          "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+          "resources": {
+            "A": {
+              "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+              "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+              "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+            },
+            "C": {
+              "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+              "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+              "render.py": "1bdda0db7f85ad97732aa80d7e66413ee3e300f2bec3454ba02b4de6e122f7d7"
+            }
+          },
+          "versions": {
+            "mflux": "0.24.0",
+            "mlx": "0.32.4",
+            "transformers": "5.24.0",
+            "huggingface_hub": "1.33.0",
+            "Pillow": "13.0.0",
+            "numpy": "2.5.5"
+          },
+          "python": "build/image21-studio/venv/bin/python",
+          "python_version": "3.12.14",
+          "macos": "27.3",
+          "harness": {
+            "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+            "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+            "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0",
+            "final_checks.py": "1a1aa28efbee7546458cd62ec7986992167a38cef11c46a627cf88be3ef9f52e"
+          },
+          "environment": {},
+          "worker_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "PYTHONNOUSERSITE": "1"
+          }
+        },
+        "reference": {
+          "png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04",
+          "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967",
+          "states": [
+            "3dc50363f0299fff59cbf57b0445ec5c91108df9b9bf4378b2adfba5e8e30986",
+            "3b98462d44a7ee6f326471b6189fb81ed6e097273c40869e466afb739a26b22e"
+          ]
+        },
+        "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t41%; charging; 1:43 remaining present: true",
+        "observed": {
+          "wall_s": 88.79,
+          "rss_bytes": 4229251072,
+          "footprint_bytes": 7986695000,
+          "step_s": 33.74,
+          "png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04",
+          "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967",
+          "states": [
+            "3dc50363f0299fff59cbf57b0445ec5c91108df9b9bf4378b2adfba5e8e30986",
+            "3b98462d44a7ee6f326471b6189fb81ed6e097273c40869e466afb739a26b22e"
+          ],
+          "allocator": [
+            {
+              "phase": "before_step",
+              "monotonic_ns": 112104895837708,
+              "active_bytes": 9710368,
+              "cache_bytes": 0,
+              "peak_bytes": 9751204
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 112138007092291,
+              "active_bytes": 3582305614,
+              "cache_bytes": 563918234,
+              "peak_bytes": 4285334862
+            },
+            {
+              "phase": "before_step",
+              "monotonic_ns": 112138008608833,
+              "active_bytes": 3581257038,
+              "cache_bytes": 536819632,
+              "peak_bytes": 4285334862
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 112172368166041,
+              "active_bytes": 3582829902,
+              "cache_bytes": 569800624,
+              "peak_bytes": 4319937870
+            },
+            {
+              "phase": "before_vae",
+              "monotonic_ns": 112172443256125,
+              "active_bytes": 2638262,
+              "cache_bytes": 0,
+              "peak_bytes": 4319937870
+            },
+            {
+              "phase": "after_vae",
+              "monotonic_ns": 112188540197708,
+              "active_bytes": 1057047818,
+              "cache_bytes": 377487360,
+              "peak_bytes": 7901382354
+            }
+          ]
+        },
+        "power_after": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t43%; charging; 1:35 remaining present: true"
+      },
+      "source_sha256": {
+        "build/image21-large-cache/final-c-isolated/pilot-1024-low-memory/results.json": "cfcd48250173fe56b12643747d4b216ac22e92290292379233dbc472c54765ca",
+        "build/image21-large-cache/final-c-isolated/pilot-1024-low-memory/C.log": "18880c34a50fbfc121292eafda3ee7dab3a2d1d08a25114d7382812647b8e0dc",
+        "build/image21-large-cache/final-c-isolated/pilot-1024-low-memory/C.png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04"
+      }
+    }
+  },
+  "studio_controller": {
+    "record": {
+      "status": "complete",
+      "parity": true,
+      "command": [
+        "build/image21-large-cache/studio-smoke/physical-image-check",
+        "build/image21-large-cache/studio-smoke/discover-uv.sh",
+        "build/image21-large-cache/C/render.py",
+        "models/Qwen-Image-2.1-EXL3-4bpw",
+        "build/image21-large-cache/studio-smoke/physical-final/gallery",
+        "build/image21-kernel-study/A-768.png"
+      ],
+      "resources": {
+        "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+        "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+        "render.py": "1bdda0db7f85ad97732aa80d7e66413ee3e300f2bec3454ba02b4de6e122f7d7"
+      },
+      "binary_sha256": "e0b8322df5fef68659159b7a2fba23033680e21d2ea8cf8bcde60aecea3dc78a",
+      "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+      "inputs": {
+        "seed": 371,
+        "size": 768,
+        "steps": 2,
+        "prompt": "An old oak tree beside a quiet river in autumn light."
+      },
+      "expected": {
+        "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+        "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8",
+        "states": [
+          "f65fc590ca66b3c6c4091a779b5697e72ff6f7664abb77e59a1e8e248df593cc",
+          "bdeddd97e5a1003e864370b3b10c375ec1800ba5488bb07298aefafe0f050104"
+        ]
+      },
+      "discovery": "local pinned Python forwards the worker --interpreter probe",
+      "environment": {
+        "UV_OFFLINE": "1",
+        "HF_HUB_OFFLINE": "1",
+        "TRANSFORMERS_OFFLINE": "1"
+      },
+      "image": "build/image21-large-cache/studio-smoke/physical-final/gallery/Image-371-DD7C6218-3526-4A22-B32F-BDA4791EBBFB.png",
+      "observed": {
+        "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+        "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8"
+      },
+      "gallery_reopened": true,
+      "cancelled_worker_joined": true
+    },
+    "gallery_metadata": {
+      "prompt": "An old oak tree beside a quiet river in autumn light.",
+      "seed": 371,
+      "modelName": "Qwen-Image-2.1-EXL3-4bpw",
+      "createdAt": 817329380.27011,
+      "steps": 2,
+      "filename": "Image-371-DD7C6218-3526-4A22-B32F-BDA4791EBBFB.png",
+      "size": 768,
+      "version": 1
+    },
+    "source_sha256": {
+      "build/image21-large-cache/studio-smoke/physical-final/results.json": "f2fe82a6a518a1cfef52b9cc8578d6fae912e56b9f50ebd44c9b0ad27067bd62",
+      "build/image21-large-cache/studio-smoke/physical-final/gallery/Image-371-DD7C6218-3526-4A22-B32F-BDA4791EBBFB.png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+      "build/image21-large-cache/studio-smoke/physical-final/gallery/.Image-371-DD7C6218-3526-4A22-B32F-BDA4791EBBFB.png.json": "fdf6be45420a73507bbdfa39a99561418455f6f705ccf0c0b3f4fc2d14b1c8bf",
+      "build/image21-large-cache/studio-smoke/physical-final/controller.log": "84562465cccd6f39aaaaca7c9b91e087c20573222f6edd2e383caebfcc7ebf51",
+      "build/image21-large-cache/studio-smoke/physical-final/discovery.log": "a42b3c74b858a86bb7b7e7e279bb73d64c12dd674c0eacc1048cf51db8d704be",
+      "build/image21-large-cache/studio-smoke/physical-image-check": "e0b8322df5fef68659159b7a2fba23033680e21d2ea8cf8bcde60aecea3dc78a",
+      "build/image21-large-cache/studio-smoke/discover-uv.sh": "2008ea8e2cb8b7170fbcc2ad31ee9435a58d523a987218e15036311d9d6f4630",
+      "build/image21-large-cache/studio-smoke/PhysicalImageCheck.swift": "2adcc4c60d4907a25d72b9a8b32464675b0e6d61eb45f0b2dec0630a21047274",
+      "build/image21-large-cache/studio-smoke/smoke.py": "5f2ff435f25e09360fdfe1ac1ee96813a14c3bf7f898e142f7bd5db445cf40e1"
+    }
+  },
+  "final_c_40_step_confirmation": {
+    "status": "interrupted",
+    "parity": null,
+    "size": 1024,
+    "steps": 40,
+    "low_memory": true,
+    "attempts": [
+      {
+        "record": {
+          "status": "interrupted",
+          "parity": null,
+          "phase": "long",
+          "size": 1024,
+          "steps": 40,
+          "seed": 1729,
+          "prompt": "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+          "low_memory": true,
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/C/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "1024",
+            "--steps",
+            "40",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/final-c-isolated/long-1024-low-memory/C.png",
+            "--low-memory"
+          ],
+          "candidate": "C",
+          "image": "build/image21-large-cache/final-c-isolated/long-1024-low-memory/C.png",
+          "log": "build/image21-large-cache/final-c-isolated/long-1024-low-memory/C.log",
+          "provenance": {
+            "source_commit": "458098f2709094db97e497f0047f01a886228957",
+            "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+            "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+            "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+            "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+            "resources": {
+              "A": {
+                "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+                "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+                "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+              },
+              "C": {
+                "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+                "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+                "render.py": "1bdda0db7f85ad97732aa80d7e66413ee3e300f2bec3454ba02b4de6e122f7d7"
+              }
+            },
+            "versions": {
+              "mflux": "0.24.0",
+              "mlx": "0.32.4",
+              "transformers": "5.24.0",
+              "huggingface_hub": "1.33.0",
+              "Pillow": "13.0.0",
+              "numpy": "2.5.5"
+            },
+            "python": "build/image21-studio/venv/bin/python",
+            "python_version": "3.12.14",
+            "macos": "27.3",
+            "harness": {
+              "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+              "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+              "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0",
+              "final_checks.py": "1a1aa28efbee7546458cd62ec7986992167a38cef11c46a627cf88be3ef9f52e"
+            },
+            "environment": {},
+            "worker_environment": {
+              "HF_HUB_OFFLINE": "1",
+              "TRANSFORMERS_OFFLINE": "1",
+              "PYTHONNOUSERSITE": "1"
+            }
+          },
+          "reference": {
+            "png": "26068f73dc2fe6600c5e91f64aafce698f407a518e311a4bdd415cbf48589a86",
+            "rgb": "2e0217b5e82256f769802ff2ff2d7724cafb14f97bf88d92f2f53c8b83297224",
+            "reference_report_sha256": "666f52db73cfdf95b39d937b32689f2c28a2c04b1b0e9bbb6fddb6cbf818f878"
+          },
+          "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t43%; charging; 1:35 remaining present: true",
+          "error": "KeyboardInterrupt('signal 15')"
+        },
+        "source_sha256": {
+          "build/image21-large-cache/final-c-isolated/long-1024-low-memory/results.json": "fe643b2f4554512deb0e36ad03b7f588c5d9da1e6b9c6ab3c6d63d95a1999b99",
+          "build/image21-large-cache/final-c-isolated/long-1024-low-memory/C.log": "6abb6d646694169e8a3f25708a8e469b3bb1dce0d15de261157e24aa6b24077f"
+        },
+        "completed_steps": 14,
+        "requested_steps": 40,
+        "completed_png": false,
+        "reason": "The supervisor stopped this campaign after an external Studio renderer started."
+      },
+      {
+        "record": {
+          "status": "interrupted",
+          "parity": null,
+          "phase": "long",
+          "size": 1024,
+          "steps": 40,
+          "seed": 1729,
+          "prompt": "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+          "low_memory": true,
+          "command": [
+            "/usr/bin/time",
+            "-l",
+            "build/image21-studio/venv/bin/python",
+            "-I",
+            "-u",
+            "build/image21-large-cache/C/render.py",
+            "--model",
+            "models/Qwen-Image-2.1-EXL3-4bpw",
+            "--size",
+            "1024",
+            "--steps",
+            "40",
+            "--seed",
+            "1729",
+            "--prompt",
+            "Photographie prise au crépuscule dans une ruelle enneigée de Strasbourg. Un vélo rouge est appuyé contre une porte en bois bleu foncé. Au premier plan, la neige fraîche porte les traces fines des pneus. Une fenêtre éclairée et sa petite jardinière occupent le tiers supérieur droit. Lumière douce, sans texte.",
+            "--output",
+            "build/image21-large-cache/final-c-retry/long-1024-low-memory/C.png",
+            "--low-memory"
+          ],
+          "candidate": "C",
+          "image": "build/image21-large-cache/final-c-retry/long-1024-low-memory/C.png",
+          "log": "build/image21-large-cache/final-c-retry/long-1024-low-memory/C.log",
+          "retry_harness_sha256": "d39f21973a99d9841ed564b9e455bce0f8ca77e7ad36b1d3569d4481b3edd20c",
+          "pilot_series": "build/image21-large-cache/final-c-isolated",
+          "previous_record": "build/image21-large-cache/final-c-isolated/long-1024-low-memory/results.json",
+          "timeout_s": 2700,
+          "provenance": {
+            "source_commit": "458098f2709094db97e497f0047f01a886228957",
+            "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+            "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+            "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+            "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+            "resources": {
+              "A": {
+                "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+                "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+                "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+              },
+              "C": {
+                "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+                "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+                "render.py": "1bdda0db7f85ad97732aa80d7e66413ee3e300f2bec3454ba02b4de6e122f7d7"
+              }
+            },
+            "versions": {
+              "mflux": "0.24.0",
+              "mlx": "0.32.4",
+              "transformers": "5.24.0",
+              "huggingface_hub": "1.33.0",
+              "Pillow": "13.0.0",
+              "numpy": "2.5.5"
+            },
+            "python": "build/image21-studio/venv/bin/python",
+            "python_version": "3.12.14",
+            "macos": "27.3",
+            "harness": {
+              "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+              "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+              "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0",
+              "final_checks.py": "1a1aa28efbee7546458cd62ec7986992167a38cef11c46a627cf88be3ef9f52e"
+            },
+            "environment": {},
+            "worker_environment": {
+              "HF_HUB_OFFLINE": "1",
+              "TRANSFORMERS_OFFLINE": "1",
+              "PYTHONNOUSERSITE": "1"
+            }
+          },
+          "reference": {
+            "png": "26068f73dc2fe6600c5e91f64aafce698f407a518e311a4bdd415cbf48589a86",
+            "rgb": "2e0217b5e82256f769802ff2ff2d7724cafb14f97bf88d92f2f53c8b83297224",
+            "reference_report_sha256": "666f52db73cfdf95b39d937b32689f2c28a2c04b1b0e9bbb6fddb6cbf818f878"
+          },
+          "power_before": "Now drawing from 'AC Power'\n -InternalBattery-0 (id=36307043)\t57%; charging; 1:14 remaining present: true",
+          "previous_record_sha256": "fe643b2f4554512deb0e36ad03b7f588c5d9da1e6b9c6ab3c6d63d95a1999b99",
+          "error": "KeyboardInterrupt('signal 15')"
+        },
+        "source_sha256": {
+          "build/image21-large-cache/final-c-retry/long-1024-low-memory/results.json": "93bcca586d66c7cf664cf3af4ec245821b239a7939318203eafeb38e6def46fd",
+          "build/image21-large-cache/final-c-retry/long-1024-low-memory/C.log": "d3852053fb0740a705b4e25b005090e14a59c64e80b9e79b9144d9f01e138a31"
+        },
+        "completed_steps": 37,
+        "requested_steps": 40,
+        "completed_png": false,
+        "reason": "The supervisor stopped this campaign after an external Studio renderer started."
+      }
+    ]
+  },
+  "original_attempts": {
+    "context": "An external Studio renderer was detected during the initial series. The first 768 px result is retained for correctness only. Its timings and the interrupted 1024 px pilot are excluded from the isolated series.",
+    "pilot-768-auto": {
+      "record": {
+        "status": "complete",
+        "parity": true,
+        "phase": "pilot",
+        "size": 768,
+        "steps": 2,
+        "seed": 371,
+        "prompt": "An old oak tree beside a quiet river in autumn light.",
+        "low_memory": false,
+        "command": [
+          "/usr/bin/time",
+          "-l",
+          "build/image21-studio/venv/bin/python",
+          "-I",
+          "-u",
+          "build/image21-large-cache/state.py",
+          "build/image21-large-cache/C/render.py",
+          "--model",
+          "models/Qwen-Image-2.1-EXL3-4bpw",
+          "--size",
+          "768",
+          "--steps",
+          "2",
+          "--seed",
+          "371",
+          "--prompt",
+          "An old oak tree beside a quiet river in autumn light.",
+          "--output",
+          "build/image21-large-cache/final-c/pilot-768-auto/C.png"
+        ],
+        "candidate": "C",
+        "image": "build/image21-large-cache/final-c/pilot-768-auto/C.png",
+        "log": "build/image21-large-cache/final-c/pilot-768-auto/C.log",
+        "provenance": {
+          "source_commit": "458098f2709094db97e497f0047f01a886228957",
+          "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+          "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+          "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+          "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+          "resources": {
+            "A": {
+              "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+              "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+              "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+            },
+            "C": {
+              "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+              "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+              "render.py": "1bdda0db7f85ad97732aa80d7e66413ee3e300f2bec3454ba02b4de6e122f7d7"
+            }
+          },
+          "versions": {
+            "mflux": "0.24.0",
+            "mlx": "0.32.4",
+            "transformers": "5.24.0",
+            "huggingface_hub": "1.33.0",
+            "Pillow": "13.0.0",
+            "numpy": "2.5.5"
+          },
+          "python": "build/image21-studio/venv/bin/python",
+          "python_version": "3.12.14",
+          "macos": "27.3",
+          "harness": {
+            "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+            "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+            "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0",
+            "final_checks.py": "1a1aa28efbee7546458cd62ec7986992167a38cef11c46a627cf88be3ef9f52e"
+          },
+          "environment": {},
+          "worker_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "PYTHONNOUSERSITE": "1"
+          }
+        },
+        "reference": {
+          "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+          "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8",
+          "states": [
+            "f65fc590ca66b3c6c4091a779b5697e72ff6f7664abb77e59a1e8e248df593cc",
+            "bdeddd97e5a1003e864370b3b10c375ec1800ba5488bb07298aefafe0f050104"
+          ]
+        },
+        "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t38%; discharging; 1:13 remaining present: true",
+        "observed": {
+          "wall_s": 40.65,
+          "rss_bytes": 4287201280,
+          "footprint_bytes": 6873205664,
+          "step_s": 14.6,
+          "png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93",
+          "rgb": "ade6f641069e1fa22e5465ae5d24fc9d9aa254e59b6152a44794b5a14e1966c8",
+          "states": [
+            "f65fc590ca66b3c6c4091a779b5697e72ff6f7664abb77e59a1e8e248df593cc",
+            "bdeddd97e5a1003e864370b3b10c375ec1800ba5488bb07298aefafe0f050104"
+          ],
+          "allocator": [
+            {
+              "phase": "before_step",
+              "monotonic_ns": 111709351348541,
+              "active_bytes": 9710368,
+              "cache_bytes": 0,
+              "peak_bytes": 9759908
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 111724830933791,
+              "active_bytes": 3580573838,
+              "cache_bytes": 552760632,
+              "peak_bytes": 4188141710
+            },
+            {
+              "phase": "before_step",
+              "monotonic_ns": 111724835930875,
+              "active_bytes": 3579984014,
+              "cache_bytes": 536959984,
+              "peak_bytes": 4188141710
+            },
+            {
+              "phase": "after_step",
+              "monotonic_ns": 111738539712541,
+              "active_bytes": 3580868750,
+              "cache_bytes": 554736352,
+              "peak_bytes": 4222515342
+            },
+            {
+              "phase": "before_vae",
+              "monotonic_ns": 111738644858875,
+              "active_bytes": 1720758,
+              "cache_bytes": 0,
+              "peak_bytes": 4222515342
+            },
+            {
+              "phase": "after_vae",
+              "monotonic_ns": 111745593454500,
+              "active_bytes": 1037763850,
+              "cache_bytes": 424673280,
+              "peak_bytes": 6535923418
+            }
+          ]
+        },
+        "power_after": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t37%; discharging; 1:08 remaining present: true"
+      },
+      "source_sha256": {
+        "build/image21-large-cache/final-c/pilot-768-auto/results.json": "2bfa1d06da2113265b2b74a044c4483495160055a0f555a5f5dafc2996f9db06",
+        "build/image21-large-cache/final-c/pilot-768-auto/C.log": "e34090559f6207778f6b7227e0147447faf4bcb4fd56dde847b657a1d0665385",
+        "build/image21-large-cache/final-c/pilot-768-auto/C.png": "5032713d2b5a4811696baef1064842157c7f8034e3253d21fa08f41501c3bc93"
+      }
+    },
+    "pilot-1024-auto": {
+      "record": {
+        "status": "interrupted",
+        "parity": null,
+        "phase": "pilot",
+        "size": 1024,
+        "steps": 2,
+        "seed": 371,
+        "prompt": "An old oak tree beside a quiet river in autumn light.",
+        "low_memory": false,
+        "command": [
+          "/usr/bin/time",
+          "-l",
+          "build/image21-studio/venv/bin/python",
+          "-I",
+          "-u",
+          "build/image21-large-cache/state.py",
+          "build/image21-large-cache/C/render.py",
+          "--model",
+          "models/Qwen-Image-2.1-EXL3-4bpw",
+          "--size",
+          "1024",
+          "--steps",
+          "2",
+          "--seed",
+          "371",
+          "--prompt",
+          "An old oak tree beside a quiet river in autumn light.",
+          "--output",
+          "build/image21-large-cache/final-c/pilot-1024-auto/C.png"
+        ],
+        "candidate": "C",
+        "image": "build/image21-large-cache/final-c/pilot-1024-auto/C.png",
+        "log": "build/image21-large-cache/final-c/pilot-1024-auto/C.log",
+        "provenance": {
+          "source_commit": "458098f2709094db97e497f0047f01a886228957",
+          "manifest_sha256": "1f61ed6a36d89530d43946a89a3c45faad7a120acfac357ffd25b131a3f399e0",
+          "model": "models/Qwen-Image-2.1-EXL3-4bpw",
+          "mflux_commit": "d39c9639e6ac22407a725432cc221a83fab19f1b",
+          "auxiliary": "$HF_HUB_CACHE/models--mlx-community--Qwen-Image-2.1-mflux-q4/snapshots/746a58556820933a2df5c75887a2570f1ad200c0",
+          "resources": {
+            "A": {
+              "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+              "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+              "render.py": "febcbd7b3e4e7be327dea414cd8208a2f7555bf2c927ccbf79827c2bbd2adffb"
+            },
+            "C": {
+              "_qmm_tensor_kernel.metal": "86628ed8519e83490f0424f3dbede3eefd484b871ff112cb19bbace3670e4e33",
+              "_qmm_tensor_window_kernel.metal": "df02356bc223e0b0afa0d05eb31fcd3b42f6806846d9809f391bcdecbebb306e",
+              "render.py": "1bdda0db7f85ad97732aa80d7e66413ee3e300f2bec3454ba02b4de6e122f7d7"
+            }
+          },
+          "versions": {
+            "mflux": "0.24.0",
+            "mlx": "0.32.4",
+            "transformers": "5.24.0",
+            "huggingface_hub": "1.33.0",
+            "Pillow": "13.0.0",
+            "numpy": "2.5.5"
+          },
+          "python": "build/image21-studio/venv/bin/python",
+          "python_version": "3.12.14",
+          "macos": "27.3",
+          "harness": {
+            "run.py": "ce831bcbfd054df95fb28bcb8798558d6612a94a67a3acc4f92fd78995ffbe65",
+            "state.py": "bfaea28baf3191f878fff169465b99a1b09f122f380afd7c0b6478e78f813d0a",
+            "bench.py": "7738c56b47fce476db1c632100ed0aa803c5287273ab74eb23d0130bf6760cf0",
+            "final_checks.py": "1a1aa28efbee7546458cd62ec7986992167a38cef11c46a627cf88be3ef9f52e"
+          },
+          "environment": {},
+          "worker_environment": {
+            "HF_HUB_OFFLINE": "1",
+            "TRANSFORMERS_OFFLINE": "1",
+            "PYTHONNOUSERSITE": "1"
+          }
+        },
+        "reference": {
+          "png": "acd94db8121923fe6349b468a4dbf501d48ab5ec8b415d6c0943c27febe34b04",
+          "rgb": "636a5e67c336ce9e920ae74cc3d224af4fb8eee57ca03a8a5a5b8e573c26e967",
+          "states": [
+            "3dc50363f0299fff59cbf57b0445ec5c91108df9b9bf4378b2adfba5e8e30986",
+            "3b98462d44a7ee6f326471b6189fb81ed6e097273c40869e466afb739a26b22e"
+          ]
+        },
+        "power_before": "Now drawing from 'Battery Power'\n -InternalBattery-0 (id=36307043)\t37%; discharging; 1:08 remaining present: true",
+        "error": "KeyboardInterrupt('signal 15')"
+      },
+      "source_sha256": {
+        "build/image21-large-cache/final-c/pilot-1024-auto/results.json": "76a6cc3bacec74339d699a865c694bfee25122b0a4509ad883b48f5a4442b2fe",
+        "build/image21-large-cache/final-c/pilot-1024-auto/C.log": "7ef74f90f404f74aab6ce3334e40618363b4909164341cd3882960b1e6964d5e"
+      }
+    }
+  },
+  "comparison_evidence_sha256": "f6ce05506008a0442d3dd17445951cdcc4a44b0379b8dc5ebbbda74633ea99e4"
+}
