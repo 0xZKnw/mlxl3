@@ -48,7 +48,7 @@ Checks run on these sources on an Apple M5, before publication.
 - 22 temporary mutants of the new guards (9 engine, 6 sandbox server, 7 app) were all detected.
 - A defect found while reading the final diff was fixed before this release: the approval alert answered the *current* request and treated its own dismissal as a refusal, so depending on the order in which the system closes an alert, **Allow** could have been recorded as a refusal, or applied to a command asked after the one displayed.
 - **Not verified:** real clicks in the app (the alert, the menus, the sidebar: their logic is tested through the app model and one rendered screenshot was inspected; the app of this DMG was not launched); a summary with Qwen or any model other than Inkling 2 Mini; a conversation with images or tool history across the cut on a real model; one of your MCP servers being slow or stuck when the Agent starts; the speed of a plain conversation now that it carries tool definitions. Kani was not run.
-- CI: on the previous `main` commit the Windows, Rust, Apple compatibility, EXL3 and profile workflows passed; `Regression checks` failed on a save-panel check of the image history that also fails on unrelated branches of the hosted runner and passes locally.
+- CI: **the CI of this source had not finished when this release was published** (profile compatibility passed; Rust, regression, Apple compatibility and EXL3 workflows still running). On the previous `main` commit the Windows, Rust, Apple compatibility, EXL3 and profile workflows passed, and `Regression checks` failed on a save-panel check of the image history that also fails on unrelated branches of the hosted runner and passes locally. No Windows file changed since that commit.
 
 ## Source and download
 

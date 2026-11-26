@@ -22,7 +22,7 @@ Checks run on these sources on an Apple M5, before publication.
 - New deterministic tests with a scripted model: earlier turns summarized when they fill the context, with and without tool history; a conversation that never used a tool; a summary that cannot be used changes nothing; a turn interrupted after a summary keeps only its own exchanges; a single turn or a small conversation is never summarized; the cut and its fallbacks to older cuts. 9 temporary mutants of this code were all detected.
 - **One real-model run with the binary of this archive** and the sandbox server of Desktop 2.1.0: Inkling 2 Mini EXL3 3.33 bpw, temperature 1, 16,384-token context, six fabricated exchanges then a question. One `history_summary` (`kept_from` 11, ten messages replaced, prompt 13,139 → 4,331 tokens), `complete` with `eos`; the next turn, rebuilt from the event, had 4,671 prompt tokens and completed. The summary kept the two planted facts and both answers gave them. Script and report: `docs/measurements/agent-history-summary-2026-11-26/`.
 - **Not verified:** any other model (Qwen, Flash Next), a cut across images or tool history on a real model, the quality of summaries in general (one run, one conversation, temperature 1), a second summary in the same request on a real model. Kani was not run.
-- CI of `main` for this source had not finished when these notes were written; see the Desktop release for the state read before tagging.
+- CI of `main` for this source had not finished when this release was published (profile compatibility passed; the Rust, regression, Apple compatibility and EXL3 workflows were still running).
 
 ## Artifacts
 
