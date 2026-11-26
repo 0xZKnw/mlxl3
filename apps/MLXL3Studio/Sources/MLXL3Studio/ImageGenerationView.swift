@@ -41,6 +41,9 @@ struct ImageGenerationView: View {
     @State private var referencePreviewImage: NSImage?
     @State private var referenceDropTargeted = false
     @State private var showsHistory = false
+    @State private var baseLowMemory = false
+    @State private var turboLowMemory = false
+    private var lowMemory: Binding<Bool> { engine.variant == .turbo ? $turboLowMemory : $baseLowMemory }
     @State private var selectedImage: URL?
 
     private static let example = Bundle.main.url(forResource: "studio-image21-m5", withExtension: "png",
@@ -227,11 +230,20 @@ struct ImageGenerationView: View {
                     .foregroundStyle(StudioTheme.secondary)
                     .accessibilityIdentifier("images.editSize")
             } else {
-                // Bare numbers: three "… px" segments are wider than a narrow sidebar.
                 Picker(L("Taille de l’image", "Image size"), selection: $engine.size) {
-                    ForEach([512, 768, 1024], id: \.self) { Text(String($0)).tag($0) }
+                    ForEach(Image21Size.presets, id: \.self) { size in Text(size.label).tag(size) }
                 }
-                .pickerStyle(.segmented).labelsHidden()
+                .pickerStyle(.menu).labelsHidden().accessibilityIdentifier("images.size")
+                if engine.offersLowMemory(at: engine.size) {
+                    Toggle(L("Réduire la mémoire", "Reduce memory use"), isOn: lowMemory)
+                        .font(.system(size: 12.5))
+                        .help(engine.variant == .turbo
+                              ? L("Réduit la mémoire utilisée lors du décodage final de l’image.",
+                                  "Uses less memory during the final image decode.")
+                              : L("Réduit la mémoire utilisée et peut allonger la génération.",
+                                  "Uses less memory and may take longer to generate."))
+                        .accessibilityIdentifier("images.lowMemory")
+                }
             }
             if engine.variant == .base && !engine.editing {
                 Stepper(value: $engine.baseSteps, in: 2...50) {
@@ -422,7 +434,7 @@ struct ImageGenerationView: View {
                     Button {
                         guard let model = engine.modelDirectory else { return }
                         engine.start(model: model, prompt: engine.prompt,
-                                     size: engine.editing ? ImageEditReference.size : engine.size, steps: engine.steps, seed: engine.seed)
+                                     size: engine.size, steps: engine.steps, seed: engine.seed, lowMemory: lowMemory.wrappedValue)
                     } label: {
                         Label(engine.editing ? L("Retoucher", "Edit") : L("Générer", "Generate"),
                               systemImage: "wand.and.stars")

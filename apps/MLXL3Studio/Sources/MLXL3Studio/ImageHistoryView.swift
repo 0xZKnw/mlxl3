@@ -140,13 +140,18 @@ struct ImageHistoryView: View {
                         if let seed = item.seed { setting(L("Graine", "Seed"), String(seed)) }
                     }
                 }
+                let size = Image21Size(width: item.width, height: item.height)
                 if let prompt = item.prompt, let variant = item.variant, let steps = item.steps, let seed = item.seed,
-                   item.width == item.height, [512, 768, 1024].contains(item.width), variant.stepRange.contains(steps) {
+                   Image21Size.presets.contains(size), variant.stepRange.contains(steps) {
                     Button {
-                        if item.isEdit { engine.requestEditReference() } else { engine.removeReference() }
+                        if item.isEdit {
+                            engine.requestEditReference()
+                        } else {
+                            engine.removeReference()
+                            engine.size = size
+                        }
                         engine.selectVariant(variant)
                         engine.prompt = prompt
-                        engine.size = item.width
                         if variant == .base { engine.baseSteps = steps }
                         engine.seed = seed
                         selection = nil

@@ -55,7 +55,7 @@ struct ImageGenerationUsageCheck {
             let temporary = root.appendingPathComponent(UUID().uuidString + ".png")
             try fm.copyItem(at: png, to: temporary)
             return try history.save(png: temporary, prompt: prompt, modelName: "Fixture", variant: variant,
-                                    size: 512, steps: 8, seed: 23, id: id, createdAt: at)
+                                    size: .square(512), steps: 8, seed: 23, id: id, createdAt: at)
         }
         func metadata(_ record: GeneratedImageRecord) -> URL {
             gallery.appendingPathComponent("." + record.fileURL.lastPathComponent + ".json")

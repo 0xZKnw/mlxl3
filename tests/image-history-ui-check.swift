@@ -63,7 +63,7 @@ struct ImageHistoryInterfaceCheck {
         studio.setLanguage(.en)
         studio.setStyle(.graphite)
         let fixtures = try StudioImageFixtures(root: temporary)
-        let engine = ImageGeneration(supported: true, historyDirectory: images,
+        let engine = ImageGeneration(supported: true, lowMemoryAvailable: true, historyDirectory: images,
                                      worker: try StudioImageFixtures.worker(in: temporary), preferences: preferences,
                                      catalog: fixtures.catalog, download: { files, destination, progress in
             await progress(1, files.reduce(0) { $0 + $1.size })
@@ -140,9 +140,9 @@ struct ImageHistoryInterfaceCheck {
             }
         }
 
-        func download(_ cells: [Word], filename: String, accept: Bool) async throws {
+        func download(_ cells: [Word], filename: String, accept: Bool, source: URL? = nil) async throws {
             let suggested = downloads.appendingPathComponent(filename)
-            let destination = accept && !useSystemPanel ? temporary.appendingPathComponent("Chosen name.png") : suggested
+            let destination = accept && !useSystemPanel ? temporary.appendingPathComponent("Export " + filename) : suggested
             let before = try engine.usageStore.summary()
             let gallery = engine.history
             if useSystemPanel {
@@ -186,7 +186,7 @@ struct ImageHistoryInterfaceCheck {
                 while !fileManager.fileExists(atPath: destination.path) && ContinuousClock.now < deadline {
                     try await Task.sleep(for: .milliseconds(25))
                 }
-                guard try Data(contentsOf: destination) == Data(contentsOf: example) else {
+                guard try Data(contentsOf: destination) == Data(contentsOf: source ?? example) else {
                     throw HistoryUIError(message: "The downloaded PNG differed from the selected image")
                 }
             } else if fileManager.fileExists(atPath: destination.path) {
@@ -215,12 +215,48 @@ struct ImageHistoryInterfaceCheck {
         studio.setLanguage(.fr)
         ocr.recognitionLanguages = ["fr-FR"]
         try expect(["installé sur ce mac"], in: await words(snapshot: "studio-image-turbo-installed-fr.png"))
+        engine.size = .square(2048)
+        try expect(["2048", "réduire la mémoire"],
+                   in: await words(snapshot: "studio-image-turbo-native-size-fr.png"))
         studio.setLanguage(.en)
         ocr.recognitionLanguages = ["en-US"]
+        engine.size = .square(1024)
+        let turbo1024 = try await words(snapshot: "studio-image-turbo-memory-1024.png")
+        try expect(["reduce memory use"], in: turbo1024)
+        engine.prompt = "--low-memory"
+        func checkMemorySubmission(_ expected: Int, size: String) async throws {
+            let controls = try await words()
+            try click("generate", in: controls.filter { $0.box.midX > 0.5 && $0.box.midY < 0.3 })
+            let submitted = ContinuousClock.now.advanced(by: .seconds(12))
+            while (engine.running || engine.error == nil) && ContinuousClock.now < submitted {
+                try await Task.sleep(for: .milliseconds(25))
+            }
+            guard !engine.running, engine.error?.contains("low-memory=\(expected)") == true else {
+                engine.cancel()
+                throw HistoryUIError(message: "Wrong memory mode for \(engine.variant): \(engine.error ?? "no response")")
+            }
+            guard let model = engine.modelDirectory,
+                  try String(contentsOf: model.appendingPathComponent("last-size"), encoding: .utf8) == size else {
+                throw HistoryUIError(message: "The \(engine.variant) worker did not receive size \(size)")
+            }
+        }
+        try await checkMemorySubmission(0, size: "1024")
+        try click("reduce memory use", in: await words())
+        studio.setLanguage(.fr)
+        ocr.recognitionLanguages = ["fr-FR"]
+        try expect(["réduire la mémoire"], in: await words(snapshot: "studio-image-turbo-memory-1024-enabled-fr.png"))
+        studio.setLanguage(.en)
+        ocr.recognitionLanguages = ["en-US"]
+        try await checkMemorySubmission(1, size: "1024")
+        let twoK = Image21Size.square(2048)
+        engine.size = twoK
+        let native = try await words()
+        try expect(["2048", "reduce memory use"], in: native)
+        try await checkMemorySubmission(1, size: "2048")
+        engine.prompt = ""
         let reference = temporary.appendingPathComponent("Retouch reference.png")
         try fileManager.copyItem(at: example, to: reference)
         let imageView = ImageGenerationView(engine: engine, close: {})
-        engine.size = 768
         try expect(["drop an image"], in: await words())
         guard !imageView.acceptReferenceDrop([reference, reference]),
               !imageView.acceptReferenceDrop([URL(string: "https://example.com/reference.png")!]),
@@ -231,17 +267,39 @@ struct ImageHistoryInterfaceCheck {
         while engine.referenceImage == nil && engine.referenceError == nil && ContinuousClock.now < importDeadline {
             try await Task.sleep(for: .milliseconds(20))
         }
-        try expect(["edit an image", "retouch reference.png", "describe what to change", "512"],
-                   in: await words(snapshot: "studio-image-retouch-en.png"))
-        guard !engine.referenceImporting, engine.referenceImage?.name == "Retouch reference.png", engine.size == 768 else {
+        let editControls = try await words(snapshot: "studio-image-retouch-en.png")
+        try expect(["edit an image", "retouch reference.png", "describe what to change", "512"], in: editControls)
+        guard !editControls.contains(where: { $0.text.contains("reduce memory") }) else {
+            throw HistoryUIError(message: "Retouching must hide the 2K memory switch")
+        }
+        guard !engine.referenceImporting, engine.referenceImage?.name == "Retouch reference.png", engine.size == twoK else {
             throw HistoryUIError(message: "Import must enter edit mode without changing the text-to-image size")
         }
         engine.removeReference()
-        try expect(["generate an image", "drop an image"], in: await words())
+        try expect(["generate an image", "drop an image", "reduce memory use"], in: await words())
+        engine.size = .square(1024)
+        engine.prompt = ""
         guard let picker = variantPicker(in: host) else { throw HistoryUIError(message: "Missing image model picker") }
         picker.selectedSegment = 1
         guard picker.sendAction(picker.action, to: picker.target) else { throw HistoryUIError(message: "Image picker has no action") }
-        try expect(["2 to 50", "recreate a base", "download"], in: await words())
+        let base1024 = try await words(snapshot: "studio-image-base-memory-1024.png")
+        try expect(["2 to 50", "recreate a base", "download", "reduce memory use"], in: base1024)
+        try click("download", in: base1024.filter { $0.box.midX < 0.25 })
+        let baseReady = ContinuousClock.now.advanced(by: .seconds(4))
+        while engine.modelDirectory == nil && ContinuousClock.now < baseReady { try await Task.sleep(for: .milliseconds(20)) }
+        guard engine.modelDirectory == fixtures.catalog.destination(for: .base) else { throw HistoryUIError(message: "Base download failed") }
+
+        engine.prompt = "--low-memory"  // The fixture worker reports how many independent flags it received.
+        try await checkMemorySubmission(0, size: "1024")  // Selecting Turbo's option does not opt Base in.
+        try click("reduce memory use", in: await words())
+        try await checkMemorySubmission(1, size: "1024")
+        engine.prompt = ""
+        engine.size = .square(768)
+        let base768 = try await words()
+        guard !base768.contains(where: { $0.text.contains("reduce memory") }) else {
+            throw HistoryUIError(message: "768 px uses the automatic Base policy and must not offer a switch")
+        }
+        engine.size = .square(512)
         guard engine.variant == .base && engine.steps == 40 else { throw HistoryUIError(message: "Base picker failed") }
         try expect(["use turbo"], in: await words())
         guard !imageView.acceptReferenceDrop([reference]) else {
@@ -253,10 +311,10 @@ struct ImageHistoryInterfaceCheck {
         try fileManager.copyItem(at: example, to: sample)
         let store = GeneratedImageHistory(directory: images)
         let saved = try store.save(png: sample, prompt: "A cobalt blue teapot", modelName: "Fixture model",
-                                   size: 512, steps: 17, seed: 371)
-        try fileManager.copyItem(at: example, to: sample)
+                                   size: .square(512), steps: 17, seed: 371)
+        try StudioImageFixtures.writePNG(to: sample, width: twoK.width, height: twoK.height)
         let fast = try store.save(png: sample, prompt: "A mint bicycle", modelName: "Fixture model", variant: .turbo,
-                                  size: 512, steps: 8, seed: 492)
+                                  size: twoK, steps: 8, seed: 492)
         let legacy = images.appendingPathComponent("Image-29-\(UUID().uuidString).png")
         try fileManager.copyItem(at: example, to: legacy)
         await engine.refreshHistory()
@@ -293,19 +351,22 @@ struct ImageHistoryInterfaceCheck {
         try click("a cobalt blue teapot", in: narrow)
         try click("reuse settings", in: await words())
         try await Task.sleep(for: .milliseconds(120))
-        guard engine.prompt == "A cobalt blue teapot", engine.variant == .base, engine.size == 512, engine.steps == 17, engine.seed == 371,
+        guard engine.prompt == "A cobalt blue teapot", engine.variant == .base, engine.size == .square(512), engine.steps == 17, engine.seed == 371,
               !engine.running, fileManager.fileExists(atPath: saved.fileURL.path),
               fileManager.fileExists(atPath: legacy.path) else {
             throw HistoryUIError(message: "Reusing a saved entry must restore the draft and preserve both images")
         }
         try click("history", in: await words())
         try click("a mint bicycle", in: await words())
-        try expect(["variant", "turbo", "492"], in: await words())
-        try click("reuse settings", in: await words())
-        try expect(["8 steps", "installed on this mac"], in: await words())
+        let twoKDetails = try await words()
+        try expect(["variant", "turbo", "2048", "492"], in: twoKDetails)
+        try await download(twoKDetails, filename: "Image-492.png", accept: true, source: fast.fileURL)
+        try click("reuse settings", in: twoKDetails)
+        try expect(["8 steps", "installed on this", "2048"], in: await words())
         guard engine.variant == .turbo && engine.prompt == "A mint bicycle" && engine.steps == 8 && engine.seed == 492
-              && !engine.running && fileManager.fileExists(atPath: fast.fileURL.path) else {
-            throw HistoryUIError(message: "Reusing Turbo must select its eight-step generator")
+              && engine.modelDirectory == fixtures.catalog.destination(for: .turbo)
+              && engine.size == twoK && !engine.running && fileManager.fileExists(atPath: fast.fileURL.path) else {
+            throw HistoryUIError(message: "Reusing Turbo must restore its 2048 px setting and eight steps")
         }
         // One recent image of each variant already exists in the fixture's gallery.
         let now = Date()
@@ -341,7 +402,7 @@ struct ImageHistoryInterfaceCheck {
         // Keep Lab open while the production controller completes another image.
         let turboFolder = fixtures.catalog.destination(for: .turbo)
         try fileManager.copyItem(at: example, to: turboFolder.appendingPathComponent("sample.png"))
-        engine.start(model: turboFolder, prompt: "Usage check", size: 512, steps: 8, seed: 19)
+        engine.start(model: turboFolder, prompt: "Usage check", size: .square(512), steps: 8, seed: 19)
         let finished = ContinuousClock.now.advanced(by: .seconds(12))
         while engine.running && ContinuousClock.now < finished { try await Task.sleep(for: .milliseconds(40)) }
         guard !engine.running && engine.error == nil else {

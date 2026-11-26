@@ -1754,7 +1754,16 @@ extension StudioModesCheck {
       $0.phase == .complete && !$0.answer.isEmpty && $0.generatedTokens == 6
     }, "The visible start button submits a real comparison across both fixture engines")
     let answers = try await displayedCells()
-    expectText("First text", in: answers)
+    // Vision sometimes reads the rendered label as "Firsttext" at 1×.
+    func recognizesFirstText(in lines: [String]) -> Bool {
+      lines.joined(separator: " ").range(of: #"(?i)\bfirst\s*text\b"#, options: .regularExpression) != nil
+    }
+    check(recognizesFirstText(in: ["Atlas", "Firsttext", "6 ms"])
+      && recognizesFirstText(in: ["First", "text"])
+      && !recognizesFirstText(in: ["First token", "First textual answer"]),
+      "Lab OCR tolerates spacing and still requires the First text label")
+    check(recognizesFirstText(in: answers.map(\.text)),
+      "Expected 'First text' in rendered Lab, read \(answers.map(\.text))")
     expectText("Decode", in: answers)
     // "This" uniquely identifies this sidebar entry and avoids OCR's Latin/Cyrillic Mac homoglyphs.
     clickSidebar("This", in: answers)
