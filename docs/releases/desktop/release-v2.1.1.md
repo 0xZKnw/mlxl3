@@ -21,11 +21,17 @@ The DMG is ad-hoc signed. First launch may require approval in System Settings â
 
 ## Verification and limits
 
-_To be completed with the build._
+- Every source of the app was recompiled with warnings as errors together with the Studio modes check, which passed (2,534 checks, fake engine); the task workspace check passed (96), which still verifies that command receipts are recorded.
+- No test read these labels, so none was changed. The app binary of this DMG no longer contains the removed label text.
+- **Not verified:** the app of this DMG was not launched, so the row was not looked at on screen. No engine test and no real-model run were repeated for this release: the Rust sources are those of engine 2.0.38. CI of `main` for this source had not finished when this release was published.
 
 ## Source and download
 
-_To be completed with the build._
+- Source: [`2dfb37057`](https://github.com/0xZKnw/mlxl3/commit/2dfb37057) (tag `v2.1.1`).
+- `MLXL3-Desktop-v2.1.1-b89-Apple-Silicon.dmg`: 254,248,731 bytes, SHA-256 `d6dbc465238ea60dde14a6c398bfd0b5fbdfeed766d2d442d21f6d8ce395839a`.
+- `MLXL3-Desktop-v2.1.1-b89-Apple-Silicon.dmg.sha256`: 109 bytes.
+- Bundled engine: MLXL3 engine 2.0.38 rebuilt from this source (same Rust sources as `engine-v2.0.38`).
+- This DMG: `hdiutil verify` valid, `codesign --deep --strict` passed on the app of the mounted DMG, version 2.1.1 / build 89, `build-info` has commit `2dfb37057` with no tracked changes, MLX 0.32.2 and engine 2.0.38 (`engine-v2.0.38`).
 
 ## Acknowledgements
 
