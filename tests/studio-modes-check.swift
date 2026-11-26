@@ -130,6 +130,266 @@ extension StudioModel {
     return checks
   }
 
+  /// AGENT-2026-11-26-V21: the stored summary of earlier turns, the agreement before a
+  /// command that cannot be taken back, and the single conversation mode.
+  static func checkAgentV21(root: URL, prefs: UserDefaults, model: LocalModel) async throws -> Int {
+    var count = 0
+    func check(_ value: @autoclosure () throws -> Bool, _ message: String) {
+      precondition((try? value()) == true, message)
+      count += 1
+    }
+    func wait(line: UInt = #line, _ predicate: @MainActor () -> Bool) async throws {
+      for _ in 0..<400 {
+        if predicate() { return }
+        try await Task.sleep(for: .milliseconds(20))
+      }
+      preconditionFailure("Agent 2.1 check timed out at line \(line)")
+    }
+    let files = FileManager.default
+    func ready(_ name: String, unified: Bool = false) async throws -> StudioModel {
+      let studio = StudioModel(
+        conversationFileURL: root.appendingPathComponent(name + ".json"), preferences: prefs, unified: unified)
+      studio.models = [model]
+      studio.selectModel(model.name)
+      try await wait { studio.engineState.isReady }
+      studio.selectMode(.agent)
+      try await wait { studio.engineState.isReady && studio.mcpToolCount == 1 && !studio.mcpUpdating }
+      return studio
+    }
+    func turn(_ studio: StudioModel, _ text: String) async throws {
+      // A branch or another task reconnects the sandbox first.
+      try await wait { studio.engineState.isReady && !studio.mcpUpdating && !studio.agentStudioBusy }
+      let before = studio.currentConversation!.messages.count
+      studio.draft = text
+      studio.send()
+      try await wait { !studio.isGenerating && !studio.agentStudioBusy && studio.currentConversation?.messages.count == before + 2 }
+    }
+    /// The messages of the request the fake engine echoed as the last answer.
+    func sent(_ studio: StudioModel) throws -> [[String: Any]] {
+      let echoed = try JSONSerialization.jsonObject(with: Data(studio.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+      return echoed["messages"] as! [[String: Any]]
+    }
+
+    // A. The engine summarized the oldest turns: kept with the conversation, not sent again.
+    let summary = try await ready("v21-summary")
+    try await turn(summary, "first question")
+    try await turn(summary, "second question")
+    try await turn(summary, "summarize-invalid")
+    check(summary.currentConversation?.contextSummary == nil,
+      "A summary naming no message, an assistant message, another request, the system prompt or no text is ignored")
+    try await turn(summary, "summarize-history")
+    var messages = summary.currentConversation!.messages
+    let prefix = "[Summary of the earlier conversation, written by you to free context:]\n- fixture summary\n[End of the summary. The conversation continues with the user's message below.]\n\n"
+    check(
+      summary.currentConversation?.contextSummary == ConversationSummary(prefix: prefix, firstKept: messages[2].id),
+      "The summary is kept with the conversation, at the user message the engine named")
+    check(messages.count == 8 && messages.allSatisfy { $0.error == nil }, "The user still reads every message")
+    try await turn(summary, "after the summary")
+    var request = try sent(summary)
+    check(
+      request.count == 8 && request[0]["role"] as? String == "system"
+        && request[1]["content"] as? String == prefix + "second question"
+        && request[2]["role"] as? String == "assistant" && request.last?["content"] as? String == "after the summary"
+        && !request.contains { $0["role"] as? String == "user" && $0["content"] as? String == "first question" },
+      "The next request starts at the first kept message, headed by the summary: \(request.map { $0["role"] as? String ?? "?" })")
+    // A later summary moves the start again (the engine merged the earlier one).
+    try await turn(summary, "summarize-history")
+    messages = summary.currentConversation!.messages
+    check(summary.currentConversation?.contextSummary?.firstKept == messages[4].id, "A newer summary replaces the stored one")
+    let saved = try JSONEncoder().encode(summary.currentConversation!.snapshot)
+    check(
+      Conversation(snapshot: try JSONDecoder().decode(ConversationSnapshot.self, from: saved)).contextSummary
+        == summary.currentConversation?.contextSummary, "The summary is saved with the conversation")
+    var orphan = try JSONSerialization.jsonObject(with: saved) as! [String: Any]
+    orphan["contextSummary"] = ["prefix": prefix, "firstKept": UUID().uuidString]
+    check(
+      Conversation(snapshot: try JSONDecoder().decode(ConversationSnapshot.self, from: JSONSerialization.data(withJSONObject: orphan)))
+        .contextSummary == nil, "A saved summary whose message is gone is dropped")
+    let original = summary.selectedConversationID!
+    check(summary.branchConversation(at: messages[1].id) && summary.currentConversation?.contextSummary == nil,
+      "A branch that ends before the summary's first message sends its whole history")
+    try await turn(summary, "branch question")
+    request = try sent(summary)
+    check(request.count == 4 && request[1]["content"] as? String == "first question", "and the model reads it from the start")
+    summary.selectConversation(original)
+    try await wait { summary.engineState.isReady && !summary.mcpUpdating }
+    check(summary.branchConversation(at: messages[7].id) && summary.currentConversation?.contextSummary?.firstKept == messages[4].id,
+      "A branch that still holds that message keeps the summary")
+    summary.stopServices()
+    await summary.bridge.stopAndWait()
+
+    // B. A command that cannot be taken back waits for the user, in a folder task only.
+    let base = try AgentSandbox.canonicalRoot(files.temporaryDirectory).appendingPathComponent("mlxl3-agent-v21-\(UUID().uuidString)")
+    try files.createDirectory(at: base.appendingPathComponent("project"), withIntermediateDirectories: true)
+    defer { try? files.removeItem(at: base) }
+    let guarded = try await ready("v21-approval")
+    check(guarded.workInAgentFolder(base.appendingPathComponent("project")), "A folder for the guarded task")
+    try await wait { guarded.engineState.isReady && !guarded.mcpUpdating }
+    let store = guarded.agentStore!
+    func ask(_ command: String) throws -> AgentApproval.Request {
+      let asked = AgentApproval.Request(id: UUID().uuidString, command: command, reason: "deletes files")
+      let folder = AgentApproval.folder(metadata: store.metadata)
+      try? files.removeItem(at: folder)
+      try files.createDirectory(at: folder, withIntermediateDirectories: true)
+      try JSONEncoder().encode(asked).write(to: folder.appendingPathComponent("request.json"), options: .atomic)
+      return asked
+    }
+    func answer(_ asked: AgentApproval.Request) -> AgentApproval.Response? {
+      let file = AgentApproval.folder(metadata: store.metadata).appendingPathComponent("response-\(asked.id).json")
+      return (try? Data(contentsOf: file)).flatMap { try? JSONDecoder().decode(AgentApproval.Response.self, from: $0) }
+    }
+    var asked = try ask("rm -rf old")
+    try await Task.sleep(for: .milliseconds(500))
+    check(guarded.agentApproval == nil, "Nothing is asked while no turn runs")
+    guarded.draft = "hang-cooperative"
+    guarded.send()
+    try await wait { guarded.agentApproval == asked }
+    guarded.answerAgentApproval(true)
+    check(guarded.agentApproval == nil && answer(asked) == .init(id: asked.id, approved: true), "Allow reaches the sandbox server")
+    asked = try ask("git reset --hard")
+    try await wait { guarded.agentApproval == asked }
+    guarded.answerAgentApproval(false)
+    check(answer(asked) == .init(id: asked.id, approved: false), "Refuse reaches it too")
+    // The server gave up (its request is gone): the question leaves the screen.
+    asked = try ask("rm a")
+    try await wait { guarded.agentApproval == asked }
+    try files.removeItem(at: AgentApproval.folder(metadata: store.metadata))
+    try await wait { guarded.agentApproval == nil }
+    // The alert still shows a request the server gave up while the next one is asked:
+    // agreeing to the one that was read never agrees to the other.
+    let read = asked
+    asked = try ask("rm -rf everything")
+    try await wait { guarded.agentApproval == asked }
+    guarded.answerAgentApproval(true, for: read)
+    check(
+      answer(asked) == nil && answer(read) == nil && guarded.agentApproval == asked,
+      "An answer to an earlier request leaves the current one unanswered and on screen")
+    guarded.answerAgentApproval(false, for: asked)
+    check(
+      answer(asked) == .init(id: asked.id, approved: false) && guarded.agentApproval == nil,
+      "and the current one is answered by its own button")
+    check(try store.state().permissions.confirmDestructive, "Asking is on until the user says otherwise")
+    asked = try ask("rm b")
+    try await wait { guarded.agentApproval == asked }
+    guarded.answerAgentApproval(true, always: true)
+    check(
+      try store.state().permissions.confirmDestructive == false && answer(asked)?.approved == true,
+      "Always allow answers this request and stops the question for this task")
+    asked = try ask("rm c")
+    try await wait { guarded.agentApproval == asked }
+    guarded.stopGeneration()
+    try await wait { !guarded.isGenerating }
+    check(guarded.agentApproval == nil && answer(asked) == nil, "Stop ends the turn without agreeing to anything")
+    asked = try ask("rm d")
+    try await Task.sleep(for: .milliseconds(500))
+    check(guarded.agentApproval == nil, "and nothing is asked after the turn")
+    guarded.stopServices()
+    await guarded.bridge.stopAndWait()
+
+    // C. One conversation mode: chats saved by earlier versions become tasks.
+    let history = root.appendingPathComponent("v21-unified.json")
+    let two = StudioModel(conversationFileURL: history, preferences: prefs)
+    two.models = [model]
+    two.selectModel(model.name)
+    try await wait { two.engineState.isReady }
+    two.draft = "an old chat"
+    two.send()
+    try await wait { !two.isGenerating && two.currentConversation?.messages.count == 2 }
+    let chat = two.selectedConversationID!
+    check(two.selectedMode == .chat && two.currentConversation?.agent == false && !two.unified, "Two modes: a chat stays a chat")
+    check(two.persistNow(), "The two-mode history is written")
+    two.stopServices()
+    await two.bridge.stopAndWait()
+    check(
+      StudioMode.navigation(unified: false) == StudioMode.allCases
+        && StudioMode.navigation(unified: true) == [.agent, .decision, .server, .lab],
+      "The single mode offers Agent first and no Chat")
+    let one = StudioModel(conversationFileURL: history, preferences: prefs, unified: true)
+    check(
+      one.unified && one.selectedMode == .agent && one.selectedConversationID == chat
+        && one.conversations.allSatisfy(\.agent) && one.currentConversation?.messages.count == 2
+        && one.sidebarConversations(matching: "").contains { $0.id == chat },
+      "An earlier chat opens as a task, with its messages, in the one list")
+    one.models = [model]
+    one.selectModel(model.name)
+    try await wait { one.engineState.isReady && one.mcpToolCount == 1 && !one.mcpUpdating }
+    check(one.agentFolder == nil && one.agentToolsReady, "It has no folder and its tools are ready")
+    one.selectMode(.chat)
+    check(one.selectedMode == .agent, "Asking for Chat stays in Agent")
+    try await turn(one, "hello again")
+    request = try sent(one)
+    let echoed = try JSONSerialization.jsonObject(with: Data(one.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(
+      echoed["mcp_enabled"] as? Bool == true && echoed["tool_rounds"] != nil
+        && (request[0]["content"] as? String)?.contains("local coding agent") == true
+        && request.contains { $0["content"] as? String == "an old chat" },
+      "A message in an earlier chat is an Agent turn that still carries the chat's history")
+    // The servers the user set up for Chat serve the single mode, when MCP is on; the
+    // task's own sandbox entry cannot be replaced by one of the same name.
+    func servers(_ studio: StudioModel) throws -> [String: [String: Any]] {
+      let registry = try studio.modesRegistryForCheck()
+      let config = try JSONSerialization.jsonObject(
+        with: Data(contentsOf: registry.deletingLastPathComponent().appendingPathComponent("mcp.json"))) as! [String: Any]
+      return config["mcpServers"] as! [String: [String: Any]]
+    }
+    try JSONSerialization.data(withJSONObject: ["version": 1, "mcpServers": [
+      "mine": ["command": "/usr/bin/true", "args": [String]()], "sandbox": ["command": "/usr/bin/false"],
+      "broken": "not a server",
+    ]]).write(to: one.mcpConfigurationURL, options: .atomic)
+    let wasEnabled = one.mcpEnabled
+    if wasEnabled {
+      one.setMCPEnabled(false)
+      try await wait { !one.mcpUpdating }
+    }
+    check(Set(try servers(one).keys) == ["exa", "sandbox"], "With MCP off the Agent has its own two servers only")
+    one.setMCPEnabled(true)
+    try await wait { !one.mcpUpdating && one.engineState.isReady }
+    let merged = try servers(one)
+    check(
+      Set(merged.keys) == ["exa", "sandbox", "mine"] && merged["mine"]?["command"] as? String == "/usr/bin/true"
+        && merged["sandbox"]?["command"] as? String != "/usr/bin/false"
+        && (merged["sandbox"]?["args"] as? [String])?.first == "--agent-tools",
+      "With MCP on the user's servers are added, and the sandbox stays the app's: \(merged.keys.sorted())")
+    check(one.agentToolsReady, "A user's server never keeps the Agent from sending")
+    one.setMCPEnabled(false)
+    try await wait { !one.mcpUpdating && one.engineState.isReady }
+    check(Set(try servers(one).keys) == ["exa", "sandbox"] && one.mcpToolCount == 1 && one.agentToolsReady,
+      "Turning MCP off removes them and keeps the sandbox connected")
+    if wasEnabled { one.setMCPEnabled(true); try await wait { !one.mcpUpdating } }
+    if CommandLine.arguments.count > 2 {
+      _ = NSApplication.shared
+      let window = NSWindow(
+        contentRect: NSRect(x: 0, y: 0, width: 1200, height: 800), styleMask: .borderless, backing: .buffered, defer: false)
+      window.isReleasedWhenClosed = false
+      let host = NSHostingView(rootView: StudioView().environmentObject(one).preferredColorScheme(.dark))
+      window.contentView = host
+      host.frame = NSRect(x: 0, y: 0, width: 1200, height: 800)
+      defer { window.close() }
+      try await Task.sleep(for: .milliseconds(400))
+      host.layoutSubtreeIfNeeded()
+      if let image = host.bitmapImageRepForCachingDisplay(in: host.bounds) {
+        host.cacheDisplay(in: host.bounds, to: image)
+        try image.representation(using: .png, properties: [:])?
+          .write(to: URL(fileURLWithPath: CommandLine.arguments[2] + ".unified.png"))
+      }
+    }
+    one.selectMode(.server)
+    one.newConversation()
+    try await wait { one.selectedMode == .agent }
+    check(one.currentConversation?.agent == true, "A new conversation from another page is a task")
+    one.selectMode(.lab)
+    if one.selectedMode == .lab {
+      one.leaveLab()
+      check(one.selectedMode == .agent, "Leaving Lab returns to Agent")
+    }
+    check(one.persistNow(), "The single-mode history is written")
+    one.stopServices()
+    await one.bridge.stopAndWait()
+    let again = StudioModel(conversationFileURL: history, preferences: prefs, unified: true)
+    check(again.conversations.allSatisfy(\.agent) && again.selectedMode == .agent, "and reopens the same way")
+    return count
+  }
+
   /// AGENT-2026-11-25-DOSSIER-DIRECT: an Agent task that works in a user's folder itself.
   static func checkAgentFolders(root: URL, prefs: UserDefaults, model: LocalModel) async throws
     -> Int
@@ -1269,6 +1529,7 @@ extension StudioModel {
     }
     count += try await StudioModel.checkAgentGuards(root: root, prefs: prefs, model: model)
     count += try await StudioModel.checkAgentFolders(root: root, prefs: prefs, model: model)
+    count += try await StudioModel.checkAgentV21(root: root, prefs: prefs, model: model)
     try await checkLabPeriodControl(root: root, prefs: prefs) { check($0, $1) }
     print(
       "Studio modes checks passed: \(count), navigation, migration, isolated Agent registry, model reuse, request wiring, Lab persistence and real server lifecycle"

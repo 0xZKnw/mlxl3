@@ -15,11 +15,14 @@ struct AgentPermissions: Codable, Equatable, Sendable {
   var internet = true
   /// Hosts `fetch` and `download` may reach (`AgentNetwork.hostAllowed`).
   var internetHosts = AgentNetwork.defaultHosts
+  /// In a user's folder: ask the user before a command that deletes or rewrites without a
+  /// way back (`AgentApproval`). A task on its own copy never asks.
+  var confirmDestructive = true
 
   init() {}
 
   enum CodingKeys: String, CodingKey {
-    case read, write, run, commandSeconds, internet, internetHosts
+    case read, write, run, commandSeconds, internet, internetHosts, confirmDestructive
     case harness = "toolHarness"
   }
 
@@ -33,6 +36,108 @@ struct AgentPermissions: Codable, Equatable, Sendable {
     harness = try container.decodeIfPresent(AgentHarness.self, forKey: .harness) ?? harness
     internet = try container.decodeIfPresent(Bool.self, forKey: .internet) ?? internet
     internetHosts = try container.decodeIfPresent([String].self, forKey: .internetHosts) ?? internetHosts
+    confirmDestructive = try container.decodeIfPresent(Bool.self, forKey: .confirmDestructive) ?? confirmDestructive
+  }
+}
+
+/// The user's agreement before a command that cannot be taken back, for a task that works in
+/// the user's own folder (AGENT-2026-11-26-V21, B). The sandbox server writes a request in
+/// the task's history folder and waits; the app shows it and writes the answer. That folder is
+/// outside every root the sandbox lets commands write to, so the model cannot answer itself.
+enum AgentApproval {
+  struct Request: Codable, Equatable, Sendable, Identifiable {
+    let id: String
+    let command: String
+    /// What the command would do, in a few English words (shown to the model on refusal).
+    let reason: String
+  }
+  struct Response: Codable, Equatable, Sendable {
+    let id: String
+    let approved: Bool
+  }
+  enum Answer: Equatable, Sendable { case approved, denied, unanswered }
+
+  /// How long the server waits for the user (the engine's deadline of the call covers it).
+  static let seconds = 60.0
+  /// Overrides `seconds` (tests).
+  static let secondsVariable = "MLXL3_AGENT_APPROVAL_SECONDS"
+
+  static func folder(metadata: URL) -> URL { metadata.appendingPathComponent("approvals", isDirectory: true) }
+  private static func requestFile(_ metadata: URL) -> URL { folder(metadata: metadata).appendingPathComponent("request.json") }
+  private static func responseFile(_ metadata: URL, _ id: String) -> URL {
+    folder(metadata: metadata).appendingPathComponent("response-\(id).json")
+  }
+
+  /// `w`: not part of a word, a path or an option on that side.
+  private static let patterns: [(pattern: String, reason: String)] = {
+    // A command word, alone or behind a path (`/bin/rm`, `./rm`); never an option or a suffix.
+    let before = #"(?<![\w.-])(?:[\w.~/-]*/)?"#, after = #"(?![\w.-])"#, rest = #"[^;&|\n]*"#
+    return [
+      // rm, rmdir, unlink, shred as a command word anywhere (after xargs, in `sh -c "…"`, in
+      // `$(…)`), not as a path, an option (`--rm`) or part of a word (`npm`, `form`).
+      (before + "(?:rm|rmdir|unlink|shred|srm)" + after, "deletes files"),
+      (before + "find" + after + rest + #"\s-delete"# + after, "deletes files"),
+      (before + "truncate" + after, "empties files"),
+      (before + "dd" + after + rest + #"\bof="#, "overwrites a file or a disk"),
+      (before + #"(?:mkfs[.\w]*|diskutil\s+(?:erase|partition|reformat)\w*)"#, "erases a disk"),
+      (before + "git" + after + rest
+        + #"\s(?:reset\s+(?:[^;&|\n]*\s)?--hard|clean(?![\w-])|checkout\s+(?:[^;&|\n]*\s)?(?:--(?=\s)|\.(?=\s|$)|-f(?![\w-])|--force)|restore(?![\w-])|stash\s+(?:drop|clear))"#,
+        "discards uncommitted changes"),
+      (before + "git" + after + rest
+        + #"\s(?:push(?![\w-])[^;&|\n]*\s(?:--force(?:-with-lease)?|-f)(?![\w-])|branch\s+(?:[^;&|\n]*\s)?-D(?![\w-])|filter-branch)"#,
+        "rewrites or deletes git history"),
+    ]
+  }()
+
+  /// Why `command` needs the user's agreement, or nil. A match on words: it asks too often
+  /// rather than too rarely (`echo rm` asks), and cannot see what a script deletes.
+  static func reason(for command: String) -> String? {
+    patterns.first { command.range(of: $0.pattern, options: .regularExpression) != nil }?.reason
+  }
+
+  /// Server side: asks and waits up to `seconds`. `alive` ends the wait early (its parent is gone).
+  static func ask(
+    metadata: URL, command: String, reason: String, seconds: Double, alive: () -> Bool = { true }
+  ) -> Answer {
+    let request = Request(id: UUID().uuidString, command: command, reason: reason)
+    let folder = folder(metadata: metadata)
+    do {
+      try? FileManager.default.removeItem(at: folder)  // answers to earlier requests
+      try FileManager.default.createDirectory(
+        at: folder, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+      try JSONEncoder().encode(request).write(to: requestFile(metadata), options: .atomic)
+    } catch { return .unanswered }
+    defer { try? FileManager.default.removeItem(at: folder) }
+    let deadline = ProcessInfo.processInfo.systemUptime + seconds
+    while ProcessInfo.processInfo.systemUptime < deadline, alive() {
+      if let data = try? Data(contentsOf: responseFile(metadata, request.id)),
+        let response = try? JSONDecoder().decode(Response.self, from: data), response.id == request.id
+      {
+        return response.approved ? .approved : .denied
+      }
+      usleep(50_000)
+    }
+    return .unanswered
+  }
+
+  /// App side: the request waiting for an answer, if any.
+  static func pending(metadata: URL) -> Request? {
+    guard let data = try? Data(contentsOf: requestFile(metadata)) else { return nil }
+    return try? JSONDecoder().decode(Request.self, from: data)
+  }
+
+  /// App side: answers `request` (ignored when the server no longer waits for it).
+  static func answer(metadata: URL, request: Request, approved: Bool) throws {
+    guard pending(metadata: metadata)?.id == request.id else { return }
+    try JSONEncoder().encode(Response(id: request.id, approved: approved))
+      .write(to: responseFile(metadata, request.id), options: .atomic)
+  }
+
+  /// What the model reads when the command was not run.
+  static func refusal(_ answer: Answer, reason: String, seconds: Double) -> String {
+    answer == .denied
+      ? "The user refused this command (it \(reason)), so it was not run. Do not run it again, in this form or another: continue without it, or explain in your answer what you wanted to do and why."
+      : "This command \(reason), so it needs the user's agreement, and they did not answer within \(Int(seconds)) seconds: it was not run. Do not retry it now. Finish what does not depend on it, then say in your answer which command you want to run and why."
   }
 }
 
@@ -835,7 +940,11 @@ enum AgentSandbox {
       "args": ["--agent-tools", root.path, project.path] + (longCalls ? ["long-calls"] : []),
     ]
     if let home { entry["env"] = [homeVariable: home.path] }
-    if longCalls { entry["callTimeoutSeconds"] = longCallTimeoutSeconds }
+    // In a user's folder a call may first wait for the user's agreement (`AgentApproval`).
+    if longCalls {
+      entry["callTimeoutSeconds"] = home == nil
+        ? longCallTimeoutSeconds : min(120, longCallTimeoutSeconds + Int(AgentApproval.seconds))
+    }
     return entry
   }
 
@@ -898,6 +1007,23 @@ enum AgentSandbox {
       let outcome = try JSONDecoder().decode(AgentJavaScript.Outcome.self, from: data)
       defer { kernelLost = false }
       return (outcome, kernelLost)
+    }
+    /// A task in a user's folder (a home was assigned) asks the user before a command that
+    /// cannot be taken back; refused or unanswered, the command is not run and the model is told.
+    let approvalSeconds = ProcessInfo.processInfo.environment[AgentApproval.secondsVariable]
+      .flatMap(Double.init).flatMap { (0.2...120).contains($0) ? $0 : nil }
+      ?? (longCalls ? AgentApproval.seconds : 6)
+    let server = getppid()
+    func requireApproval(_ command: String, _ permissions: AgentPermissions) throws {
+      guard assignedHome != nil, permissions.confirmDestructive, let permissionsPath,
+        let reason = AgentApproval.reason(for: command)
+      else { return }
+      let answer = AgentApproval.ask(
+        metadata: URL(fileURLWithPath: permissionsPath).deletingLastPathComponent(), command: command,
+        reason: reason, seconds: approvalSeconds, alive: { getppid() == server })
+      guard answer == .approved else {
+        throw Refusal(text: AgentApproval.refusal(answer, reason: reason, seconds: approvalSeconds))
+      }
     }
     /// What every kernel call carries: the permissions and limits of this request.
     func kernelCall(_ permissions: AgentPermissions, _ commandFolder: URL?) -> [String: Any] {
@@ -1045,6 +1171,9 @@ enum AgentSandbox {
             let roots = [root, (try? canonicalRoot(URL(fileURLWithPath: root)).path) ?? root]
             let arguments = try AgentTools.arguments(
               name, params["arguments"] as? [String: Any] ?? [:], permissions: permissions, roots: roots)
+            if name == "bash", let command = arguments["command"] as? String {
+              try requireApproval(command, permissions)
+            }
             var call = kernelCall(permissions, commandFolder)
             call["code"] = ""
             call["tool"] = name
@@ -1107,6 +1236,7 @@ enum AgentSandbox {
             switch name {
             case "run":
               guard permissions.run, let text = args["command"] as? String else { throw CocoaError(.fileReadNoPermission) }
+              try requireApproval(text, permissions)
               command = text
             case "list_files":
               guard permissions.read else { throw CocoaError(.fileReadNoPermission) }
@@ -1155,7 +1285,7 @@ enum AgentSandbox {
             ]
           } catch {
             response["result"] = [
-              "content": [["type": "text", "text": "Sandbox command refused or unavailable."]],
+              "content": [["type": "text", "text": (error as? Refusal)?.text ?? "Sandbox command refused or unavailable."]],
               "isError": true,
             ]
           }

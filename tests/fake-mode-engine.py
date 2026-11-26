@@ -201,6 +201,21 @@ elif command == "bridge":
                 active = None
                 continue
             interrupted = None
+            if text in ("summarize-history", "summarize-invalid"):
+                # An engine that summarized the oldest turns: the second user message of the
+                # request is the first one kept. The invalid ones must all be ignored.
+                users = [index for index, message in enumerate(request["messages"]) if message["role"] == "user"]
+                prefix = ("[Summary of the earlier conversation, written by you to free context:]\n- fixture summary\n"
+                          "[End of the summary. The conversation continues with the user's message below.]\n\n")
+                if text == "summarize-invalid":
+                    emit("history_summary", request_id=active, kept_from=999, prefix=prefix)
+                    emit("history_summary", request_id=active, kept_from=users[1] + 1, prefix=prefix)
+                    emit("history_summary", request_id=active, kept_from=users[1])
+                    emit("history_summary", request_id=active, kept_from=users[1], prefix="")
+                    emit("history_summary", request_id="stale", kept_from=users[1], prefix=prefix)
+                    emit("history_summary", request_id=active, kept_from=0, prefix=prefix)
+                else:
+                    emit("history_summary", request_id=active, kept_from=users[1], prefix=prefix)
             if text in ("tools-then-hang", "tools-then-error"):
                 key = {"request_id": active, "tool_call_id": "w1", "tool_name": "write"}
                 emit("delta", request_id=active, phase="answer", text="Writing the game.")

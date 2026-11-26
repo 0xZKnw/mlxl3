@@ -5240,9 +5240,9 @@ fn bridge_generate_round(
     let mut reasoning_cut = None;
     let mut closing_plan: Option<(&str, String, usize)> = None;
     let summarizing = buffer_output
-        && messages
-            .last()
-            .is_some_and(|message| message["content"] == mlxl3_native::agent_loop::SUMMARY_REQUEST);
+        && messages.last().is_some_and(|message| {
+            mlxl3_native::agent_loop::is_summary_request(&message["content"])
+        });
     // The prompt says which call format the model will use: Inkling 2 declares its tools
     // in a `tool_declare` system message, and may write text before a call.
     let inkling_tools = rendered.contains("<|message_system|>tool_declare<|content_xml|>");
@@ -5896,7 +5896,15 @@ fn bridge_generate(
     let schema = response_schema
         .map(mlxl3_native::structured::Schema::parse)
         .transpose()?;
-    let mut dialogue = validated_bridge_messages(messages)?;
+    // Each client message, expanded; `origins` names the client message of every result.
+    let mut dialogue = Vec::new();
+    let mut origins = Vec::new();
+    for (index, message) in messages.into_iter().enumerate() {
+        let expanded = validated_bridge_messages(vec![message])?;
+        origins.extend(std::iter::repeat_n(index, expanded.len()));
+        dialogue.extend(expanded);
+    }
+    anyhow::ensure!(!dialogue.is_empty(), "messages cannot be empty");
     if let Some(schema) = &schema {
         anyhow::ensure!(
             mcp.chat_tools().is_empty(),
@@ -5964,6 +5972,8 @@ fn bridge_generate(
             schema: schema.as_ref(),
             allowed_tools,
             original_length,
+            // JSON output has no tools, so no summary: its added system message shifts nothing.
+            origins: &origins,
         },
     )?;
     let mut stats = host.summary.context("missing generation statistics")?;

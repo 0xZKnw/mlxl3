@@ -165,6 +165,10 @@ struct BridgeEvent: Decodable {
         }.joined(separator: ",")
     }
     var turnContext: String? = nil
+    /// `history_summary`: index, in the request's messages, of the first one kept.
+    var keptFrom: Int? = nil
+    /// `history_summary`: the text now at the head of that message, exactly.
+    var prefix: String? = nil
     var runtimeCommit: String? = nil
     var runtimeProfile: String? = nil
     var mlxVersion: String? = nil
@@ -249,6 +253,8 @@ struct BridgeEvent: Decodable {
         case qwenGroupExpertStages = "qwen_group_expert_stages"
         case qwenDeviceGreedy = "qwen_device_greedy"
         case turnContext = "turn_context"
+        case keptFrom = "kept_from"
+        case prefix
         case runtimeCommit = "runtime_commit"
         case runtimeProfile = "runtime_profile"
         case mlxVersion = "mlx_version"
@@ -682,6 +688,9 @@ struct Conversation: Identifiable {
     /// Agent: the user's folder this task works in directly (canonical path). Nil: the task
     /// has its own private copy in the app's data.
     var agentFolder: String?
+    /// The engine's summary of the oldest turns, once they filled the context: the model is
+    /// then sent this summary and the messages from `firstKept`, the older ones no longer.
+    var contextSummary: ConversationSummary?
     var updatedAt: Date?
     private var messageSnapshots: ConversationMessageSnapshots
     var messageChanges: AnyPublisher<Void, Never> { messageSnapshots.changed.eraseToAnyPublisher() }
@@ -715,7 +724,8 @@ struct Conversation: Identifiable {
             parentConversationID: parentConversationID,
             agent: agent ? true : nil,
             updatedAt: updatedAt,
-            agentFolder: agent ? agentFolder : nil
+            agentFolder: agent ? agentFolder : nil,
+            contextSummary: contextSummary
         )
     }
 
@@ -732,6 +742,9 @@ struct Conversation: Identifiable {
         parentConversationID = snapshot.parentConversationID
         agent = snapshot.agent ?? false
         agentFolder = agent ? snapshot.agentFolder.flatMap { $0.hasPrefix("/") ? $0 : nil } : nil
+        contextSummary = snapshot.contextSummary.flatMap { summary in
+            messages.contains { $0.id == summary.firstKept && $0.role == .user } ? summary : nil
+        }
         updatedAt = snapshot.updatedAt
     }
 }

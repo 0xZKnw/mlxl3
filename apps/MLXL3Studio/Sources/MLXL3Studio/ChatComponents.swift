@@ -1292,7 +1292,8 @@ private struct ComposerFooterView: View {
                             Label(L("Travailler dans un dossier…", "Work in a folder…"), systemImage: "folder.badge.plus")
                         }
                         .disabled(studio.isGenerating || studio.agentStudioBusy)
-                    } else {
+                    }
+                    if studio.selectedMode != .agent || studio.unified {
                         Divider()
                         Toggle(L("Activer les outils MCP", "Enable MCP tools"), isOn: Binding(
                             get: { studio.mcpEnabled }, set: { studio.setMCPEnabled($0) }))

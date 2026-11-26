@@ -19,6 +19,19 @@ final class StudioModel: ObservableObject {
     private var comparisonObservation: AnyCancellable?
     private var comparisonDestination: StudioMode?
     private var modeBeforeLab: StudioMode = .chat
+    /// One conversation mode (the app since 2.1): every conversation is an Agent task, Chat
+    /// is never selected, and conversations saved as chats become tasks without a folder.
+    /// False keeps the two modes (the checks written for them construct the model that way).
+    let unified: Bool
+    /// `list` as this model keeps conversations: all of them Agent tasks when `unified`.
+    private func adopted(_ list: [Conversation]) -> [Conversation] {
+        guard unified else { return list }
+        return list.map { conversation in
+            var task = conversation
+            task.agent = true
+            return task
+        }
+    }
     let localServer = LocalServer()
     let decision = DecisionStudio()
     let quantizer = QuantizationModel()
@@ -281,6 +294,9 @@ final class StudioModel: ObservableObject {
                 if queuedAgentGuidance != nil { queuedAgentGuidance = nil }
             }
             if activeRequestID == nil {
+                // The turn ended: its server no longer waits for an answer.
+                agentApprovalWatch?.cancel(); agentApprovalWatch = nil
+                if agentApproval != nil { agentApproval = nil }
                 cancellationFallback?.cancel(); cancellationFallback = nil
                 cancellationReason = nil
                 generationStartedAt = nil
@@ -293,6 +309,14 @@ final class StudioModel: ObservableObject {
     @Published private(set) var collapsedAgentFolders: Set<String> = []
 
     @Published var studioDocument: StudioDocument?
+    /// A command the Agent wants to run in the user's folder and that cannot be taken back:
+    /// the sandbox server waits for the answer (`AgentApproval`).
+    @Published private(set) var agentApproval: AgentApproval.Request?
+    private var agentApprovalMetadata: URL?
+    private var agentApprovalWatch: Task<Void, Never>?
+    /// For each message of the active request, the conversation message it carries (nil: the
+    /// system prompt). The engine names a message by its index (`history_summary`).
+    private var activeRequestMessageIDs: [UUID?] = []
     private var cancellationFallback: Task<Void, Never>?
     private var cancellationReason: String?
     /// Set while an Agent turn runs. The app has no time limit on a turn, total or silent
@@ -319,8 +343,10 @@ final class StudioModel: ObservableObject {
         preferences: UserDefaults = .standard,
         idleUnloadNow: @escaping () -> ContinuousClock.Instant = { .now },
         notificationClient: CompletionNotificationClient = .system,
-        applicationIsActive: @escaping () -> Bool = { NSApplication.shared.isActive }
+        applicationIsActive: @escaping () -> Bool = { NSApplication.shared.isActive },
+        unified: Bool = false
     ) {
+        self.unified = unified
         self.conversationFileURL = conversationFileURL
         self.updateManager = updateManager
         self.isPreview = isPreview
@@ -420,6 +446,11 @@ final class StudioModel: ObservableObject {
         }
         updateObservation = updateManager.objectWillChange.sink { [weak self] in
             self?.objectWillChange.send()
+        }
+        if unified {
+            selectedMode = .agent
+            modeBeforeLab = .agent
+            conversations = adopted(conversations)
         }
         if !isPreview { prepareMCPConfiguration() }
     }
@@ -891,7 +922,9 @@ final class StudioModel: ObservableObject {
 
     /// The sandbox answered; web search (Exa) is optional and its absence never blocks Agent.
     var agentToolsReady: Bool {
-        bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.keys.allSatisfy { $0 == "exa" }
+        // The user's own servers (added to the registry when MCP is on) are optional too.
+        bridgeUsesAgentRegistry && mcpToolCount > 0
+            && mcpErrors.keys.allSatisfy { $0 == "exa" || (unified && !["sandbox", "configuration", "connexion"].contains($0)) }
     }
 
     var canSteerActiveAgent: Bool {
@@ -1406,12 +1439,12 @@ final class StudioModel: ObservableObject {
         if let id = selectedConversationID { drafts[id] = draft }
         var conversation = Conversation()
         conversation.projectID = selectedProjectID
-        conversation.agent = selectedMode == .agent
+        conversation.agent = unified || selectedMode == .agent
         // A new task continues in the folder of the one it was started from.
         if conversation.agent, currentConversation?.agent == true { conversation.agentFolder = currentConversation?.agentFolder }
         if selectedMode.standalone {
             let count = conversations.count
-            selectMode(.chat)
+            selectMode(unified ? .agent : .chat)
             // Changing modes already creates a Chat when that history is empty.
             if conversations.count > count { return }
         }
@@ -1535,6 +1568,7 @@ final class StudioModel: ObservableObject {
         activeResponseID = assistant.id
         activeMessageReference = assistant
         if selectedMode == .agent { generationStartedAt = .now }
+        if selectedMode == .agent, let store = agentStore, store.direct { watchAgentApprovals(store.metadata, request: requestID) }
         labConfiguration = nil
         if let model = selectedModel {
             let mode = selectedMode.rawValue, runtime = runtimeIdentity ?? "unknown"
@@ -1556,14 +1590,22 @@ final class StudioModel: ObservableObject {
         if !system.isEmpty {
             messages.append(PromptMessage(role: "system", content: system))
         }
-        messages += conversations[conversationIndex].messages.compactMap { message in
-            guard !message.isStreaming else { return nil }
+        var history = conversations[conversationIndex].messages.filter { !$0.isStreaming }
+        // Turns the engine summarized are no longer sent: the summary heads the first kept one.
+        var summaryPrefix = ""
+        if let summary = conversations[conversationIndex].contextSummary,
+           let start = history.firstIndex(where: { $0.id == summary.firstKept }), history[start].role == .user {
+            history = Array(history[start...])
+            summaryPrefix = summary.prefix
+        }
+        activeRequestMessageIDs = Array(repeating: nil, count: messages.count) + history.map(\.id)
+        messages += history.enumerated().map { index, message in
             let context = message.role == .assistant
                 ? (message.cacheContext ?? message.content)
                 : message.promptContent
             let images = message.role == .user ? message.attachments.compactMap { $0.image?.dataURL } : []
-            return PromptMessage(role: message.role.rawValue, content: context, turnContext: message.turnContext,
-                                 images: images.isEmpty ? nil : images)
+            return PromptMessage(role: message.role.rawValue, content: (index == 0 ? summaryPrefix : "") + context,
+                                 turnContext: message.turnContext, images: images.isEmpty ? nil : images)
         }
 
         do {
@@ -1598,6 +1640,41 @@ final class StudioModel: ObservableObject {
         } catch {
             failActiveTurn(error.localizedDescription)
         }
+    }
+
+    /// While a turn runs in a user's folder: shows the request its sandbox server writes
+    /// before a command that cannot be taken back, and drops it when the server gave up.
+    private func watchAgentApprovals(_ metadata: URL, request: String) {
+        agentApprovalWatch?.cancel()
+        agentApprovalMetadata = metadata
+        agentApprovalWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(150))
+                guard !Task.isCancelled, let self, self.activeRequestID == request else { return }
+                let pending = await Task.detached { AgentApproval.pending(metadata: metadata) }.value
+                guard !Task.isCancelled, self.activeRequestID == request else { return }
+                if pending != self.agentApproval {
+                    self.agentApproval = pending
+                    if pending != nil, !self.isPreview, !self.applicationIsActive() { NSApp?.requestUserAttention(.informationalRequest) }
+                }
+            }
+        }
+    }
+
+    /// The user's answer to `shown` (the request they read; `agentApproval` when nil).
+    /// `always`: this task stops asking. An answer to a request the server no longer waits
+    /// for is ignored: agreeing to a command never agrees to the one asked after it.
+    func answerAgentApproval(_ approved: Bool, always: Bool = false, for shown: AgentApproval.Request? = nil) {
+        guard let request = shown ?? agentApproval, let metadata = agentApprovalMetadata else { return }
+        if agentApproval == request { agentApproval = nil }
+        do {
+            if always, approved, let store = agentStore, store.metadata.path == metadata.path {
+                var permissions = try store.state().permissions
+                permissions.confirmDestructive = false
+                try store.setPermissions(permissions)
+            }
+            try AgentApproval.answer(metadata: metadata, request: request, approved: approved)
+        } catch { featureError = error.localizedDescription }
     }
 
     private func cancelDocumentPreparation() {
@@ -1644,7 +1721,14 @@ final class StudioModel: ObservableObject {
 
     func reloadMCPServers() {
         guard !isGenerating, !mcpUpdating else { return }
+        rewriteAgentServers()
         updateMCPConnection()
+    }
+
+    /// The Agent registry lists the user's servers: it is written again when they change.
+    private func rewriteAgentServers() {
+        guard unified, bridgeUsesAgentRegistry, engineState.isReady else { return }
+        do { _ = try prepareAgentRegistry() } catch { featureError = error.localizedDescription }
     }
 
     func setMCPEnabled(_ enabled: Bool) {
@@ -1652,7 +1736,9 @@ final class StudioModel: ObservableObject {
         mcpEnabled = enabled
         preferences.set(enabled, forKey: "studio.mcpEnabled")
         mcpErrors = [:]
-        if !enabled { mcpServerCount = 0; mcpToolCount = 0 }
+        // In Agent the sandbox stays connected whatever the user's switch says.
+        if !enabled && !bridgeUsesAgentRegistry { mcpServerCount = 0; mcpToolCount = 0 }
+        rewriteAgentServers()
         if engineState.isReady { updateMCPConnection() }
     }
 
@@ -2342,7 +2428,7 @@ final class StudioModel: ObservableObject {
             projects = merged.projects ?? []
             profiles = merged.profiles ?? []
             documents = merged.documents ?? []
-            conversations.insert(contentsOf: newConversations.map(Conversation.init(snapshot:)), at: 0)
+            conversations.insert(contentsOf: adopted(newConversations.map(Conversation.init(snapshot:))), at: 0)
             for saved in newDrafts {
                 drafts[saved.conversationID] = saved.text
                 attachmentDrafts[saved.conversationID] = saved.attachments
@@ -2587,6 +2673,16 @@ final class StudioModel: ObservableObject {
                       conversation.messages.contains { $0.id == activeResponseID }
                   }) else { return }
             conversations[index].contextUsage = ContextUsage(used: max(0, used), limit: limit, model: name)
+        case "history_summary":
+            // The engine summarized the oldest turns to free context. Kept with the
+            // conversation at once: a stopped turn must not make the next one summarize again.
+            guard event.requestID == activeRequestID, let kept = event.keptFrom, let prefix = event.prefix,
+                  !prefix.isEmpty, activeRequestMessageIDs.indices.contains(kept),
+                  let first = activeRequestMessageIDs[kept],
+                  let index = conversations.firstIndex(where: { $0.messages.contains { $0.id == activeResponseID } }),
+                  conversations[index].messages.contains(where: { $0.id == first && $0.role == .user }) else { return }
+            conversations[index].contextSummary = ConversationSummary(prefix: prefix, firstKept: first)
+            schedulePersistence()
         case "generation_status":
             guard event.requestID == activeRequestID,
                   let message = activeMessage() else { return }
@@ -2767,7 +2863,7 @@ final class StudioModel: ObservableObject {
 
     private func restoreWorkspace(from snapshot: WorkspaceSnapshot) {
         restoreLab(from: snapshot)
-        conversations = snapshot.conversations.isEmpty ? [Conversation()] : snapshot.conversations.map(Conversation.init(snapshot:))
+        conversations = adopted(snapshot.conversations.isEmpty ? [Conversation()] : snapshot.conversations.map(Conversation.init(snapshot:)))
         selectedConversationID = conversations.first { $0.id == snapshot.selectedConversationID }?.id ?? conversations.first?.id
         selectedProjectID = currentConversation?.projectID
         selectedMode = currentConversation?.agent == true ? .agent : .chat
@@ -2945,6 +3041,8 @@ extension StudioModel {
     }
 
     func selectMode(_ mode: StudioMode) {
+        // One conversation mode: whatever still asks for Chat gets Agent.
+        let mode = unified && mode == .chat ? StudioMode.agent : mode
         if selectedMode == .lab, mode != .lab, labComparison.isRunning {
             comparisonDestination = mode
             labComparison.cancel()
@@ -3202,12 +3300,20 @@ extension StudioModel {
         let registry = metadata.appending(path: "models.json")
         try JSONSerialization.data(withJSONObject: ["version": 1, "models": [model.name: entry]])
             .write(to: registry, options: .atomic)
-        let config: [String: Any] = ["version": 1, "mcpServers": [
-            // Web search only when this task allows Internet (Sandbox panel).
-            "exa": ["enabled": (try? store.state().permissions.internet) == true, "url": "https://mcp.exa.ai/mcp"],
-            "sandbox": AgentSandbox.serverEntry(
-                executable: Bundle.main.executableURL?.path ?? CommandLine.arguments[0], root: root,
-                project: store.metadata.appendingPathComponent("project.json"), longCalls: engineLongToolCalls, home: home)]]
+        var servers: [String: Any] = [:]
+        // One mode: the servers the user configured for Chat serve the Agent too, when MCP is
+        // on. The task's own two entries below always win over a server of the same name.
+        if unified, mcpEnabled, !isPreview,
+           let saved = try? JSONSerialization.jsonObject(with: Data(contentsOf: mcpConfigurationURL)) as? [String: Any],
+           let own = saved["mcpServers"] as? [String: Any] {
+            servers = own.filter { $0.value is [String: Any] }
+        }
+        // Web search only when this task allows Internet (Sandbox panel).
+        servers["exa"] = ["enabled": (try? store.state().permissions.internet) == true, "url": "https://mcp.exa.ai/mcp"]
+        servers["sandbox"] = AgentSandbox.serverEntry(
+            executable: Bundle.main.executableURL?.path ?? CommandLine.arguments[0], root: root,
+            project: store.metadata.appendingPathComponent("project.json"), longCalls: engineLongToolCalls, home: home)
+        let config: [String: Any] = ["version": 1, "mcpServers": servers]
         try JSONSerialization.data(withJSONObject: config).write(to: metadata.appending(path: "mcp.json"), options: .atomic)
         return registry
     }
@@ -3407,6 +3513,10 @@ extension StudioModel {
         branch.projectID = original.projectID
         branch.parentConversationID = original.id
         branch.messages = original.messages.prefix(index + (includeMessage ? 1 : 0)).compactMap { ChatMessage(snapshot: $0.snapshot) }
+        // The branch keeps the summary only while it still holds the message it starts at.
+        branch.contextSummary = original.contextSummary.flatMap { summary in
+            branch.messages.contains { $0.id == summary.firstKept } ? summary : nil
+        }
         if original.agent, original.agentFolder != nil {
             // Same folder, as it is now: a user's folder is never put back to an earlier state.
             branch.agentFolder = original.agentFolder

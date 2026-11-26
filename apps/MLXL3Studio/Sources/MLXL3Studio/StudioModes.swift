@@ -18,6 +18,12 @@ enum StudioMode: String, CaseIterable, Identifiable, Codable {
   }
   /// Modes with their own workspace instead of a conversation.
   var standalone: Bool { self == .decision || self == .server || self == .lab }
+
+  /// The modes the sidebar and the View menu offer, in ⌘-number order. `unified` (the app
+  /// since 2.1): one conversation mode, Agent; a plain conversation is a task that calls no tool.
+  static func navigation(unified: Bool) -> [StudioMode] {
+    unified ? allCases.filter { $0 != .chat } : allCases
+  }
 }
 
 struct LabSample: Codable, Identifiable, Sendable {

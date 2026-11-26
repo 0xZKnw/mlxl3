@@ -104,6 +104,23 @@ struct StudioView: View {
         .frame(minWidth: 820, minHeight: 600)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2),
                    value: [studio.showImages, studio.showAppSettings, studio.showModelManager, studio.showWorkspace, studio.showMCPManager])
+        .alert(
+            L("Autoriser cette commande ?", "Allow this command?"),
+            // Only a button answers: closing the alert (which the system does before or after
+            // the button's action) must never count as a refusal of what was just allowed.
+            isPresented: Binding(get: { studio.agentApproval != nil }, set: { _ in }),
+            presenting: studio.agentApproval
+        ) { request in
+            Button(L("Autoriser", "Allow")) { studio.answerAgentApproval(true, for: request) }
+            Button(L("Toujours autoriser pour cette tâche", "Always allow for this task")) {
+                studio.answerAgentApproval(true, always: true, for: request)
+            }
+            Button(L("Refuser", "Refuse"), role: .cancel) { studio.answerAgentApproval(false, for: request) }
+        } message: { request in
+            Text(L("L’agent veut lancer dans votre dossier une commande sans retour possible :",
+                   "The Agent wants to run in your folder a command that cannot be undone:")
+                 + "\n\n" + (request.command.count > 600 ? String(request.command.prefix(600)) + "…" : request.command))
+        }
         .alert(L("MLXL3", "MLXL3"), isPresented: Binding(get: { studio.featureError != nil }, set: { if !$0 { studio.featureError = nil } })) {
             Button("OK") { studio.featureError = nil }
         } message: { Text(studio.featureError ?? "") }
@@ -164,7 +181,7 @@ private struct SidebarView: View {
             VStack(spacing: 1) {
                 VStack(spacing: 1) {
                     // Lab lives in the footer "…"; the others keep the ⌘-numbers of the View menu.
-                    ForEach(Array(StudioMode.allCases.enumerated()).filter { $0.element != .lab }, id: \.element) { index, mode in
+                    ForEach(Array(StudioMode.navigation(unified: studio.unified).enumerated()).filter { $0.element != .lab }, id: \.element) { index, mode in
                         SidebarNavRow(icon: mode.icon, title: mode.displayTitle, selected: studio.selectedMode == mode,
                                       shortcut: "⌘\(index + 1)") { studio.selectMode(mode) }
                     }

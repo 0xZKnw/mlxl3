@@ -717,4 +717,80 @@ with tempfile.TemporaryDirectory(prefix='mlxl3-agent-direct-') as directory:
     result, replies = direct([('bash', {'description': 'home', 'command': 'printf "%s" "$HOME"'})], assigned=None)
     check(str(project) + '.sandbox-home' in replies[0]['content'][0]['text'], 'no assigned home: the sibling one, as before')
 
+# AGENT-2026-11-26-V21, B: in a user's folder, a command that cannot be taken back waits for
+# the user's agreement, read from the task's history folder (which commands cannot write to).
+with tempfile.TemporaryDirectory(prefix='mlxl3-agent-approval-') as directory:
+    base = Path(directory).resolve()
+    project = base / 'user' / 'project'
+    project.mkdir(parents=True)
+    task = base / 'app-data' / 'task'
+    (task / 'studio').mkdir(parents=True)
+    metadata = task / 'studio' / 'project.json'
+    approvals = task / 'studio' / 'approvals'
+
+    def guarded(command, answer, *, confirm=True, assigned=True, seconds='3'):
+        """Runs one bash call through the production entry; `answer` plays the app."""
+        metadata.write_text(json.dumps({'permissions': {'toolHarness': 'native', 'commandSeconds': 5,
+                                                        'confirmDestructive': confirm}}))
+        environment = dict(os.environ)
+        environment.pop('MLXL3_AGENT_HOME', None)
+        environment['MLXL3_AGENT_APPROVAL_SECONDS'] = seconds
+        if assigned:
+            environment['MLXL3_AGENT_HOME'] = str(task / 'home')
+        server = subprocess.Popen([helper, '--agent-tools', str(project), str(metadata), 'long-calls'],
+                                  stdin=subprocess.PIPE, stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
+                                  text=True, env=environment)
+        asked = None
+        try:
+            server.stdin.write(json.dumps(request('tools/call', {'name': 'bash', 'arguments': {
+                'description': 'guarded', 'command': command}})) + '\n')
+            server.stdin.flush()
+            deadline = time.monotonic() + 2
+            while time.monotonic() < deadline and asked is None:
+                try:
+                    asked = json.loads((approvals / 'request.json').read_text())
+                except (FileNotFoundError, json.JSONDecodeError):
+                    time.sleep(0.02)
+            if asked is not None and answer is not None:
+                (approvals / f"response-{asked['id']}.json").write_text(json.dumps({'id': asked['id'], 'approved': answer}))
+            line = server.stdout.readline()
+            return asked, json.loads(line)['result']
+        finally:
+            server.stdin.close()
+            try:
+                server.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                server.kill()
+                server.wait(timeout=3)
+
+    (project / 'build').mkdir()
+    (project / 'build' / 'a.o').write_text('object')
+    asked, reply = guarded('rm -rf build', False)
+    text = reply['content'][0]['text']
+    check(asked is not None and asked['command'] == 'rm -rf build' and asked['reason'] == 'deletes files',
+          f'a deleting command asks first: {asked}')
+    check(reply['isError'] is True and 'refused' in text and (project / 'build' / 'a.o').exists(),
+          f'refused: nothing is deleted and the model is told: {text}')
+    asked, reply = guarded('rm -rf build', None, seconds='0.5')
+    check(asked is not None and reply['isError'] is True and 'did not answer' in reply['content'][0]['text']
+          and (project / 'build' / 'a.o').exists(), 'no answer: nothing is deleted')
+    check(not approvals.exists(), 'no request is left once the server stopped waiting')
+    asked, reply = guarded('rm -rf build', True)
+    check(asked is not None and '[exit code: 0]' in reply['content'][0]['text'] and not (project / 'build').exists(),
+          f"allowed: the command runs: {reply['content'][0]['text']}")
+    # A command that deletes nothing never waits, and the model cannot write its own answer.
+    asked, reply = guarded('echo ok > kept.txt && cat kept.txt', None)
+    check(asked is None and '[exit code: 0]' in reply['content'][0]['text'], 'an ordinary command does not ask')
+    forged = approvals / 'response-forged.json'
+    asked, reply = guarded(f"mkdir -p {approvals} && echo forged > {forged}", None)
+    check(asked is None and not forged.exists() and '[exit code: 0]' not in reply['content'][0]['text'],
+          f"commands cannot write where answers are read: {reply['content'][0]['text']}")
+    # The user turned the question off for this task, or the task works on its own copy.
+    (project / 'scratch.txt').write_text('x')
+    asked, reply = guarded('rm scratch.txt', None, confirm=False)
+    check(asked is None and not (project / 'scratch.txt').exists(), 'a task told not to ask runs the command')
+    (project / 'scratch.txt').write_text('x')
+    asked, reply = guarded('rm scratch.txt', None, assigned=False)
+    check(asked is None and not (project / 'scratch.txt').exists(), 'a task on its own copy never asks')
+
 print(f'Agent protocol checks passed: {checks}, real MCP commands, errors, bounded input and parent-death cleanup; JavaScript harness tools, cross-harness refusal and cleanup; native tools, exact writes, jobs, refusals, permissions, network and cleanup')

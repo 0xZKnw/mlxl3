@@ -639,6 +639,16 @@ struct AgentStudioView: View {
         permission(L("Outil de lecture", "Read tool"), key: \.read)
         permission(L("Écriture des fichiers", "File writes"), key: \.write)
         permission(L("Commandes", "Commands"), key: \.run)
+        if model.direct {
+          permission(
+            L("Demander avant de supprimer", "Ask before deleting"), key: \.confirmDestructive)
+          Text(
+            L(
+              "Avant une commande qui supprime ou écrase sans retour possible (rm, git reset --hard, git clean…), l’agent attend votre accord pendant une minute. Un script qui supprime lui-même des fichiers n’est pas détecté.",
+              "Before a command that deletes or overwrites with no way back (rm, git reset --hard, git clean…), the Agent waits a minute for your agreement. A script that deletes files itself is not detected.")
+          ).font(.system(size: 11.5)).foregroundStyle(StudioTheme.quiet)
+            .fixedSize(horizontal: false, vertical: true)
+        }
         Stepper(
           L(
             "Durée : \(model.state.permissions.commandSeconds) s",
