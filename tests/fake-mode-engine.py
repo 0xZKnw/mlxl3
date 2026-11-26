@@ -125,6 +125,8 @@ elif command == "bridge":
         reasoning_effort_levels=["none", "minimal", "low", "medium", "high", "xhigh", "max"],
         # AGENT-2026-11-23-BOUCLE: a newer engine when the test leaves this marker file
         agent_loop_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
+        # AGENT-2026-11-26-LIVE-CACHE: announced with the same marker (a newer engine)
+        live_prompt_cache_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
     )
     if model.startswith("compare-test-no-reader-"):
         time.sleep(60)
@@ -201,6 +203,21 @@ elif command == "bridge":
                 active = None
                 continue
             interrupted = None
+            if text in ("summarize-history", "summarize-invalid"):
+                # An engine that summarized the oldest turns: the second user message of the
+                # request is the first one kept. The invalid ones must all be ignored.
+                users = [index for index, message in enumerate(request["messages"]) if message["role"] == "user"]
+                prefix = ("[Summary of the earlier conversation, written by you to free context:]\n- fixture summary\n"
+                          "[End of the summary. The conversation continues with the user's message below.]\n\n")
+                if text == "summarize-invalid":
+                    emit("history_summary", request_id=active, kept_from=999, prefix=prefix)
+                    emit("history_summary", request_id=active, kept_from=users[1] + 1, prefix=prefix)
+                    emit("history_summary", request_id=active, kept_from=users[1])
+                    emit("history_summary", request_id=active, kept_from=users[1], prefix="")
+                    emit("history_summary", request_id="stale", kept_from=users[1], prefix=prefix)
+                    emit("history_summary", request_id=active, kept_from=0, prefix=prefix)
+                else:
+                    emit("history_summary", request_id=active, kept_from=users[1], prefix=prefix)
             if text in ("tools-then-hang", "tools-then-error"):
                 key = {"request_id": active, "tool_call_id": "w1", "tool_name": "write"}
                 emit("delta", request_id=active, phase="answer", text="Writing the game.")

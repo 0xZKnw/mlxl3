@@ -1015,6 +1015,28 @@ impl Manager {
     }
 }
 
+/// The manager shared with the turn driver. A call holds the lock for its duration
+/// (bounded by the per-call deadline), so configuration changes wait for it.
+pub struct SharedManager(pub std::sync::Arc<std::sync::Mutex<Manager>>);
+
+impl crate::turn::ToolBox for SharedManager {
+    fn server_of(&self, name: &str) -> String {
+        let manager = self.0.lock().unwrap();
+        manager
+            .tools
+            .get(name)
+            .map(|tool| tool.server.clone())
+            .unwrap_or_default()
+    }
+
+    fn call(&self, name: &str, arguments: Value, cancelled: &AtomicBool) -> ToolResult {
+        self.0
+            .lock()
+            .unwrap()
+            .call_cancellable(name, arguments, cancelled)
+    }
+}
+
 fn connect_server(config: &ServerConfig) -> Result<(Client, Vec<Value>)> {
     let mut client = if config.url.is_some() {
         Client::Http(HttpClient::connect(config)?)
@@ -1431,6 +1453,44 @@ for line in sys.stdin:
         let second = echo(&mut manager, "ok");
         assert!(!second.is_error, "{}", second.text);
         assert_ne!(second.text, first.text);
+    }
+
+    /// The Tauri shell (not compiled by this crate's tests) builds its tool box from
+    /// `SharedManager`: keep it reachable and wired to the same manager.
+    #[test]
+    fn the_shared_manager_serves_the_turn_driver() {
+        use crate::turn::ToolBox;
+        let shared = SharedManager(std::sync::Arc::new(std::sync::Mutex::new(fixture_manager(
+            None,
+        ))));
+        assert_eq!(shared.server_of("fixture.echo"), "fixture");
+        assert_eq!(shared.server_of("unknown"), "");
+        let first = shared.call(
+            "fixture.echo",
+            json!({"mode":"ok"}),
+            &AtomicBool::new(false),
+        );
+        assert!(!first.is_error, "{}", first.text);
+        // The restart of a lost server reaches the shell through the same lock.
+        assert!(
+            shared
+                .call(
+                    "fixture.echo",
+                    json!({"mode":"exit"}),
+                    &AtomicBool::new(false)
+                )
+                .is_error
+        );
+        let again = shared.call(
+            "fixture.echo",
+            json!({"mode":"ok"}),
+            &AtomicBool::new(false),
+        );
+        assert!(
+            !again.is_error && again.text != first.text,
+            "{}",
+            again.text
+        );
     }
 
     #[test]

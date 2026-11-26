@@ -50,7 +50,7 @@ struct MLXL3StudioApp: App {
             }
         }
         let preview = Self.previewProcess
-        _studio = StateObject(wrappedValue: preview ? StudioModel.uiPreview() : StudioModel())
+        _studio = StateObject(wrappedValue: preview ? StudioModel.uiPreview() : StudioModel(unified: true))
     }
 
     var body: some Scene {
@@ -88,7 +88,7 @@ struct MLXL3StudioApp: App {
             // ⌘1…⌘5 switch modes, as the sidebar rows show on hover; they also work
             // with the sidebar hidden. selectMode keeps its own guards.
             CommandGroup(before: .sidebar) {
-                ForEach(Array(StudioMode.allCases.enumerated()), id: \.element) { index, mode in
+                ForEach(Array(StudioMode.navigation(unified: studio.unified).enumerated()), id: \.element) { index, mode in
                     Button(mode.displayTitle) { studio.selectMode(mode) }
                         .keyboardShortcut(KeyEquivalent(Character(String(index + 1))), modifiers: .command)
                         .disabled(mode == .lab ? !studio.canOpenLab : studio.isGenerating)

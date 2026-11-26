@@ -1,5 +1,7 @@
 # MLXL3 Desktop 2.0.33
 
+> **Correction (2026-11-25): this release has no Windows installer.** A change in this release line ([#210](https://github.com/0xZKnw/mlxl3/pull/210)) removed a type the Windows app needs, so the Windows build fails for this tag. The last Windows installer is [v2.0.32](https://github.com/0xZKnw/mlxl3/releases/tag/v2.0.32); the fix is on `main` and a later release will carry the installer. The Mac app is not affected. The Windows changes listed under **Fixed → Windows** below are therefore **not in any installer yet**.
+
 **Agent no longer stops a long task by itself: the 5-minute cut is gone, a stopped turn keeps what its tools did, and the sandbox comes back after a Stop.**
 
 Desktop **2.0.33 / build 86** bundles MLXL3 engine **2.0.37**: the same files as [`engine-v2.0.37`](https://github.com/0xZKnw/mlxl3/releases/tag/engine-v2.0.37).
@@ -22,7 +24,7 @@ Desktop **2.0.33 / build 86** bundles MLXL3 engine **2.0.37**: the same files as
 
 Requires **Apple Silicon and macOS 26.2+**. Download the DMG below, or check for updates in Settings.
 
-The DMG is ad-hoc signed. First launch may require approval in System Settings → Privacy & Security. The Windows installer is built and attached by the `windows-desktop` workflow after publication.
+The DMG is ad-hoc signed. First launch may require approval in System Settings → Privacy & Security. **No Windows installer is attached to this release** (see the correction at the top).
 
 ## Verification and limits
 

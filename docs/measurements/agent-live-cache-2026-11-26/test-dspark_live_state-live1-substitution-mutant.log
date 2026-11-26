@@ -1,0 +1,18 @@
+    Finished `release` profile [optimized] target(s) in 0.13s
+warning: the following packages contain code that will be rejected by a future version of Rust: block v0.1.6
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running unittests native/src/lib.rs (target/release/deps/mlxl3_native-5470b9362b97a5d4)
+
+running 1 test
+test inkling2_draft::tests::dspark_live_state_continues_like_a_cold_prefill ... first 300 held 339 new 200: relative L2 error 0.029605, same top token true; wrong last token 0.046466 (1.6 times)
+Error: a wrong held token was not detected (0.04646622212135004 against 0.02960527956232306)
+FAILED
+
+failures:
+
+failures:
+    inkling2_draft::tests::dspark_live_state_continues_like_a_cold_prefill
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 1072 filtered out; finished in 20.05s
+
+error: test failed, to rerun pass `--lib`

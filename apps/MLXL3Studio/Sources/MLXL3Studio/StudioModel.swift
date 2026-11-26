@@ -19,6 +19,19 @@ final class StudioModel: ObservableObject {
     private var comparisonObservation: AnyCancellable?
     private var comparisonDestination: StudioMode?
     private var modeBeforeLab: StudioMode = .chat
+    /// One conversation mode (the app since 2.1): every conversation is an Agent task, Chat
+    /// is never selected, and conversations saved as chats become tasks without a folder.
+    /// False keeps the two modes (the checks written for them construct the model that way).
+    let unified: Bool
+    /// `list` as this model keeps conversations: all of them Agent tasks when `unified`.
+    private func adopted(_ list: [Conversation]) -> [Conversation] {
+        guard unified else { return list }
+        return list.map { conversation in
+            var task = conversation
+            task.agent = true
+            return task
+        }
+    }
     let localServer = LocalServer()
     let decision = DecisionStudio()
     let quantizer = QuantizationModel()
@@ -177,6 +190,8 @@ final class StudioModel: ObservableObject {
     private(set) var engineLongToolCalls = false
     /// The running engine announces `agent_loop_supported` (reported at ready).
     private(set) var engineAgentLoop = false
+    /// The running engine announces `live_prompt_cache_supported` for the loaded model.
+    private(set) var engineLivePromptCache = false
     private var engineCanYieldAgentTurn = false
     private var activeEngineAcknowledged = false
     private var didRequestAgentYield = false
@@ -281,6 +296,9 @@ final class StudioModel: ObservableObject {
                 if queuedAgentGuidance != nil { queuedAgentGuidance = nil }
             }
             if activeRequestID == nil {
+                // The turn ended: its server no longer waits for an answer.
+                agentApprovalWatch?.cancel(); agentApprovalWatch = nil
+                if agentApproval != nil { agentApproval = nil }
                 cancellationFallback?.cancel(); cancellationFallback = nil
                 cancellationReason = nil
                 generationStartedAt = nil
@@ -289,7 +307,18 @@ final class StudioModel: ObservableObject {
     }
     private var attachedFolderCache: (id: UUID, url: URL?)?
     @Published var agentStudioBusy = false
+    /// Folder groups collapsed in the Agent sidebar ("" is the group without a folder).
+    @Published private(set) var collapsedAgentFolders: Set<String> = []
+
     @Published var studioDocument: StudioDocument?
+    /// A command the Agent wants to run in the user's folder and that cannot be taken back:
+    /// the sandbox server waits for the answer (`AgentApproval`).
+    @Published private(set) var agentApproval: AgentApproval.Request?
+    private var agentApprovalMetadata: URL?
+    private var agentApprovalWatch: Task<Void, Never>?
+    /// For each message of the active request, the conversation message it carries (nil: the
+    /// system prompt). The engine names a message by its index (`history_summary`).
+    private var activeRequestMessageIDs: [UUID?] = []
     private var cancellationFallback: Task<Void, Never>?
     private var cancellationReason: String?
     /// Set while an Agent turn runs. The app has no time limit on a turn, total or silent
@@ -316,8 +345,10 @@ final class StudioModel: ObservableObject {
         preferences: UserDefaults = .standard,
         idleUnloadNow: @escaping () -> ContinuousClock.Instant = { .now },
         notificationClient: CompletionNotificationClient = .system,
-        applicationIsActive: @escaping () -> Bool = { NSApplication.shared.isActive }
+        applicationIsActive: @escaping () -> Bool = { NSApplication.shared.isActive },
+        unified: Bool = false
     ) {
+        self.unified = unified
         self.conversationFileURL = conversationFileURL
         self.updateManager = updateManager
         self.isPreview = isPreview
@@ -352,6 +383,7 @@ final class StudioModel: ObservableObject {
         self.dsparkEnabled = (preferences.object(forKey: "studio.inklingDFlash2Enabled") as? Bool) ?? false
         self.language = AppLanguage(rawValue: preferences.string(forKey: "studio.language") ?? "fr") ?? .fr
         self.mcpEnabled = preferences.bool(forKey: "studio.mcpEnabled")
+        self.collapsedAgentFolders = Set(preferences.stringArray(forKey: "studio.agentFolders.collapsed") ?? [])
         self.dflash2Enabled = preferences.bool(forKey: "studio.dflash2Enabled")
         self.dflashDraftPath = preferences.string(forKey: "studio.dflashDraftPath") ?? ""
         self.mtpHeadPath = preferences.string(forKey: "studio.mtpHeadPath") ?? ""
@@ -416,6 +448,11 @@ final class StudioModel: ObservableObject {
         }
         updateObservation = updateManager.objectWillChange.sink { [weak self] in
             self?.objectWillChange.send()
+        }
+        if unified {
+            selectedMode = .agent
+            modeBeforeLab = .agent
+            conversations = adopted(conversations)
         }
         if !isPreview { prepareMCPConfiguration() }
     }
@@ -887,7 +924,9 @@ final class StudioModel: ObservableObject {
 
     /// The sandbox answered; web search (Exa) is optional and its absence never blocks Agent.
     var agentToolsReady: Bool {
-        bridgeUsesAgentRegistry && mcpToolCount > 0 && mcpErrors.keys.allSatisfy { $0 == "exa" }
+        // The user's own servers (added to the registry when MCP is on) are optional too.
+        bridgeUsesAgentRegistry && mcpToolCount > 0
+            && mcpErrors.keys.allSatisfy { $0 == "exa" || (unified && !["sandbox", "configuration", "connexion"].contains($0)) }
     }
 
     var canSteerActiveAgent: Bool {
@@ -1402,10 +1441,12 @@ final class StudioModel: ObservableObject {
         if let id = selectedConversationID { drafts[id] = draft }
         var conversation = Conversation()
         conversation.projectID = selectedProjectID
-        conversation.agent = selectedMode == .agent
+        conversation.agent = unified || selectedMode == .agent
+        // A new task continues in the folder of the one it was started from.
+        if conversation.agent, currentConversation?.agent == true { conversation.agentFolder = currentConversation?.agentFolder }
         if selectedMode.standalone {
             let count = conversations.count
-            selectMode(.chat)
+            selectMode(unified ? .agent : .chat)
             // Changing modes already creates a Chat when that history is empty.
             if conversations.count > count { return }
         }
@@ -1500,7 +1541,7 @@ final class StudioModel: ObservableObject {
         }
         let userID = UUID()
         if currentConversation?.agent == true, let workspace = agentWorkspaceURL {
-            do { try AgentProjectStore(workspace: workspace).checkpoint(messageID: userID, startingTurn: true) }
+            do { try agentStore(for: workspace).checkpoint(messageID: userID, startingTurn: true) }
             catch { featureError = error.localizedDescription; return }
         }
         voice.stop()
@@ -1529,6 +1570,7 @@ final class StudioModel: ObservableObject {
         activeResponseID = assistant.id
         activeMessageReference = assistant
         if selectedMode == .agent { generationStartedAt = .now }
+        if selectedMode == .agent, let store = agentStore, store.direct { watchAgentApprovals(store.metadata, request: requestID) }
         labConfiguration = nil
         if let model = selectedModel {
             let mode = selectedMode.rawValue, runtime = runtimeIdentity ?? "unknown"
@@ -1545,19 +1587,27 @@ final class StudioModel: ObservableObject {
 
         var messages: [PromptMessage] = []
         let system = [systemPrompt, currentProject?.instructions ?? "", sources.isEmpty ? "" : DocumentSearch.instruction,
-            selectedMode == .agent ? AgentSandbox.instructions(for: agentPermissions) : ""]
+            selectedMode == .agent ? AgentSandbox.instructions(for: agentPermissions, direct: agentFolder != nil) : ""]
             .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }.joined(separator: "\n\n")
         if !system.isEmpty {
             messages.append(PromptMessage(role: "system", content: system))
         }
-        messages += conversations[conversationIndex].messages.compactMap { message in
-            guard !message.isStreaming else { return nil }
+        var history = conversations[conversationIndex].messages.filter { !$0.isStreaming }
+        // Turns the engine summarized are no longer sent: the summary heads the first kept one.
+        var summaryPrefix = ""
+        if let summary = conversations[conversationIndex].contextSummary,
+           let start = history.firstIndex(where: { $0.id == summary.firstKept }), history[start].role == .user {
+            history = Array(history[start...])
+            summaryPrefix = summary.prefix
+        }
+        activeRequestMessageIDs = Array(repeating: nil, count: messages.count) + history.map(\.id)
+        messages += history.enumerated().map { index, message in
             let context = message.role == .assistant
                 ? (message.cacheContext ?? message.content)
                 : message.promptContent
             let images = message.role == .user ? message.attachments.compactMap { $0.image?.dataURL } : []
-            return PromptMessage(role: message.role.rawValue, content: context, turnContext: message.turnContext,
-                                 images: images.isEmpty ? nil : images)
+            return PromptMessage(role: message.role.rawValue, content: (index == 0 ? summaryPrefix : "") + context,
+                                 turnContext: message.turnContext, images: images.isEmpty ? nil : images)
         }
 
         do {
@@ -1586,12 +1636,48 @@ final class StudioModel: ObservableObject {
                     responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema,
                     reasoningEffort: requestReasoningEffort,
                     toolRounds: selectedMode == .agent
-                        ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil
+                        ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil,
+                    livePromptCache: selectedMode == .agent && engineLivePromptCache ? true : nil
                 )
             )
         } catch {
             failActiveTurn(error.localizedDescription)
         }
+    }
+
+    /// While a turn runs in a user's folder: shows the request its sandbox server writes
+    /// before a command that cannot be taken back, and drops it when the server gave up.
+    private func watchAgentApprovals(_ metadata: URL, request: String) {
+        agentApprovalWatch?.cancel()
+        agentApprovalMetadata = metadata
+        agentApprovalWatch = Task { [weak self] in
+            while !Task.isCancelled {
+                try? await Task.sleep(for: .milliseconds(150))
+                guard !Task.isCancelled, let self, self.activeRequestID == request else { return }
+                let pending = await Task.detached { AgentApproval.pending(metadata: metadata) }.value
+                guard !Task.isCancelled, self.activeRequestID == request else { return }
+                if pending != self.agentApproval {
+                    self.agentApproval = pending
+                    if pending != nil, !self.isPreview, !self.applicationIsActive() { NSApp?.requestUserAttention(.informationalRequest) }
+                }
+            }
+        }
+    }
+
+    /// The user's answer to `shown` (the request they read; `agentApproval` when nil).
+    /// `always`: this task stops asking. An answer to a request the server no longer waits
+    /// for is ignored: agreeing to a command never agrees to the one asked after it.
+    func answerAgentApproval(_ approved: Bool, always: Bool = false, for shown: AgentApproval.Request? = nil) {
+        guard let request = shown ?? agentApproval, let metadata = agentApprovalMetadata else { return }
+        if agentApproval == request { agentApproval = nil }
+        do {
+            if always, approved, let store = agentStore, store.metadata.path == metadata.path {
+                var permissions = try store.state().permissions
+                permissions.confirmDestructive = false
+                try store.setPermissions(permissions)
+            }
+            try AgentApproval.answer(metadata: metadata, request: request, approved: approved)
+        } catch { featureError = error.localizedDescription }
     }
 
     private func cancelDocumentPreparation() {
@@ -1638,7 +1724,14 @@ final class StudioModel: ObservableObject {
 
     func reloadMCPServers() {
         guard !isGenerating, !mcpUpdating else { return }
+        rewriteAgentServers()
         updateMCPConnection()
+    }
+
+    /// The Agent registry lists the user's servers: it is written again when they change.
+    private func rewriteAgentServers() {
+        guard unified, bridgeUsesAgentRegistry, engineState.isReady else { return }
+        do { _ = try prepareAgentRegistry() } catch { featureError = error.localizedDescription }
     }
 
     func setMCPEnabled(_ enabled: Bool) {
@@ -1646,7 +1739,9 @@ final class StudioModel: ObservableObject {
         mcpEnabled = enabled
         preferences.set(enabled, forKey: "studio.mcpEnabled")
         mcpErrors = [:]
-        if !enabled { mcpServerCount = 0; mcpToolCount = 0 }
+        // In Agent the sandbox stays connected whatever the user's switch says.
+        if !enabled && !bridgeUsesAgentRegistry { mcpServerCount = 0; mcpToolCount = 0 }
+        rewriteAgentServers()
         if engineState.isReady { updateMCPConnection() }
     }
 
@@ -2336,7 +2431,7 @@ final class StudioModel: ObservableObject {
             projects = merged.projects ?? []
             profiles = merged.profiles ?? []
             documents = merged.documents ?? []
-            conversations.insert(contentsOf: newConversations.map(Conversation.init(snapshot:)), at: 0)
+            conversations.insert(contentsOf: adopted(newConversations.map(Conversation.init(snapshot:))), at: 0)
             for saved in newDrafts {
                 drafts[saved.conversationID] = saved.text
                 attachmentDrafts[saved.conversationID] = saved.attachments
@@ -2510,6 +2605,7 @@ final class StudioModel: ObservableObject {
             let rewriteAgentRegistry = longCalls != engineLongToolCalls
             engineLongToolCalls = longCalls
             engineAgentLoop = event.agentLoopSupported == true
+            engineLivePromptCache = event.livePromptCacheSupported == true
             workspaceFeaturesAvailable = event.workspaceFeatures == true
             imagesSupported = event.imagesSupported == true
             if let tools = event.mcpToolCatalog { mcpTools = tools }
@@ -2581,6 +2677,16 @@ final class StudioModel: ObservableObject {
                       conversation.messages.contains { $0.id == activeResponseID }
                   }) else { return }
             conversations[index].contextUsage = ContextUsage(used: max(0, used), limit: limit, model: name)
+        case "history_summary":
+            // The engine summarized the oldest turns to free context. Kept with the
+            // conversation at once: a stopped turn must not make the next one summarize again.
+            guard event.requestID == activeRequestID, let kept = event.keptFrom, let prefix = event.prefix,
+                  !prefix.isEmpty, activeRequestMessageIDs.indices.contains(kept),
+                  let first = activeRequestMessageIDs[kept],
+                  let index = conversations.firstIndex(where: { $0.messages.contains { $0.id == activeResponseID } }),
+                  conversations[index].messages.contains(where: { $0.id == first && $0.role == .user }) else { return }
+            conversations[index].contextSummary = ConversationSummary(prefix: prefix, firstKept: first)
+            schedulePersistence()
         case "generation_status":
             guard event.requestID == activeRequestID,
                   let message = activeMessage() else { return }
@@ -2761,7 +2867,7 @@ final class StudioModel: ObservableObject {
 
     private func restoreWorkspace(from snapshot: WorkspaceSnapshot) {
         restoreLab(from: snapshot)
-        conversations = snapshot.conversations.isEmpty ? [Conversation()] : snapshot.conversations.map(Conversation.init(snapshot:))
+        conversations = adopted(snapshot.conversations.isEmpty ? [Conversation()] : snapshot.conversations.map(Conversation.init(snapshot:)))
         selectedConversationID = conversations.first { $0.id == snapshot.selectedConversationID }?.id ?? conversations.first?.id
         selectedProjectID = currentConversation?.projectID
         selectedMode = currentConversation?.agent == true ? .agent : .chat
@@ -2939,6 +3045,8 @@ extension StudioModel {
     }
 
     func selectMode(_ mode: StudioMode) {
+        // One conversation mode: whatever still asks for Chat gets Agent.
+        let mode = unified && mode == .chat ? StudioMode.agent : mode
         if selectedMode == .lab, mode != .lab, labComparison.isRunning {
             comparisonDestination = mode
             labComparison.cancel()
@@ -2985,14 +3093,139 @@ extension StudioModel {
         }
     }
 
+    /// What the app keeps for one Agent task: `files` (its private copy, unless it works in
+    /// a user's folder), `studio` (history, permissions, command receipts) and its commands'
+    /// private home.
+    private func agentTaskDirectory(_ id: UUID) -> URL {
+        conversationFileURL.deletingLastPathComponent().resolvingSymlinksInPath()
+            .appending(path: "agent-workspaces/\(id.uuidString)", directoryHint: .isDirectory)
+    }
+
+    /// Where the selected task's files are: the user's folder it works in, else its own copy.
     var agentWorkspaceURL: URL? {
         guard let id = selectedConversationID else { return nil }
-        return conversationFileURL.deletingLastPathComponent().resolvingSymlinksInPath()
-            .appending(path: "agent-workspaces/\(id.uuidString)/files", directoryHint: .isDirectory)
+        if let folder = agentFolder { return folder }
+        return agentTaskDirectory(id).appending(path: "files", directoryHint: .isDirectory)
+    }
+
+    /// The user's folder the selected Agent task works in directly, when it has one.
+    var agentFolder: URL? {
+        guard let conversation = currentConversation, conversation.agent,
+              let path = conversation.agentFolder else { return nil }
+        return URL(fileURLWithPath: path, isDirectory: true)
+    }
+
+    /// The selected task's files and history. In a user's folder the history stays in the
+    /// app's data, never beside the folder.
+    var agentStore: AgentProjectStore? {
+        guard let id = selectedConversationID, let workspace = agentWorkspaceURL else { return nil }
+        return AgentProjectStore(workspace: workspace,
+            metadata: agentFolder == nil ? nil : agentTaskDirectory(id).appending(path: "studio", directoryHint: .isDirectory))
+    }
+
+    /// The store of `workspace`: the selected task's when it is its folder (views are handed
+    /// the folder alone), else a task's own copy with its history beside it.
+    func agentStore(for workspace: URL) -> AgentProjectStore {
+        if let store = agentStore, store.workspace.path == workspace.standardizedFileURL.path { return store }
+        return AgentProjectStore(workspace: workspace)
+    }
+
+    /// The folder shown for the selected task: the one it works in, or the one its copy came from.
+    var agentDisplayFolder: URL? { agentFolder ?? attachedAgentFolder }
+
+    /// Folders Agent tasks work in, most recently used first (the header's quick choices).
+    var agentFolderChoices: [URL] {
+        var seen = Set<String>()
+        return conversations.filter { $0.agent && $0.agentFolder != nil }
+            .sorted { ($0.updatedAt ?? $0.createdAt) > ($1.updatedAt ?? $1.createdAt) }
+            .compactMap(\.agentFolder).filter { seen.insert($0).inserted }
+            .prefix(8).map { URL(fileURLWithPath: $0, isDirectory: true) }
+    }
+
+    func setAgentFolderCollapsed(_ folder: String?, _ collapsed: Bool) {
+        if collapsed { collapsedAgentFolders.insert(folder ?? "") } else { collapsedAgentFolders.remove(folder ?? "") }
+        preferences.set(collapsedAgentFolders.sorted(), forKey: "studio.agentFolders.collapsed")
+    }
+
+    func chooseAgentFolder() {
+        guard selectedMode == .agent, !isGenerating, !agentStudioBusy else { return }
+        let panel = NSOpenPanel()
+        panel.canChooseDirectories = true
+        panel.canChooseFiles = false
+        panel.canCreateDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.directoryURL = agentFolder
+        panel.prompt = L("Travailler ici", "Work here")
+        panel.message = L("L’agent lira et modifiera directement les fichiers de ce dossier. Ses commandes ne peuvent écrire que dans ce dossier et dans /tmp.",
+                          "The Agent will read and change the files of this folder directly. Its commands can only write to this folder and to /tmp.")
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        workInAgentFolder(url)
+    }
+
+    /// Makes `url` the folder of the Agent task: of the selected one while it is still empty
+    /// (no message, no copy of its own), else of a new task. Nil gives a task its own copy.
+    @discardableResult func workInAgentFolder(_ url: URL?) -> Bool {
+        guard selectedMode == .agent, !isGenerating, !agentStudioBusy, modeTransition == nil else { return false }
+        var folder: String?
+        if let url {
+            do {
+                folder = try AgentProjectStore.workingFolder(
+                    url, reserved: [conversationFileURL.deletingLastPathComponent()]).path
+            } catch { featureError = error.localizedDescription; return false }
+        }
+        if let index = conversationIndex, conversations[index].agent, conversations[index].agentFolder == folder { return true }
+        if let index = conversationIndex, conversations[index].agent, conversations[index].messages.isEmpty,
+           agentTaskIsUntouched(conversations[index].id) {
+            conversations[index].agentFolder = folder
+        } else {
+            if let id = selectedConversationID { drafts[id] = draft }
+            var conversation = Conversation()
+            conversation.projectID = selectedProjectID
+            conversation.agent = true
+            conversation.agentFolder = folder
+            conversations.insert(conversation, at: 0)
+            selectedConversationID = conversation.id
+            draft = ""
+        }
+        attachedFolderCache = nil
+        if folder != nil { setAgentFolderCollapsed(folder, false) }
+        schedulePersistence()
+        refreshAgentWorkspace()
+        return true
+    }
+
+    /// A new task in `folder` (the "+" of a sidebar group); nil: a task with its own copy.
+    func newAgentTask(in folder: String?) {
+        guard selectedMode == .agent, !isGenerating, !agentStudioBusy, modeTransition == nil else { return }
+        // An empty task already in that folder is reused, as ⌘N does not stack drafts.
+        if let existing = conversations.first(where: { $0.agent && $0.projectID == selectedProjectID
+            && $0.agentFolder == folder && $0.messages.isEmpty }) {
+            selectConversation(existing.id)
+            return
+        }
+        if let id = selectedConversationID { drafts[id] = draft }
+        var conversation = Conversation()
+        conversation.projectID = selectedProjectID
+        conversation.agent = true
+        conversation.agentFolder = folder
+        conversations.insert(conversation, at: 0)
+        selectedConversationID = conversation.id
+        draft = ""
+        attachedFolderCache = nil
+        schedulePersistence()
+        refreshAgentWorkspace()
+    }
+
+    /// The task has no copy of its own yet: nothing was imported into it and it holds no file.
+    private func agentTaskIsUntouched(_ id: UUID) -> Bool {
+        let directory = agentTaskDirectory(id)
+        let files = (try? FileManager.default.contentsOfDirectory(atPath: directory.appending(path: "files").path)) ?? []
+        let store = AgentProjectStore(workspace: directory.appending(path: "files", directoryHint: .isDirectory))
+        return files.isEmpty && (try? store.state().source) == nil
     }
 
     var attachedAgentFolder: URL? {
-        guard selectedMode == .agent, let id = selectedConversationID, let workspace = agentWorkspaceURL else { return nil }
+        guard selectedMode == .agent, agentFolder == nil, let id = selectedConversationID, let workspace = agentWorkspaceURL else { return nil }
         if let cached = attachedFolderCache, cached.id == id { return cached.url }
         guard let state = try? AgentProjectStore(workspace: workspace).state() else { return nil }
         let folder = state.source.map { URL(fileURLWithPath: $0, isDirectory: true) }
@@ -3002,7 +3235,7 @@ extension StudioModel {
 
     func chooseAgentProject() {
         guard selectedMode == .agent, let id = selectedConversationID,
-              !isGenerating, !agentStudioBusy, attachedAgentFolder == nil else { return }
+              !isGenerating, !agentStudioBusy, attachedAgentFolder == nil, agentFolder == nil else { return }
         let panel = NSOpenPanel()
         panel.canChooseDirectories = true
         panel.canChooseFiles = false
@@ -3019,7 +3252,7 @@ extension StudioModel {
 
     func openAgentProject(_ source: URL) async {
         guard selectedMode == .agent, currentConversation?.agent == true, let id = selectedConversationID,
-              let workspace = agentWorkspaceURL, !isGenerating, !agentStudioBusy else { return }
+              agentFolder == nil, let workspace = agentWorkspaceURL, !isGenerating, !agentStudioBusy else { return }
         agentStudioBusy = true
         defer { agentStudioBusy = false }
         do {
@@ -3037,32 +3270,54 @@ extension StudioModel {
     func openAgentWorkspace() {
         guard let url = agentWorkspaceURL else { return }
         do {
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            // A user's folder is never created or re-permissioned by the app.
+            if agentFolder == nil {
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            }
             NSWorkspace.shared.open(url)
         } catch { featureError = error.localizedDescription }
     }
 
     private func prepareAgentRegistry() throws -> URL {
-        guard let root = agentWorkspaceURL, let model = selectedModel,
+        guard let root = agentWorkspaceURL, let store = agentStore, let task = selectedConversationID, let model = selectedModel,
               FileManager.default.isExecutableFile(atPath: "/usr/bin/sandbox-exec") else { throw MLXL3BridgeError.invalidResponse }
-        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        if store.direct {
+            // The user's folder is used as it is: never created, and checked again at every
+            // connection (it can have been moved, or its volume ejected, since it was chosen).
+            guard (try? AgentProjectStore.workingFolder(root, reserved: [conversationFileURL.deletingLastPathComponent()]).path) == root.path else {
+                throw NSError(domain: "MLXL3.Project", code: 7, userInfo: [NSLocalizedDescriptionKey:
+                    L("Le dossier de cette tâche est introuvable : ", "This task’s folder cannot be found: ") + root.path])
+            }
+        } else {
+            try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+        }
         guard root.standardizedFileURL.path == root.resolvingSymlinksInPath().path else { throw CocoaError(.fileReadNoPermission) }
-        let store = AgentProjectStore(workspace: root)
         try store.ensureState()
-        if try store.versions().isEmpty { _ = try store.checkpoint("Initial workspace") }
+        // A task's copy gets its first version now; a user's folder gets it when a turn starts
+        // (versioning a large project here would hold up the model load).
+        if !store.direct, try store.versions().isEmpty { _ = try store.checkpoint("Initial workspace") }
         _ = try AgentSandbox.profile(root: root)
+        let home = store.direct ? agentTaskDirectory(task).appending(path: "home", directoryHint: .isDirectory) : nil
         let metadata = conversationFileURL.deletingLastPathComponent().appending(path: "agent-runtime", directoryHint: .isDirectory)
         try FileManager.default.createDirectory(at: metadata, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
         let entry = try JSONSerialization.jsonObject(with: JSONEncoder().encode(model))
         let registry = metadata.appending(path: "models.json")
         try JSONSerialization.data(withJSONObject: ["version": 1, "models": [model.name: entry]])
             .write(to: registry, options: .atomic)
-        let config: [String: Any] = ["version": 1, "mcpServers": [
-            // Web search only when this task allows Internet (Sandbox panel).
-            "exa": ["enabled": (try? store.state().permissions.internet) == true, "url": "https://mcp.exa.ai/mcp"],
-            "sandbox": AgentSandbox.serverEntry(
-                executable: Bundle.main.executableURL?.path ?? CommandLine.arguments[0], root: root,
-                project: store.metadata.appendingPathComponent("project.json"), longCalls: engineLongToolCalls)]]
+        var servers: [String: Any] = [:]
+        // One mode: the servers the user configured for Chat serve the Agent too, when MCP is
+        // on. The task's own two entries below always win over a server of the same name.
+        if unified, mcpEnabled, !isPreview,
+           let saved = try? JSONSerialization.jsonObject(with: Data(contentsOf: mcpConfigurationURL)) as? [String: Any],
+           let own = saved["mcpServers"] as? [String: Any] {
+            servers = own.filter { $0.value is [String: Any] }
+        }
+        // Web search only when this task allows Internet (Sandbox panel).
+        servers["exa"] = ["enabled": (try? store.state().permissions.internet) == true, "url": "https://mcp.exa.ai/mcp"]
+        servers["sandbox"] = AgentSandbox.serverEntry(
+            executable: Bundle.main.executableURL?.path ?? CommandLine.arguments[0], root: root,
+            project: store.metadata.appendingPathComponent("project.json"), longCalls: engineLongToolCalls, home: home)
+        let config: [String: Any] = ["version": 1, "mcpServers": servers]
         try JSONSerialization.data(withJSONObject: config).write(to: metadata.appending(path: "mcp.json"), options: .atomic)
         return registry
     }
@@ -3077,17 +3332,17 @@ extension StudioModel {
 
     /// Permissions (and harness) of the current Agent workspace; defaults when none is saved.
     var agentPermissions: AgentPermissions {
-        guard let url = agentWorkspaceURL else { return AgentPermissions() }
-        return (try? AgentProjectStore(workspace: url).state().permissions) ?? AgentPermissions()
+        (try? agentStore?.state().permissions) ?? AgentPermissions()
     }
 
     /// The Internet switch of the Agent bar: saved in the task's permissions (Agent Studio's
     /// Sandbox panel shows the same value), then the sandbox registry is refreshed.
     func setAgentInternet(_ enabled: Bool) {
-        guard !isGenerating, !agentStudioBusy, let url = agentWorkspaceURL else { return }
+        guard !isGenerating, !agentStudioBusy, let url = agentWorkspaceURL, let store = agentStore else { return }
         do {
-            try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
-            let store = AgentProjectStore(workspace: url)
+            if !store.direct {
+                try FileManager.default.createDirectory(at: url, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
+            }
             try store.ensureState()
             var permissions = try store.state().permissions
             guard permissions.internet != enabled else { return }
@@ -3106,9 +3361,8 @@ extension StudioModel {
     }
 
     private func finishAgentTurn(afterEngineStop: Bool = false, onSaved: (@MainActor () -> Void)? = nil) {
-        guard currentConversation?.agent == true, let workspace = agentWorkspaceURL,
+        guard currentConversation?.agent == true, let store = agentStore,
             let messageID = activeResponseID else { return }
-        let store = AgentProjectStore(workspace: workspace)
         agentStudioBusy = true
         Task {
             if afterEngineStop { await bridge.waitForRetiringProcesses() }
@@ -3263,7 +3517,14 @@ extension StudioModel {
         branch.projectID = original.projectID
         branch.parentConversationID = original.id
         branch.messages = original.messages.prefix(index + (includeMessage ? 1 : 0)).compactMap { ChatMessage(snapshot: $0.snapshot) }
-        if original.agent, let workspace = agentWorkspaceURL {
+        // The branch keeps the summary only while it still holds the message it starts at.
+        branch.contextSummary = original.contextSummary.flatMap { summary in
+            branch.messages.contains { $0.id == summary.firstKept } ? summary : nil
+        }
+        if original.agent, original.agentFolder != nil {
+            // Same folder, as it is now: a user's folder is never put back to an earlier state.
+            branch.agentFolder = original.agentFolder
+        } else if original.agent, let workspace = agentWorkspaceURL {
             // User checkpoints are before the request; assistant checkpoints are after its tools.
             let boundary = !includeMessage && original.messages[index].role == .assistant
                 ? original.messages[..<index].last(where: { $0.role == .user })?.id : messageID

@@ -684,6 +684,157 @@ struct AgentSandboxCheck {
   /// processes they start. Skipped, and said so, on a Mac without developer tools.
   /// The persistent kernel and its background jobs (AGENT-2026-11-23-KERNEL): literal oracles
   /// through the real kernel, sandbox and jobs.
+  /// A task that works in a user's folder (AGENT-2026-11-25-DOSSIER-DIRECT): its private
+  /// home is the one the app assigned, never a folder beside the user's, and the model is
+  /// told its changes are real.
+  static func checkAssignedHome(temporary: URL, check: (Bool, String) -> Void) throws {
+    let base = try AgentSandbox.canonicalRoot(temporary).appendingPathComponent("direct-\(UUID().uuidString)")
+    let project = base.appendingPathComponent("user/project", isDirectory: true)
+    let assigned = base.appendingPathComponent("app-data/task/home", isDirectory: true)
+    try FileManager.default.createDirectory(at: project, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: base) }
+    check(
+      try AgentSandbox.homeLocation(for: project, assigned: nil).path == project.path + ".sandbox-home",
+      "without an assigned home it stays beside the copy")
+    check(
+      try AgentSandbox.homeLocation(for: project, assigned: assigned.path).path == assigned.path,
+      "an assigned home is used as given")
+    for refused in [
+      project.path, project.path + "/inside", project.deletingLastPathComponent().path, "/", "relative/home", "",
+    ] {
+      check(
+        (try? AgentSandbox.homeLocation(for: project, assigned: refused)) == nil,
+        "a home that is the folder, inside it, above it or not absolute is refused: \(refused)")
+    }
+    let home = try AgentSandbox.privateHome(for: project, assigned: assigned.path)
+    check(
+      home.path == assigned.path && FileManager.default.fileExists(atPath: assigned.appendingPathComponent("tmp").path)
+        && FileManager.default.fileExists(atPath: assigned.appendingPathComponent(".gitconfig").path),
+      "the assigned home is prepared like a sibling one")
+    check(
+      try FileManager.default.contentsOfDirectory(atPath: project.deletingLastPathComponent().path) == ["project"]
+        && FileManager.default.contentsOfDirectory(atPath: project.path).isEmpty,
+      "nothing is created in the user's folder or beside it")
+    let entry = AgentSandbox.serverEntry(
+      executable: "/bin/app", root: project, project: base.appendingPathComponent("project.json"), longCalls: true,
+      home: assigned)
+    check(
+      entry["env"] as? [String: String] == [AgentSandbox.homeVariable: assigned.path]
+        && AgentSandbox.serverEntry(
+          executable: "/bin/app", root: project, project: base.appendingPathComponent("project.json"), longCalls: true)["env"] == nil,
+      "only a task in a user's folder gives its server a home")
+    for harness in [AgentHarness.native, .javascript, .tools] {
+      var permissions = AgentPermissions()
+      permissions.harness = harness
+      let direct = AgentSandbox.instructions(for: permissions, direct: true)
+      check(
+        direct.contains("directly in the user's project folder") && !direct.contains("copy")
+          && !direct.contains("after user review") && !direct.contains("reviews your changes"),
+        "\(harness) prompt of a task in a user's folder never speaks of a copy: \(direct)")
+      check(
+        AgentSandbox.instructions(for: permissions) == AgentSandbox.instructions(for: permissions, direct: false)
+          && AgentSandbox.instructions(for: permissions).contains("isolated copy"),
+        "\(harness) prompt of a task on its copy is unchanged")
+    }
+  }
+
+  /// AGENT-2026-11-26-V21, B: which commands ask for the user's agreement, and the exchange
+  /// between the sandbox server (`ask`) and the app (`pending`, `answer`).
+  static func checkApproval(temporary: URL, check: (Bool, String) -> Void) throws {
+    for command in [
+      "rm -rf build", "rm file.txt", "sudo rm -r /x", "cd src && rm -f a.o", "find . -name '*.o' | xargs rm",
+      "sh -c 'rm x'", "echo $(rm x)", "/bin/rm -rf x", "./rm x", "rmdir old", "unlink a", "shred -u key",
+      "find . -name '*.pyc' -delete", "truncate -s 0 log", "dd if=/dev/zero of=disk.img bs=1m",
+      "git reset --hard HEAD~1", "git reset -q --hard", "git clean -fd", "git checkout -- src/a.c",
+      "git checkout .", "git checkout -f main", "git restore .", "git stash drop", "git stash clear",
+      "git push --force origin main", "git push -f", "git push origin main --force-with-lease",
+      "git branch -D feature", "git filter-branch --all", "git rm old.c", "git -C sub clean -x",
+      "mkfs.ext4 /dev/disk2", "diskutil eraseDisk APFS x disk2", "make && rm -rf dist\nls",
+    ] {
+      check(AgentApproval.reason(for: command) != nil, "asks before: \(command)")
+    }
+    for command in [
+      "ls -la", "cat rm.txt", "npm run build", "docker run --rm image", "grep -r 'form' .", "git status",
+      "git checkout main", "git checkout -b fix", "git push origin main", "git reset HEAD file", "git stash",
+      "git branch -d merged", "find . -name '*.py'", "python3 -m pytest -q", "echo done > out.txt",
+      "cargo clean", "make clean", "dd --help", "mkdir -p build && cp a b", "git log --oneline -5",
+      "swift build 2>&1 | tail -3", "", "printf '%s' confirm",
+    ] {
+      check(AgentApproval.reason(for: command) == nil, "does not ask before: \(command)")
+    }
+    // Asking too often is the accepted side: a word is a word, even in a message.
+    check(AgentApproval.reason(for: "git commit -m 'remove rm calls'") != nil, "a quoted word still asks")
+    check(
+      AgentApproval.reason(for: "rm x") == "deletes files"
+        && AgentApproval.reason(for: "git reset --hard") == "discards uncommitted changes"
+        && AgentApproval.reason(for: "git push -f") == "rewrites or deletes git history",
+      "the reason says what the command would do")
+
+    let metadata = temporary.appendingPathComponent("approval-\(UUID().uuidString)/studio")
+    try FileManager.default.createDirectory(at: metadata, withIntermediateDirectories: true)
+    defer { try? FileManager.default.removeItem(at: metadata.deletingLastPathComponent()) }
+    /// Runs `ask` as the server does while `user` plays the app; returns the server's answer.
+    func exchange(seconds: Double, _ user: @escaping @Sendable (AgentApproval.Request) throws -> Void) throws -> AgentApproval.Answer {
+      let answered = DispatchSemaphore(value: 0)
+      let box = AnswerBox()
+      DispatchQueue.global().async {
+        box.set(AgentApproval.ask(metadata: metadata, command: "rm -rf build", reason: "deletes files", seconds: seconds))
+        answered.signal()
+      }
+      let deadline = Date().addingTimeInterval(3)
+      var request: AgentApproval.Request?
+      while request == nil, Date() < deadline {
+        request = AgentApproval.pending(metadata: metadata)
+        usleep(10_000)
+      }
+      guard let request else { throw CocoaError(.fileReadNoSuchFile) }
+      check(request.command == "rm -rf build" && request.reason == "deletes files" && !request.id.isEmpty, "the app reads the request")
+      try user(request)
+      guard answered.wait(timeout: .now() + 5) == .success else { throw CocoaError(.fileReadUnknown) }
+      return box.value
+    }
+    check(try exchange(seconds: 3) { try AgentApproval.answer(metadata: metadata, request: $0, approved: true) } == .approved, "allowed")
+    check(try exchange(seconds: 3) { try AgentApproval.answer(metadata: metadata, request: $0, approved: false) } == .denied, "refused")
+    check(try exchange(seconds: 0.4) { _ in } == .unanswered, "no answer in time is not an agreement")
+    // An answer to another request (an earlier one, or a guess) is not an agreement either.
+    check(
+      try exchange(seconds: 0.5) { request in
+        let other = AgentApproval.Request(id: "guess", command: request.command, reason: request.reason)
+        try AgentApproval.answer(metadata: metadata, request: other, approved: true)
+        try JSONEncoder().encode(AgentApproval.Response(id: "guess", approved: true))
+          .write(to: AgentApproval.folder(metadata: metadata).appendingPathComponent("response-guess.json"))
+        // Even in the file the server reads, an answer that names another request is not one.
+        try JSONEncoder().encode(AgentApproval.Response(id: "guess", approved: true))
+          .write(to: AgentApproval.folder(metadata: metadata).appendingPathComponent("response-\(request.id).json"))
+      } == .unanswered, "an answer with another id is ignored")
+    check(
+      AgentApproval.pending(metadata: metadata) == nil
+        && !FileManager.default.fileExists(atPath: AgentApproval.folder(metadata: metadata).path),
+      "nothing is left waiting once the server has its answer")
+    let older = try JSONDecoder().decode(AgentPermissions.self, from: Data("{}".utf8))
+    check(
+      AgentApproval.refusal(.denied, reason: "deletes files", seconds: 60).contains("refused")
+        && AgentApproval.refusal(.unanswered, reason: "deletes files", seconds: 60).contains("60 seconds")
+        && AgentPermissions().confirmDestructive && older.confirmDestructive,
+      "refusals tell the model why; asking is on by default, also for older tasks")
+    let entry = AgentSandbox.serverEntry(
+      executable: "/bin/app", root: temporary, project: metadata.appendingPathComponent("project.json"), longCalls: true,
+      home: metadata.appendingPathComponent("home"))
+    check(
+      entry["callTimeoutSeconds"] as? Int == min(120, AgentSandbox.longCallTimeoutSeconds + Int(AgentApproval.seconds))
+        && AgentSandbox.serverEntry(
+          executable: "/bin/app", root: temporary, project: metadata.appendingPathComponent("project.json"),
+          longCalls: true)["callTimeoutSeconds"] as? Int == AgentSandbox.longCallTimeoutSeconds,
+      "the engine waits for the user's answer only for a task in a user's folder")
+  }
+
+  final class AnswerBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var stored = AgentApproval.Answer.unanswered
+    func set(_ answer: AgentApproval.Answer) { lock.lock(); stored = answer; lock.unlock() }
+    var value: AgentApproval.Answer { lock.lock(); defer { lock.unlock() }; return stored }
+  }
+
   static func checkKernel(root: URL, check: (Bool, String) -> Void) throws {
     var permissions = AgentPermissions()
     permissions.harness = .javascript
@@ -1794,6 +1945,8 @@ struct AgentSandboxCheck {
     try checkKernel(root: root, check: { check($0, $1) })
     try checkSpill(root: root, check: { check($0, $1) })
     try checkNetwork(temporary: temporary, count: &count)
+    try checkAssignedHome(temporary: temporary, check: { check($0, $1) })
+    try checkApproval(temporary: temporary, check: { check($0, $1) })
     print(
       "Agent sandbox checks passed: \(count), real commands, file/network/child isolation, environment, limits, process cleanup and invalid input; JavaScript harness API, errors, isolation, permissions and limits; native tools catalogue, arguments, edits, exact writes, search, jobs and permissions"
     )

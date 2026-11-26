@@ -165,6 +165,10 @@ struct BridgeEvent: Decodable {
         }.joined(separator: ",")
     }
     var turnContext: String? = nil
+    /// `history_summary`: index, in the request's messages, of the first one kept.
+    var keptFrom: Int? = nil
+    /// `history_summary`: the text now at the head of that message, exactly.
+    var prefix: String? = nil
     var runtimeCommit: String? = nil
     var runtimeProfile: String? = nil
     var mlxVersion: String? = nil
@@ -210,6 +214,9 @@ struct BridgeEvent: Decodable {
     /// Engines whose Agent loop has no total budget: `reasoning_budget`, up to 512 rounds,
     /// context pruning and a stop for repeated identical calls.
     var agentLoopSupported: Bool? = nil
+    /// Engines that accept `live_prompt_cache` for the loaded model (Inkling 2): each Agent step
+    /// goes on from the state the model decoded with instead of reading its own output again.
+    var livePromptCacheSupported: Bool? = nil
     var agentYieldSupported: Bool? = nil
     /// `tool_start`: the call's arguments, shown with the tool (the code of a JS call).
     var arguments: ToolArguments? = nil
@@ -249,6 +256,8 @@ struct BridgeEvent: Decodable {
         case qwenGroupExpertStages = "qwen_group_expert_stages"
         case qwenDeviceGreedy = "qwen_device_greedy"
         case turnContext = "turn_context"
+        case keptFrom = "kept_from"
+        case prefix
         case runtimeCommit = "runtime_commit"
         case runtimeProfile = "runtime_profile"
         case mlxVersion = "mlx_version"
@@ -280,6 +289,7 @@ struct BridgeEvent: Decodable {
         case toolRoundsSupported = "tool_rounds_supported"
         case mcpCallTimeoutSupported = "mcp_call_timeout_supported"
         case agentLoopSupported = "agent_loop_supported"
+        case livePromptCacheSupported = "live_prompt_cache_supported"
         case agentYieldSupported = "agent_yield_supported"
         case arguments
         case bridgeProtocol = "bridge_protocol"
@@ -409,6 +419,9 @@ struct GenerationRequest: Encodable {
     var reasoningEffort: String? = nil
     /// Tool rounds before the final answer (Agent mode); nil keeps the engine default.
     var toolRounds: Int? = nil
+    /// Agent turns on an engine that announces it: the model's own output stays in the prompt
+    /// as it wrote it (reasoning included) and is not read again. Omitted (nil) otherwise.
+    var livePromptCache: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case type, messages, temperature
@@ -432,6 +445,7 @@ struct GenerationRequest: Encodable {
         case responseSchema = "response_schema"
         case reasoningEffort = "reasoning_effort"
         case toolRounds = "tool_rounds"
+        case livePromptCache = "live_prompt_cache"
     }
 }
 
@@ -679,6 +693,12 @@ struct Conversation: Identifiable {
     var projectID: UUID?
     var parentConversationID: UUID?
     var agent = false
+    /// Agent: the user's folder this task works in directly (canonical path). Nil: the task
+    /// has its own private copy in the app's data.
+    var agentFolder: String?
+    /// The engine's summary of the oldest turns, once they filled the context: the model is
+    /// then sent this summary and the messages from `firstKept`, the older ones no longer.
+    var contextSummary: ConversationSummary?
     var updatedAt: Date?
     private var messageSnapshots: ConversationMessageSnapshots
     var messageChanges: AnyPublisher<Void, Never> { messageSnapshots.changed.eraseToAnyPublisher() }
@@ -711,7 +731,9 @@ struct Conversation: Identifiable {
             projectID: projectID,
             parentConversationID: parentConversationID,
             agent: agent ? true : nil,
-            updatedAt: updatedAt
+            updatedAt: updatedAt,
+            agentFolder: agent ? agentFolder : nil,
+            contextSummary: contextSummary
         )
     }
 
@@ -727,6 +749,10 @@ struct Conversation: Identifiable {
         projectID = snapshot.projectID
         parentConversationID = snapshot.parentConversationID
         agent = snapshot.agent ?? false
+        agentFolder = agent ? snapshot.agentFolder.flatMap { $0.hasPrefix("/") ? $0 : nil } : nil
+        contextSummary = snapshot.contextSummary.flatMap { summary in
+            messages.contains { $0.id == summary.firstKept && $0.role == .user } ? summary : nil
+        }
         updatedAt = snapshot.updatedAt
     }
 }

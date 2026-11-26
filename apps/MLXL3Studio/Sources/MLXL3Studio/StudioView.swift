@@ -104,6 +104,23 @@ struct StudioView: View {
         .frame(minWidth: 820, minHeight: 600)
         .animation(reduceMotion ? nil : .easeInOut(duration: 0.2),
                    value: [studio.showImages, studio.showAppSettings, studio.showModelManager, studio.showWorkspace, studio.showMCPManager])
+        .alert(
+            L("Autoriser cette commande ?", "Allow this command?"),
+            // Only a button answers: closing the alert (which the system does before or after
+            // the button's action) must never count as a refusal of what was just allowed.
+            isPresented: Binding(get: { studio.agentApproval != nil }, set: { _ in }),
+            presenting: studio.agentApproval
+        ) { request in
+            Button(L("Autoriser", "Allow")) { studio.answerAgentApproval(true, for: request) }
+            Button(L("Toujours autoriser pour cette tâche", "Always allow for this task")) {
+                studio.answerAgentApproval(true, always: true, for: request)
+            }
+            Button(L("Refuser", "Refuse"), role: .cancel) { studio.answerAgentApproval(false, for: request) }
+        } message: { request in
+            Text(L("L’agent veut lancer dans votre dossier une commande sans retour possible :",
+                   "The Agent wants to run in your folder a command that cannot be undone:")
+                 + "\n\n" + (request.command.count > 600 ? String(request.command.prefix(600)) + "…" : request.command))
+        }
         .alert(L("MLXL3", "MLXL3"), isPresented: Binding(get: { studio.featureError != nil }, set: { if !$0 { studio.featureError = nil } })) {
             Button("OK") { studio.featureError = nil }
         } message: { Text(studio.featureError ?? "") }
@@ -164,7 +181,7 @@ private struct SidebarView: View {
             VStack(spacing: 1) {
                 VStack(spacing: 1) {
                     // Lab lives in the footer "…"; the others keep the ⌘-numbers of the View menu.
-                    ForEach(Array(StudioMode.allCases.enumerated()).filter { $0.element != .lab }, id: \.element) { index, mode in
+                    ForEach(Array(StudioMode.navigation(unified: studio.unified).enumerated()).filter { $0.element != .lab }, id: \.element) { index, mode in
                         SidebarNavRow(icon: mode.icon, title: mode.displayTitle, selected: studio.selectedMode == mode,
                                       shortcut: "⌘\(index + 1)") { studio.selectMode(mode) }
                     }
@@ -191,7 +208,25 @@ private struct SidebarView: View {
                 let showsSelection = studio.selectedMode == .chat || studio.selectedMode == .agent
                 let pinnedID = conversations.first(where: \.isPinned)?.id
                 let recentID = pinnedID == nil ? nil : conversations.first(where: { !$0.isPinned })?.id
+                // Agent: tasks under the folder they work in, as soon as one task has a folder.
+                let groups = studio.selectedMode == .agent
+                    ? AgentFolderGroup.groups(conversations.map { ($0.id, $0.agentFolder) }) : []
                 LazyVStack(alignment: .leading, spacing: 1) {
+                    if groups.contains(where: { $0.folder != nil }) {
+                        let rows = Dictionary(uniqueKeysWithValues: conversations.map { ($0.id, $0) })
+                        ForEach(groups) { group in
+                            // A search shows every match: a closed group would hide results.
+                            let collapsed = search.isEmpty && studio.collapsedAgentFolders.contains(group.id)
+                            SidebarFolderHeader(group: group, collapsed: collapsed, first: group.id == groups.first?.id)
+                            if !collapsed {
+                                ForEach(group.conversations, id: \.self) { id in
+                                    if let conversation = rows[id] {
+                                        SidebarConversationItem(conversation: conversation, showsSelection: showsSelection)
+                                    }
+                                }
+                            }
+                        }
+                    } else {
                     ForEach(conversations) { conversation in
                         if conversation.id == pinnedID {
                             SidebarSectionHeader(title: L("Épinglées", "Pinned"), first: true)
@@ -200,6 +235,7 @@ private struct SidebarView: View {
                             SidebarSectionHeader(title: L("Récentes", "Recent"), first: false)
                         }
                         SidebarConversationItem(conversation: conversation, showsSelection: showsSelection)
+                    }
                     }
                     if conversations.isEmpty { emptyState }
                 }
@@ -447,6 +483,140 @@ private struct SidebarSectionHeader: View {
     }
 }
 
+/// An Agent folder as a quiet title row that opens and closes its tasks; "+" on hover starts
+/// a task in that folder.
+private struct SidebarFolderHeader: View {
+    @EnvironmentObject private var studio: StudioModel
+    let group: AgentFolderGroup
+    let collapsed: Bool
+    let first: Bool
+    @State private var hovered = false
+
+    var body: some View {
+        HStack(spacing: 0) {
+            Button { studio.setAgentFolderCollapsed(group.folder, !collapsed) } label: {
+                HStack(spacing: 6) {
+                    Text(group.title).lineLimit(1).truncationMode(.middle)
+                    Image(systemName: collapsed ? "chevron.right" : "chevron.down")
+                        .font(.system(size: 8, weight: .bold))
+                        .foregroundStyle(StudioTheme.quiet)
+                    Spacer(minLength: 0)
+                }
+                .font(.system(size: 12.5, weight: .medium))
+                .foregroundStyle(StudioTheme.quiet)
+                .padding(.leading, SidebarMetrics.content)
+                .frame(height: SidebarMetrics.row)
+                .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(group.title)
+            .accessibilityValue(collapsed ? L("replié", "collapsed") : L("déplié", "expanded"))
+            .accessibilityAddTraits(.isHeader)
+            .accessibilityIdentifier("sidebar.agentFolder")
+            if hovered {
+                Button { studio.newAgentTask(in: group.folder) } label: {
+                    Image(systemName: "plus")
+                        .font(.system(size: 11, weight: .semibold))
+                        .frame(width: 24, height: 22)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(StudioControlStyle(cornerRadius: 6))
+                .disabled(studio.isGenerating || studio.agentStudioBusy)
+                .help(group.folder == nil ? L("Nouvelle tâche sans dossier", "New task without a folder")
+                      : L("Nouvelle tâche dans ce dossier", "New task in this folder"))
+                .accessibilityLabel(L("Nouvelle tâche dans ", "New task in ") + group.title)
+                .padding(.trailing, 3)
+            }
+        }
+        .padding(.top, first ? 2 : 12)
+        .onHover { hovered = $0 }
+        .help(group.folder ?? L("Tâches sur leur propre copie, dans les données de l’app", "Tasks on their own copy, in the app’s data"))
+        .contextMenu {
+            Button(L("Nouvelle tâche ici", "New task here"), systemImage: "plus") { studio.newAgentTask(in: group.folder) }
+                .disabled(studio.isGenerating || studio.agentStudioBusy)
+            if let folder = group.folder {
+                Button(L("Afficher dans le Finder", "Show in Finder"), systemImage: "folder") {
+                    NSWorkspace.shared.open(URL(fileURLWithPath: folder, isDirectory: true))
+                }
+            }
+        }
+    }
+}
+
+/// The folder the Agent task works in, in the header: the current one, the recent ones and
+/// "Choose a folder…". A task that already has messages keeps its folder: another choice
+/// starts a new task there.
+private struct AgentFolderMenu: View {
+    @EnvironmentObject private var studio: StudioModel
+
+    var body: some View {
+        let current = studio.agentFolder
+        Menu { choices(current) } label: { label(current) }
+            .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
+            .fixedSize()
+            .disabled(studio.isGenerating || studio.agentStudioBusy)
+            .accessibilityIdentifier("agent.header.folder")
+            .accessibilityLabel(L("Dossier de travail de l’agent", "Agent working folder"))
+            .accessibilityValue(current?.lastPathComponent ?? L("aucun", "none"))
+            .help(helpText(current))
+    }
+
+    private func helpText(_ current: URL?) -> String {
+        guard let current else {
+            return L("Choisir le dossier où l’agent travaille. Sans dossier, il travaille sur une copie privée.",
+                     "Choose the folder the Agent works in. Without one, it works on a private copy.")
+        }
+        return current.path + "\n" + L("L’agent modifie directement ce dossier.", "The Agent changes this folder directly.")
+    }
+
+    @ViewBuilder private func choices(_ current: URL?) -> some View {
+        let recent = studio.agentFolderChoices
+        if !recent.isEmpty {
+            Section(L("Travailler dans", "Work in")) {
+                ForEach(recent, id: \.path) { folder in
+                    Button { studio.workInAgentFolder(folder) } label: {
+                        checked(folder.lastPathComponent, folder.path == current?.path)
+                    }
+                }
+            }
+        }
+        Button { studio.chooseAgentFolder() } label: {
+            Label(L("Choisir un dossier…", "Choose a folder…"), systemImage: "folder.badge.plus")
+        }
+        Divider()
+        Button { studio.workInAgentFolder(nil) } label: {
+            checked(L("Sans dossier (copie privée)", "No folder (private copy)"), current == nil)
+        }
+        if let current {
+            Divider()
+            Button { NSWorkspace.shared.open(current) } label: {
+                Label(L("Afficher dans le Finder", "Show in Finder"), systemImage: "arrow.up.forward.square")
+            }
+        }
+    }
+
+    @ViewBuilder private func checked(_ title: String, _ on: Bool) -> some View {
+        if on { Label(title, systemImage: "checkmark") } else { Text(title) }
+    }
+
+    private func label(_ current: URL?) -> some View {
+        let title = current?.lastPathComponent ?? L("Choisir un dossier", "Choose a folder")
+        return HStack(spacing: 6) {
+            Image(systemName: current == nil ? "folder.badge.plus" : "folder.fill").font(.system(size: 11))
+            Text(title).lineLimit(1).truncationMode(.middle)
+            Image(systemName: "chevron.down").font(.system(size: 8, weight: .bold)).foregroundStyle(StudioTheme.quiet)
+        }
+        .font(.system(size: 12, weight: .medium))
+        .foregroundStyle(current == nil ? StudioTheme.secondary : StudioTheme.ink)
+        .padding(.horizontal, 10)
+        .frame(height: 28)
+        .frame(maxWidth: 240)
+        .background(StudioTheme.panel, in: Capsule())
+        .overlay { Capsule().strokeBorder(StudioTheme.edge, lineWidth: 0.5).allowsHitTesting(false) }
+        .contentShape(Capsule())
+    }
+}
+
 /// A conversation title fades out at the edge instead of ending on "…"; short titles
 /// never reach the fade. Its actions sit behind "…" on hover and in the context menu.
 private struct SidebarConversationItem: View {
@@ -461,7 +631,8 @@ private struct SidebarConversationItem: View {
         let empty = conversation.messages.isEmpty
         Button { studio.selectConversation(conversation.id) } label: {
             Text(empty && ["Nouvelle conversation", "New conversation"].contains(conversation.title)
-                 ? L("Nouvelle conversation", "New conversation") : conversation.title)
+                 ? (conversation.agent ? L("Nouvelle tâche", "New task") : L("Nouvelle conversation", "New conversation"))
+                 : conversation.title)
                 .font(.system(size: 13, weight: selected && !style.isGraphite ? .medium : .regular))
                 // An untouched draft recedes so it does not read as one more chat.
                 .foregroundStyle(selected ? StudioTheme.ink : empty ? StudioTheme.quiet : StudioTheme.secondary)
@@ -709,6 +880,8 @@ private struct WorkspaceHeader: View {
                 .foregroundStyle(style.isGraphite ? StudioTheme.ink : StudioTheme.secondary)
                 .lineLimit(1)
                 .layoutPriority(-1)
+
+            if studio.selectedMode == .agent { AgentFolderMenu() }
 
             Spacer(minLength: 12)
 

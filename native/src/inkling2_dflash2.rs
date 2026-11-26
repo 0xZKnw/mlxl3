@@ -1126,6 +1126,9 @@ impl crate::inkling2_draft::BlockDrafter for Inkling2Dflash2 {
     fn restore_context(&mut self, saved: &crate::inkling2_draft::DraftContext) -> Result<()> {
         Inkling2Dflash2::restore_context(self, saved)
     }
+    fn context_offset(&self) -> i32 {
+        Inkling2Dflash2::offset(self)
+    }
     /// The selector's greedy path on the GPU (`propose_device`; `MLXL3_INKLING_DFLASH2_HOST=1`: the host path of
     /// P0); the drafter keeps its own context, so `last_feature` is not read.
     fn propose(

@@ -60,6 +60,18 @@ struct ConversationSnapshot: Codable, Sendable {
     var parentConversationID: UUID? = nil
     var agent: Bool? = nil
     var updatedAt: Date? = nil
+    /// Agent: the user's folder the task works in directly (canonical path); nil: its own copy.
+    var agentFolder: String? = nil
+    var contextSummary: ConversationSummary? = nil
+}
+
+/// The model's own summary of the oldest turns of a conversation (written by the engine
+/// when they filled the context). The messages stay in the history the user reads.
+struct ConversationSummary: Codable, Equatable, Sendable {
+    /// Head of the first kept message, exactly as the engine wrote it (same text, same cache).
+    let prefix: String
+    /// The user message the model's view of the conversation now starts at.
+    let firstKept: UUID
 }
 
 struct ConversationDraft: Codable, Sendable {

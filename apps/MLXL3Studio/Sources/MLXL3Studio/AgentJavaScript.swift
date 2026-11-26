@@ -1110,9 +1110,13 @@ enum AgentJavaScript {
   static func kernelMode(arguments: [String]) -> Never {
     guard arguments.count == 4, let kernel = try? Kernel(root: URL(fileURLWithPath: arguments[2])) else { exit(2) }
     // Jobs a previous kernel left behind when it was killed outright (orphans, still sandboxed,
-    // working in this task's copy or home) are stopped first.
+    // working in this task's copy or home) are stopped first. In a user's folder (a home was
+    // assigned) only the home is swept: a sandboxed orphan working there may be another
+    // tool's, which no start time ties to this task.
     if let home = try? AgentSandbox.privateHome(for: kernel.root) {
-      AgentSandbox.stop([], since: 0, inside: [kernel.root.path, home.path])
+      AgentSandbox.stop(
+        [], since: 0,
+        inside: AgentSandbox.assignedHome == nil ? [kernel.root.path, home.path] : [home.path])
     }
     // So are JavaScript kernels whose supervisor was killed (they no longer read requests).
     for pid in AgentSandbox.orphans(of: engine) { kill(pid, SIGKILL) }

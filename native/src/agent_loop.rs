@@ -256,6 +256,7 @@ pub fn prune_context(
         if message["role"] != "assistant" {
             continue;
         }
+        let before_arguments = pruned.arguments;
         let Some(calls) = message.get_mut("tool_calls").and_then(Value::as_array_mut) else {
             continue;
         };
@@ -288,6 +289,12 @@ pub fn prune_context(
                 pruned.arguments += 1;
                 pruned.freed += before.saturating_sub(after);
             }
+        }
+        // AGENT-2026-11-26-LIVE-CACHE: the step's own text still holds the whole arguments
+        if pruned.arguments > before_arguments
+            && let Some(written) = message.as_object_mut()
+        {
+            written.remove("raw");
         }
     }
     // (3) last resort: old outputs replaced by a notice
@@ -420,6 +427,107 @@ pub fn apply_summary(
     true
 }
 
+/// AGENT-2026-11-26-V21, A: start of the text that carries the summary of earlier turns, at
+/// the head of the first user message kept.
+pub const HISTORY_SUMMARY_MARKER: &str = "[Summary of the earlier conversation";
+/// What the model is asked after the turns to summarize.
+pub const HISTORY_SUMMARY_REQUEST: &str = "[The context is almost full: the conversation above will be removed. Write a summary of it that lets you continue without it. Do not call any tool. Use these headings, each with a few short bullets (\"none\" if empty): User requests and decisions; Work done (files, functions, exact names, what changed); Commands and results (what was run, statuses, key output); Errors and fixes; Open points and next steps. Keep exact paths, commands, identifiers, numbers and error messages. If an earlier summary is above, merge it instead of repeating it. Write only the summary.]";
+
+/// True for the request that ends a summary step (of this turn's steps or of earlier turns).
+pub fn is_summary_request(content: &Value) -> bool {
+    content == SUMMARY_REQUEST || content == HISTORY_SUMMARY_REQUEST
+}
+
+/// Where earlier turns may be cut for a summary: the user messages with text among the
+/// messages the client sent (`..end`), after the first message of the conversation. Newest
+/// first. A cut is always before a user message, so a turn is summarized whole.
+fn history_cuts(dialogue: &[Value], end: usize) -> (usize, Vec<usize>) {
+    let first = dialogue
+        .iter()
+        .position(|message| message["role"] != "system")
+        .unwrap_or(dialogue.len());
+    let cuts = (first + 1..end.min(dialogue.len()))
+        .rev()
+        .filter(|&index| {
+            dialogue[index]["role"] == "user" && dialogue[index]["content"].is_string()
+        })
+        .collect();
+    (first, cuts)
+}
+
+/// The earlier turns to summarize when nothing of the current turn can be: from the first
+/// message of the conversation up to a user message, keeping word for word the newest turns
+/// that fit in [`COMPACT_KEEP_PERCENT`] of the context (the last user message always). `fits`
+/// says whether the summary step of a candidate cut fits the context: an older cut is tried
+/// until one does. None: a single turn, or no cut whose summary step fits.
+pub fn history_range(
+    dialogue: &[Value],
+    end: usize,
+    context_limit: usize,
+    count: &mut dyn FnMut(&str) -> Result<usize>,
+    fits: &mut dyn FnMut(usize) -> Result<bool>,
+) -> Result<Option<std::ops::Range<usize>>> {
+    let (first, cuts) = history_cuts(dialogue, end);
+    let Some(&newest) = cuts.first() else {
+        return Ok(None);
+    };
+    let keep = context_limit * COMPACT_KEEP_PERCENT / 100;
+    let mut kept = 0;
+    for message in &dialogue[newest..end.min(dialogue.len())] {
+        kept += message_tokens(message, count)?;
+    }
+    let mut chosen = 0usize;
+    for (position, pair) in cuts.windows(2).enumerate() {
+        let (newer, older) = (pair[0], pair[1]);
+        let mut tokens = 0;
+        for message in &dialogue[older..newer] {
+            tokens += message_tokens(message, count)?;
+        }
+        if kept + tokens > keep {
+            break;
+        }
+        kept += tokens;
+        chosen = position + 1;
+    }
+    // The preferred cut first, then older ones: each summarizes less and asks for less room.
+    for &cut in &cuts[chosen..] {
+        if fits(cut)? {
+            return Ok(Some(first..cut));
+        }
+    }
+    Ok(None)
+}
+
+/// The prompt of the summary step of earlier turns: the conversation up to the cut, then
+/// the request (a prefix of the current prompt, so the prompt cache serves it).
+pub fn history_summary_dialogue(dialogue: &[Value], cut: usize) -> Vec<Value> {
+    let mut request = dialogue[..cut].to_vec();
+    request.push(serde_json::json!({"role":"user", "content":HISTORY_SUMMARY_REQUEST}));
+    request
+}
+
+/// Replaces `range` by `summary`, written at the head of the user message that follows it.
+/// Returns that head exactly as written (the client stores it and sends it again), or None
+/// when that message cannot carry it.
+pub fn apply_history_summary(
+    dialogue: &mut Vec<Value>,
+    range: std::ops::Range<usize>,
+    summary: &str,
+) -> Option<String> {
+    let carrier = dialogue.get(range.end)?;
+    if carrier["role"] != "user" {
+        return None;
+    }
+    let text = carrier["content"].as_str()?.to_owned();
+    let prefix = format!(
+        "{HISTORY_SUMMARY_MARKER}, written by you to free context:]\n{}\n[End of the summary. The conversation continues with the user's message below.]\n\n",
+        summary.trim()
+    );
+    dialogue[range.end]["content"] = Value::String(format!("{prefix}{text}"));
+    dialogue.drain(range);
+    Some(prefix)
+}
+
 /// Tokens of a message's text: its content and its calls' string arguments.
 fn message_tokens(message: &Value, count: &mut dyn FnMut(&str) -> Result<usize>) -> Result<usize> {
     let content = message["content"].as_str().map_or(Ok(0), &mut *count)?;
@@ -483,6 +591,100 @@ mod tests {
             dialogue.push(tool(&format!("result {index}")));
         }
         dialogue
+    }
+
+    /// System, then `turns` exchanges of `size` characters each (question and answer), then
+    /// a short new question.
+    fn conversation(turns: usize, size: usize) -> Vec<Value> {
+        let mut dialogue = vec![json!({"role":"system", "content":"sys"})];
+        for index in 0..turns {
+            dialogue
+                .push(json!({"role":"user", "content":format!("q{index}{}", "u".repeat(size))}));
+            dialogue.push(
+                json!({"role":"assistant", "content":format!("a{index}{}", "a".repeat(size))}),
+            );
+        }
+        dialogue.push(json!({"role":"user", "content":"next"}));
+        dialogue
+    }
+
+    #[test]
+    fn earlier_turns_are_cut_before_a_user_message_and_the_newest_are_kept() -> Result<()> {
+        // 5 turns of 2 x 1 001 tokens. 20 % of 30 000 keeps the two newest turns and the
+        // new question; 20 % of 12 000 only one; the new question alone otherwise.
+        let dialogue = conversation(5, 4_000);
+        let end = dialogue.len();
+        let mut always = |_: usize| Ok(true);
+        for (limit, cut) in [(30_000, 7), (12_000, 9), (5_000, 11)] {
+            let range = history_range(&dialogue, end, limit, &mut bytes, &mut always)?.unwrap();
+            assert_eq!(range, 1..cut, "context {limit}");
+            assert_eq!(dialogue[range.end]["role"], "user");
+            assert_eq!(dialogue[range.end - 1]["role"], "assistant");
+        }
+        // A summary step that does not fit at the preferred cut is tried one turn earlier,
+        // down to the oldest turn alone; none fitting gives nothing.
+        let mut tried = Vec::new();
+        let range = history_range(&dialogue, end, 5_000, &mut bytes, &mut |cut| {
+            tried.push(cut);
+            Ok(cut <= 5)
+        })?;
+        assert_eq!((range, tried), (Some(1..5), vec![11, 9, 7, 5]));
+        assert_eq!(
+            history_range(&dialogue, end, 5_000, &mut bytes, &mut |_| Ok(false))?,
+            None
+        );
+        // One turn, or only the question: nothing to give up. Without a system message the
+        // first message is index 0.
+        assert_eq!(
+            history_range(&conversation(0, 10), 2, 5_000, &mut bytes, &mut always)?,
+            None
+        );
+        let bare = conversation(2, 4_000)[1..].to_vec();
+        assert_eq!(
+            history_range(&bare, bare.len(), 5_000, &mut bytes, &mut always)?,
+            Some(0..4)
+        );
+        // Messages after `end` (this turn's exchanges) are never part of it.
+        let mut running = conversation(2, 4_000);
+        running.push(call("x"));
+        running.push(tool("out"));
+        running.push(json!({"role":"user", "content":"a note of this turn"}));
+        assert_eq!(
+            history_range(&running, 6, 5_000, &mut bytes, &mut always)?,
+            Some(1..5)
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn a_history_summary_heads_the_first_kept_user_message() {
+        let mut dialogue = conversation(2, 40);
+        let kept = dialogue[3]["content"].as_str().unwrap().to_owned();
+        let prefix = apply_history_summary(&mut dialogue, 1..3, "  - did A\n").unwrap();
+        assert_eq!(
+            prefix,
+            format!(
+                "{HISTORY_SUMMARY_MARKER}, written by you to free context:]\n- did A\n[End of the summary. The conversation continues with the user's message below.]\n\n"
+            )
+        );
+        assert_eq!(dialogue.len(), 4);
+        assert_eq!(dialogue[1]["content"], format!("{prefix}{kept}"));
+        assert_eq!(dialogue[1]["role"], "user");
+        // An assistant message, or a user message with images, cannot carry it: nothing changes.
+        let mut wrong = conversation(2, 40);
+        let before = wrong.clone();
+        assert!(apply_history_summary(&mut wrong, 1..2, "s").is_none());
+        wrong[3]["content"] = json!([{"type":"text", "text":"q"}]);
+        assert!(apply_history_summary(&mut wrong, 1..3, "s").is_none());
+        wrong[3] = before[3].clone();
+        assert_eq!(wrong, before);
+        assert!(
+            is_summary_request(&json!(SUMMARY_REQUEST))
+                && is_summary_request(&json!(HISTORY_SUMMARY_REQUEST))
+        );
+        assert!(
+            !is_summary_request(&json!("Write a summary")) && !is_summary_request(&Value::Null)
+        );
     }
 
     #[test]
@@ -835,6 +1037,32 @@ mod tests {
             long
         );
         assert_eq!(dialogue[1]["content"], "ok");
+    }
+
+    /// AGENT-2026-11-26-LIVE-CACHE: a step whose arguments are shortened loses its own text (it
+    /// still holds the whole arguments); a step left as it is keeps it.
+    #[test]
+    fn prune_drops_the_own_text_of_a_step_it_shortens() {
+        let long = "w".repeat(6_000);
+        let mut old = call(&long);
+        old["raw"] = json!(format!("thinking {long}"));
+        let mut short = call("tiny");
+        short["raw"] = json!("thinking tiny");
+        let mut recent = call(&long);
+        recent["raw"] = json!(format!("thinking {long}"));
+        let mut dialogue = vec![
+            old,
+            tool("ok"),
+            short,
+            tool("ok"),
+            recent, // after the newest kept output's call: kept
+            tool(&"n".repeat(400)),
+        ];
+        let pruned = prune_context(&mut dialogue, 9_000, 10_000, &mut bytes).unwrap();
+        assert_eq!(pruned.arguments, 1);
+        assert!(dialogue[0].get("raw").is_none());
+        assert_eq!(dialogue[2]["raw"], "thinking tiny");
+        assert_eq!(dialogue[4]["raw"], format!("thinking {long}"));
     }
 
     #[test]

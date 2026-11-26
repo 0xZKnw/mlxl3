@@ -78,6 +78,12 @@ pub struct Turn<'a> {
     pub allowed_tools: Option<&'a [String]>,
     /// Messages the client sent; later ones are this turn's exchanges.
     pub original_length: usize,
+    /// For each of those messages, the index of the client message it came from (a stored
+    /// turn expands to several). Empty: one to one.
+    pub origins: &'a [usize],
+    /// AGENT-2026-11-26-LIVE-CACHE: each step that calls tools also keeps its text as the
+    /// model wrote it (`raw`, thinking included), in the dialogue and in `turn_context`.
+    pub keep_raw: bool,
 }
 
 /// How the turn ended, for the bridge's `complete` event.
@@ -250,12 +256,14 @@ pub fn run_turn(
     tools: &[Value],
     turn: &Turn<'_>,
 ) -> Result<TurnEnd> {
-    run_steps(host, &mut dialogue, tools, turn).map_err(|error| {
+    // A summary of earlier turns removes client messages: the turn then starts earlier.
+    let mut original_length = turn.original_length;
+    run_steps(host, &mut dialogue, tools, turn, &mut original_length).map_err(|error| {
         // JSON output has no tools: its user messages are validation retries, not call notes.
         let transcript = if turn.schema.is_some() {
             &[]
         } else {
-            dialogue.get(turn.original_length..).unwrap_or_default()
+            dialogue.get(original_length..).unwrap_or_default()
         };
         match interrupted_history(transcript) {
             Some(turn_context) => {
@@ -275,8 +283,11 @@ fn run_steps(
     dialogue: &mut Vec<Value>,
     tools: &[Value],
     turn: &Turn<'_>,
+    original_length: &mut usize,
 ) -> Result<TurnEnd> {
     let request_id = turn.request_id;
+    // Client messages removed by summaries of earlier turns in this request.
+    let mut summarized = 0usize;
     let context_limit = turn.context_limit;
     let schema = turn.schema;
     // `tool_rounds` rounds may run tools; one more round answers from their results, so
@@ -317,9 +328,15 @@ fn run_steps(
     let mut round = 0usize;
     loop {
         // B4: old tool exchanges make room before the context runs out.
+        // (An earlier turn, with or without tools, can be summarized too.)
         let prunable = dialogue
             .iter()
-            .any(|message| message["role"] == "tool" || message.get("tool_calls").is_some());
+            .any(|message| message["role"] == "tool" || message.get("tool_calls").is_some())
+            || dialogue[..(*original_length).min(dialogue.len())]
+                .iter()
+                .filter(|message| message["role"] == "user")
+                .count()
+                > 1;
         if continuation.is_empty()
             && prunable
             && prompt_estimate.is_none_or(|tokens| tokens * 100 > context_limit * 60)
@@ -341,7 +358,16 @@ fn run_steps(
             let left = used.saturating_sub(pruned.freed);
             if left * 100 > context_limit * agent_loop::COMPACT_TRIGGER_PERCENT
                 && compaction_allowed(compaction_failed_at, dialogue.len())
-                && !compact(host, dialogue, tools, turn, &mut generated_total, left)?
+                && !compact(
+                    host,
+                    dialogue,
+                    tools,
+                    turn,
+                    &mut generated_total,
+                    left,
+                    original_length,
+                    &mut summarized,
+                )?
             {
                 compaction_failed_at = Some(dialogue.len());
             }
@@ -384,7 +410,7 @@ fn run_steps(
             dialogue.push(json!({"role":"assistant", "content":answer}));
             return yielded_turn(
                 host,
-                &dialogue[turn.original_length..],
+                &dialogue[*original_length..],
                 answer,
                 output.token_hash,
                 round,
@@ -458,6 +484,8 @@ fn run_steps(
                     turn,
                     &mut generated_total,
                     context_limit,
+                    original_length,
+                    &mut summarized,
                 )? {
                     context_retry = true;
                     prompt_estimate = None;
@@ -498,7 +526,7 @@ fn run_steps(
             let turn_context = if round == 0 {
                 None
             } else {
-                let mut transcript = dialogue[turn.original_length..].to_vec();
+                let mut transcript = dialogue[*original_length..].to_vec();
                 transcript.push(json!({"role":"assistant", "content":raw}));
                 Some(serde_json::to_string(&transcript)?)
             };
@@ -536,24 +564,35 @@ fn run_steps(
             } else {
                 text
             };
-            dialogue.push(json!({"role":"assistant", "content":tool_text}));
+            let mut written = json!({"role":"assistant", "content":tool_text});
+            if turn.keep_raw {
+                written["raw"] = json!(raw);
+            }
+            dialogue.push(written);
             dialogue.push(json!({"role":"user", "content":note}));
             round += 1;
             continue;
         }
         // A bare tool name that a single offered tool carries is that tool: the call runs and
         // the dialogue keeps the full name.
+        let mut renamed = false;
         let calls: Vec<tool_call::ToolCall> = calls
             .into_iter()
             .map(|mut call| {
                 if let Some(full) = tool_call::offered_name(&call.name, &offered) {
                     call.name = full.to_owned();
+                    renamed = true;
                 }
                 call
             })
             .collect();
         let assistant_index = dialogue.len();
         dialogue.push(json!({"role":"assistant", "content":answer, "tool_calls":[]}));
+        // H1: the step as the model wrote it, unless the dialogue keeps another call than the
+        // one written (a completed name here; a call that was not dispatched below).
+        if turn.keep_raw && !renamed {
+            dialogue[assistant_index]["raw"] = json!(raw);
+        }
         let mut calls = calls.into_iter();
         // Check before the first call, between individual calls in a batch, and after the
         // final result. The transcript contains only calls that were actually dispatched.
@@ -569,13 +608,19 @@ fn run_steps(
                 ToolBoundary::Yield => {
                     let ran_tools = dialogue.len() > assistant_index + 1;
                     if ran_tools {
+                        // the calls left were written but never ran
+                        if !calls.as_slice().is_empty()
+                            && let Some(written) = dialogue[assistant_index].as_object_mut()
+                        {
+                            written.remove("raw");
+                        }
                         dialogue.push(json!({"role":"assistant", "content":""}));
                     } else {
                         dialogue[assistant_index] = json!({"role":"assistant", "content":answer});
                     }
                     return yielded_turn(
                         host,
-                        &dialogue[turn.original_length..],
+                        &dialogue[*original_length..],
                         answer,
                         output.token_hash,
                         round + usize::from(ran_tools),
@@ -668,6 +713,7 @@ fn compaction_allowed(failed_at: Option<usize>, length: usize) -> bool {
 /// replaces them by the summary. False, with the dialogue unchanged, when there is nothing to
 /// summarize, the budget is short, or the summary is empty, cut, a tool call, or not shorter
 /// than what it replaces (`used`: the prompt's tokens now).
+#[allow(clippy::too_many_arguments)]
 fn compact(
     host: &mut dyn Host,
     dialogue: &mut Vec<Value>,
@@ -675,6 +721,8 @@ fn compact(
     turn: &Turn<'_>,
     generated_total: &mut usize,
     used: usize,
+    original_length: &mut usize,
+    summarized: &mut usize,
 ) -> Result<bool> {
     let request_id = turn.request_id;
     if tools.is_empty() {
@@ -684,16 +732,42 @@ fn compact(
     if remaining.is_none_or(|left| left != -1 && left < 2 * agent_loop::SUMMARY_MAX_TOKENS as i64) {
         return Ok(false);
     }
-    let Some(range) = agent_loop::compaction_range(
+    // This turn's older steps first; when it has none to give (a turn that starts in a
+    // context already filled by earlier turns), the oldest turns of the conversation.
+    let current = agent_loop::compaction_range(
         dialogue,
-        turn.original_length,
+        *original_length,
         turn.context_limit,
         &mut |text| Ok(host.encode(text)?.len()),
-    )?
-    else {
-        return Ok(false);
+    )?;
+    let (range, history) = match current {
+        Some(range) => (range, false),
+        None => {
+            // Tokens are counted with the tokenizer, the fit with the rendered prompt.
+            let counts: std::cell::RefCell<&mut dyn Host> = std::cell::RefCell::new(host);
+            let found = agent_loop::history_range(
+                dialogue,
+                *original_length,
+                turn.context_limit,
+                &mut |text| Ok(counts.borrow_mut().encode(text)?.len()),
+                &mut |cut| {
+                    let request = agent_loop::history_summary_dialogue(dialogue, cut);
+                    Ok(counts.borrow_mut().prompt_tokens(&request, tools)?
+                        + agent_loop::SUMMARY_MAX_TOKENS
+                        <= turn.context_limit)
+                },
+            )?;
+            match found {
+                Some(range) => (range, true),
+                None => return Ok(false),
+            }
+        }
     };
-    let request = agent_loop::summary_dialogue(dialogue, &range);
+    let request = if history {
+        agent_loop::history_summary_dialogue(dialogue, range.end)
+    } else {
+        agent_loop::summary_dialogue(dialogue, &range)
+    };
     if host.prompt_tokens(&request, tools)? + agent_loop::SUMMARY_MAX_TOKENS > turn.context_limit {
         return Ok(false);
     }
@@ -733,11 +807,17 @@ fn compact(
     let called = tool_call::parse_answer(&tool_text).map_or(true, |calls| !calls.is_empty());
     let summary = answer.trim();
     let mut candidate = dialogue.clone();
-    let accepted = finished
-        && !called
-        && !summary.is_empty()
-        && agent_loop::apply_summary(&mut candidate, range.clone(), summary)
-        && host.prompt_tokens(&candidate, tools)? < used;
+    // The head written in the first kept user message, for a summary of earlier turns.
+    let mut prefix = None;
+    let usable = finished && !called && !summary.is_empty();
+    let applied = usable
+        && if history {
+            prefix = agent_loop::apply_history_summary(&mut candidate, range.clone(), summary);
+            prefix.is_some()
+        } else {
+            agent_loop::apply_summary(&mut candidate, range.clone(), summary)
+        };
+    let accepted = applied && host.prompt_tokens(&candidate, tools)? < used;
     if !accepted {
         host.emit(json!({
             "type":"generation_status", "request_id":request_id, "phase":"prefill",
@@ -747,6 +827,18 @@ fn compact(
     }
     let after = host.prompt_tokens(&candidate, tools)?;
     *dialogue = candidate;
+    if let Some(prefix) = prefix {
+        // The client keeps the summary with the conversation: from the next turn on it sends
+        // this head and the messages from `kept_from`, not the summarized ones again.
+        let source = range.end + *summarized;
+        let kept_from = turn.origins.get(source).copied().unwrap_or(source);
+        *summarized += range.len();
+        *original_length -= range.len();
+        host.emit(json!({
+            "type":"history_summary", "request_id":request_id,
+            "kept_from":kept_from, "prefix":prefix
+        }))?;
+    }
     host.emit(json!({
         "type":"generation_status", "request_id":request_id, "phase":"prefill",
         "text":format!(
@@ -889,7 +981,7 @@ mod tests {
                 && request
                     .dialogue
                     .last()
-                    .is_some_and(|message| message["content"] == agent_loop::SUMMARY_REQUEST);
+                    .is_some_and(|message| agent_loop::is_summary_request(&message["content"]));
             let step = if summary {
                 self.summaries
                     .pop_front()
@@ -987,6 +1079,7 @@ mod tests {
 
     fn turn(context_limit: usize, tool_rounds: usize) -> Turn<'static> {
         Turn {
+            keep_raw: false,
             request_id: "r1",
             context_limit,
             max_tokens: -1,
@@ -995,6 +1088,7 @@ mod tests {
             schema: None,
             allowed_tools: None,
             original_length: 2,
+            origins: &[],
         }
     }
 
@@ -1089,6 +1183,95 @@ mod tests {
                 .starts_with("Your tool call could not be read (unfinished tool call; nothing executed); nothing was executed.")
         );
         assert_eq!((end.rounds, end.stop_reason), (1, "eos"));
+        Ok(())
+    }
+
+    /// AGENT-2026-11-26-LIVE-CACHE H1: with `keep_raw`, a step that calls tools keeps its text as
+    /// the model wrote it, for the next step and in the stored turn; without it nothing is added.
+    #[test]
+    fn a_step_keeps_its_own_text_only_when_asked() -> Result<()> {
+        let written = call("return 1").raw;
+        for keep_raw in [false, true] {
+            let mut host = ScriptHost::new(vec![call("return 1"), answer("It returns 1.")]);
+            let settings = Turn {
+                keep_raw,
+                ..turn(100_000, 8)
+            };
+            let end = run_turn(&mut host, dialogue(), &tools(), &settings)?;
+            let step = &host.requests[1].dialogue[2];
+            assert_eq!(step["tool_calls"][0]["function"]["name"], "javascript");
+            assert_eq!(step["content"], "");
+            let history: Vec<Value> = serde_json::from_str(end.turn_context.as_deref().unwrap())?;
+            if keep_raw {
+                assert_eq!(step["raw"], written);
+                assert_eq!(history[0]["raw"], written);
+            } else {
+                assert!(step.get("raw").is_none() && history[0].get("raw").is_none());
+            }
+            // results and the final message never carry one
+            assert!(
+                history[1..]
+                    .iter()
+                    .all(|message| message.get("raw").is_none())
+            );
+            assert_eq!(history[2]["content"], "It returns 1.");
+        }
+        Ok(())
+    }
+
+    /// The dialogue keeps another call than the one written (a completed name, a call of a batch
+    /// that never ran): the step is rendered from its calls, without its own text.
+    #[test]
+    fn a_rewritten_step_does_not_keep_its_own_text() -> Result<()> {
+        let keep = Turn {
+            keep_raw: true,
+            ..turn(100_000, 8)
+        };
+        let offered = vec![
+            json!({"type":"function", "function":{"name":"sandbox.javascript", "parameters":{}}}),
+        ];
+        let mut host = ScriptHost::new(vec![call("return 1"), answer("ok")]);
+        run_turn(&mut host, dialogue(), &offered, &keep)?;
+        let step = &host.requests[1].dialogue[2];
+        assert_eq!(
+            step["tool_calls"][0]["function"]["name"],
+            "sandbox.javascript"
+        );
+        assert!(step.get("raw").is_none(), "{step}");
+        for (ran, kept) in [(0usize, false), (1, false), (2, true)] {
+            let mut batch = call("first");
+            batch.tool_text += &call("second").tool_text;
+            let mut host = ScriptHost::new(vec![batch]);
+            host.yield_after = Some(ran);
+            let end = run_turn(&mut host, dialogue(), &tools(), &keep)?;
+            let history: Vec<Value> = serde_json::from_str(end.turn_context.as_deref().unwrap())?;
+            assert_eq!(history[0].get("raw").is_some(), kept, "{ran} calls ran");
+        }
+        Ok(())
+    }
+
+    /// A call the parser could not read goes back with the text the model wrote.
+    #[test]
+    fn an_unreadable_step_keeps_its_own_text_when_asked() -> Result<()> {
+        for keep_raw in [false, true] {
+            let mut broken = call("");
+            broken.tool_text = "<tool_call>{\"name\":".into();
+            broken.raw = "thinking<tool_call>{\"name\":".into();
+            let mut host = ScriptHost::new(vec![broken, answer("ok")]);
+            let settings = Turn {
+                keep_raw,
+                ..turn(100_000, 8)
+            };
+            run_turn(&mut host, dialogue(), &tools(), &settings)?;
+            let step = &host.requests[1].dialogue[2];
+            assert_eq!(step["content"], "<tool_call>{\"name\":");
+            assert_eq!(
+                step.get("raw"),
+                keep_raw
+                    .then(|| json!("thinking<tool_call>{\"name\":"))
+                    .as_ref()
+            );
+        }
         Ok(())
     }
 
@@ -1627,6 +1810,202 @@ mod tests {
         // A turn without tools (JSON retries) and an empty one carry nothing.
         assert!(interrupted_history(&[]).is_none());
         assert!(interrupted_history(&[json!({"role":"assistant", "content":"nope"})]).is_none());
+    }
+
+    /// A conversation of three earlier turns (the first with a stored tool exchange), then the
+    /// new request: 2 000 characters per text, client indices as the bridge computes them.
+    fn long_conversation() -> (Vec<Value>, Vec<usize>) {
+        let text = |label: &str| format!("{label} {}", "x".repeat(2_000));
+        let dialogue = vec![
+            json!({"role":"system", "content":"You are an agent."}),
+            json!({"role":"user", "content":text("first request")}),
+            json!({"role":"assistant", "content":"", "tool_calls":[{"type":"function",
+                "function":{"name":"javascript", "arguments":{"code":"1"}}}]}),
+            json!({"role":"tool", "name":"javascript", "content":"ran 1"}),
+            json!({"role":"assistant", "content":text("first answer")}),
+            json!({"role":"user", "content":text("second request")}),
+            json!({"role":"assistant", "content":text("second answer")}),
+            json!({"role":"user", "content":text("third request")}),
+            json!({"role":"assistant", "content":text("third answer")}),
+            json!({"role":"user", "content":"What is left to do?"}),
+        ];
+        (dialogue, vec![0, 1, 2, 2, 2, 3, 4, 5, 6, 7])
+    }
+
+    fn history_events(host: &ScriptHost) -> Vec<&Value> {
+        host.events
+            .iter()
+            .filter(|event| event["type"] == "history_summary")
+            .collect()
+    }
+
+    #[test]
+    fn earlier_turns_are_summarized_when_they_fill_the_context() -> Result<()> {
+        let (dialogue, origins) = long_conversation();
+        let mut settings = turn(14_000, 8);
+        settings.original_length = dialogue.len();
+        settings.origins = &origins;
+        let mut host = ScriptHost::new(vec![answer("Two things are left.")]);
+        host.summaries = vec![answer("- User asked A then B\n- B is done")].into();
+        let end = run_turn(&mut host, dialogue.clone(), &tools(), &settings)?;
+        // The summary step: the conversation up to a user message, nothing shown.
+        let asked = &host.requests[0];
+        assert!(asked.buffered);
+        assert_eq!(
+            asked.dialogue.last().unwrap()["content"],
+            agent_loop::HISTORY_SUMMARY_REQUEST
+        );
+        // Cutting before the new request would not leave room for the summary step itself:
+        // the cut is one turn earlier, before the third request.
+        assert_eq!(asked.dialogue[..asked.dialogue.len() - 1], dialogue[..7]);
+        let events = history_events(&host);
+        assert_eq!(events.len(), 1);
+        // dialogue[7] is client message 5: the stored turn of message 2 counted once.
+        assert_eq!(events[0]["kept_from"], 5);
+        let prefix = events[0]["prefix"].as_str().unwrap();
+        assert!(prefix.starts_with(agent_loop::HISTORY_SUMMARY_MARKER));
+        assert!(prefix.contains("- User asked A then B\n- B is done") && prefix.ends_with("\n\n"));
+        // What the model then answers from: system, the third turn headed by the summary, the request.
+        let answered = &host.requests[1].dialogue;
+        assert_eq!(answered.len(), 4);
+        assert_eq!(answered[0], dialogue[0]);
+        assert_eq!(
+            answered[1]["content"],
+            format!("{prefix}{}", dialogue[7]["content"].as_str().unwrap())
+        );
+        assert_eq!(answered[2..], dialogue[8..]);
+        assert!(bytes(answered) < bytes(&dialogue) / 2);
+        assert_eq!(
+            (end.assistant.as_str(), end.context_full, end.rounds),
+            ("Two things are left.", false, 0)
+        );
+        assert!(
+            end.turn_context.is_none(),
+            "earlier turns are not this turn's exchanges"
+        );
+        assert!(
+            host.statuses()
+                .iter()
+                .any(|text| text.starts_with("Context summarized"))
+        );
+        // The next request, as the client sends it with the stored summary, needs no new one.
+        let mut next = answered.clone();
+        next.push(json!({"role":"assistant", "content":"Two things are left."}));
+        next.push(json!({"role":"user", "content":"Do the first."}));
+        let mut later = ScriptHost::new(vec![answer("Done.")]);
+        let mut settings = turn(14_000, 8);
+        settings.original_length = next.len();
+        run_turn(&mut later, next.clone(), &tools(), &settings)?;
+        assert!(history_events(&later).is_empty() && later.requests.len() == 1);
+        assert_eq!(later.requests[0].dialogue, next);
+        Ok(())
+    }
+
+    #[test]
+    fn a_conversation_that_never_used_a_tool_is_summarized_too() -> Result<()> {
+        // Plain questions and answers only (a chat held in the single Agent mode).
+        // 33 000 characters in a context of 40 000: above the trigger, with room for the summary step.
+        let text = |label: &str| format!("{label} {}", "y".repeat(5_500));
+        let mut dialogue = vec![json!({"role":"system", "content":"You are an agent."})];
+        for index in 0..3 {
+            dialogue.push(json!({"role":"user", "content":text(&format!("question {index}"))}));
+            dialogue.push(json!({"role":"assistant", "content":text(&format!("answer {index}"))}));
+        }
+        dialogue.push(json!({"role":"user", "content":"And now?"}));
+        let mut settings = turn(40_000, 8);
+        settings.original_length = dialogue.len();
+        let mut host = ScriptHost::new(vec![answer("Now this.")]);
+        host.summaries = vec![answer("- three questions answered")].into();
+        let end = run_turn(&mut host, dialogue.clone(), &tools(), &settings)?;
+        let events = history_events(&host);
+        assert_eq!(events.len(), 1, "{:?}", host.statuses());
+        // No origins given: one client message per dialogue message.
+        assert_eq!(events[0]["kept_from"], 7);
+        let answered = &host.requests[1].dialogue;
+        assert_eq!(
+            answered.len(),
+            2,
+            "the summary heads the new question itself"
+        );
+        assert!(
+            answered[1]["content"]
+                .as_str()
+                .unwrap()
+                .ends_with("And now?")
+        );
+        assert_eq!(end.assistant, "Now this.");
+        Ok(())
+    }
+
+    #[test]
+    fn a_summary_of_earlier_turns_that_cannot_be_used_changes_nothing() -> Result<()> {
+        let (dialogue, origins) = long_conversation();
+        // An empty summary, a tool call instead of a summary, and one cut by the token limit.
+        let mut cut_short = answer("- partial");
+        cut_short.stop = GenerationStopReason::MaxTokens;
+        for unusable in [answer("  "), call("list()"), cut_short] {
+            let mut settings = turn(14_000, 8);
+            settings.original_length = dialogue.len();
+            settings.origins = &origins;
+            let mut host = ScriptHost::new(vec![answer("Answer.")]);
+            host.summaries = vec![unusable].into();
+            let end = run_turn(&mut host, dialogue.clone(), &tools(), &settings)?;
+            assert!(history_events(&host).is_empty());
+            assert_eq!(
+                host.requests[1].dialogue, dialogue,
+                "the conversation is kept whole"
+            );
+            assert_eq!(end.assistant, "Answer.");
+            assert!(
+                host.calls.is_empty(),
+                "a call written as a summary never runs"
+            );
+        }
+        // Without tools (plain chat requests of older clients) nothing is summarized.
+        let mut settings = turn(14_000, 8);
+        settings.original_length = dialogue.len();
+        let mut host = ScriptHost::new(vec![answer("Answer.")]);
+        run_turn(&mut host, dialogue.clone(), &[], &settings)?;
+        assert_eq!(host.requests.len(), 1);
+        Ok(())
+    }
+
+    #[test]
+    fn a_turn_interrupted_after_a_history_summary_keeps_only_its_own_exchanges() {
+        let (dialogue, origins) = long_conversation();
+        let mut settings = turn(14_000, 8);
+        settings.original_length = dialogue.len();
+        settings.origins = &origins;
+        let mut host = ScriptHost::new(vec![call("a")]);
+        host.summaries = vec![answer("- summary")].into();
+        // Requests: the summary, the step that calls a tool, then the engine fails.
+        host.fail_step = Some(3);
+        let error = run_turn(&mut host, dialogue, &tools(), &settings).unwrap_err();
+        assert_eq!(history_events(&host).len(), 1);
+        let history = interrupted(&error).unwrap();
+        assert_eq!(history.len(), 3, "{history:?}");
+        assert_eq!(history[1]["content"], "ran a");
+    }
+
+    #[test]
+    fn a_single_turn_or_a_small_conversation_is_never_summarized() -> Result<()> {
+        // One long turn only: there is no earlier turn to give up.
+        let mut host = ScriptHost::new(vec![answer("Done.")]);
+        let mut one = dialogue();
+        one[1]["content"] = json!("x".repeat(13_000));
+        let mut settings = turn(14_000, 8);
+        settings.original_length = one.len();
+        run_turn(&mut host, one, &tools(), &settings)?;
+        assert_eq!(host.requests.len(), 1);
+        // Several turns far below the trigger.
+        let (dialogue, _) = long_conversation();
+        let mut host = ScriptHost::new(vec![answer("Done.")]);
+        let mut settings = turn(100_000, 8);
+        settings.original_length = dialogue.len();
+        run_turn(&mut host, dialogue.clone(), &tools(), &settings)?;
+        assert_eq!(host.requests.len(), 1);
+        assert_eq!(host.requests[0].dialogue, dialogue);
+        Ok(())
     }
 
     #[test]
