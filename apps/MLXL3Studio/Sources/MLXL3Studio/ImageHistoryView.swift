@@ -5,6 +5,7 @@ import SwiftUI
 struct ImageHistoryView: View {
     @ObservedObject var engine: ImageGeneration
     @Binding var selection: URL?
+    let selectDestination: @MainActor (NSSavePanel) -> URL?
     let openGenerator: () -> Void
 
     @State private var refreshID = 0
@@ -96,7 +97,7 @@ struct ImageHistoryView: View {
                          detail: date(item)) {
             Button {
                 let filename = item.seed.map { "Image-\($0).png" } ?? item.fileURL.lastPathComponent
-                presentImageSavePanel(filename: filename, directory: .downloadsDirectory, export: item.export)
+                presentImageSavePanel(filename: filename, directory: .downloadsDirectory, select: selectDestination, export: item.export)
             } label: {
                 Label(L("Télécharger le PNG", "Download PNG"), systemImage: "arrow.down.to.line")
             }

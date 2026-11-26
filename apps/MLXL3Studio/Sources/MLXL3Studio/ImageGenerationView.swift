@@ -3,13 +3,20 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 @MainActor
-func presentImageSavePanel(filename: String, directory: URL? = nil, export: @escaping (URL) async throws -> Void) {
+func selectImageSaveDestination(_ panel: NSSavePanel) -> URL? {
+    guard panel.runModal() == .OK else { return nil }
+    return panel.url
+}
+
+@MainActor
+func presentImageSavePanel(filename: String, directory: URL? = nil, select: @MainActor (NSSavePanel) -> URL?,
+                           export: @escaping (URL) async throws -> Void) {
     let panel = NSSavePanel()
     panel.allowedContentTypes = [.png]
     panel.canCreateDirectories = true
     panel.nameFieldStringValue = filename
     if let directory { panel.directoryURL = directory }
-    guard panel.runModal() == .OK, let destination = panel.url else { return }
+    guard let destination = select(panel) else { return }
     Task {
         do { try await export(destination) }
         catch { NSAlert(error: error).runModal() }
@@ -29,6 +36,7 @@ struct ImageGenerationView: View {
     @EnvironmentObject private var studio: StudioModel
     @ObservedObject var engine: ImageGeneration
     let close: () -> Void
+    var selectDestination: @MainActor (NSSavePanel) -> URL? = selectImageSaveDestination
     @State private var previewImage: NSImage?
     @State private var referencePreviewImage: NSImage?
     @State private var referenceDropTargeted = false
@@ -61,7 +69,9 @@ struct ImageGenerationView: View {
             }
 
             if showsHistory {
-                ImageHistoryView(engine: engine, selection: $selectedImage) { showsHistory = false }
+                ImageHistoryView(engine: engine, selection: $selectedImage, selectDestination: selectDestination) {
+                    showsHistory = false
+                }
             } else {
                 VStack(alignment: .leading, spacing: 16) {
                     StudioPageHeader(title: engine.editing ? L("Retoucher une image", "Edit an image")
@@ -270,7 +280,7 @@ struct ImageGenerationView: View {
                     }.buttonStyle(.studio(.secondary, height: 26))
                 } else if !engine.running, let output = engine.result {
                     Button {
-                        presentImageSavePanel(filename: "Image-\(output.seed).png", export: output.export)
+                        presentImageSavePanel(filename: "Image-\(output.seed).png", select: selectDestination, export: output.export)
                     } label: {
                         Label(L("Enregistrer…", "Save…"), systemImage: "square.and.arrow.down")
                     }
