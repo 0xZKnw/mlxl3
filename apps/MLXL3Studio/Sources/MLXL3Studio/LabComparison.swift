@@ -6,6 +6,7 @@ import Foundation
 @MainActor
 final class LabComparison: ObservableObject {
     enum Phase { case waiting, loading, generating, complete, failed, cancelled }
+    enum StopReason { case eos, outputLimit, contextFull, stopped, skipped, timedOut, interrupted, error, unknown }
 
     struct Run: Identifiable {
         let model: LocalModel
@@ -14,12 +15,14 @@ final class LabComparison: ObservableObject {
         var answer = ""
         var firstTextSeconds: Double?
         var decodeTps: Double?
-        var elapsedSeconds: Double?
+        var totalSeconds: Double?
         var generatedTokens: Int?
         var error: String?
-        var hitTokenLimit = false
-        var hitContextLimit = false
+        var stopReason: StopReason?
+        var hitTokenLimit: Bool { stopReason == .outputLimit }
+        var hitContextLimit: Bool { stopReason == .contextFull }
         var isThinking = false
+        var htmlDocument: String?
     }
 
     @Published private(set) var runs: [Run] = []
@@ -50,18 +53,31 @@ final class LabComparison: ObservableObject {
             await prepare()
             for index in runs.indices {
                 guard !Task.isCancelled else { break }
+                let started = ContinuousClock.now
                 do { try await run(index) }
-                catch is CancellationError { runs[index].phase = .cancelled }
+                catch is CancellationError {
+                    runs[index].phase = .cancelled
+                    runs[index].stopReason = .stopped
+                }
                 catch {
                     runs[index].phase = .failed
+                    runs[index].stopReason = runs[index].stopReason ?? .error
                     runs[index].error = error.localizedDescription
                 }
+                runs[index].totalSeconds = Self.seconds(started.duration(to: .now))
                 runs[index].isThinking = false
                 // A pending SIGTERM is insufficient, particularly for large checkpoints.
                 await bridge.stopAndWait()
+                if runs[index].phase == .complete, runs[index].answer.utf8.count <= HTMLPreview.maximumBytes {
+                    let documents = GeneratedHTML.documents(runs[index].answer)
+                    runs[index].htmlDocument = documents.first(where: HTMLPreview.isDocument) ?? documents.first
+                }
             }
             if Task.isCancelled {
-                for index in runs.indices where runs[index].phase == .waiting { runs[index].phase = .cancelled }
+                for index in runs.indices where runs[index].phase == .waiting {
+                    runs[index].phase = .cancelled
+                    runs[index].stopReason = .skipped
+                }
             }
             task = nil
             isRunning = false
@@ -75,9 +91,15 @@ final class LabComparison: ObservableObject {
 
     func waitUntilStopped() async { await task?.value }
 
+    private static func seconds(_ duration: Duration) -> Double {
+        let value = duration.components
+        return Double(value.seconds) + Double(value.attoseconds) / 1e18
+    }
+
     private enum Signal {
         case event(BridgeEvent)
         case failure(String)
+        case timeout
     }
 
     private func run(_ index: Int) async throws {
@@ -93,7 +115,7 @@ final class LabComparison: ObservableObject {
                 do { try await Task.sleep(until: limit, clock: .continuous) } catch { return }
                 let now = ContinuousClock.now
                 if now >= deadline || activity.duration(to: now) >= idleTimeout {
-                    channel.yield(.failure(L("Le moteur a dépassé le délai de réponse.", "The engine timed out.")))
+                    channel.yield(.timeout)
                     return
                 }
             }
@@ -111,6 +133,9 @@ final class LabComparison: ObservableObject {
             try Task.checkCancellation()
             switch signal {
             case .failure(let reason): throw MLXL3BridgeError.commandFailed(reason)
+            case .timeout:
+                runs[index].stopReason = .timedOut
+                throw MLXL3BridgeError.commandFailed(L("Le moteur a dépassé le délai de réponse.", "The engine timed out."))
             case .event(let event):
                 if let id = event.requestID, id != requestID { continue }
                 activity = .now
@@ -127,8 +152,7 @@ final class LabComparison: ObservableObject {
                     continue
                 }
                 guard event.requestID == requestID, let started else { continue }
-                let elapsed = started.duration(to: .now).components
-                let seconds = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
+                let seconds = Self.seconds(started.duration(to: .now))
                 switch event.type {
                 case "delta":
                     guard let text = event.text, !text.isEmpty else { break }
@@ -142,10 +166,13 @@ final class LabComparison: ObservableObject {
                         runs[index].answer += text
                     }
                 case "complete":
-                    runs[index].elapsedSeconds = seconds
-                    runs[index].hitTokenLimit = event.stopReason == "max_tokens"
-                    runs[index].hitContextLimit = event.stopReason == "context_full" ||
-                        (event.stopReason == nil && event.contextFull == true)
+                    runs[index].stopReason = switch event.stopReason {
+                    case "eos": .eos
+                    case "max_tokens": .outputLimit
+                    case "context_full": .contextFull
+                    case nil where event.contextFull == true: .contextFull
+                    default: .unknown
+                    }
                     if let stats = event.stats {
                         runs[index].decodeTps = LabDecodeUsage.measurement(stats)?.average
                         runs[index].generatedTokens = stats.generatedTokens >= 0 ? stats.generatedTokens : nil
@@ -171,6 +198,7 @@ final class LabComparison: ObservableObject {
                     return
                 case "cancelled":
                     if Task.isCancelled { throw CancellationError() }
+                    runs[index].stopReason = .interrupted
                     throw MLXL3BridgeError.commandFailed(L("Le moteur a interrompu la réponse.", "The engine interrupted the response."))
                 default: break
                 }

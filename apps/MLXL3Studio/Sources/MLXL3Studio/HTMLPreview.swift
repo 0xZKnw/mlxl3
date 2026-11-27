@@ -157,13 +157,14 @@ struct InlineHTMLPreview: View {
   let source: String
   var workspace: URL? = nil
   var file: URL? = nil
+  var pageZoom: CGFloat = 1
   @State private var webView: WKWebView?
   @State private var error: String?
 
   var body: some View {
     Group {
       if let webView {
-        HTMLWebView(view: webView)
+        HTMLWebView(view: webView, pageZoom: pageZoom)
       } else if let error {
         VStack(spacing: 12) {
           Image(systemName: "exclamationmark.triangle").font(.system(size: 24))
@@ -284,8 +285,11 @@ private final class PreviewPage: NSObject, WKURLSchemeHandler, WKNavigationDeleg
 
 struct HTMLWebView: NSViewRepresentable {
   let view: WKWebView
+  var pageZoom: CGFloat = 1
   func makeNSView(context: Context) -> WKWebView { view }
-  func updateNSView(_ nsView: WKWebView, context: Context) {}
+  func updateNSView(_ nsView: WKWebView, context: Context) {
+    if nsView.pageZoom != pageZoom { nsView.pageZoom = pageZoom }
+  }
   static func dismantleNSView(_ nsView: WKWebView, coordinator: ()) {
     nsView.stopLoading()
     nsView.navigationDelegate = nil

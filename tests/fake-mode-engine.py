@@ -108,6 +108,8 @@ elif command == "bridge":
     signal.signal(signal.SIGUSR1, cancel)
     with open(os.path.join(os.environ["MLXL3_HOME"], "mode-launches.jsonl"), "a") as log:
         log.write(json.dumps({"registry": registry, "model": model, "pid": os.getpid()}) + "\n")
+    if model in {"Site Atlas", "Site Birch"}:
+        time.sleep(0.22)
     emit(
         "ready",
         model=model,
@@ -146,6 +148,26 @@ elif command == "bridge":
             yield_requested = False
             active = request["request_id"]
             text = request["messages"][-1]["content"]
+            if model in {"Site Atlas", "Site Birch"}:
+                context_full = model == "Site Birch"
+                source = f"""<!doctype html><meta charset="utf-8"><title>{model}</title>
+                <style>
+                body {{ color: rgb(12, 34, 56); }}
+                @media (max-width: 600px) {{ body {{ color: rgb(70, 80, 90); }} }}
+                </style>
+                <h1>{model}</h1><button onclick="this.textContent='Clicked'">Ready</button>"""
+                answer = f"Here is the site.\n\n```html\n{source}\n```" if context_full else source
+                emit("delta", request_id=active, phase="answer", text=answer)
+                emit(
+                    "complete",
+                    request_id=active,
+                    stop_reason="context_full" if context_full else "eos",
+                    context_full=context_full,
+                    stats={"ttft_seconds": 0.1, "prefill_tps": 120, "decode_tps": 30,
+                           "prompt_tokens": 12, "generated_tokens": 1024 if context_full else 690},
+                )
+                active = None
+                continue
             if model.startswith("compare-test-"):
                 with open(os.path.join(os.environ["MLXL3_HOME"], "compare-requests.jsonl"), "a") as log:
                     log.write(json.dumps({"request": request, "model": model, "registry": registry}) + "\n")
@@ -260,7 +282,9 @@ elif command == "bridge":
                     "context_used": 18,
                     "context_limit": 2048,
                 },
-                stop_reason="max_tokens" if text == "budget-limit" else "eos",
+                # The generic Lab fixture exercises an older bridge without a reason.
+                stop_reason="max_tokens" if text == "budget-limit"
+                else None if model.startswith("compare-test-") else "eos",
             )
             active = None
 else:
