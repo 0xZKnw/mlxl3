@@ -1203,8 +1203,9 @@ private struct ReasoningMenu: View {
             .pickerStyle(.inline)
             if studio.agentThinkingTargetAvailable {
                 Divider()
+                // An explicit closure avoids a Swift 6.3.3 IRGen crash on the actor-isolated method reference.
                 Picker(L("Cible pour le prochain message", "Target for the next message"), selection: Binding(
-                    get: { studio.agentThinkingTarget }, set: studio.setAgentThinkingTarget)) {
+                    get: { studio.agentThinkingTarget }, set: { studio.setAgentThinkingTarget($0) })) {
                     ForEach(studio.agentThinkingTargets) { target in
                         Text(target.title).tag(target)
                     }
