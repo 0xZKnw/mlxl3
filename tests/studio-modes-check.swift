@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import Foundation
 import SwiftUI
 import Vision
@@ -38,6 +39,15 @@ extension StudioModel {
       }
       preconditionFailure("Comparison fixture timed out at line \(line)")
     }
+    func waitForIdleLab() async throws {
+      try await wait { !comparison.isRunning && studio.modeTransition == nil }
+      check(studio.selectedMode == .lab && studio.engineState == .idle && !studio.bridge.isRunning,
+        "The conversation model stays unloaded while Lab displays its results")
+      let lease = try FileHandle(forUpdating: root.appendingPathComponent("compare.lock"))
+      defer { try? lease.close() }
+      check(flock(lease.fileDescriptor, LOCK_EX | LOCK_NB) == 0,
+        "No fixture engine holds the model lease after Lab stops")
+    }
     studio.models = [first, entry("mirror", alias.path, first.modelType), second, entry("image", localRoot.path, "qwen_image"),
       entry("unplugged", localRoot.appendingPathComponent("missing").path, first.modelType)]
     check(studio.comparisonModels.map(\.name) == [first.name, second.name], "Exclude missing paths, duplicate physical paths and non-text models")
@@ -56,7 +66,7 @@ extension StudioModel {
     check(comparison.runs.isEmpty && !comparison.isRunning, "Invalid budget launches nothing")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "identical ☕ prompt", budget: 128)
     studio.startLabComparison(left: second.name, right: first.name, prompt: "overwrite", budget: 1)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     check(comparison.prompt == "identical ☕ prompt" && comparison.budget == 128, "Running comparison freezes its inputs")
     check(comparison.runs.map(\.model) == [first, second] && comparison.runs.allSatisfy { $0.phase == .complete },
           "Both original arms finish, in order, across the exclusive engine lock")
@@ -81,7 +91,7 @@ extension StudioModel {
       && studio.currentConversation!.messages.count == count && studio.labSamples.isEmpty
       && studio.labUsage.summary(for: .allTime).models.isEmpty, "Lab preserves the draft, conversation and usage")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-errors", budget: 1)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     let a = comparison.runs[0], b = comparison.runs[1]
     check(a.phase == .complete && a.error == nil && a.hitTokenLimit && a.answer.isEmpty && a.firstTextSeconds == nil
       && a.generatedTokens == 1 && a.decodeTps == nil && !a.isThinking,
@@ -89,25 +99,31 @@ extension StudioModel {
     check(b.phase == .complete && b.answer == "B's fallback answer" && b.firstTextSeconds == b.elapsedSeconds
       && b.decodeTps == nil && b.generatedTokens == nil, "A real fallback answer is timed at completion; missing counters stay missing")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-empty", budget: 8)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error != nil && $0.firstTextSeconds == nil },
       "Unexpected empty responses are reported as failures")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-context", budget: 32)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     check(comparison.runs.allSatisfy {
       $0.phase == .complete && $0.error == nil && $0.answer == "Text before the context filled" && $0.firstTextSeconds != nil
     }, "A full context preserves both streamed and completion-only answers exactly once")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-context-empty", budget: 32)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     check(comparison.runs.allSatisfy { $0.phase == .failed && $0.answer.isEmpty && $0.error != nil },
       "A full context before any visible text reports the failure")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-malformed", budget: 1)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error != nil }, "Malformed frames fail each arm explicitly")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "hang-ignore", budget: 32)
     try await wait { comparison.runs.first?.isThinking == true }
     check(comparison.runs.first?.answer.isEmpty == true && comparison.runs.first?.firstTextSeconds == nil,
       "Reasoning can be indicated live without appearing in the visible answer or starting its clock")
+    comparison.cancel()
+    try await waitForIdleLab()
+    check(comparison.runs.allSatisfy { $0.phase == .cancelled },
+      "Stopping in Lab unloads the active model and skips the second arm")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "hang-ignore", budget: 32)
+    try await wait { comparison.runs.first?.isThinking == true }
     studio.leaveLab()
     try await wait { !comparison.isRunning && studio.selectedMode == .chat && studio.engineState.isReady }
     check(comparison.runs.allSatisfy { $0.phase == .cancelled } && studio.draft == "unchanged draft"
