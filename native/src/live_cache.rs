@@ -30,6 +30,19 @@ pub fn committed_stream(
     (held.len() == committed).then_some(held)
 }
 
+/// The shared committed offset of the Flash target and DFlash draft. A completed
+/// verification block can still hold one uncommitted fallback token at the end of
+/// its output queue. With more pending tokens, the queue can include speculative
+/// rows that were committed but have yet to reach the caller.
+pub fn flash_draft_live_offset(
+    target: i32,
+    draft: i32,
+    verification_pending: bool,
+    pending: usize,
+) -> Option<i32> {
+    (target > 0 && target == draft && !verification_pending && pending <= 1).then_some(target)
+}
+
 /// Where the prefill of `prompt` starts when the model holds `snapshot` then `tail` and sits
 /// at `position` (None while it has uncommitted rows): the end of what it holds, when the
 /// prompt starts with exactly those tokens and has at least one more.
@@ -93,9 +106,102 @@ pub fn extend_tokens<E>(
     })
 }
 
+#[cfg(kani)]
+#[kani::proof]
+fn flash_draft_live_offset_requires_both_committed_states() {
+    let target: i32 = kani::any();
+    let draft: i32 = kani::any();
+    let verification_pending: bool = kani::any();
+    let pending: usize = kani::any();
+    let offset = flash_draft_live_offset(target, draft, verification_pending, pending);
+
+    if let Some(offset) = offset {
+        assert!(offset > 0);
+        assert_eq!(offset, target);
+        assert_eq!(offset, draft);
+        assert!(!verification_pending);
+        assert!(matches!(pending, 0 | 1));
+    } else if target == draft && !verification_pending && matches!(pending, 0 | 1) {
+        assert!(target <= 0);
+    }
+
+    kani::cover!(offset == Some(1) && pending == 0);
+    kani::cover!(offset == Some(i32::MAX) && pending == 1);
+    kani::cover!(target == 0 && draft == 0 && !verification_pending && pending == 0);
+    kani::cover!(target == -1 && draft == -1 && !verification_pending && pending == 0);
+    kani::cover!(target == 1 && draft == 2 && !verification_pending && pending == 0);
+    kani::cover!(target == 1 && draft == 1 && verification_pending && pending == 0);
+    kani::cover!(target == 1 && draft == 1 && !verification_pending && pending == 2);
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(16)]
+fn live_start_requires_exact_tokens_and_committed_offset() {
+    // Each held segment has up to three tokens. The next prompt has up to seven,
+    // enough to include both held segments and a suffix. IDs and offsets are unrestricted.
+    // Slice equality can compare up to 12 bytes in memcmp before reaching its exit.
+    let snapshot: [u32; 3] = kani::any();
+    let tail: [u32; 3] = kani::any();
+    let prompt: [u32; 7] = kani::any();
+    let snapshot_len = usize::from(kani::any::<u8>() % 4);
+    let tail_len = usize::from(kani::any::<u8>() % 4);
+    let prompt_len = usize::from(kani::any::<u8>() % 8);
+    let position: Option<usize> = kani::any();
+    let held = snapshot_len + tail_len;
+
+    let resumed = live_start(
+        &snapshot[..snapshot_len],
+        &tail[..tail_len],
+        &prompt[..prompt_len],
+        position,
+    );
+    let first_mismatch = (0..held.min(prompt_len)).find(|&index| {
+        let token = if index < snapshot_len {
+            snapshot[index]
+        } else {
+            tail[index - snapshot_len]
+        };
+        prompt[index] != token
+    });
+    if position == Some(held) && prompt_len > held && first_mismatch.is_none() {
+        assert_eq!(resumed, Some(held));
+    } else {
+        assert_eq!(resumed, None);
+    }
+    kani::cover!(resumed == Some(6) && snapshot_len == 3 && tail_len == 3);
+    kani::cover!(resumed == Some(3) && snapshot_len == 3 && tail_len == 0);
+    kani::cover!(position == Some(held) && prompt_len > held && first_mismatch == Some(0));
+    kani::cover!(
+        tail_len > 0
+            && position == Some(held)
+            && prompt_len > held
+            && first_mismatch == Some(snapshot_len)
+    );
+    kani::cover!(position == Some(held) && held == prompt_len && first_mismatch.is_none());
+    kani::cover!(position.is_none() && prompt_len > held && first_mismatch.is_none());
+    kani::cover!(position == Some(held + 1) && prompt_len > held && first_mismatch.is_none());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dflash_resume_requires_a_shared_committed_offset() {
+        assert_eq!(flash_draft_live_offset(1, 1, false, 0), Some(1));
+        assert_eq!(
+            flash_draft_live_offset(i32::MAX, i32::MAX, false, 1),
+            Some(i32::MAX)
+        );
+        assert_eq!(flash_draft_live_offset(0, 0, false, 0), None);
+        assert_eq!(flash_draft_live_offset(-1, -1, false, 0), None);
+        assert_eq!(flash_draft_live_offset(1, 2, false, 0), None);
+        assert_eq!(flash_draft_live_offset(2, 1, false, 0), None);
+        assert_eq!(flash_draft_live_offset(1, 1, true, 0), None);
+        assert_eq!(flash_draft_live_offset(1, 1, false, 2), None);
+        assert_eq!(flash_draft_live_offset(1, 1, false, usize::MAX), None);
+    }
 
     #[test]
     fn the_committed_part_is_a_prefix_of_the_stream() {
@@ -156,6 +262,26 @@ mod tests {
         // an empty tail is the snapshot itself
         assert_eq!(live_start(&snapshot, &[], &prompt, Some(4)), Some(4));
         assert_eq!(live_start(&[], &[], &prompt, Some(0)), Some(0));
+    }
+
+    #[test]
+    fn a_tool_round_only_reuses_rows_the_decoder_committed() {
+        let initial_prompt = [11, 22, 33];
+        // The decoder stopped after emitting token 55 but before advancing its state with it.
+        let emitted = [44, 55];
+        let position = 4;
+        let committed = committed_stream(initial_prompt.len(), &emitted, None, position).unwrap();
+        let held = [initial_prompt.as_slice(), &committed].concat();
+        let with_result = [11, 22, 33, 44, 55, 66, 77];
+        let start = live_start(&held, &[], &with_result, Some(position)).unwrap();
+        assert_eq!(&with_result[start..], [55, 66, 77]);
+        assert_eq!(
+            live_start(&held, &[], &with_result, Some(position + 1)),
+            None
+        );
+        // A rewritten tool call cannot start at the same row just because its size matches.
+        let rewritten = [11, 22, 33, 99, 55, 66, 77];
+        assert_eq!(live_start(&held, &[], &rewritten, Some(position)), None);
     }
 
     #[test]

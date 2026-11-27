@@ -108,6 +108,11 @@ elif command == "bridge":
     signal.signal(signal.SIGUSR1, cancel)
     with open(os.path.join(os.environ["MLXL3_HOME"], "mode-launches.jsonl"), "a") as log:
         log.write(json.dumps({"registry": registry, "model": model, "pid": os.getpid()}) + "\n")
+    flash_cache = {}
+    if model.startswith("flash-live-"):
+        flash_cache.update(dflash_supported=True, dflash_configure_supported=True)
+        if model != "flash-live-legacy":
+            flash_cache["flash_dflash_live_prompt_cache_supported"] = model == "flash-live-supported"
     emit(
         "ready",
         model=model,
@@ -127,6 +132,7 @@ elif command == "bridge":
         agent_loop_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
         # AGENT-2026-11-26-LIVE-CACHE: announced with the same marker (a newer engine)
         live_prompt_cache_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
+        **flash_cache,
     )
     if model.startswith("compare-test-no-reader-"):
         time.sleep(60)
@@ -141,6 +147,12 @@ elif command == "bridge":
                 mcp_servers=1 if request["enabled"] else 0,
                 mcp_tools=1 if request["enabled"] else 0,
                 mcp_errors={},
+            )
+        elif request["type"] == "set_dflash" and model.startswith("flash-live-"):
+            emit(
+                "dflash_status",
+                request_id=request["request_id"],
+                dflash_active=request["enabled"],
             )
         elif request["type"] == "generate":
             yield_requested = False

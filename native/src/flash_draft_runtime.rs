@@ -47,6 +47,10 @@ impl Session {
 
     pub(in crate::qwen4) fn reset(&mut self) {
         self.draft.reset();
+        self.reset_round();
+    }
+
+    fn reset_round(&mut self) {
         crate::flash_draft_budget::reset_request_budgets(&mut self.budget, &mut self.pre_budget);
         self.pending.clear();
         self.proposed = 0;
@@ -243,6 +247,15 @@ impl FlashNext {
     pub fn dflash2_active(&self) -> bool {
         self.dflash.is_some()
     }
+    pub fn dflash2_live_offset(&self) -> Option<i32> {
+        let session = self.dflash.as_ref()?;
+        crate::live_cache::flash_draft_live_offset(
+            self.offset,
+            session.draft.offset,
+            self.verification.is_some(),
+            session.pending.len(),
+        )
+    }
     pub fn dflash2_proposals(&self) -> Option<usize> {
         self.dflash.as_ref().map(|s| s.options.width)
     }
@@ -280,18 +293,43 @@ impl FlashNext {
         Ok(state)
     }
     pub fn prefill_dflash2(&mut self, tokens: &[u32], cancelled: &AtomicBool) -> Result<Array> {
-        self.reset();
+        self.prefill_dflash2_resumable(tokens, None, cancelled)
+            .map(|(logits, _)| logits)
+    }
+
+    /// The caller must verify that the live tokens are an exact prefix of `tokens`.
+    pub fn prefill_dflash2_resumable(
+        &mut self,
+        tokens: &[u32],
+        start: Option<usize>,
+        cancelled: &AtomicBool,
+    ) -> Result<(Array, usize)> {
+        let start = start
+            .filter(|&start| {
+                start < tokens.len()
+                    && self
+                        .dflash2_live_offset()
+                        .is_some_and(|offset| usize::try_from(offset) == Ok(start))
+            })
+            .unwrap_or(0);
+        if start == 0 {
+            self.reset();
+        }
         let mut session = self
             .dflash
             .take()
             .context("DFlash draft is not configured")?;
+        if start != 0 {
+            // At most one unused token remains. Its state was never committed.
+            session.reset_round();
+        }
         let result = (|| {
             ensure!(
                 !tokens.is_empty() && tokens.len() < self.assets.context as usize,
                 "invalid DFlash prompt"
             );
             let mut last = None;
-            for (index, &token) in tokens.iter().enumerate() {
+            for (index, &token) in tokens.iter().enumerate().skip(start) {
                 ensure!(!cancelled.load(Ordering::Relaxed), "generation cancelled");
                 let (logits, captured) = if self.prefill_heads && index + 1 < tokens.len() {
                     self.forward_captured_optional(token, Kind::Dflash2, false)?
@@ -302,7 +340,7 @@ impl FlashNext {
                 session.draft.append(&captured, self.offset - 1)?;
                 last = logits;
             }
-            last.context("empty DFlash prompt")
+            Ok((last.context("empty DFlash prompt")?, start))
         })();
         if result.is_err() {
             self.reset();
@@ -329,6 +367,152 @@ impl FlashNext {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    #[ignore = "physical Apple GPU and installed Flash/DFlash checkpoints; run alone"]
+    fn dflash2_agent_live_tool_prefix_matches_cold_prefill() -> Result<()> {
+        use crate::live_cache::{committed_stream, live_start};
+
+        fn checked_logits(logits: &Array) -> Result<Vec<f32>> {
+            ensure!(logits.shape() == [1, 248_320]);
+            let values = logits.astype(Dtype::Float32)?.to_f32()?;
+            ensure!(values.len() == 248_320 && values.iter().all(|v| v.is_finite()));
+            Ok(values)
+        }
+
+        fn draft_state(target: &FlashNext, length: i32) -> Result<Vec<Vec<f32>>> {
+            let session = target
+                .dflash
+                .as_ref()
+                .context("missing active DFlash draft")?;
+            ensure!(session.pending.is_empty() && session.draft.offset == length);
+            ensure!(session.draft.circular && (1..2048).contains(&length));
+            ensure!(session.draft.cache.len() == 5);
+            let mut state = Vec::with_capacity(10);
+            for pair in &session.draft.cache {
+                let (keys, values) = pair.as_ref().context("missing DFlash KV layer")?;
+                // The fixture has not wrapped the ring. Compare the occupied rows only.
+                let keys = keys.slice(2, 0, length)?;
+                let values = values.slice(3, 0, length)?.transpose(&[0, 1, 3, 2])?;
+                for tensor in [keys, values] {
+                    ensure!(
+                        tensor.shape() == [1, 8, length, 128] && tensor.dtype() == Dtype::BFloat16
+                    );
+                    let data = tensor.astype(Dtype::Float32)?.to_f32()?;
+                    ensure!(
+                        data.len() == usize::try_from(length)? * 8 * 128
+                            && data.iter().all(|v| v.is_finite())
+                    );
+                    state.push(data);
+                }
+            }
+            Ok(state)
+        }
+
+        fn relative_l2(reference: &[f32], tested: &[f32]) -> Result<f64> {
+            ensure!(!reference.is_empty() && reference.len() == tested.len());
+            let (error, norm) =
+                reference
+                    .iter()
+                    .zip(tested)
+                    .fold((0.0, 0.0), |(error, norm), (&a, &b)| {
+                        let a = f64::from(a);
+                        (error + (a - f64::from(b)).powi(2), norm + a * a)
+                    });
+            ensure!(error.is_finite() && norm.is_finite() && norm > 0.0);
+            Ok((error / norm).sqrt())
+        }
+
+        fn continuation(target: &mut FlashNext, first: u32) -> Result<Vec<u32>> {
+            let mut token = first;
+            let mut output = vec![token];
+            for remaining in (8..=10).rev() {
+                token = target.advance_dflash2(token, remaining)?;
+                output.push(token);
+            }
+            Ok(output)
+        }
+
+        let model_path = PathBuf::from(std::env::var("MLXL3_FLASH_MODEL")?);
+        let draft_path = PathBuf::from(std::env::var("MLXL3_FLASH_DRAFT")?);
+        let options = Options::read(2)?;
+        ensure!(options.q4 && options.ring && options.width == 2 && !options.adaptive);
+        let checkpoint = crate::checkpoint::inspect(&model_path)?;
+        let tokenizer = crate::tokenizer::ChatTokenizer::load(&model_path)?;
+        let mut target = FlashNext::from_checkpoint(&checkpoint)?;
+        target.configure_dflash2(Some(&draft_path), 2)?;
+        let prompt = tokenizer
+            .encode("<|im_start|>user\nRead stock.txt.\n<|im_end|>\n<|im_start|>assistant\n")?;
+        let tool_suffix = tokenizer.encode(
+            "<|im_end|>\n<|im_start|>user\n<tool_response>17</tool_response><|im_end|>\n<|im_start|>assistant\n",
+        )?;
+        ensure!(!prompt.is_empty() && !tool_suffix.is_empty());
+        let cancelled = AtomicBool::new(false);
+        let first = target.prefill_dflash2(&prompt, &cancelled)?;
+        let mut anchor = first.chat_greedy_ids()?[0];
+        let mut emitted = vec![anchor];
+        anchor = target.advance_dflash2(anchor, 8)?;
+        emitted.push(anchor);
+        let (proposed, accepted, blocks, _) =
+            target.dflash2_stats().context("missing DFlash stats")?;
+        ensure!(proposed == 2 && blocks == 1);
+        // Finish delivering committed speculative tokens without starting a new verify.
+        // A final unused fallback may still be queued when the tool takes over.
+        while target.dflash.as_ref().unwrap().pending.len() > 1 {
+            ensure!(target.dflash2_live_offset().is_none());
+            anchor = target.advance_dflash2(anchor, 8)?;
+            emitted.push(anchor);
+        }
+        let pending = target.dflash.as_ref().unwrap().pending.len();
+        let offset = target
+            .dflash2_live_offset()
+            .context("no committed DFlash offset")?;
+        let position = usize::try_from(offset)?;
+        ensure!(position == prompt.len() + accepted + 1);
+        let committed = committed_stream(prompt.len(), &emitted, None, position)
+            .context("the target committed undisclosed tokens")?;
+        let next = [&prompt[..], &emitted, &tool_suffix].concat();
+        ensure!(next.len() < 100);
+        let start = live_start(&prompt, &committed, &next, Some(position))
+            .context("matching prompt should reuse both states")?;
+
+        let (warm, reused) = target.prefill_dflash2_resumable(&next, Some(start), &cancelled)?;
+        let length = i32::try_from(next.len())?;
+        ensure!(reused == position && target.dflash2_live_offset() == Some(length));
+        ensure!(target.dflash2_stats() == Some((0, 0, 0, 0.0)));
+        let warm_draft = draft_state(&target, length)?;
+        let warm_target = crate::qwen4::tests::state_bytes(&target)?;
+        ensure!(!warm_target.is_empty() && warm_target.iter().all(|row| !row.is_empty()));
+        let warm_logits = checked_logits(&warm)?;
+        let warm_ids = continuation(&mut target, warm.chat_greedy_ids()?[0])?;
+
+        let cold = target.prefill_dflash2(&next, &cancelled)?;
+        ensure!(target.dflash2_live_offset() == Some(length));
+        ensure!(target.dflash2_stats() == Some((0, 0, 0, 0.0)));
+        ensure!(
+            crate::qwen4::tests::state_bytes(&target)? == warm_target,
+            "target state differs"
+        );
+        let cold_draft = draft_state(&target, length)?;
+        let mut draft_l2: f64 = 0.0;
+        for (cold, warm) in cold_draft.iter().zip(&warm_draft) {
+            draft_l2 = draft_l2.max(relative_l2(cold, warm)?);
+        }
+        let logit_l2 = relative_l2(&checked_logits(&cold)?, &warm_logits)?;
+        ensure!(
+            logit_l2 <= 0.05 && draft_l2 <= 0.05,
+            "relative L2 logits={logit_l2}, draft KV={draft_l2}"
+        );
+        let cold_ids = continuation(&mut target, cold.chat_greedy_ids()?[0])?;
+        ensure!(warm_ids == cold_ids, "DFlash2 continuation differs");
+
+        println!(
+            "DFLASH2_AGENT_LIVE_ORACLE reused={reused} tokens={length} proposed={proposed} accepted={accepted} pending={pending} target_states={} draft_tensors={} draft_l2={draft_l2} logits=248320 logit_l2={logit_l2} continuation={warm_ids:?}",
+            warm_target.len(),
+            warm_draft.len(),
+        );
+        Ok(())
+    }
 
     #[test]
     #[ignore = "physical Apple GPU and Flash/DFlash checkpoints; isolated serial prefill qualification"]

@@ -2863,6 +2863,87 @@ thread_local! {
 thread_local! {
     /// AGENT-2026-11-26-LIVE-CACHE: the request asked for the live prompt cache.
     static LIVE_CACHE_REQUESTED: std::cell::Cell<bool> = const { std::cell::Cell::new(false) };
+    /// The exact tokens the Flash target advanced through, scoped to one Agent turn.
+    static FLASH_AGENT_CACHE: std::cell::RefCell<Option<FlashAgentCache>> = const { std::cell::RefCell::new(None) };
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+#[derive(Default)]
+struct FlashAgentCache {
+    held: Option<Vec<u32>>,
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl FlashAgentCache {
+    fn enabled() -> bool {
+        FLASH_AGENT_CACHE.with_borrow(Option::is_some)
+    }
+
+    fn forget() {
+        FLASH_AGENT_CACHE.with_borrow_mut(|slot| {
+            if let Some(cache) = slot {
+                cache.held = None;
+            }
+        });
+    }
+
+    fn take_start(tokens: &[u32], offset: Option<i32>) -> Option<usize> {
+        FLASH_AGENT_CACHE.with_borrow_mut(|slot| {
+            let held = slot.as_mut()?.held.take()?;
+            let position = offset.and_then(|offset| usize::try_from(offset).ok());
+            let start = mlxl3_native::live_cache::live_start(&held, &[], tokens, position);
+            if start.is_none() && std::env::var("MLXL3_PROMPT_CACHE_TRACE").as_deref() == Ok("1") {
+                eprintln!(
+                    "Flash Agent cache: {}",
+                    mlxl3_native::live_cache::refusal(&held, &[], tokens, position)
+                );
+            }
+            start
+        })
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+struct FlashAgentRequest;
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl FlashAgentRequest {
+    fn set(enabled: bool) -> Self {
+        FLASH_AGENT_CACHE.with_borrow_mut(|slot| *slot = enabled.then(FlashAgentCache::default));
+        Self
+    }
+}
+
+#[cfg(all(feature = "mlx", feature = "chat"))]
+impl Drop for FlashAgentRequest {
+    fn drop(&mut self) {
+        FLASH_AGENT_CACHE.with_borrow_mut(|slot| *slot = None);
+    }
+}
+
+#[cfg(all(test, feature = "mlx", feature = "chat"))]
+#[test]
+fn flash_agent_cache_expires_at_the_end_of_the_turn() {
+    let seed = || {
+        FLASH_AGENT_CACHE.with_borrow_mut(|slot| {
+            slot.as_mut().unwrap().held = Some(vec![2, 3]);
+        });
+    };
+    {
+        let _turn = FlashAgentRequest::set(true);
+        seed();
+        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], Some(2)), Some(2));
+        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], Some(2)), None);
+        seed();
+        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], None), None);
+        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], Some(2)), None);
+        seed();
+        FlashAgentCache::forget();
+        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], Some(2)), None);
+        seed();
+    }
+    let _turn = FlashAgentRequest::set(true);
+    assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], Some(2)), None);
 }
 
 /// Sets the live prompt cache choice for the duration of one request; dropping it turns it off.
@@ -2930,6 +3011,17 @@ fn render_dialogue(
         Ok::<_, anyhow::Error>((rendered, images))
     };
     let mut marked = messages.to_vec();
+    #[cfg(feature = "mlx")]
+    if FlashAgentCache::enabled() {
+        let raw = mlxl3_native::raw_history::mark_flash(&mut marked);
+        if !raw.is_empty()
+            && let Ok((rendered, images)) = render(&marked)
+            && let Some(spliced) = mlxl3_native::raw_history::splice_flash(&rendered, &raw)
+        {
+            return Ok((spliced, images));
+        }
+        marked = messages.to_vec();
+    }
     let outputs = mlxl3_native::raw_history::mark(&mut marked, verbatim);
     let (rendered, images) = render(&marked)?;
     if outputs.is_empty() {
@@ -3775,7 +3867,13 @@ fn prefill_round(
         && target.dflash2_active()
     {
         *cache = None;
-        return Ok((target.prefill_dflash2(tokens, cancelled)?, None, 0));
+        let start = if reuse && images.is_empty() {
+            FlashAgentCache::take_start(tokens, target.dflash2_live_offset())
+        } else {
+            None
+        };
+        let (logits, cached) = target.prefill_dflash2_resumable(tokens, start, cancelled)?;
+        return Ok((logits, None, cached));
     }
     // a state computed from image features is neither resumed nor saved for a later turn
     let reuse = reuse && images.is_empty();
@@ -3798,6 +3896,13 @@ fn prefill_round(
     });
     let mut cached = 0;
     let mut logits = None;
+    if reuse
+        && draft.is_none()
+        && let NativeChatModel::Flash(target) = model
+        && let Some(start) = FlashAgentCache::take_start(tokens, Some(target.offset()))
+    {
+        cached = start;
+    }
     // SPEED-2026-11-23-INK2M-MAYA PC: Inkling goes back to the saved boundary of its live state (no reset);
     // when it cannot, the prompt is prefilled from scratch as before
     let previous = match previous {
@@ -5378,6 +5483,9 @@ fn bridge_generate_round(
                     cancelled,
                 )?
             };
+        if FlashAgentCache::enabled() {
+            live_tokens = cached;
+        }
         if let Some((session, weights)) = dflash.as_mut().zip(draft) {
             session.configure(dflash_mode, weights.family, &tokens);
         }
@@ -5973,6 +6081,31 @@ fn bridge_generate_round(
     if let Some(capture) = gpu_capture {
         capture.finish()?;
     }
+    #[cfg(feature = "mlx")]
+    if let NativeChatModel::Flash(target) = &*model
+        && FlashAgentCache::enabled()
+        && reuse
+        && continuation.is_empty()
+        && reasoning_cut.is_none()
+        && !cancelled.load(Ordering::Relaxed)
+        && let Some(held) = target
+            .agent_live_cache_offset()
+            .and_then(|offset| usize::try_from(offset).ok())
+            .and_then(|position| {
+                mlxl3_native::live_cache::committed_stream(
+                    tokens.len(),
+                    &generated,
+                    end_token,
+                    position,
+                )
+            })
+    {
+        FLASH_AGENT_CACHE.with_borrow_mut(|slot| {
+            if let Some(cache) = slot {
+                cache.held = Some([tokens.as_slice(), held.as_slice()].concat());
+            }
+        });
+    }
     let elapsed = started.elapsed().as_secs_f64();
     #[cfg(feature = "mlx")]
     if let NativeChatModel::Flash(target) = &*model
@@ -5998,7 +6131,8 @@ fn bridge_generate_round(
         cached_prompt_tokens: cached,
         evaluated_prompt_tokens: tokens.len() - cached,
         #[cfg(feature = "mlx")]
-        live_prompt_tokens: live_cache_active(model).then_some(live_tokens),
+        live_prompt_tokens: (live_cache_active(model) || FlashAgentCache::enabled())
+            .then_some(live_tokens),
         #[cfg(not(feature = "mlx"))]
         live_prompt_tokens: None,
         context_used: tokens.len() + generated.len(),
@@ -6266,7 +6400,30 @@ fn bridge_generate(
         .collect();
     let image_format = chat_image_format(model);
     // AGENT-2026-11-26-LIVE-CACHE: outputs kept as the model wrote them
-    let keep_raw = live_cache_active(model);
+    let persist_raw = live_cache_active(model);
+    #[cfg(feature = "mlx")]
+    let _flash = {
+        let enabled = reuse
+            && LIVE_CACHE_REQUESTED.with(std::cell::Cell::get)
+            && !tools.is_empty()
+            && agent_yield.is_some()
+            && mtp.is_none()
+            && draft.is_none()
+            && matches!(model, NativeChatModel::Flash(target) if target.supports_agent_live_cache());
+        if enabled {
+            // Only output generated by this turn can supply a trusted raw tool call.
+            for message in &mut dialogue {
+                if let Some(object) = message.as_object_mut() {
+                    object.remove("raw");
+                }
+            }
+        }
+        FlashAgentRequest::set(enabled)
+    };
+    #[cfg(feature = "mlx")]
+    let keep_raw = persist_raw || FlashAgentCache::enabled();
+    #[cfg(not(feature = "mlx"))]
+    let keep_raw = persist_raw;
     let mut host = BridgeHost {
         model,
         tokenizer,
@@ -6309,6 +6466,7 @@ fn bridge_generate(
             // JSON output has no tools, so no summary: its added system message shifts nothing.
             origins: &origins,
             keep_raw,
+            persist_raw,
         },
     )?;
     let mut stats = host.summary.context("missing generation statistics")?;
@@ -6486,10 +6644,14 @@ impl mlxl3_native::agent_turn::Host for BridgeHost<'_, HostModel<'_>, HostMtp<'_
 
     fn forget_prompt_cache(&mut self) {
         *self.cache = None;
+        #[cfg(feature = "mlx")]
+        FlashAgentCache::forget();
     }
 
     fn reset_model(&mut self) {
         self.model.reset();
+        #[cfg(feature = "mlx")]
+        FlashAgentCache::forget();
     }
 
     fn answer_shown(&mut self) {
@@ -6716,6 +6878,9 @@ fn native_bridge(
     });
     // AGENT-2026-11-26-LIVE-CACHE: `live_prompt_cache` per request (Inkling 2)
     ready["live_prompt_cache_supported"] = json!(matches!(model, NativeChatModel::Inkling(..)));
+    ready["flash_dflash_live_prompt_cache_supported"] = json!(
+        matches!(&model, NativeChatModel::Flash(target) if target.supports_agent_live_cache())
+    );
     // DECISION-2026-11-25-INK2M-DFLASH2-ON (set apart: the macro above is at its recursion limit)
     ready["dspark_default"] = json!(inkling_speculation_requested(
         None,

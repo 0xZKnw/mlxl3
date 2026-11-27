@@ -217,6 +217,8 @@ struct BridgeEvent: Decodable {
     /// Engines that accept `live_prompt_cache` for the loaded model (Inkling 2): each Agent step
     /// goes on from the state the model decoded with instead of reading its own output again.
     var livePromptCacheSupported: Bool? = nil
+    /// The loaded Flash Next model can resume both states when DFlash2 is requested.
+    var flashDFlashLivePromptCacheSupported: Bool? = nil
     var agentYieldSupported: Bool? = nil
     /// `tool_start`: the call's arguments, shown with the tool (the code of a JS call).
     var arguments: ToolArguments? = nil
@@ -290,6 +292,7 @@ struct BridgeEvent: Decodable {
         case mcpCallTimeoutSupported = "mcp_call_timeout_supported"
         case agentLoopSupported = "agent_loop_supported"
         case livePromptCacheSupported = "live_prompt_cache_supported"
+        case flashDFlashLivePromptCacheSupported = "flash_dflash_live_prompt_cache_supported"
         case agentYieldSupported = "agent_yield_supported"
         case arguments
         case bridgeProtocol = "bridge_protocol"
