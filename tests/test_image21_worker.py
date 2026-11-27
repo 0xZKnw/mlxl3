@@ -57,6 +57,9 @@ class ImageWorkerTest(unittest.TestCase):
         self.model = Mock()
         self.actual_build = self.worker.build
         self.build = self.enterContext(patch.object(self.worker, "build", return_value=self.model))
+        self.build_editor = self.enterContext(
+            patch.object(self.worker, "build_editor", return_value=self.model)
+        )
         self.image = Mock(size=(512, 512))
         self.latent = self.tensor([0.25, -1.0])
         self.pixels = self.tensor([0.0, 0.75])
@@ -115,6 +118,158 @@ class ImageWorkerTest(unittest.TestCase):
         self.assertIn("exactly 8 steps", err.getvalue())
         self.build.assert_not_called()
         self.core.device_info.assert_not_called()
+
+    def test_edit_routes_one_reference_to_turbo_512_pipeline(self):
+        reference = self.root / "User image.png"
+        source = object()
+        self.core.device_info.return_value["memory_size"] = 24 * 1024**3
+        with patch.object(self.worker, "load_reference", return_value=source) as load:
+            output = self.run_worker(
+                "--variant",
+                "turbo",
+                "--size",
+                "512x512",
+                "--low-memory",
+                "--reference-image",
+                str(reference),
+            )
+        load.assert_called_once_with(reference)
+        self.build_editor.assert_called_once_with(self.root)
+        self.build.assert_not_called()
+        self.model.generate_image.assert_called_once_with(
+            seed=371,
+            prompt="oak",
+            width=512,
+            height=512,
+            num_inference_steps=8,
+            output_resolution=512,
+            image_paths=[source],
+        )
+        self.image.save.assert_called_once_with(output, format="PNG")
+        self.core.set_cache_limit.assert_called_once_with(512 * 1024**2)
+
+    def test_edit_rejects_wrong_variant_and_size_before_setup(self):
+        for variant, size in (
+            ("base", "512"),
+            *(
+                ("turbo", value)
+                for value, dimensions in IMAGE_SIZE_CASES
+                if dimensions != (512, 512)
+            ),
+        ):
+            with self.subTest(variant=variant, size=size):
+                with (
+                    patch.object(
+                        self.worker,
+                        "load_reference",
+                        side_effect=AssertionError("Unsupported mode opened the reference"),
+                    ) as load,
+                    contextlib.redirect_stderr(io.StringIO()) as err,
+                    self.assertRaises(SystemExit) as stop,
+                ):
+                    self.run_worker(
+                        "--variant", variant, "--size", size, "--reference-image", "ref.png"
+                    )
+                self.assertEqual(stop.exception.code, 2)
+                self.assertIn("requires Turbo at 512 px", err.getvalue())
+                load.assert_not_called()
+        self.core.device_info.assert_not_called()
+        self.build_editor.assert_not_called()
+        self.build.assert_not_called()
+
+    def test_edit_rejects_unreadable_reference_before_setup(self):
+        with (
+            patch.object(self.worker, "load_reference", side_effect=OSError("corrupt PNG")),
+            contextlib.redirect_stderr(io.StringIO()) as err,
+            self.assertRaises(SystemExit) as stop,
+        ):
+            self.run_worker("--variant", "turbo", "--reference-image", "bad.png")
+        self.assertEqual(stop.exception.code, 2)
+        self.assertIn("Invalid reference image: corrupt PNG", err.getvalue())
+        self.core.device_info.assert_not_called()
+        self.build_editor.assert_not_called()
+
+    def test_reference_checks_png_size_aspect_and_single_frame_before_copy(self):
+        source = self.root / "reference"
+        source.write_bytes(b"fixture")
+        image = Mock()
+        open_png = Mock(side_effect=lambda *_args, **_kwargs: contextlib.nullcontext(image))
+
+        class DecompressionBombError(Exception):
+            pass
+
+        pillow = SimpleNamespace(open=open_png, DecompressionBombError=DecompressionBombError)
+        with patch.dict(sys.modules, {"PIL": SimpleNamespace(Image=pillow)}):
+            for size, frames in (((4097, 512), 1), ((512, 63), 1), ((0, 512), 1), ((512, 512), 2)):
+                with self.subTest(size=size, frames=frames):
+                    image.size, image.n_frames = size, frames
+                    with self.assertRaisesRegex(ValueError, "still PNG"):
+                        self.worker.load_reference(source)
+            image.copy.assert_not_called()
+            image.size, image.n_frames = (4096, 512), 1
+            self.assertIs(self.worker.load_reference(source), image.copy.return_value)
+            open_png.side_effect = DecompressionBombError()
+            with self.assertRaisesRegex(ValueError, "safe decode dimensions"):
+                self.worker.load_reference(source)
+        open_png.assert_called_with(source, formats=["PNG"])
+        image.copy.assert_called_once_with()
+
+    def test_editor_keeps_local_quantized_language_and_adds_only_vision(self):
+        local_weights = SimpleNamespace(
+            components={"text_encoder": {"language": object()}},
+            meta_data=SimpleNamespace(quantization_level=4),
+        )
+        language_value, vision_value = object(), object()
+        self.worker.tree_flatten.return_value = [("layers.0.weight", language_value)]
+        load = Mock(return_value=local_weights)
+        apply = Mock(return_value=4)
+        init = Mock()
+        local_component = SimpleNamespace(name="text_encoder")
+        edit_component = SimpleNamespace(name="text_encoder")
+        local_definition = Mock()
+        local_definition.get_components.return_value = [local_component]
+        edit_definition = Mock()
+        edit_definition.get_components.return_value = [edit_component]
+        flatten = Mock(return_value={"whole": "tree"})
+        modules = {
+            "mlx.utils": SimpleNamespace(tree_unflatten=flatten),
+            "mflux.models.common.weights.loading.weight_applier": SimpleNamespace(
+                WeightApplier=SimpleNamespace(apply_and_quantize_single=apply)
+            ),
+            "mflux.models.common.weights.loading.weight_loader": SimpleNamespace(
+                WeightLoader=SimpleNamespace(load_single_local=load)
+            ),
+            "mflux.models.qwen21.qwen21_initializer": SimpleNamespace(Qwen21Initializer=init),
+            "mflux.models.qwen21.weights.qwen21_weight_definition": SimpleNamespace(
+                Qwen21WeightDefinition=local_definition
+            ),
+            "mflux.models.qwen21.weights.qwen_image21_weight_definition": SimpleNamespace(
+                QwenImage21WeightDefinition=edit_definition
+            ),
+        }
+        vision_path = self.root / "vision.safetensors"
+        with patch.dict(sys.modules, modules):
+            for invalid in ({}, {"language_model.layers.0.weight": vision_value}):
+                with self.subTest(vision=invalid):
+                    self.core.load.return_value = invalid
+                    with self.assertRaisesRegex(ValueError, "Unexpected tensors"):
+                        self.worker.load_edit_encoder(self.model, self.root, vision_path)
+            apply.assert_not_called()
+            self.core.load.return_value = {"visual.patch_embed.weight": vision_value}
+            self.assertEqual(self.worker.load_edit_encoder(self.model, self.root, vision_path), 4)
+        self.core.load.assert_called_with(str(vision_path))
+        load.assert_called_with(local_component, self.root)
+        expected = {
+            "language_model.layers.0.weight": language_value,
+            "visual.patch_embed.weight": vision_value,
+        }
+        self.assertEqual(dict(flatten.call_args.args[0]), expected)
+        apply.assert_called_once_with(
+            local_weights, self.model, edit_component, None, edit_definition.quantization_predicate
+        )
+        init._validate_weights.assert_called_once_with(
+            "text_encoder", self.model, expected, edit_definition
+        )
 
     def test_checkpoint_and_scheduler_are_selected_together(self):
         # In the pinned MFLUX pipeline the model config selects either the fixed

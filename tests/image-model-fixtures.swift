@@ -48,12 +48,18 @@ struct StudioImageFixtures: Sendable {
                 parser.add_argument("--" + key, required=True, type=Path)
             for key in ("variant", "prompt", "size", "steps", "seed"):
                 parser.add_argument("--" + key, required=True)
+            parser.add_argument("--reference-image", type=Path)
             parser.add_argument("--low-memory", action="count", default=0)
             args = parser.parse_args()
+            (args.model / "last-reference").write_text(str(args.reference_image or ""))
+            if args.reference_image:
+                (args.model / "last-reference-bytes").write_bytes(args.reference_image.read_bytes())
+
             (args.model / "last-output").write_text(str(args.output))
             (args.model / "last-prompt").write_text(args.prompt, encoding="utf-8")
             (args.model / "last-variant").write_text(args.variant + ":" + args.steps)
             (args.model / "last-size").write_text(args.size)
+            (args.model / "last-low-memory").write_text(str(args.low_memory))
             if args.prompt == "--low-memory":
                 raise SystemExit(f"low-memory={args.low_memory}")
             if args.prompt == "corrupt":

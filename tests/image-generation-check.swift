@@ -1,4 +1,5 @@
 import Foundation
+import ImageIO
 
 @main
 struct ImageGenerationCheck {
@@ -380,6 +381,92 @@ struct ImageGenerationCheck {
         print("Image history and usage: \(assertions) assertions, worker cleanup, unsaved preview, explicit export, automatic save, exact PNG, cancellation, failure, relaunch and legacy records checked")
     }
 
+    @MainActor static func checkRetouch(root: URL) async throws {
+        let fm = FileManager.default
+        let workspace = root.appendingPathComponent("retouch-fixture", isDirectory: true)
+        try fm.createDirectory(at: workspace, withIntermediateDirectories: true)
+        let fixtures = try StudioImageFixtures(root: workspace)
+        let turbo = fixtures.catalog.destination(for: .turbo)
+        let base = fixtures.catalog.destination(for: .base)
+        try StudioImageFixtures.publish(fixtures.catalog.package(for: .turbo).files, at: turbo)
+        try StudioImageFixtures.publish(fixtures.catalog.package(for: .base).files, at: base)
+        let repo = URL(fileURLWithPath: #filePath).deletingLastPathComponent().deletingLastPathComponent()
+        let sample = try Data(contentsOf: repo.appendingPathComponent("docs/images/studio-image21-m5.png"))
+        try sample.write(to: turbo.appendingPathComponent("sample.png"))
+        let picked = workspace.appendingPathComponent("reference with spaces.png")
+        try sample.write(to: picked)
+        let invalid = workspace.appendingPathComponent("invalid.png")
+        try Data("bad image".utf8).write(to: invalid)
+        let oversized = workspace.appendingPathComponent("oversized.png")
+        try sample.write(to: oversized)
+        let handle = try FileHandle(forWritingTo: oversized)
+        try handle.truncate(atOffset: UInt64(32 * 1024 * 1024 + 1))
+        try handle.close()
+        let suite = "mlxl3.retouch-test.\(UUID().uuidString)"
+        let prefs = UserDefaults(suiteName: suite)!
+        defer { prefs.removePersistentDomain(forName: suite) }
+        prefs.set(true, forKey: ImageGeneration.autoSavePreferenceKey)
+        let images = workspace.appendingPathComponent("Gallery")
+        let engine = ImageGeneration(supported: true, lowMemoryAvailable: true, historyDirectory: images,
+                                     worker: try StudioImageFixtures.worker(in: workspace),
+                                     preferences: prefs, catalog: fixtures.catalog)
+        func rendered() async throws {
+            let deadline = ContinuousClock.now.advanced(by: .seconds(8))
+            while engine.running && ContinuousClock.now < deadline {
+                try await Task.sleep(for: .milliseconds(20))
+            }
+            precondition(!engine.running, "Image fixture did not finish")
+        }
+        precondition(engine.variant == .turbo && !engine.editing)
+        await engine.importReference(invalid)
+        precondition(engine.referenceImage == nil && engine.referenceError != nil && !engine.referenceImporting)
+        await engine.importReference(picked)
+        guard let reference = engine.referenceImage else { preconditionFailure(engine.referenceError ?? "Missing reference") }
+        precondition(reference.name == picked.lastPathComponent && engine.referenceError == nil && engine.editing)
+        let input = CGImageSourceCreateWithData(reference.png as CFData, nil)!
+        let image = CGImageSourceCreateImageAtIndex(input, 0, nil)!
+        precondition(image.width == 512 && image.height == 512)
+        try fm.removeItem(at: picked)
+        await engine.importReference(oversized)
+        precondition(engine.referenceImage?.png == reference.png && engine.referenceError != nil)
+
+        let textSize = Image21Size.square(2048)
+        engine.size = textSize
+        engine.start(model: turbo, prompt: "--reference-image", size: engine.size, steps: 8, seed: 11, lowMemory: true)
+        try await rendered()
+        precondition(engine.error == nil, engine.error ?? "Edit failed")
+        let referencePath = try String(contentsOf: turbo.appendingPathComponent("last-reference"), encoding: .utf8)
+        let workerPrompt = try String(contentsOf: turbo.appendingPathComponent("last-prompt"), encoding: .utf8)
+        let workerSize = try String(contentsOf: turbo.appendingPathComponent("last-size"), encoding: .utf8)
+        let workerLowMemory = try String(contentsOf: turbo.appendingPathComponent("last-low-memory"), encoding: .utf8)
+        let workerInput = try Data(contentsOf: turbo.appendingPathComponent("last-reference-bytes"))
+        precondition(!referencePath.isEmpty && !fm.fileExists(atPath: referencePath))
+        precondition(workerInput == reference.png && workerPrompt == "--reference-image" && workerSize == "512")
+        precondition(workerLowMemory == "0" && engine.size == textSize, "Only the effective render size may select low memory")
+        precondition(engine.result?.isEdit == true && engine.history.first?.isEdit == true)
+        let restored = ImageGeneration(historyDirectory: images, preferences: prefs)
+        await restored.refreshHistory()
+        precondition(restored.history.count == 1 && restored.history.first?.isEdit == true)
+
+        engine.requestEditReference()
+        precondition(engine.editing && engine.referenceImage == nil)
+        engine.start(model: turbo, prompt: "missing reference", size: .square(512), steps: 8, seed: 12)
+        try await rendered()
+        precondition(engine.error == "Add the image to edit." && engine.history.count == 1)
+        engine.selectVariant(.base)
+        engine.start(model: base, prompt: "incompatible variant", size: .square(512), steps: 8, seed: 12)
+        try await rendered()
+        precondition(engine.error == "Editing uses Turbo." && engine.history.count == 1)
+        engine.selectVariant(.turbo)
+        engine.removeReference()
+        engine.start(model: turbo, prompt: "new picture", size: .square(512), steps: 8, seed: 13)
+        try await rendered()
+        let noReference = try String(contentsOf: turbo.appendingPathComponent("last-reference"), encoding: .utf8)
+        precondition(engine.error == nil && noReference.isEmpty && engine.result?.isEdit == false)
+        precondition(engine.history.count == 2 && engine.history.first?.isEdit == false)
+        print("Image edit: Turbo worker, 512 px, import error, unchanged original, temporary cleanup, restored history and text fallback verified")
+    }
+
     @MainActor static func checkNativeHistory(root: URL) async throws {
         let base = root.appendingPathComponent("native-sizes")
         try FileManager.default.createDirectory(at: base, withIntermediateDirectories: true)
@@ -477,6 +564,8 @@ struct ImageGenerationCheck {
     @MainActor static func main() async throws {
         AppLocalization.set(.en)
         checkTimeouts()
+        let editProgress = ImageGeneration.progress(in: "Loading edit encoder", steps: 8)
+        precondition(editProgress?.message == "Preparing the image encoder…" && editProgress?.completedStep == nil)
         let fetching = "Fetching 9 files: 100%|########| 9/9 [00:01<00:00]"
         precondition(ImageGeneration.progress(in: fetching, steps: 9)?.message == nil)
         precondition(ImageGeneration.progress(in: "Loading tokenizer, text encoder and VAE\r" + fetching, steps: 9)?.message == "Loading the text encoder and VAE…")
@@ -538,6 +627,7 @@ struct ImageGenerationCheck {
         try await checkDownloads(root: root)
         try await checkHistory(root: root)
         try await checkNativeHistory(root: root)
+        try await checkRetouch(root: root)
         print("Image generation: overlapping request, missing model and retry checked")
     }
 }

@@ -93,7 +93,8 @@ struct ImageHistoryView: View {
             Label(L("Liste des images", "All images"), systemImage: "chevron.left")
         }
         .buttonStyle(.studio(.quiet, height: 26)).accessibilityIdentifier("images.history.back")
-        StudioPageHeader(title: L("Image générée", "Generated image"), detail: date(item)) {
+        StudioPageHeader(title: item.isEdit ? L("Image retouchée", "Edited image") : L("Image générée", "Generated image"),
+                         detail: date(item)) {
             Button {
                 let filename = item.seed.map { "Image-\($0).png" } ?? item.fileURL.lastPathComponent
                 presentImageSavePanel(filename: filename, directory: .downloadsDirectory, select: selectDestination, export: item.export)
@@ -143,9 +144,14 @@ struct ImageHistoryView: View {
                 if let prompt = item.prompt, let variant = item.variant, let steps = item.steps, let seed = item.seed,
                    Image21Size.presets.contains(size), variant.stepRange.contains(steps) {
                     Button {
+                        if item.isEdit {
+                            engine.requestEditReference()
+                        } else {
+                            engine.removeReference()
+                            engine.size = size
+                        }
                         engine.selectVariant(variant)
                         engine.prompt = prompt
-                        engine.size = size
                         if variant == .base { engine.baseSteps = steps }
                         engine.seed = seed
                         selection = nil

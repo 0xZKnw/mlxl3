@@ -224,7 +224,7 @@ struct ImageHistoryInterfaceCheck {
         let turbo1024 = try await words(snapshot: "studio-image-turbo-memory-1024.png")
         try expect(["reduce memory use"], in: turbo1024)
         engine.prompt = "--low-memory"
-        func checkMemorySubmission(_ expected: Int) async throws {
+        func checkMemorySubmission(_ expected: Int, size: String) async throws {
             let controls = try await words()
             try click("generate", in: controls.filter { $0.box.midX > 0.5 && $0.box.midY < 0.3 })
             let submitted = ContinuousClock.now.advanced(by: .seconds(12))
@@ -235,20 +235,48 @@ struct ImageHistoryInterfaceCheck {
                 engine.cancel()
                 throw HistoryUIError(message: "Wrong memory mode for \(engine.variant): \(engine.error ?? "no response")")
             }
+            guard let model = engine.modelDirectory,
+                  try String(contentsOf: model.appendingPathComponent("last-size"), encoding: .utf8) == size else {
+                throw HistoryUIError(message: "The \(engine.variant) worker did not receive size \(size)")
+            }
         }
-        try await checkMemorySubmission(0)
+        try await checkMemorySubmission(0, size: "1024")
         try click("reduce memory use", in: await words())
         studio.setLanguage(.fr)
         ocr.recognitionLanguages = ["fr-FR"]
         try expect(["réduire la mémoire"], in: await words(snapshot: "studio-image-turbo-memory-1024-enabled-fr.png"))
         studio.setLanguage(.en)
         ocr.recognitionLanguages = ["en-US"]
-        try await checkMemorySubmission(1)
+        try await checkMemorySubmission(1, size: "1024")
         let twoK = Image21Size.square(2048)
         engine.size = twoK
         let native = try await words()
         try expect(["2048", "reduce memory use"], in: native)
-        try await checkMemorySubmission(1)
+        try await checkMemorySubmission(1, size: "2048")
+        engine.prompt = ""
+        let reference = temporary.appendingPathComponent("Retouch reference.png")
+        try fileManager.copyItem(at: example, to: reference)
+        let imageView = ImageGenerationView(engine: engine, close: {})
+        try expect(["drop an image"], in: await words())
+        guard !imageView.acceptReferenceDrop([reference, reference]),
+              !imageView.acceptReferenceDrop([URL(string: "https://example.com/reference.png")!]),
+              imageView.acceptReferenceDrop([reference]) else {
+            throw HistoryUIError(message: "Reference drop must accept exactly one local file")
+        }
+        let importDeadline = ContinuousClock.now.advanced(by: .seconds(4))
+        while engine.referenceImage == nil && engine.referenceError == nil && ContinuousClock.now < importDeadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        let editControls = try await words(snapshot: "studio-image-retouch-en.png")
+        try expect(["edit an image", "retouch reference.png", "describe what to change", "512"], in: editControls)
+        guard !editControls.contains(where: { $0.text.contains("reduce memory") }) else {
+            throw HistoryUIError(message: "Retouching must hide the 2K memory switch")
+        }
+        guard !engine.referenceImporting, engine.referenceImage?.name == "Retouch reference.png", engine.size == twoK else {
+            throw HistoryUIError(message: "Import must enter edit mode without changing the text-to-image size")
+        }
+        engine.removeReference()
+        try expect(["generate an image", "drop an image", "reduce memory use"], in: await words())
         engine.size = .square(1024)
         engine.prompt = ""
         guard let picker = variantPicker(in: host) else { throw HistoryUIError(message: "Missing image model picker") }
@@ -262,9 +290,9 @@ struct ImageHistoryInterfaceCheck {
         guard engine.modelDirectory == fixtures.catalog.destination(for: .base) else { throw HistoryUIError(message: "Base download failed") }
 
         engine.prompt = "--low-memory"  // The fixture worker reports how many independent flags it received.
-        try await checkMemorySubmission(0)  // Selecting Turbo's option does not opt Base in.
+        try await checkMemorySubmission(0, size: "1024")  // Selecting Turbo's option does not opt Base in.
         try click("reduce memory use", in: await words())
-        try await checkMemorySubmission(1)
+        try await checkMemorySubmission(1, size: "1024")
         engine.prompt = ""
         engine.size = .square(768)
         let base768 = try await words()
@@ -273,6 +301,10 @@ struct ImageHistoryInterfaceCheck {
         }
         engine.size = .square(512)
         guard engine.variant == .base && engine.steps == 40 else { throw HistoryUIError(message: "Base picker failed") }
+        try expect(["use turbo"], in: await words())
+        guard !imageView.acceptReferenceDrop([reference]) else {
+            throw HistoryUIError(message: "Base accepted a Turbo-only image drop")
+        }
         try click("history", in: await words())
         try expect(["image history", "no images"], in: await words())
         let sample = temporary.appendingPathComponent("worker.png")
@@ -330,8 +362,9 @@ struct ImageHistoryInterfaceCheck {
         try expect(["variant", "turbo", "2048", "492"], in: twoKDetails)
         try await download(twoKDetails, filename: "Image-492.png", accept: true, source: fast.fileURL)
         try click("reuse settings", in: twoKDetails)
-        try expect(["8 steps", "installed on this mac", "2048"], in: await words())
+        try expect(["8 steps", "installed on this", "2048"], in: await words())
         guard engine.variant == .turbo && engine.prompt == "A mint bicycle" && engine.steps == 8 && engine.seed == 492
+              && engine.modelDirectory == fixtures.catalog.destination(for: .turbo)
               && engine.size == twoK && !engine.running && fileManager.fileExists(atPath: fast.fileURL.path) else {
             throw HistoryUIError(message: "Reusing Turbo must restore its 2048 px setting and eight steps")
         }
@@ -422,6 +455,6 @@ struct ImageHistoryInterfaceCheck {
         }
         try expectImageCounts([12, 12], for: .turbo, in: recovered)
         try await checkImageSaveSettings(studio: studio, window: window, preferences: preferences)
-        print("Image history interface passed: PNG download and cancellation, image library, reuse, Lab counts in both periods and live refresh, saving preference")
+        print("Image history interface passed: reference drop and Turbo settings, PNG download and cancellation, image library, reuse, Lab counts in both periods and live refresh, saving preference")
     }
 }

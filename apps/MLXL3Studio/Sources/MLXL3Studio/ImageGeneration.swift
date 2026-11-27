@@ -1,4 +1,5 @@
 import AppKit
+import ImageIO
 import Metal
 import SwiftUI
 import UniformTypeIdentifiers
@@ -57,11 +58,55 @@ enum ImageModelAvailability: Equatable {
     case failed(String, Int64)
 }
 
+struct ImageEditReference: Sendable {
+    static let size = 512
+    static let maximumInputBytes = 32 * 1024 * 1024
+
+    let name: String
+    let png: Data
+
+    static func load(_ url: URL) throws -> Self {
+        let scoped = url.startAccessingSecurityScopedResource()
+        defer { if scoped { url.stopAccessingSecurityScopedResource() } }
+        func unsupported() -> NSError {
+            NSError(domain: "MLXL3.ImageGeneration", code: 2, userInfo: [
+                NSLocalizedDescriptionKey: L("Choisis une image lisible de 32 Mio maximum.",
+                                              "Choose a readable image up to 32 MiB.")
+            ])
+        }
+        let options = [kCGImageSourceShouldCache: false] as CFDictionary
+        guard url.isFileURL,
+              let info = try? url.resourceValues(forKeys: [.isRegularFileKey, .fileSizeKey]),
+              info.isRegularFile == true, let count = info.fileSize,
+              count > 0, count <= maximumInputBytes else { throw unsupported() }
+        let handle = try FileHandle(forReadingFrom: url)
+        defer { try? handle.close() }
+        guard let bytes = try handle.read(upToCount: maximumInputBytes + 1),
+              bytes.count <= maximumInputBytes,
+              let source = CGImageSourceCreateWithData(bytes as CFData, options),
+              let type = CGImageSourceGetType(source) as String?,
+              UTType(type)?.conforms(to: .image) == true,
+              CGImageSourceGetStatusAtIndex(source, 0) == .statusComplete else { throw unsupported() }
+        let thumbnail = [kCGImageSourceCreateThumbnailFromImageAlways: true,
+                         kCGImageSourceCreateThumbnailWithTransform: true,
+                         kCGImageSourceThumbnailMaxPixelSize: size] as CFDictionary
+        guard let image = CGImageSourceCreateThumbnailAtIndex(source, 0, thumbnail) else { throw unsupported() }
+        let png = NSMutableData()
+        guard let destination = CGImageDestinationCreateWithData(png, UTType.png.identifier as CFString, 1, nil) else {
+            throw unsupported()
+        }
+        CGImageDestinationAddImage(destination, image, nil)
+        guard CGImageDestinationFinalize(destination) else { throw unsupported() }
+        return Self(name: url.lastPathComponent, png: png as Data)
+    }
+}
+
 struct GeneratedImageOutput: Sendable {
     let id: UUID
     let png: Data
     let savedURL: URL?
     let seed: UInt32
+    let isEdit: Bool
 
     func export(to destination: URL) async throws {
         try await Task.detached(priority: .userInitiated) {
@@ -90,6 +135,12 @@ final class ImageGeneration: ObservableObject {
         if case .downloading = modelAvailability { return true }
         return false
     }
+    @Published private(set) var referenceImage: ImageEditReference?
+    @Published private(set) var referenceImporting = false
+    @Published private(set) var referenceError: String?
+    @Published private var waitingForReference = false
+    private var referenceRequest = UUID()
+    var editing: Bool { waitingForReference || referenceImage != nil }
     @Published var seed = UInt32.random(in: 0...UInt32.max)
     @Published private(set) var running = false
     @Published private(set) var finalizing = false
@@ -266,14 +317,49 @@ final class ImageGeneration: ObservableObject {
         }
     }
 
+    func importReference(_ url: URL) async {
+        guard !running, !isDownloading, variant == .turbo else { return }
+        let request = UUID()
+        referenceRequest = request
+        referenceImporting = true
+        referenceError = nil
+        defer { if referenceRequest == request { referenceImporting = false } }
+        do {
+            let image = try await Task.detached(priority: .userInitiated) { try ImageEditReference.load(url) }.value
+            guard referenceRequest == request, !Task.isCancelled, variant == .turbo else { return }
+            referenceImage = image
+            waitingForReference = false
+        } catch {
+            if referenceRequest == request && !Task.isCancelled { referenceError = error.localizedDescription }
+        }
+    }
+
+    func removeReference() {
+        guard !running else { return }
+        referenceRequest = UUID()
+        referenceImporting = false
+        referenceImage = nil
+        referenceError = nil
+        waitingForReference = false
+    }
+
+    func requestEditReference() {
+        guard !running else { return }
+        removeReference()
+        waitingForReference = true
+    }
+
     func offersLowMemory(at size: Image21Size) -> Bool {
         supported && lowMemoryAvailable &&
             (size == .square(1024) || (variant == .turbo && size == .square(2048)))
     }
 
     func start(model: URL, prompt: String, size: Image21Size, steps: Int, seed: UInt32, lowMemory: Bool = false) {
-        guard !running, !isDownloading else { return }
+        guard !running, !isDownloading, !referenceImporting else { return }
         let variant = self.variant
+        let reference = referenceImage
+        let isEdit = editing
+        let size = isEdit ? .square(ImageEditReference.size) : size
         let autoSave = preferences.bool(forKey: Self.autoSavePreferenceKey)
         let useLowMemory = lowMemory && offersLowMemory(at: size)
         running = true
@@ -285,6 +371,10 @@ final class ImageGeneration: ObservableObject {
             defer { finalizing = false; running = false; task = nil; process = nil }
             do {
                 guard supported else { throw failure(Image21Hardware.requirement) }
+                if isEdit {
+                    guard variant == .turbo else { throw failure(L("La retouche utilise Turbo.", "Editing uses Turbo.")) }
+                    guard reference != nil else { throw failure(L("Ajoute l’image à retoucher.", "Add the image to edit.")) }
+                }
                 guard Image21Size.presets.contains(size) else {
                     throw failure(L("Choisis une taille d’image proposée pour ce modèle.", "Choose an image size offered for this model."))
                 }
@@ -310,7 +400,7 @@ final class ImageGeneration: ObservableObject {
                     throw failure(L("Le composant Image21 manque dans l’application.", "The Image21 component is missing from the app."))
                 }
                 let work = fm.temporaryDirectory.appendingPathComponent(UUID().uuidString, isDirectory: true)
-                try fm.createDirectory(at: work, withIntermediateDirectories: true)
+                try fm.createDirectory(at: work, withIntermediateDirectories: true, attributes: [.posixPermissions: 0o700])
                 defer { try? fm.removeItem(at: work) }
                 let log = work.appendingPathComponent("worker.log")
                 let interpreter = work.appendingPathComponent("interpreter.txt")
@@ -326,6 +416,11 @@ final class ImageGeneration: ObservableObject {
                 var arguments = ["-I", "-u", script.path, "--variant", variant.rawValue, "--model", model.path, "--prompt=\(prompt)",
                                  "--size", String(size.width), "--steps", String(steps), "--seed", String(seed), "--output", png.path]
                 if useLowMemory { arguments.append("--low-memory") }
+                if let reference {
+                    let source = work.appendingPathComponent("reference.png")
+                    try reference.png.write(to: source, options: .atomic)
+                    arguments += ["--reference-image", source.path]
+                }
                 try await run(URL(fileURLWithPath: python), arguments, log: log, stdout: log, timeout: 3600,
                               steps: steps, size: size)
                 try Task.checkCancellation()
@@ -344,7 +439,8 @@ final class ImageGeneration: ObservableObject {
                     if autoSave {
                         do {
                             record = try historyStore.save(verifiedPNG: verified, prompt: prompt, modelName: model.lastPathComponent,
-                                                           variant: variant, steps: steps, seed: seed, id: id, createdAt: createdAt)
+                                                           variant: variant, steps: steps, seed: seed, id: id, createdAt: createdAt,
+                                                           isEdit: isEdit)
                         } catch {
                             warnings.append(L("L’enregistrement automatique a échoué.", "Automatic saving failed.") + " " + error.localizedDescription)
                         }
@@ -363,7 +459,7 @@ final class ImageGeneration: ObservableObject {
                     history.insert(record, at: position)
                 }
                 if counted || record != nil { usageRevision += 1 }
-                result = GeneratedImageOutput(id: id, png: verified.data, savedURL: record?.fileURL, seed: seed)
+                result = GeneratedImageOutput(id: id, png: verified.data, savedURL: record?.fileURL, seed: seed, isEdit: isEdit)
                 if !warnings.isEmpty { self.error = warnings.joined(separator: "\n") }
                 status = ""
             } catch is CancellationError {
@@ -403,6 +499,9 @@ final class ImageGeneration: ObservableObject {
                     ? L("Finalisation de l’image…", "Finishing the image…")
                     : L("Étape \(done) sur \(steps)", "Step \(done) of \(steps)")
                 return (message, done)
+            }
+            if trimmed.hasPrefix("Loading edit encoder") {
+                return (L("Préparation de l’encodeur d’images…", "Preparing the image encoder…"), nil)
             }
             if trimmed.hasPrefix("Loading tokenizer") {
                 return (L("Chargement de l’encodeur de texte et du VAE…", "Loading the text encoder and VAE…"), nil)

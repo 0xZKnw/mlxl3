@@ -38,6 +38,8 @@ struct ImageGenerationView: View {
     let close: () -> Void
     var selectDestination: @MainActor (NSSavePanel) -> URL? = selectImageSaveDestination
     @State private var previewImage: NSImage?
+    @State private var referencePreviewImage: NSImage?
+    @State private var referenceDropTargeted = false
     @State private var showsHistory = false
     @State private var baseLowMemory = false
     @State private var turboLowMemory = false
@@ -75,7 +77,8 @@ struct ImageGenerationView: View {
                 }
             } else {
                 VStack(alignment: .leading, spacing: 16) {
-                    StudioPageHeader(title: L("Générer une image", "Generate an image"),
+                    StudioPageHeader(title: engine.editing ? L("Retoucher une image", "Edit an image")
+                                                            : L("Générer une image", "Generate an image"),
                                      detail: L("Qwen-Image-2.1, entièrement sur ce Mac.", "Qwen-Image-2.1, entirely on this Mac."))
                     preview
                     composer
@@ -83,6 +86,12 @@ struct ImageGenerationView: View {
                 .padding(.horizontal, 32).padding(.top, 40).padding(.bottom, 24)
                 .frame(maxWidth: 960)
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .contentShape(Rectangle())
+                .dropDestination(for: URL.self) { urls, _ in
+                    acceptReferenceDrop(urls)
+                } isTargeted: {
+                    referenceDropTargeted = $0 && canImportReference
+                }
             }
         }
         .font(.system(size: 13))
@@ -91,6 +100,20 @@ struct ImageGenerationView: View {
         .onExitCommand(perform: goBack)
         .task(id: engine.variant) { await engine.refreshModelDirectory() }
         .task(id: engine.result?.id) { previewImage = engine.result.flatMap { NSImage(data: $0.png) } }
+        .task(id: engine.referenceImage?.png) {
+            referencePreviewImage = engine.referenceImage.flatMap { NSImage(data: $0.png) }
+        }
+    }
+
+    private var canImportReference: Bool {
+        engine.variant == .turbo && !engine.running && !engine.isDownloading && !engine.referenceImporting
+    }
+
+    @discardableResult
+    func acceptReferenceDrop(_ urls: [URL]) -> Bool {
+        guard canImportReference, urls.count == 1, let url = urls.first, url.isFileURL else { return false }
+        Task { await engine.importReference(url) }
+        return true
     }
 
     private func navigation(_ title: String, icon: String, history: Bool) -> some View {
@@ -115,7 +138,8 @@ struct ImageGenerationView: View {
                 Text("Turbo").tag(Image21Variant.turbo)
                 Text("Base").tag(Image21Variant.base)
             }
-            .pickerStyle(.segmented).labelsHidden().disabled(engine.running || engine.isDownloading)
+            .pickerStyle(.segmented).labelsHidden()
+            .disabled(engine.running || engine.isDownloading || engine.referenceImporting)
             .accessibilityIdentifier("images.variant")
             Text(engine.variant == .turbo
                  ? L("Recommandé pour générer rapidement, en 8 étapes.", "Recommended for fast generation in 8 steps.")
@@ -200,21 +224,28 @@ struct ImageGenerationView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(L("Réglages", "Settings")).font(.system(size: 12.5, weight: .semibold)).foregroundStyle(StudioTheme.secondary)
             Text(L("Taille de l’image (px)", "Image size (px)")).font(.system(size: 12.5))
-            Picker(L("Taille de l’image", "Image size"), selection: $engine.size) {
-                ForEach(Image21Size.presets, id: \.self) { size in Text(size.label).tag(size) }
+            if engine.editing {
+                Label("\(ImageEditReference.size) × \(ImageEditReference.size) px", systemImage: "lock")
+                    .font(.system(size: 12).monospacedDigit())
+                    .foregroundStyle(StudioTheme.secondary)
+                    .accessibilityIdentifier("images.editSize")
+            } else {
+                Picker(L("Taille de l’image", "Image size"), selection: $engine.size) {
+                    ForEach(Image21Size.presets, id: \.self) { size in Text(size.label).tag(size) }
+                }
+                .pickerStyle(.menu).labelsHidden().accessibilityIdentifier("images.size")
+                if engine.offersLowMemory(at: engine.size) {
+                    Toggle(L("Réduire la mémoire", "Reduce memory use"), isOn: lowMemory)
+                        .font(.system(size: 12.5))
+                        .help(engine.variant == .turbo
+                              ? L("Réduit la mémoire utilisée lors du décodage final de l’image.",
+                                  "Uses less memory during the final image decode.")
+                              : L("Réduit la mémoire utilisée et peut allonger la génération.",
+                                  "Uses less memory and may take longer to generate."))
+                        .accessibilityIdentifier("images.lowMemory")
+                }
             }
-            .pickerStyle(.menu).labelsHidden().accessibilityIdentifier("images.size")
-            if engine.offersLowMemory(at: engine.size) {
-                Toggle(L("Réduire la mémoire", "Reduce memory use"), isOn: lowMemory)
-                    .font(.system(size: 12.5))
-                    .help(engine.variant == .turbo
-                          ? L("Réduit la mémoire utilisée lors du décodage final de l’image.",
-                              "Uses less memory during the final image decode.")
-                          : L("Réduit la mémoire utilisée et peut allonger la génération.",
-                              "Uses less memory and may take longer to generate."))
-                    .accessibilityIdentifier("images.lowMemory")
-            }
-            if engine.variant == .base {
+            if engine.variant == .base && !engine.editing {
                 Stepper(value: $engine.baseSteps, in: 2...50) {
                     Text(L("\(engine.steps) étapes", "\(engine.steps) steps")).font(.system(size: 12.5)).monospacedDigit()
                 }
@@ -232,11 +263,27 @@ struct ImageGenerationView: View {
         .disabled(engine.running)
     }
 
+    private var previewTitle: String {
+        if engine.running {
+            return engine.editing ? L("Retouche en cours", "Editing") : L("Génération en cours", "Generating")
+        }
+        if let result = engine.result {
+            return result.isEdit ? L("Image retouchée", "Edited image") : L("Image générée", "Generated image")
+        }
+        if engine.referenceImage != nil { return L("Image d’origine", "Original image") }
+        return engine.editing ? L("Aperçu", "Preview") : L("Exemple du modèle Base", "Base model example")
+    }
+
+    private var displayedPreview: NSImage? {
+        if engine.result != nil { return previewImage }
+        if engine.editing { return referencePreviewImage }
+        return Self.example
+    }
+
     private var preview: some View {
         VStack(spacing: 10) {
             HStack {
-                Text(engine.running ? L("Génération en cours", "Generating")
-                     : engine.result == nil ? L("Exemple du modèle Base", "Base model example") : L("Image générée", "Generated image"))
+                Text(previewTitle)
                     .font(.system(size: 12.5, weight: .medium)).foregroundStyle(StudioTheme.secondary)
                 Spacer()
                 if !engine.running, let url = engine.result?.savedURL {
@@ -259,11 +306,10 @@ struct ImageGenerationView: View {
                         ProgressView().controlSize(.small)
                         Text(engine.status).font(.system(size: 12.5)).foregroundStyle(StudioTheme.secondary)
                     }
-                } else if let image = engine.result == nil ? Self.example : previewImage {
+                } else if let image = displayedPreview {
                     Image(nsImage: image).resizable().interpolation(.high).scaledToFit()
-                        .accessibilityLabel(engine.result == nil
-                            ? L("Exemple généré avec Qwen Image, une théière bleue", "Qwen Image example of a blue teapot")
-                            : L("Image générée", "Generated image"))
+                        .accessibilityLabel(engine.result != nil || engine.editing ? previewTitle
+                            : L("Exemple généré avec Qwen Image, une théière bleue", "Qwen Image example of a blue teapot"))
                 } else {
                     Image(systemName: "photo").font(.largeTitle).foregroundStyle(StudioTheme.quiet)
                 }
@@ -276,9 +322,94 @@ struct ImageGenerationView: View {
         .frame(maxHeight: .infinity)
     }
 
+    private var referenceTile: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(spacing: 9) {
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6).fill(StudioTheme.panel)
+                    if engine.referenceImporting {
+                        ProgressView().controlSize(.small)
+                    } else if let referencePreviewImage {
+                        Image(nsImage: referencePreviewImage).resizable().scaledToFit()
+                    } else {
+                        Image(systemName: "photo.badge.plus").font(.system(size: 15))
+                            .foregroundStyle(StudioTheme.secondary)
+                    }
+                }
+                .frame(width: 32, height: 32)
+                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .accessibilityHidden(true)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(engine.referenceImage?.name ?? L("Image de référence", "Reference image"))
+                        .font(.system(size: 12, weight: .semibold)).lineLimit(1).truncationMode(.middle)
+                    Text(referenceHint).font(.system(size: 11.5)).foregroundStyle(StudioTheme.secondary)
+                        .lineLimit(2)
+                }
+                Spacer(minLength: 0)
+                if engine.variant == .base {
+                    Button(L("Utiliser Turbo", "Use Turbo")) { engine.selectVariant(.turbo) }
+                        .buttonStyle(.studio(.secondary, height: 26))
+                        .disabled(engine.running || engine.isDownloading)
+                        .accessibilityIdentifier("images.referenceTurbo")
+                } else {
+                    Button(engine.referenceImage == nil ? L("Choisir…", "Choose…") : L("Remplacer…", "Replace…"),
+                           action: chooseReference)
+                        .buttonStyle(.studio(.secondary, height: 26)).disabled(!canImportReference)
+                        .help(L("Choisir une image de référence", "Choose a reference image"))
+                        .accessibilityLabel(engine.referenceImage == nil
+                            ? L("Choisir une image de référence", "Choose a reference image")
+                            : L("Remplacer l’image de référence", "Replace the reference image"))
+                        .accessibilityIdentifier("images.referenceChoose")
+                }
+                if engine.editing {
+                    StudioIconButton(icon: "xmark", label: L("Retirer la référence", "Remove reference")) {
+                        engine.removeReference()
+                    }
+                    .disabled(engine.running)
+                    .accessibilityIdentifier("images.referenceRemove")
+                }
+            }
+            if let error = engine.referenceError {
+                Text(error).font(.caption).foregroundStyle(StudioTheme.failure)
+                    .textSelection(.enabled)
+            }
+        }
+        .padding(.horizontal, 9).padding(.vertical, 5)
+        .background(StudioTheme.panel, in: RoundedRectangle(cornerRadius: 9))
+        .overlay {
+            RoundedRectangle(cornerRadius: 9)
+                .strokeBorder(referenceDropTargeted ? studio.accentColor : StudioTheme.edge,
+                              lineWidth: referenceDropTargeted ? 1.5 : 0.5)
+                .allowsHitTesting(false)
+        }
+    }
+
+    private var referenceHint: String {
+        if engine.referenceImporting { return L("Importation…", "Importing…") }
+        if engine.variant == .base {
+            return L("Retouche à 512 px avec Turbo.", "512 px edits use Turbo.")
+        }
+        if engine.referenceImage != nil { return L("Retouche · 512 px", "Edit · 512 px") }
+        return L("Glisse une image pour la retoucher.", "Drop an image to edit it.")
+    }
+
+    private func chooseReference() {
+        guard canImportReference else { return }
+        let panel = NSOpenPanel()
+        panel.allowedContentTypes = [.image]
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        if panel.runModal() == .OK, let url = panel.url {
+            acceptReferenceDrop([url])
+        }
+    }
+
     private var composer: some View {
         VStack(alignment: .leading, spacing: 8) {
-            TextField(L("Décris l’image à générer…", "Describe the image to generate…"),
+            referenceTile
+            TextField(engine.editing ? L("Décris ce qui doit changer…", "Describe what to change…")
+                                     : L("Décris l’image à générer…", "Describe the image to generate…"),
                       text: $engine.prompt, axis: .vertical)
                 .textFieldStyle(.plain).font(.system(size: 14)).lineLimit(2...4).disabled(engine.running)
                 .accessibilityIdentifier("images.prompt")
@@ -289,7 +420,11 @@ struct ImageGenerationView: View {
                 Text(engine.status).font(.system(size: 12.5)).foregroundStyle(StudioTheme.secondary)
             }
             HStack(spacing: 12) {
-                Text(L("Environ 5 Go de composants partagés au premier lancement.", "First use downloads about 5 GB of shared components."))
+                Text(engine.editing
+                     ? L("Les composants de vision sont téléchargés à la première retouche.",
+                         "Vision components download on the first edit.")
+                     : L("Environ 5 Go de composants partagés au premier lancement.",
+                         "First use downloads about 5 GB of shared components."))
                     .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
                 Spacer()
                 if engine.running {
@@ -301,11 +436,14 @@ struct ImageGenerationView: View {
                         engine.start(model: model, prompt: engine.prompt,
                                      size: engine.size, steps: engine.steps, seed: engine.seed, lowMemory: lowMemory.wrappedValue)
                     } label: {
-                        Label(L("Générer", "Generate"), systemImage: "wand.and.stars")
+                        Label(engine.editing ? L("Retoucher", "Edit") : L("Générer", "Generate"),
+                              systemImage: "wand.and.stars")
                     }
                     .buttonStyle(.studio(.primary)).keyboardShortcut(.return, modifiers: .command)
-                    .help(L("Générer · ⌘↩", "Generate · ⌘↩"))
-                    .disabled(engine.modelDirectory == nil || engine.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    .help(engine.editing ? L("Retoucher · ⌘↩", "Edit · ⌘↩") : L("Générer · ⌘↩", "Generate · ⌘↩"))
+                    .disabled(engine.modelDirectory == nil || engine.referenceImporting
+                        || (engine.editing && (engine.referenceImage == nil || engine.variant != .turbo))
+                        || engine.prompt.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                     .accessibilityIdentifier("images.generate")
                 }
             }
