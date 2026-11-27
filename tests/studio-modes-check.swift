@@ -25,6 +25,9 @@ extension StudioModel {
     }
     let second = entry("compare-test-b", localRoot.appendingPathComponent("b").path, "lfm3")
     for path in [first.path, second.path] { try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true) }
+    let qwenTemplate = "{% if enable_thinking is defined and enable_thinking is false %}<think></think>{% else %}<think>{% endif %}"
+    try qwenTemplate.write(to: URL(fileURLWithPath: first.path).appendingPathComponent("chat_template.jinja"),
+      atomically: true, encoding: .utf8)
     let alias = localRoot.appendingPathComponent("alias")
     try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: first.path)
     let studio = StudioModel(conversationFileURL: localRoot.appendingPathComponent("history"), preferences: prefs)
@@ -90,6 +93,28 @@ extension StudioModel {
     check(identifiers.count == 2 && studio.draft == "unchanged draft" && studio.selectedConversationID == id
       && studio.currentConversation!.messages.count == count && studio.labSamples.isEmpty
       && studio.labUsage.summary(for: .allTime).models.isEmpty, "Lab preserves the draft, conversation and usage")
+    let legacyPayload = requests.last?["request"] as? [String: Any]
+    check(legacyPayload != nil && legacyPayload?["reasoning_effort"] == nil && legacyPayload?["reasoning_budget"] == nil,
+      "An older bridge and a model without an off switch use the ordinary request")
+    do {
+      let marker = root.appendingPathComponent("agent-loop-engine")
+      FileManager.default.createFile(atPath: marker.path, contents: Data())
+      defer { try? FileManager.default.removeItem(at: marker) }
+      studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-visible-answer", budget: 1024)
+      try await waitForIdleLab()
+      check(comparison.runs.allSatisfy {
+        $0.phase == .complete && !$0.hitTokenLimit && $0.answer == "Visible answer" && $0.firstTextSeconds != nil
+      }, "Both models produce visible text instead of spending 1024 tokens on hidden thinking")
+      let payloads = try String(contentsOf: root.appendingPathComponent("compare-requests.jsonl"), encoding: .utf8)
+        .split(separator: "\n").suffix(2).map { line in
+          let row = try JSONSerialization.jsonObject(with: Data(line.utf8)) as! [String: Any]
+          return row["request"] as! [String: Any]
+        }
+      check(payloads.count == 2 && payloads.allSatisfy { $0["max_tokens"] as? Int == 1024 }
+        && payloads[0]["reasoning_effort"] as? String == "none" && payloads[0]["reasoning_budget"] == nil
+        && payloads[1]["reasoning_effort"] == nil && payloads[1]["reasoning_budget"] as? Int == 256,
+        "Use the native off switch when supported and a short target otherwise")
+    }
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-errors", budget: 1)
     try await waitForIdleLab()
     let a = comparison.runs[0], b = comparison.runs[1]

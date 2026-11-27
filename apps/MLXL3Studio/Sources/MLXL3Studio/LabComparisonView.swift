@@ -192,7 +192,8 @@ struct LabComparisonView: View {
                 ForEach([128, 256, 512, 1024, 2048, 4096], id: \.self) { Text("\($0) tokens").tag($0) }
             }.labelsHidden().fixedSize()
         }
-        .help(L("Chaque modèle peut terminer sa réponse avant cette limite.", "Either model can finish its answer before this limit."))
+        .help(L("La limite inclut la réflexion. Le Labo la désactive ou la limite selon le modèle et le moteur.",
+                "The limit includes thinking. Lab disables or limits it based on the model and engine."))
     }
 
     private var startButton: some View {

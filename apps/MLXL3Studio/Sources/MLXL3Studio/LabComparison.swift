@@ -118,9 +118,16 @@ final class LabComparison: ObservableObject {
                     throw MLXL3BridgeError.commandFailed(event.message ?? L("Erreur du moteur.", "Engine error."))
                 }
                 if event.type == "ready", started == nil {
+                    let disableThinking = event.reasoningEffortSupported == true
+                        && (event.reasoningEffortLevels?.contains(ReasoningEffort.none.rawValue) ?? true)
+                        && ReasoningSupport.detect(modelPath: runs[index].model.path)?.levels.contains(.none) == true
+                    // The bridge bounds this target to half the space available for output.
+                    let reasoningBudget = !disableThinking && event.agentLoopSupported == true ? 256 : nil
                     let request = GenerationRequest(requestID: requestID, conversationID: UUID().uuidString,
                         messages: [PromptMessage(role: "user", content: prompt)], maxTokens: budget,
-                        temperature: 0, topK: 0, repetitionPenalty: 1, dspark: false)
+                        temperature: 0, topK: 0, repetitionPenalty: 1, dspark: false,
+                        reasoningEffort: disableThinking ? ReasoningEffort.none.rawValue : nil,
+                        reasoningBudget: reasoningBudget)
                     started = .now
                     try bridge.generate(request) { channel.yield(.failure($0)) }
                     runs[index].phase = .generating
