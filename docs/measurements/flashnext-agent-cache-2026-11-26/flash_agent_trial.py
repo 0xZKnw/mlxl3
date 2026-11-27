@@ -62,12 +62,14 @@ def options():
     parser.add_argument("--ready-timeout", type=positive, default=900)
     parser.add_argument("--task-timeout", type=positive, default=1800)
     parser.add_argument("--mtp", action="store_true")
-    parser.add_argument("--live-cache", action="store_true")
+    cache = parser.add_mutually_exclusive_group()
+    cache.add_argument("--live-cache", action="store_true")
+    cache.add_argument("--advertised-live-cache", action="store_true")
     parser.add_argument("--require-live", action="store_true")
     parser.add_argument("--env", action="append", type=environment_setting, default=[])
     args = parser.parse_args()
-    if args.require_live and not args.live_cache:
-        parser.error("--require-live needs --live-cache")
+    if args.require_live and not (args.live_cache or args.advertised_live_cache):
+        parser.error("--require-live needs --live-cache or --advertised-live-cache")
     return args
 
 
@@ -384,6 +386,12 @@ def main():
             )
             try:
                 report["ready"] = wait_for(bridge, args.ready_timeout, "ready")
+                if args.advertised_live_cache:
+                    require(
+                        report["ready"].get("live_prompt_cache_supported") is True,
+                        "the bridge did not advertise the live prompt cache",
+                    )
+                    request["live_prompt_cache"] = True
                 bridge.send({"type": "set_mcp", "enabled": True, "request_id": "mcp"})
                 mcp = wait_for(bridge, 90, "mcp_status", "mcp")
                 report["mcp"] = mcp

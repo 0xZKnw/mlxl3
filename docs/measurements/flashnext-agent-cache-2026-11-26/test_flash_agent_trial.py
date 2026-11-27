@@ -160,6 +160,72 @@ class TaskValidation(unittest.TestCase):
             self.assertEqual(record["engine_exit"], 2)
             self.assertEqual(record["stderr_tail"], "fixture admission failed")
 
+    def test_automatic_request_depends_on_ready_capability(self):
+        for ready in [
+            {},
+            {"live_prompt_cache_supported": False},
+            {"live_prompt_cache_supported": "true"},
+            {"live_prompt_cache_supported": True},
+        ]:
+            with self.subTest(ready=ready), tempfile.TemporaryDirectory() as temporary:
+                folder = Path(temporary)
+                engine = folder / "mock-engine"
+                full_ready = {"type": "ready", **ready}
+                mcp = {
+                    "type": "mcp_status",
+                    "request_id": "mcp",
+                    "mcp_tool_catalog": [{"function": {"name": "sandbox.read"}}],
+                }
+                engine.write_text(
+                    f"#!{sys.executable}\n"
+                    "import json, sys\n"
+                    f"print(json.dumps({full_ready!r}), flush=True)\n"
+                    "for line in sys.stdin:\n"
+                    "    msg = json.loads(line)\n"
+                    "    if msg['type'] == 'shutdown': break\n"
+                    f"    if msg['type'] == 'set_mcp': print(json.dumps({mcp!r}), flush=True)\n"
+                    "    if msg['type'] == 'generate':\n"
+                    "        assert msg.get('live_prompt_cache') is True\n"
+                    f"        for ev in {inventory_events()!r}: print(json.dumps(ev), flush=True)\n"
+                )
+                engine.chmod(0o700)
+                registry = folder / "source.json"
+                registry.write_text('{"models":{"fake":{"path":"/unused"}}}')
+                output = folder / "trial.json"
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-B",
+                        trial.__file__,
+                        "--engine",
+                        str(engine),
+                        "--helper",
+                        str(engine),
+                        "--registry",
+                        str(registry),
+                        "--model",
+                        "fake",
+                        "--output",
+                        str(output),
+                        "--advertised-live-cache",
+                        "--require-live",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                    check=False,
+                )
+                expected = ready.get("live_prompt_cache_supported") is True
+                record = json.loads(output.read_text())
+                self.assertEqual(result.returncode, 0 if expected else 1, result.stderr)
+                self.assertIs(record["request"]["live_prompt_cache"], expected)
+                self.assertIs(record["task_passed"], expected)
+                if expected:
+                    self.assertEqual(record["live_steps"], 3)
+                else:
+                    self.assertIn("did not advertise", record["error"])
+                    self.assertEqual(record["task"], {"tools": []})
+
 
 if __name__ == "__main__":
     unittest.main()

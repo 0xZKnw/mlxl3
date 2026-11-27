@@ -20,6 +20,8 @@ MLXL3_SSD_CACHE_GIB=3 \
 
 `PYTHON` doit désigner un interpréteur dont l’environnement conserve `DYLD_LIBRARY_PATH`. L’oracle physique est `qwen4::tests::flash_agent_live_tool_prefix_matches_cold_prefill`, à exécuter avec les features Rust `mlx,chat`, `MLXL3_FLASH_MODEL` vers le checkpoint et les mêmes bibliothèques et réglages. `live-start-kani.log` couvre la décision de reprise sur un domaine borné CPU. `gpu-oracle.log` couvre les états et logits de l’échange synthétique sur le M5.
 
+Pour vérifier le même échange à partir de la capacité que le moteur annonce à Studio, remplacer `--live-cache` par `--advertised-live-cache` et garder `--require-live`. Le harnais attend l’événement `ready`, exige que la capacité soit annoncée pour le modèle chargé et ne demande la reprise qu’une fois ce contrôle passé.
+
 ## Mesures sur M5
 
 | Passage | Tâche (s) | Préremplissage (s) | Décodage (s) | Tokens évalués | Pic processus (Gio) | Reprises |

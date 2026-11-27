@@ -642,11 +642,12 @@ extension StudioModel {
           try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any]
         }
     }
-    func readyAgent(_ name: String) async throws -> StudioModel {
+    func readyAgent(_ name: String, localModel: LocalModel? = nil) async throws -> StudioModel {
+      let selected = localModel ?? model
       let fixture = StudioModel(
         conversationFileURL: root.appendingPathComponent(name + ".json"), preferences: prefs)
-      fixture.models = [model]
-      fixture.selectModel(model.name)
+      fixture.models = [selected]
+      fixture.selectModel(selected.name)
       try await wait { fixture.engineState.isReady }
       fixture.selectMode(.agent)
       try await wait {
@@ -826,6 +827,52 @@ extension StudioModel {
       "Agent sends a finite production token budget and its tool-round limit: \(limitedRequest["max_tokens"] ?? "nil") \(limitedRequest["tool_rounds"] ?? "nil")")
     limited.stopServices()
     await limited.bridge.stopAndWait()
+    let flash = LocalModel(
+      name: "flash-agent-cache-eligible", path: model.path, modelType: "qwen4_exp", format: "EXL3",
+      bits: 2.05, sizeBytes: 100, modules: 1, addedAt: "", size: "100 B")
+    let ineligibleFlash = LocalModel(
+      name: "flash-agent-cache-ineligible", path: model.path, modelType: "qwen4_exp", format: "EXL3",
+      bits: 2.05, sizeBytes: 100, modules: 1, addedAt: "", size: "100 B")
+    let flashStudio = try await readyAgent("flash-live-cache", localModel: flash)
+    defer { flashStudio.stopServices() }
+    func sendFlashRequest(_ prompt: String) async throws -> [String: Any] {
+      let before = flashStudio.currentConversation!.messages.count
+      flashStudio.draft = prompt
+      try await wait { flashStudio.canSend }
+      flashStudio.send()
+      try await wait {
+        flashStudio.currentConversation!.messages.count == before + 2 && !flashStudio.isGenerating
+      }
+      let reply = flashStudio.currentConversation!.messages.last!.content
+      return try JSONSerialization.jsonObject(with: Data(reply.utf8)) as! [String: Any]
+    }
+    let flashAgent = try await sendFlashRequest("Flash Agent with capability")
+    check(flashAgent["live_prompt_cache"] as? Bool == true,
+          "Flash Agent automatically requests the cache announced by its running bridge")
+    let beforeChat = try launches().count
+    flashStudio.selectMode(.chat)
+    try await wait {
+      flashStudio.selectedMode == .chat && flashStudio.engineState.isReady
+        && !flashStudio.mcpUpdating && ((try? launches().count) ?? 0) > beforeChat
+    }
+    let flashChat = try await sendFlashRequest("Flash Chat with capability")
+    check(flashChat["live_prompt_cache"] == nil, "Flash Chat omits the Agent cache flag")
+    flashStudio.selectMode(.agent)
+    try await wait {
+      flashStudio.selectedMode == .agent && flashStudio.engineState.isReady
+        && flashStudio.mcpToolCount == 1 && !flashStudio.mcpUpdating
+    }
+    flashStudio.models = [flash, ineligibleFlash]
+    flashStudio.selectModel(ineligibleFlash.name)
+    try await wait {
+      flashStudio.loadedModel?.name == ineligibleFlash.name && flashStudio.engineState.isReady
+        && flashStudio.mcpToolCount == 1 && !flashStudio.mcpUpdating
+    }
+    let flashRefusal = try await sendFlashRequest("Flash Agent on an ineligible profile")
+    check(flashRefusal["live_prompt_cache"] == nil,
+          "Switching Flash profiles clears the old ready capability")
+    flashStudio.stopServices()
+    await flashStudio.bridge.stopAndWait()
     // AGENT-2026-11-23-BOUCLE: an engine announcing `agent_loop_supported` gets no total
     // budget and the long round limit; reasoning is never cut (no `reasoning_budget`).
     let marker = root.appendingPathComponent("agent-loop-engine")

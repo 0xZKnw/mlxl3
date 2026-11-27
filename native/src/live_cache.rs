@@ -13,6 +13,42 @@ pub struct LiveTail {
     pub text: Option<String>,
 }
 
+/// A Flash Agent turn can hold a live prefix only on an eligible AR route and while the request
+/// opts into prefix reuse, has tools and carries the Agent control channel.
+pub fn flash_agent_cache_eligible(
+    model_supports_live_cache: bool,
+    requested: bool,
+    reuse: bool,
+    has_tools: bool,
+    agent_request: bool,
+    ordinary_decode: bool,
+) -> bool {
+    model_supports_live_cache && requested && reuse && has_tools && agent_request && ordinary_decode
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(8)]
+fn flash_agent_cache_requires_route_request_and_every_safety_gate() {
+    // Comparison of the two six-element gate arrays has a fixed bound.
+    let capable = kani::any();
+    let requested = kani::any();
+    let reuse = kani::any();
+    let tools = kani::any();
+    let agent = kani::any();
+    let ordinary = kani::any();
+    let eligible = flash_agent_cache_eligible(capable, requested, reuse, tools, agent, ordinary);
+    let gates = [capable, requested, reuse, tools, agent, ordinary];
+    assert_eq!(eligible, gates == [true; 6]);
+    kani::cover!(eligible);
+    kani::cover!(gates == [false, true, true, true, true, true] && !eligible);
+    kani::cover!(gates == [true, false, true, true, true, true] && !eligible);
+    kani::cover!(gates == [true, true, false, true, true, true] && !eligible);
+    kani::cover!(gates == [true, true, true, false, true, true] && !eligible);
+    kani::cover!(gates == [true, true, true, true, false, true] && !eligible);
+    kani::cover!(gates == [true, true, true, true, true, false] && !eligible);
+}
+
 /// The generated tokens a model at `position` has committed after a prompt of `prompt` tokens.
 /// The stream is what the round delivered (`generated`), then the end token it stopped on
 /// (`end`, never delivered). A decoder commits its tokens in stream order, so the committed
@@ -145,6 +181,25 @@ fn live_start_requires_exact_tokens_and_committed_offset() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn flash_agent_cache_needs_all_six_gates() {
+        for mask in 0_u8..64 {
+            let enabled = |bit: u32| (mask >> bit) & 1 == 1;
+            assert_eq!(
+                flash_agent_cache_eligible(
+                    enabled(0),
+                    enabled(1),
+                    enabled(2),
+                    enabled(3),
+                    enabled(4),
+                    enabled(5),
+                ),
+                mask == 63,
+                "Flash cache guard mask {mask:06b}"
+            );
+        }
+    }
 
     #[test]
     fn the_committed_part_is_a_prefix_of_the_stream() {
