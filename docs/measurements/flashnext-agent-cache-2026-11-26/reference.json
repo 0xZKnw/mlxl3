@@ -1,0 +1,57 @@
+{
+  "experiment": "FLASHNEXT-2026-11-26-AGENT-CACHE",
+  "label": "reference",
+  "model": "Qwen3.8-Flash-Next-exl3-84147e95",
+  "registry": "$WORKTREE/build/flash-agent-local/models.json",
+  "engine": "$ENGINE_BUNDLE/mlxl3",
+  "helper": "/Applications/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+  "fixture": {
+    "stock.txt": "units=17",
+    "returns.txt": "units=5",
+    "dispatch.txt": "units=4"
+  },
+  "context_length": 4096,
+  "request": {
+    "type": "generate",
+    "request_id": "inventory",
+    "conversation_id": "flashnext-agent-cache-trial",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are an inventory assistant working with local records. Use relative file paths and report the result."
+      },
+      {
+        "role": "user",
+        "content": "Calculate the units currently in stock. Read stock.txt, returns.txt, then dispatch.txt via sandbox.read with one file per call in this order. Add the returned units to stock and subtract the dispatched units. When all three records have been read, answer only TOTAL=<number>."
+      }
+    ],
+    "max_tokens": 192,
+    "temperature": 0.0,
+    "top_k": 0,
+    "top_p": 1.0,
+    "repetition_penalty": 1.0,
+    "presence_penalty": 0.0,
+    "mtp": false,
+    "dflash2": false,
+    "dspark": false,
+    "memory_saver": false,
+    "reuse_prompt_cache": true,
+    "live_prompt_cache": false,
+    "tool_rounds": 5,
+    "mcp_enabled": true,
+    "allowed_tools": [
+      "sandbox.read"
+    ],
+    "reasoning_effort": "none"
+  },
+  "environment": {},
+  "status": "failed",
+  "task_passed": false,
+  "task": {
+    "tools": []
+  },
+  "engine_sha256": "91f5e8facc9a319915de9507e34f439f0f66a7aa3f9c0dacced7c02290318dfe",
+  "helper_sha256": "db136f4321e9b82bf5918b8f9c77db80bf1581c13a363774fad5757bd135b0ae",
+  "engine_exit": 2,
+  "error": "BridgeError: bridge exited (2)"
+}

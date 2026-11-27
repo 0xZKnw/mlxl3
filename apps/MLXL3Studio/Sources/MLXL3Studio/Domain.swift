@@ -214,8 +214,8 @@ struct BridgeEvent: Decodable {
     /// Engines whose Agent loop has no total budget: `reasoning_budget`, up to 512 rounds,
     /// context pruning and a stop for repeated identical calls.
     var agentLoopSupported: Bool? = nil
-    /// Engines that accept `live_prompt_cache` for the loaded model (Inkling 2): each Agent step
-    /// goes on from the state the model decoded with instead of reading its own output again.
+    /// Whether the loaded model accepts `live_prompt_cache` in Agent mode. The engine checks
+    /// whether it can reuse the live state for each request.
     var livePromptCacheSupported: Bool? = nil
     var agentYieldSupported: Bool? = nil
     /// `tool_start`: the call's arguments, shown with the tool (the code of a JS call).

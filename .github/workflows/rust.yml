@@ -445,6 +445,8 @@ jobs:
           c++ -std=c++20 -O2 -Wall -Wextra -Werror -Wno-unused-parameter -I native/ffi -isystem "$MLXL3_MLX_ROOT/include" -isystem "$MLXL3_MLX_ROOT/include/metal_cpp" native/tests/prepared_metal.cpp -L "$MLXL3_MLX_ROOT/lib" -lmlx -Wl,-rpath,"$MLXL3_MLX_ROOT/lib" -framework Metal -framework Foundation -o build/ci/prepared-metal
           cargo clippy --locked --all-targets --features mlx,chat -- -D warnings
           cargo build --locked --release --features mlx,chat
+          cargo test --locked --bin mlxl3-rs --features mlx,chat flash_agent_cache_expires_at_the_end_of_the_turn -- --exact | tee build/ci/flash-agent-cache-scope.log
+          python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed;" in Path("build/ci/flash-agent-cache-scope.log").read_text()'
           cargo test --locked --lib --features mlx,chat qwen4::draft::raw_draft_reader_does_not_require_exl3_metadata_and_rejects_foreign_config -- --exact | tee build/ci/raw-draft-reader.log
           python -c 'from pathlib import Path; assert "test result: ok. 1 passed; 0 failed;" in Path("build/ci/raw-draft-reader.log").read_text()'
           set -euo pipefail

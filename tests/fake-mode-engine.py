@@ -108,6 +108,11 @@ elif command == "bridge":
     signal.signal(signal.SIGUSR1, cancel)
     with open(os.path.join(os.environ["MLXL3_HOME"], "mode-launches.jsonl"), "a") as log:
         log.write(json.dumps({"registry": registry, "model": model, "pid": os.getpid()}) + "\n")
+    agent_loop = os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine"))
+    if model.startswith("flash-agent-cache-"):
+        cache_capability = {"live_prompt_cache_supported": model == "flash-agent-cache-eligible"}
+    else:
+        cache_capability = {"live_prompt_cache_supported": True} if agent_loop else {}
     emit(
         "ready",
         model=model,
@@ -123,10 +128,8 @@ elif command == "bridge":
         mlx_version="0.32.2",
         reasoning_effort_supported=True,
         reasoning_effort_levels=["none", "minimal", "low", "medium", "high", "xhigh", "max"],
-        # AGENT-2026-11-23-BOUCLE: a newer engine when the test leaves this marker file
-        agent_loop_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
-        # AGENT-2026-11-26-LIVE-CACHE: announced with the same marker (a newer engine)
-        live_prompt_cache_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
+        agent_loop_supported=agent_loop,
+        **cache_capability,
     )
     if model.startswith("compare-test-no-reader-"):
         time.sleep(60)

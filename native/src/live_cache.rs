@@ -13,6 +13,42 @@ pub struct LiveTail {
     pub text: Option<String>,
 }
 
+/// A Flash Agent turn can hold a live prefix only on an eligible AR route and while the request
+/// opts into prefix reuse, has tools and carries the Agent control channel.
+pub fn flash_agent_cache_eligible(
+    model_supports_live_cache: bool,
+    requested: bool,
+    reuse: bool,
+    has_tools: bool,
+    agent_request: bool,
+    ordinary_decode: bool,
+) -> bool {
+    model_supports_live_cache && requested && reuse && has_tools && agent_request && ordinary_decode
+}
+
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(8)]
+fn flash_agent_cache_requires_route_request_and_every_safety_gate() {
+    // Comparison of the two six-element gate arrays has a fixed bound.
+    let capable = kani::any();
+    let requested = kani::any();
+    let reuse = kani::any();
+    let tools = kani::any();
+    let agent = kani::any();
+    let ordinary = kani::any();
+    let eligible = flash_agent_cache_eligible(capable, requested, reuse, tools, agent, ordinary);
+    let gates = [capable, requested, reuse, tools, agent, ordinary];
+    assert_eq!(eligible, gates == [true; 6]);
+    kani::cover!(eligible);
+    kani::cover!(gates == [false, true, true, true, true, true] && !eligible);
+    kani::cover!(gates == [true, false, true, true, true, true] && !eligible);
+    kani::cover!(gates == [true, true, false, true, true, true] && !eligible);
+    kani::cover!(gates == [true, true, true, false, true, true] && !eligible);
+    kani::cover!(gates == [true, true, true, true, false, true] && !eligible);
+    kani::cover!(gates == [true, true, true, true, true, false] && !eligible);
+}
+
 /// The generated tokens a model at `position` has committed after a prompt of `prompt` tokens.
 /// The stream is what the round delivered (`generated`), then the end token it stopped on
 /// (`end`, never delivered). A decoder commits its tokens in stream order, so the committed
@@ -93,9 +129,77 @@ pub fn extend_tokens<E>(
     })
 }
 
+#[cfg(kani)]
+#[kani::proof]
+#[kani::unwind(16)]
+fn live_start_requires_exact_tokens_and_committed_offset() {
+    // Each held segment has up to three tokens. The next prompt has up to seven,
+    // enough to include both held segments and a suffix. IDs and offsets are unrestricted.
+    // Slice equality can compare up to 12 bytes in memcmp before reaching its exit.
+    let snapshot: [u32; 3] = kani::any();
+    let tail: [u32; 3] = kani::any();
+    let prompt: [u32; 7] = kani::any();
+    let snapshot_len = usize::from(kani::any::<u8>() % 4);
+    let tail_len = usize::from(kani::any::<u8>() % 4);
+    let prompt_len = usize::from(kani::any::<u8>() % 8);
+    let position: Option<usize> = kani::any();
+    let held = snapshot_len + tail_len;
+
+    let resumed = live_start(
+        &snapshot[..snapshot_len],
+        &tail[..tail_len],
+        &prompt[..prompt_len],
+        position,
+    );
+    let first_mismatch = (0..held.min(prompt_len)).find(|&index| {
+        let token = if index < snapshot_len {
+            snapshot[index]
+        } else {
+            tail[index - snapshot_len]
+        };
+        prompt[index] != token
+    });
+    if position == Some(held) && prompt_len > held && first_mismatch.is_none() {
+        assert_eq!(resumed, Some(held));
+    } else {
+        assert_eq!(resumed, None);
+    }
+    kani::cover!(resumed == Some(6) && snapshot_len == 3 && tail_len == 3);
+    kani::cover!(resumed == Some(3) && snapshot_len == 3 && tail_len == 0);
+    kani::cover!(position == Some(held) && prompt_len > held && first_mismatch == Some(0));
+    kani::cover!(
+        tail_len > 0
+            && position == Some(held)
+            && prompt_len > held
+            && first_mismatch == Some(snapshot_len)
+    );
+    kani::cover!(position == Some(held) && held == prompt_len && first_mismatch.is_none());
+    kani::cover!(position.is_none() && prompt_len > held && first_mismatch.is_none());
+    kani::cover!(position == Some(held + 1) && prompt_len > held && first_mismatch.is_none());
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn flash_agent_cache_needs_all_six_gates() {
+        for mask in 0_u8..64 {
+            let enabled = |bit: u32| (mask >> bit) & 1 == 1;
+            assert_eq!(
+                flash_agent_cache_eligible(
+                    enabled(0),
+                    enabled(1),
+                    enabled(2),
+                    enabled(3),
+                    enabled(4),
+                    enabled(5),
+                ),
+                mask == 63,
+                "Flash cache guard mask {mask:06b}"
+            );
+        }
+    }
 
     #[test]
     fn the_committed_part_is_a_prefix_of_the_stream() {
@@ -156,6 +260,26 @@ mod tests {
         // an empty tail is the snapshot itself
         assert_eq!(live_start(&snapshot, &[], &prompt, Some(4)), Some(4));
         assert_eq!(live_start(&[], &[], &prompt, Some(0)), Some(0));
+    }
+
+    #[test]
+    fn a_tool_round_only_reuses_rows_the_decoder_committed() {
+        let initial_prompt = [11, 22, 33];
+        // The decoder stopped after emitting token 55 but before advancing its state with it.
+        let emitted = [44, 55];
+        let position = 4;
+        let committed = committed_stream(initial_prompt.len(), &emitted, None, position).unwrap();
+        let held = [initial_prompt.as_slice(), &committed].concat();
+        let with_result = [11, 22, 33, 44, 55, 66, 77];
+        let start = live_start(&held, &[], &with_result, Some(position)).unwrap();
+        assert_eq!(&with_result[start..], [55, 66, 77]);
+        assert_eq!(
+            live_start(&held, &[], &with_result, Some(position + 1)),
+            None
+        );
+        // A rewritten tool call cannot start at the same row just because its size matches.
+        let rewritten = [11, 22, 33, 99, 55, 66, 77];
+        assert_eq!(live_start(&held, &[], &rewritten, Some(position)), None);
     }
 
     #[test]

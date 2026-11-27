@@ -189,6 +189,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
     added = {
         "agent_loop::reasoning_cut_reserves_answer_tokens",
         "agent_turn::queued_guidance_never_overrides_stop_or_starts_a_tool",
+        "live_cache::flash_agent_cache_requires_route_request_and_every_safety_gate",
         "mtp_projection::compact_projection_chunks_and_offsets_are_bounded",
         "lfm3::lfm3_reconstruction_grid_and_trellis_bounds_are_checked",
         "lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds",
