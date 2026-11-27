@@ -1897,9 +1897,13 @@ extension StudioModesCheck {
     check(fixture.labComparison.runs.map(\.target) == [.brief, .extended]
       && fixture.labComparison.runs.allSatisfy { $0.model.name == "Atlas" && $0.phase == .complete },
       "The visible comparison starts two separate target runs on Atlas")
+    // Give both result headers room at 1× and read their concrete budgets when Vision misreads the labels.
+    window.setContentSize(NSSize(width: 1160, height: 660))
     let targetAnswers = try await displayedCells()
-    expectText("Brief", in: targetAnswers)
-    expectText("Extended", in: targetAnswers)
+    for budget in [#"\b256\s+tokens\b"#, #"\b4[,\s]?096\s+tokens\b"#] {
+      check(targetAnswers.contains { $0.text.range(of: budget, options: .regularExpression) != nil },
+        "Expected both rendered thinking budgets, read \(targetAnswers.map(\.text))")
+    }
     // "This" uniquely identifies this sidebar entry and avoids OCR's Latin/Cyrillic Mac homoglyphs.
     clickSidebar("This", in: targetAnswers)
     let hardware = try await displayedCells()
