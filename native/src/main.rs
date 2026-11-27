@@ -2887,10 +2887,10 @@ impl FlashAgentCache {
         });
     }
 
-    fn take_start(tokens: &[u32], offset: i32) -> Option<usize> {
+    fn take_start(tokens: &[u32], offset: Option<i32>) -> Option<usize> {
         FLASH_AGENT_CACHE.with_borrow_mut(|slot| {
             let held = slot.as_mut()?.held.take()?;
-            let position = usize::try_from(offset).ok();
+            let position = offset.and_then(|offset| usize::try_from(offset).ok());
             let start = mlxl3_native::live_cache::live_start(&held, &[], tokens, position);
             if start.is_none() && std::env::var("MLXL3_PROMPT_CACHE_TRACE").as_deref() == Ok("1") {
                 eprintln!(
@@ -2932,15 +2932,18 @@ fn flash_agent_cache_expires_at_the_end_of_the_turn() {
     {
         let _turn = FlashAgentRequest::set(true);
         seed();
-        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], 2), Some(2));
-        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], 2), None);
+        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], Some(2)), Some(2));
+        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], Some(2)), None);
+        seed();
+        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], None), None);
+        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], Some(2)), None);
         seed();
         FlashAgentCache::forget();
-        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], 2), None);
+        assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], Some(2)), None);
         seed();
     }
     let _turn = FlashAgentRequest::set(true);
-    assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], 2), None);
+    assert_eq!(FlashAgentCache::take_start(&[2, 3, 5], Some(2)), None);
 }
 
 /// Sets the live prompt cache choice for the duration of one request; dropping it turns it off.
@@ -3864,7 +3867,13 @@ fn prefill_round(
         && target.dflash2_active()
     {
         *cache = None;
-        return Ok((target.prefill_dflash2(tokens, cancelled)?, None, 0));
+        let start = if reuse && images.is_empty() {
+            FlashAgentCache::take_start(tokens, target.dflash2_live_offset())
+        } else {
+            None
+        };
+        let (logits, cached) = target.prefill_dflash2_resumable(tokens, start, cancelled)?;
+        return Ok((logits, None, cached));
     }
     // a state computed from image features is neither resumed nor saved for a later turn
     let reuse = reuse && images.is_empty();
@@ -3890,7 +3899,7 @@ fn prefill_round(
     if reuse
         && draft.is_none()
         && let NativeChatModel::Flash(target) = model
-        && let Some(start) = FlashAgentCache::take_start(tokens, target.offset())
+        && let Some(start) = FlashAgentCache::take_start(tokens, Some(target.offset()))
     {
         cached = start;
     }
@@ -6079,14 +6088,17 @@ fn bridge_generate_round(
         && continuation.is_empty()
         && reasoning_cut.is_none()
         && !cancelled.load(Ordering::Relaxed)
-        && let Some(held) = usize::try_from(target.offset()).ok().and_then(|position| {
-            mlxl3_native::live_cache::committed_stream(
-                tokens.len(),
-                &generated,
-                end_token,
-                position,
-            )
-        })
+        && let Some(held) = target
+            .agent_live_cache_offset()
+            .and_then(|offset| usize::try_from(offset).ok())
+            .and_then(|position| {
+                mlxl3_native::live_cache::committed_stream(
+                    tokens.len(),
+                    &generated,
+                    end_token,
+                    position,
+                )
+            })
     {
         FLASH_AGENT_CACHE.with_borrow_mut(|slot| {
             if let Some(cache) = slot {
@@ -6866,6 +6878,9 @@ fn native_bridge(
     });
     // AGENT-2026-11-26-LIVE-CACHE: `live_prompt_cache` per request (Inkling 2)
     ready["live_prompt_cache_supported"] = json!(matches!(model, NativeChatModel::Inkling(..)));
+    ready["flash_dflash_live_prompt_cache_supported"] = json!(
+        matches!(&model, NativeChatModel::Flash(target) if target.supports_agent_live_cache())
+    );
     // DECISION-2026-11-25-INK2M-DFLASH2-ON (set apart: the macro above is at its recursion limit)
     ready["dspark_default"] = json!(inkling_speculation_requested(
         None,

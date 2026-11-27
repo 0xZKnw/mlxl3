@@ -1,0 +1,48 @@
+rustc 1.100.0 (0ef1bc386 2026-11-09)
+
+running 5 tests
+test tests::a_prompt_goes_on_only_from_exactly_what_the_model_holds ... ok
+test tests::a_tool_round_only_reuses_rows_the_decoder_committed ... ok
+test tests::dflash_resume_requires_a_shared_committed_offset ... ok
+test tests::the_committed_part_is_a_prefix_of_the_stream ... ok
+test tests::the_rest_of_a_rendered_prompt_is_encoded_after_the_held_tokens ... ok
+
+test result: ok. 5 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
+--- native/src/live_cache.rs	2026-11-27 18:54:29
++++ /private/tmp/mlxl3-dflash2-guard.zW5kys/live_cache_mutated.rs	2026-11-27 18:57:15
+@@ -40,7 +40,7 @@
+     verification_pending: bool,
+     pending: usize,
+ ) -> Option<i32> {
+-    (target > 0 && target == draft && !verification_pending && pending <= 1).then_some(target)
++    (target > 0 && target == draft && !verification_pending && pending <= 2).then_some(target)
+ }
+
+ /// Where the prefill of `prompt` starts when the model holds `snapshot` then `tail` and sits
+
+running 1 test
+test tests::dflash_resume_requires_a_shared_committed_offset ... FAILED
+
+failures:
+
+---- tests::dflash_resume_requires_a_shared_committed_offset stdout ----
+
+thread 'tests::dflash_resume_requires_a_shared_committed_offset' (3814387) panicked at /private/tmp/mlxl3-dflash2-guard.zW5kys/live_cache_mutated.rs:202:9:
+assertion `left == right` failed
+  left: Some(1)
+ right: None
+note: run with `RUST_BACKTRACE=1` environment variable to display a backtrace
+
+
+failures:
+    tests::dflash_resume_requires_a_shared_committed_offset
+
+test result: FAILED. 0 passed; 1 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s
+
+The test detected the mutation permitting two pending tokens.
+
+running 1 test
+test tests::dflash_resume_requires_a_shared_committed_offset ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 4 filtered out; finished in 0.00s

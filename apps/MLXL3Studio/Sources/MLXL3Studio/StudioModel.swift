@@ -192,6 +192,7 @@ final class StudioModel: ObservableObject {
     private(set) var engineAgentLoop = false
     /// The running engine announces `live_prompt_cache_supported` for the loaded model.
     private(set) var engineLivePromptCache = false
+    private var engineFlashDFlashLivePromptCache = false
     private var engineCanYieldAgentTurn = false
     private var activeEngineAcknowledged = false
     private var didRequestAgentYield = false
@@ -1571,16 +1572,17 @@ final class StudioModel: ObservableObject {
         activeMessageReference = assistant
         if selectedMode == .agent { generationStartedAt = .now }
         if selectedMode == .agent, let store = agentStore, store.direct { watchAgentApprovals(store.metadata, request: requestID) }
+        let useDFlash = dflash2Applicable
         labConfiguration = nil
         if let model = selectedModel {
             let mode = selectedMode.rawValue, runtime = runtimeIdentity ?? "unknown"
             let system = ProcessInfo.processInfo.operatingSystemVersionString, hardware = LabHardware.identity
             let context = activeContextLimit ?? 0, temperature = samplingTemperature, topK = samplingTopK
-            let mtp = mtpApplicable, dflash = dflash2Applicable
+            let mtp = mtpApplicable
             let sampleID = assistant.id
             labConfiguration = { stats in LabSample(id: sampleID, model: model.name, modelPath: model.path, bits: model.bits, mode: mode,
                 runtime: runtime, system: system, hardware: hardware, context: context, temperature: temperature,
-                topK: topK, mtp: mtp, dflash: dflash, stats: stats) }
+                topK: topK, mtp: mtp, dflash: useDFlash, stats: stats) }
         }
         dflashActive = nil
         engineState = .generating
@@ -1611,6 +1613,8 @@ final class StudioModel: ObservableObject {
         }
 
         do {
+            let flashLiveCache = engineFlashDFlashLivePromptCache
+                && selectedModel?.modelType == "qwen4_exp" && useDFlash
             try bridge.generate(
                 GenerationRequest(
                     requestID: requestID,
@@ -1623,7 +1627,7 @@ final class StudioModel: ObservableObject {
                     topP: samplingTopP,
                     presencePenalty: samplingPresencePenalty,
                     mcpEnabled: selectedMode == .agent || (mcpEnabled && responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty),
-                    dflash2: dflash2Applicable,
+                    dflash2: useDFlash,
                     dflashDraftPath: dflashDraftPath,
                     dflashMode: dflashMode,
                     mtp: mtpApplicable,
@@ -1637,7 +1641,7 @@ final class StudioModel: ObservableObject {
                     reasoningEffort: requestReasoningEffort,
                     toolRounds: selectedMode == .agent
                         ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil,
-                    livePromptCache: selectedMode == .agent && engineLivePromptCache ? true : nil
+                    livePromptCache: selectedMode == .agent && (engineLivePromptCache || flashLiveCache) ? true : nil
                 )
             )
         } catch {
@@ -2461,6 +2465,7 @@ final class StudioModel: ObservableObject {
         dflashTuneRows = []; dflashMode = 1
         dflashActive = nil
         dflashSupported = nil
+        engineFlashDFlashLivePromptCache = false
         mtpActive = nil
         mtpSupported = nil
         dsparkSupported = nil
@@ -2606,6 +2611,7 @@ final class StudioModel: ObservableObject {
             engineLongToolCalls = longCalls
             engineAgentLoop = event.agentLoopSupported == true
             engineLivePromptCache = event.livePromptCacheSupported == true
+            engineFlashDFlashLivePromptCache = event.flashDFlashLivePromptCacheSupported == true
             workspaceFeaturesAvailable = event.workspaceFeatures == true
             imagesSupported = event.imagesSupported == true
             if let tools = event.mcpToolCatalog { mcpTools = tools }

@@ -1739,9 +1739,17 @@ impl FlashNext {
     pub fn supports_agent_live_cache(&self) -> bool {
         self.verification.is_none()
             && self.request_memory_limit().is_none()
-            && !self.dflash2_active()
             && self.lookahead_depth == 0
             && matches!(self.prompt_mode, PromptMode::Serial | PromptMode::FinalHead)
+    }
+    /// Position usable by the bridge when it also holds the exact committed token prefix.
+    #[cfg(feature = "chat")]
+    pub fn agent_live_cache_offset(&self) -> Option<i32> {
+        if self.dflash2_active() {
+            self.dflash2_live_offset()
+        } else {
+            Some(self.offset)
+        }
     }
     pub fn io_stats(&self) -> (u64, u64, u64) {
         let bytes = self

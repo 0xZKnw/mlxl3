@@ -1,0 +1,114 @@
+{
+  "answer": "TOTAL=18",
+  "capability": true,
+  "context": 4096,
+  "dflash_mode": 2,
+  "dflash_width": 2,
+  "engine_revision": "1f967fe3c6da-dirty",
+  "mlx_version": "0.32.2",
+  "model": "Qwen3.8-Flash-Next-exl3-84147e95",
+  "source": "StudioModel.send",
+  "stats": {
+    "cached_prompt_tokens": 2351,
+    "context_limit": 4096,
+    "context_used": 861,
+    "decode_tps": 7.30162030053267,
+    "dflash_accepted_tokens": 57,
+    "dflash_block_seconds": 11.092464247,
+    "dflash_blocks": 29,
+    "dflash_proposed_tokens": 58,
+    "elapsed_seconds": 175.579306834,
+    "end_to_end_ttft_seconds": 175.02241275,
+    "evaluated_prompt_tokens": 776,
+    "generated_tokens": 85,
+    "memory": {
+      "mlx_active_bytes": 7160770688,
+      "mlx_cache_bytes": 536730482,
+      "mlx_peak_bytes": 7461394252,
+      "process_footprint_bytes": 8328977008,
+      "process_lifetime_peak_bytes": 8453134984
+    },
+    "model_size_gb": 62.814592802,
+    "prefill_tps": 4.722366338470435,
+    "prompt_tokens": 3127,
+    "tool_rounds": 3,
+    "ttft_seconds": 153.526229042
+  },
+  "status": "complete",
+  "stop_reason": "eos",
+  "tool_activities": [
+    {
+      "arguments": "{\"file_path\":\"stock.txt\"}",
+      "id": "mcp-0-3-sandbox.read",
+      "result": "1| units=17",
+      "serverName": "sandbox",
+      "state": "complete",
+      "toolName": "sandbox.read"
+    },
+    {
+      "arguments": "{\"file_path\":\"returns.txt\"}",
+      "id": "mcp-1-5-sandbox.read",
+      "result": "1| units=5",
+      "serverName": "sandbox",
+      "state": "complete",
+      "toolName": "sandbox.read"
+    },
+    {
+      "arguments": "{\"file_path\":\"dispatch.txt\"}",
+      "id": "mcp-2-7-sandbox.read",
+      "result": "1| units=4",
+      "serverName": "sandbox",
+      "state": "complete",
+      "toolName": "sandbox.read"
+    }
+  ],
+  "wall_seconds": 175.75215608332655,
+  "native_trace": {
+    "dflash_requested": true,
+    "dflash_active": true,
+    "mtp_active": false,
+    "token_hash": "aaee49135bd200dc",
+    "decode_seconds": 11.09342812499999,
+    "prefill_seconds": 164.32439679200002,
+    "rounds": [
+      {
+        "prompt_tokens": 706,
+        "live_prompt_tokens": 0,
+        "evaluated_prompt_tokens": 706,
+        "prefill_seconds": 153.521879625
+      },
+      {
+        "prompt_tokens": 757,
+        "live_prompt_tokens": 733,
+        "evaluated_prompt_tokens": 24,
+        "prefill_seconds": 3.999228917
+      },
+      {
+        "prompt_tokens": 807,
+        "live_prompt_tokens": 784,
+        "evaluated_prompt_tokens": 23,
+        "prefill_seconds": 3.470905417
+      },
+      {
+        "prompt_tokens": 857,
+        "live_prompt_tokens": 834,
+        "evaluated_prompt_tokens": 23,
+        "prefill_seconds": 3.332382833
+      }
+    ]
+  },
+  "environment": {
+    "chip": "Apple M5",
+    "ram_gib": 24,
+    "macos": "27.3 (26C5047e)",
+    "power_at_start_and_finish": "AC",
+    "checkpoint_bpw": 2.05,
+    "draft_revision": "a22a1744e85c17364dcc54a6a420af7135d4c7f6",
+    "ssd_expert_cache_gib": 3,
+    "temperature": 0,
+    "reasoning_effort": "none",
+    "engine_sha256": "7c28d199867b899d12c93b54952d9350f4cfa524a1c87f92c83cfba97613ff74",
+    "swift_harness_sha256": "aff30d3f370a9aca2133f69040e7f495d99b94a2a09c36a229d6e924e4a43d02",
+    "engine_and_studio_diff_sha256": "42d7ccf1ddf0e19974eba8db893c88451b48b51759addccb59a3cdc7b4388b56"
+  }
+}

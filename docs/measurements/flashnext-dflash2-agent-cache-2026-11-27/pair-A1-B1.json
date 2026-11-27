@@ -1,0 +1,78 @@
+{
+  "experiment": "FLASHNEXT-AGENT-DFLASH2-LIVE-01",
+  "status": "complete",
+  "parity": true,
+  "inputs": [
+    "$CHECKOUT/docs/measurements/flashnext-dflash2-agent-cache-2026-11-27/A1.json",
+    "$CHECKOUT/docs/measurements/flashnext-dflash2-agent-cache-2026-11-27/B1.json"
+  ],
+  "memory_gate_passed": true,
+  "process_peaks_bytes": {
+    "A": 8428427840,
+    "B": 8407685720
+  },
+  "medians": {
+    "A": {
+      "wall_seconds": 477.2923043750052,
+      "prefill_seconds": 453.462598958,
+      "decode_seconds": 22.770693874999992,
+      "draft_load_seconds": 0.612760583,
+      "evaluated_prompt_tokens": 1859,
+      "dflash_proposed_tokens": 58,
+      "dflash_accepted_tokens": 57,
+      "dflash_blocks": 29,
+      "live_prompt_tokens": 0,
+      "process_lifetime_peak_bytes": 8428427840,
+      "mlx_peak_bytes": 7436088972,
+      "process_footprint_bytes": 8243157376
+    },
+    "B": {
+      "wall_seconds": 121.87984524999047,
+      "prefill_seconds": 102.060472583,
+      "decode_seconds": 19.207633083999994,
+      "draft_load_seconds": 0.335375791,
+      "evaluated_prompt_tokens": 459,
+      "dflash_proposed_tokens": 58,
+      "dflash_accepted_tokens": 57,
+      "dflash_blocks": 29,
+      "live_prompt_tokens": 1400,
+      "process_lifetime_peak_bytes": 8407685720,
+      "mlx_peak_bytes": 7437778400,
+      "process_footprint_bytes": 8239323688
+    }
+  },
+  "trials": [
+    {
+      "label": "A1",
+      "live_cache": false,
+      "wall_seconds": 477.2923043750052,
+      "prefill_seconds": 453.462598958,
+      "decode_seconds": 22.770693874999992,
+      "draft_load_seconds": 0.612760583,
+      "evaluated_prompt_tokens": 1859,
+      "dflash_proposed_tokens": 58,
+      "dflash_accepted_tokens": 57,
+      "dflash_blocks": 29,
+      "live_prompt_tokens": 0,
+      "process_lifetime_peak_bytes": 8428427840,
+      "mlx_peak_bytes": 7436088972,
+      "process_footprint_bytes": 8243157376
+    },
+    {
+      "label": "B1",
+      "live_cache": true,
+      "wall_seconds": 121.87984524999047,
+      "prefill_seconds": 102.060472583,
+      "decode_seconds": 19.207633083999994,
+      "draft_load_seconds": 0.335375791,
+      "evaluated_prompt_tokens": 459,
+      "dflash_proposed_tokens": 58,
+      "dflash_accepted_tokens": 57,
+      "dflash_blocks": 29,
+      "live_prompt_tokens": 1400,
+      "process_lifetime_peak_bytes": 8407685720,
+      "mlx_peak_bytes": 7437778400,
+      "process_footprint_bytes": 8239323688
+    }
+  ]
+}

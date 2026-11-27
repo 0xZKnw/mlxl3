@@ -923,6 +923,71 @@ extension StudioModel {
     await looping.bridge.stopAndWait()
     return count
   }
+
+  @MainActor static func checkFlashDFlashCacheRequest(root: URL) async throws -> Int {
+    let suite = "mlxl3.flash-dflash-cache-check." + UUID().uuidString
+    let prefs = UserDefaults(suiteName: suite)!
+    defer { prefs.removePersistentDomain(forName: suite) }
+    prefs.set(false, forKey: StudioModel.mtpAutoTunePreferenceKey)
+    let draftURL = root.appendingPathComponent("flash-live-draft")
+    try FileManager.default.createDirectory(at: draftURL, withIntermediateDirectories: true)
+    let studio = StudioModel(
+      conversationFileURL: root.appendingPathComponent("flash-live-workspace.json"), preferences: prefs)
+    defer { studio.stopServices() }
+    let models = try ["supported", "declines", "legacy"].map { variant in
+      let name = "flash-live-" + variant
+      let modelURL = root.appendingPathComponent(name)
+      try FileManager.default.createDirectory(at: modelURL, withIntermediateDirectories: true)
+      prefs.set(draftURL.path, forKey: "studio.dflashDraft.\(modelURL.path)")
+      return LocalModel(name: name, path: modelURL.path, modelType: "qwen4_exp", format: "EXL3",
+        bits: 2.05, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")
+    }
+    studio.models = models
+    var checks = 0
+    func wait(_ description: String, until condition: () -> Bool) async throws {
+      for _ in 0..<400 {
+        if condition() { return }
+        try await Task.sleep(for: .milliseconds(20))
+      }
+      preconditionFailure("Flash live cache fixture timed out waiting for \(description)")
+    }
+    func send(dflash: Bool, live: Bool) async throws {
+      studio.draft = "Flash Next cache request"
+      try await wait("send readiness") { studio.canSend }
+      studio.send()
+      try await wait("completion") { !studio.isGenerating && !studio.agentStudioBusy }
+      let response = studio.currentConversation!.messages.last!.content
+      let request = try JSONSerialization.jsonObject(with: Data(response.utf8)) as! [String: Any]
+      precondition(request["dflash2"] as? Bool == dflash && request["mtp"] as? Bool == false,
+        "The production request did not use the expected speculation route")
+      precondition(request["live_prompt_cache"] as? Bool == (live ? true : nil),
+        "Unexpected live cache request in \(studio.selectedMode) on \(studio.selectedModelName ?? "none")")
+      checks += 1
+    }
+    studio.selectModel(models[0].name)
+    try await wait("Flash Next readiness") { studio.engineState.isReady }
+    studio.selectMode(.agent)
+    try await wait("Agent tools") { studio.mcpToolCount == 1 && !studio.mcpUpdating }
+    try await send(dflash: false, live: false)
+    studio.setDFlash2Enabled(true)
+    try await wait("DFlash2 acknowledgement") { studio.dflashActive == true && !studio.dflashDownloading }
+    try await send(dflash: true, live: true)
+
+    studio.selectMode(.chat)
+    try await send(dflash: true, live: false)
+    studio.selectMode(.agent)
+    try await send(dflash: true, live: true)
+    // Each new ready event replaces the old capability, including when the field is absent.
+    for model in [models[1], models[0], models[2]] {
+      studio.selectModel(model.name)
+      try await wait("new Flash Next readiness") {
+        studio.engineState.isReady && studio.dflashActive == true && !studio.dflashDownloading
+      }
+      try await send(dflash: true, live: model.name == models[0].name)
+    }
+    await studio.bridge.stopAndWait()
+    return checks
+  }
 }
 
 @main struct StudioModesCheck {
@@ -1535,6 +1600,7 @@ extension StudioModel {
         "Agent workspace renders nonempty UI")
     }
     count += try await StudioModel.checkAgentGuards(root: root, prefs: prefs, model: model)
+    count += try await StudioModel.checkFlashDFlashCacheRequest(root: root)
     count += try await StudioModel.checkAgentFolders(root: root, prefs: prefs, model: model)
     count += try await StudioModel.checkAgentV21(root: root, prefs: prefs, model: model)
     try await checkLabPeriodControl(root: root, prefs: prefs) { check($0, $1) }

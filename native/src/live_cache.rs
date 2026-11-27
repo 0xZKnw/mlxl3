@@ -30,6 +30,19 @@ pub fn committed_stream(
     (held.len() == committed).then_some(held)
 }
 
+/// The shared committed offset of the Flash target and DFlash draft. A completed
+/// verification block can still hold one uncommitted fallback token at the end of
+/// its output queue. With more pending tokens, the queue can include speculative
+/// rows that were committed but have yet to reach the caller.
+pub fn flash_draft_live_offset(
+    target: i32,
+    draft: i32,
+    verification_pending: bool,
+    pending: usize,
+) -> Option<i32> {
+    (target > 0 && target == draft && !verification_pending && pending <= 1).then_some(target)
+}
+
 /// Where the prefill of `prompt` starts when the model holds `snapshot` then `tail` and sits
 /// at `position` (None while it has uncommitted rows): the end of what it holds, when the
 /// prompt starts with exactly those tokens and has at least one more.
@@ -95,6 +108,34 @@ pub fn extend_tokens<E>(
 
 #[cfg(kani)]
 #[kani::proof]
+fn flash_draft_live_offset_requires_both_committed_states() {
+    let target: i32 = kani::any();
+    let draft: i32 = kani::any();
+    let verification_pending: bool = kani::any();
+    let pending: usize = kani::any();
+    let offset = flash_draft_live_offset(target, draft, verification_pending, pending);
+
+    if let Some(offset) = offset {
+        assert!(offset > 0);
+        assert_eq!(offset, target);
+        assert_eq!(offset, draft);
+        assert!(!verification_pending);
+        assert!(matches!(pending, 0 | 1));
+    } else if target == draft && !verification_pending && matches!(pending, 0 | 1) {
+        assert!(target <= 0);
+    }
+
+    kani::cover!(offset == Some(1) && pending == 0);
+    kani::cover!(offset == Some(i32::MAX) && pending == 1);
+    kani::cover!(target == 0 && draft == 0 && !verification_pending && pending == 0);
+    kani::cover!(target == -1 && draft == -1 && !verification_pending && pending == 0);
+    kani::cover!(target == 1 && draft == 2 && !verification_pending && pending == 0);
+    kani::cover!(target == 1 && draft == 1 && verification_pending && pending == 0);
+    kani::cover!(target == 1 && draft == 1 && !verification_pending && pending == 2);
+}
+
+#[cfg(kani)]
+#[kani::proof]
 #[kani::unwind(16)]
 fn live_start_requires_exact_tokens_and_committed_offset() {
     // Each held segment has up to three tokens. The next prompt has up to seven,
@@ -145,6 +186,22 @@ fn live_start_requires_exact_tokens_and_committed_offset() {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn dflash_resume_requires_a_shared_committed_offset() {
+        assert_eq!(flash_draft_live_offset(1, 1, false, 0), Some(1));
+        assert_eq!(
+            flash_draft_live_offset(i32::MAX, i32::MAX, false, 1),
+            Some(i32::MAX)
+        );
+        assert_eq!(flash_draft_live_offset(0, 0, false, 0), None);
+        assert_eq!(flash_draft_live_offset(-1, -1, false, 0), None);
+        assert_eq!(flash_draft_live_offset(1, 2, false, 0), None);
+        assert_eq!(flash_draft_live_offset(2, 1, false, 0), None);
+        assert_eq!(flash_draft_live_offset(1, 1, true, 0), None);
+        assert_eq!(flash_draft_live_offset(1, 1, false, 2), None);
+        assert_eq!(flash_draft_live_offset(1, 1, false, usize::MAX), None);
+    }
 
     #[test]
     fn the_committed_part_is_a_prefix_of_the_stream() {
