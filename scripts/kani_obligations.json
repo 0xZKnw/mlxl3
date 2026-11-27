@@ -3,6 +3,7 @@
   "required_harnesses": [
     "agent_loop::reasoning_cut_reserves_answer_tokens",
     "agent_turn::queued_guidance_never_overrides_stop_or_starts_a_tool",
+    "live_cache::flash_agent_cache_requires_route_request_and_every_safety_gate",
     "mtp_projection::compact_projection_chunks_and_offsets_are_bounded",
     "qwen35_config::replay_admission_requires_all_real_gdn_dimensions",
     "qwen35_config::final_moe_row_preserves_all_observed_rows",
@@ -84,6 +85,7 @@
     "contracts::native_flash_resident_nt2_selector_preserves_every_fallback",
     "contracts::native_flash_reference_grid_covers_only_complete_output_tiles",
     "flash_support::serial_tail_keeps_last_logits_and_groups_only_complete_prefixes",
+    "flash_support::cold_prefill_preserves_the_resumed_path_and_serial_suffix",
     "flash_support::intermediate_prompt_rows_elide_only_unneeded_heads",
     "flash_support::prefill_heads_never_skip_a_valid_final_row_or_accept_an_invalid_row",
     "flash_support::hc_chain_flag_uses_qualified_hardware_default_and_exact_literals",

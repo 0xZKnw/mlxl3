@@ -112,7 +112,7 @@ struct AgentTurnResultRow: View {
       }
       HStack(spacing: 4) {
         Button {
-          prepare(path)
+          prepare(path, action: .preview)
         } label: {
           Label(L("Aperçu", "Preview"), systemImage: "eye")
         }
@@ -122,11 +122,10 @@ struct AgentTurnResultRow: View {
         .accessibilityIdentifier("agent.deliverable.preview.\(path)")
 
         Button {
-          let panel = NSSavePanel()
-          panel.nameFieldStringValue = file.lastPathComponent
-          panel.canCreateDirectories = true
-          guard let destination = selectDestination(panel) else { return }
-          prepare(path, destination: destination)
+          guard let action = AgentDeliverableAction.selectSaveDestination(
+            for: file.lastPathComponent, using: selectDestination
+          ) else { return }
+          prepare(path, action: action)
         } label: {
           Label(L("Enregistrer…", "Save…"), systemImage: "square.and.arrow.down")
         }
@@ -140,7 +139,7 @@ struct AgentTurnResultRow: View {
     .padding(.vertical, 3)
   }
 
-  private func prepare(_ path: String, destination: URL? = nil) {
+  private func prepare(_ path: String, action: AgentDeliverableAction) {
     guard pendingPath == nil else { return }
     pendingPath = path
     let store = studio.agentStore(for: workspace)
@@ -148,13 +147,8 @@ struct AgentTurnResultRow: View {
     Task {
       defer { pendingPath = nil }
       do {
-        preview = try await Task.detached(priority: .userInitiated) { () -> AgentDeliverablePreview? in
-          let bytes = try store.deliverableContents(path, in: result)
-          if let destination {
-            try bytes.write(to: destination, options: .atomic)
-            return nil
-          }
-          return try AgentDeliverablePreview(name: URL(fileURLWithPath: path).lastPathComponent, bytes: bytes)
+        preview = try await Task.detached(priority: .userInitiated) {
+          try action.perform(path, in: result, store: store)
         }.value
       } catch {
         self.error = error.localizedDescription
@@ -163,7 +157,32 @@ struct AgentTurnResultRow: View {
   }
 }
 
-private final class AgentDeliverablePreview: Identifiable, Sendable {
+enum AgentDeliverableAction: Sendable {
+  case preview
+  case save(URL)
+
+  @MainActor static func selectSaveDestination(
+    for name: String, using selectDestination: @MainActor (NSSavePanel) -> URL?
+  ) -> Self? {
+    let panel = NSSavePanel()
+    panel.nameFieldStringValue = name
+    panel.canCreateDirectories = true
+    return selectDestination(panel).map(Self.save)
+  }
+
+  func perform(_ path: String, in result: AgentTurnResult, store: AgentProjectStore) throws -> AgentDeliverablePreview? {
+    let bytes = try store.deliverableContents(path, in: result)
+    switch self {
+    case .preview:
+      return try AgentDeliverablePreview(name: URL(fileURLWithPath: path).lastPathComponent, bytes: bytes)
+    case .save(let destination):
+      try bytes.write(to: destination, options: .atomic)
+      return nil
+    }
+  }
+}
+
+final class AgentDeliverablePreview: Identifiable, Sendable {
   private let directory: URL
   let url: URL
 
@@ -188,7 +207,7 @@ private final class AgentDeliverablePreview: Identifiable, Sendable {
   }
 }
 
-private struct AgentDeliverablePreviewSheet: View {
+struct AgentDeliverablePreviewSheet: View {
   let file: AgentDeliverablePreview
   @Environment(\.dismiss) private var dismiss
 
@@ -221,6 +240,7 @@ private struct AgentDeliverableQuickLook: NSViewRepresentable {
     let view = QLPreviewView(frame: .zero, style: .normal)!
     view.setAccessibilityIdentifier("agent.deliverable.quicklook")
     view.autostarts = true
+    view.shouldCloseWithWindow = true
     return view
   }
 
@@ -231,6 +251,7 @@ private struct AgentDeliverableQuickLook: NSViewRepresentable {
   }
 
   static func dismantleNSView(_ view: QLPreviewView, coordinator: ()) {
-    view.close()
+    // The window owns close(). Drop the item if SwiftUI detaches the view first.
+    if view.previewItem != nil { view.previewItem = nil }
   }
 }

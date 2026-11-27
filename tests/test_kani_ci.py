@@ -189,6 +189,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
     added = {
         "agent_loop::reasoning_cut_reserves_answer_tokens",
         "agent_turn::queued_guidance_never_overrides_stop_or_starts_a_tool",
+        "live_cache::flash_agent_cache_requires_route_request_and_every_safety_gate",
         "mtp_projection::compact_projection_chunks_and_offsets_are_bounded",
         "lfm3::lfm3_reconstruction_grid_and_trellis_bounds_are_checked",
         "lfm3::lfm3_grouped_prefill_keeps_all_groups_tiles_and_padding_in_bounds",
@@ -302,6 +303,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         "ssd_reads::direct_tests::native_direct_reads_require_depth_zero_without_prefetch",
         "ssd_reads::direct_tests::native_direct_flag_preserves_qualified_default_and_exact_override",
         "flash_support::serial_tail_keeps_last_logits_and_groups_only_complete_prefixes",
+        "flash_support::cold_prefill_preserves_the_resumed_path_and_serial_suffix",
         "flash_support::intermediate_prompt_rows_elide_only_unneeded_heads",
         "flash_support::prefill_heads_never_skip_a_valid_final_row_or_accept_an_invalid_row",
         "flash_support::hc_chain_flag_uses_qualified_hardware_default_and_exact_literals",

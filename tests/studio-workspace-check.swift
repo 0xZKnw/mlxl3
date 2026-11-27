@@ -619,6 +619,73 @@ import SwiftUI
     try files.removeItem(at: workspace.appendingPathComponent(pdf))
     _ = try store.checkpoint("Later edits to both deliverables")
 
+    func waitFor<T>(_ message: String, _ read: () throws -> T?) async throws -> T {
+      let deadline = ContinuousClock.now.advanced(by: .seconds(5))
+      while ContinuousClock.now < deadline {
+        if let value = try read() { return value }
+        try await Task.sleep(for: .milliseconds(25))
+      }
+      throw DeliverableCheckError(message: message)
+    }
+    func quickLook(in view: NSView) -> QLPreviewView? {
+      if let preview = view as? QLPreviewView,
+        preview.accessibilityIdentifier() == "agent.deliverable.quicklook" { return preview }
+      return view.subviews.lazy.compactMap { quickLook(in: $0) }.first
+    }
+    func expect(_ condition: Bool, _ message: String) throws {
+      guard condition else { throw DeliverableCheckError(message: message) }
+    }
+
+    let environment = ProcessInfo.processInfo.environment
+    if environment["MLXL3_STUDIO_INTERACTIVE"] != "1" && environment["MLXL3_STUDIO_UI_SNAPSHOTS"] == nil {
+      // Hosted runners exercise the same prepared actions and Quick Look content without
+      // routing mouse events through an active window or waiting for sheet animation.
+      var suggestedNames: [String] = []
+      for (name, expected) in [(csv, csvBytes), (pdf, pdfBytes)] {
+        guard let file = try AgentDeliverableAction.preview.perform(name, in: result, store: store) else {
+          throw DeliverableCheckError(message: "No preview was prepared for \(name)")
+        }
+        let host = NSHostingView(rootView: AgentDeliverablePreviewSheet(file: file))
+        let window = NSWindow(contentRect: CGRect(x: 0, y: 0, width: 720, height: 560),
+          styleMask: [.titled], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.contentView = host
+        window.setFrameOrigin(CGPoint(x: -6000, y: -6000))
+        window.orderBack(nil)
+        defer { window.close() }
+        let item = try await waitFor("Quick Look did not receive the prepared preview for \(name)") {
+          host.layoutSubtreeIfNeeded()
+          return quickLook(in: host)?.previewItem?.previewItemURL
+        }
+        try expect(try item.lastPathComponent == name && Data(contentsOf: item) == expected,
+          "The preview did not open the historical bytes of \(name)")
+
+        let target = root.appendingPathComponent("Saved \(name)")
+        guard let save = AgentDeliverableAction.selectSaveDestination(for: name, using: { panel in
+          suggestedNames.append(panel.nameFieldStringValue)
+          return target
+        }) else { throw DeliverableCheckError(message: "Save did not select a destination for \(name)") }
+        let savePreview = try save.perform(name, in: result, store: store)
+        try expect(try savePreview == nil && Data(contentsOf: target) == expected,
+          "Save did not preserve the historical bytes of \(name)")
+      }
+      let canceled = AgentDeliverableAction.selectSaveDestination(for: csv) { panel in
+        suggestedNames.append(panel.nameFieldStringValue)
+        return nil
+      }
+      try expect(canceled == nil && suggestedNames == [csv, pdf, csv],
+        "Save did not preserve the suggested names or cancellation")
+      try expect(try Data(contentsOf: workspace.appendingPathComponent(csv)) == changed
+        && !files.fileExists(atPath: workspace.appendingPathComponent(pdf).path),
+        "Preview, Save or cancellation changed the working copy")
+      let review = AgentStudioModel()
+      await review.open(workspace: workspace, file: nil, turnResult: result)
+      try expect(review.tab == .diff && review.diff.contains(removed) && !review.canApply,
+        "A deleted file disappeared from the historical review")
+      print("Agent deliverables: CSV and PDF previews and exports preserve turn bytes, cancellation and deleted-file review passed")
+      return 7
+    }
+
     studio.setLanguage(.en)
     let originalDocument = studio.studioDocument
     defer { studio.studioDocument = originalDocument }
@@ -660,22 +727,6 @@ import SwiftUI
       let stride = StudioPageMetrics.control + 7
       let trailing: CGFloat = save ? 66 : 156
       try await click(x: host.bounds.width - trailing, fromTop: top + CGFloat(row) * stride)
-    }
-    func waitFor<T>(_ message: String, _ read: () throws -> T?) async throws -> T {
-      let deadline = ContinuousClock.now.advanced(by: .seconds(5))
-      while ContinuousClock.now < deadline {
-        if let value = try read() { return value }
-        try await Task.sleep(for: .milliseconds(25))
-      }
-      throw DeliverableCheckError(message: message)
-    }
-    func quickLook(in view: NSView) -> QLPreviewView? {
-      if let preview = view as? QLPreviewView,
-        preview.accessibilityIdentifier() == "agent.deliverable.quicklook" { return preview }
-      return view.subviews.lazy.compactMap { quickLook(in: $0) }.first
-    }
-    func expect(_ condition: Bool, _ message: String) throws {
-      guard condition else { throw DeliverableCheckError(message: message) }
     }
     func snapshot(_ view: NSView, name: String) throws {
       guard let folder = ProcessInfo.processInfo.environment["MLXL3_STUDIO_UI_SNAPSHOTS"],

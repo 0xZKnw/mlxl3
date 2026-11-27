@@ -82,8 +82,10 @@ pub struct Turn<'a> {
     /// turn expands to several). Empty: one to one.
     pub origins: &'a [usize],
     /// AGENT-2026-11-26-LIVE-CACHE: each step that calls tools also keeps its text as the
-    /// model wrote it (`raw`, thinking included), in the dialogue and in `turn_context`.
+    /// model wrote it (`raw`, thinking included), in the working dialogue.
     pub keep_raw: bool,
+    /// Keep per-step `raw` fields in the transcript returned to the client.
+    pub persist_raw: bool,
 }
 
 /// How the turn ended, for the bridge's `complete` event.
@@ -156,6 +158,17 @@ fn turn_history(transcript: &[Value]) -> Vec<Value> {
     history
 }
 
+fn serialize_turn_history(mut history: Vec<Value>, persist_raw: bool) -> Result<String> {
+    if !persist_raw {
+        for message in &mut history {
+            if let Some(object) = message.as_object_mut() {
+                object.remove("raw");
+            }
+        }
+    }
+    serde_json::to_string(&history).map_err(Into::into)
+}
+
 /// Carried by the error of a turn that stopped (Stop, an engine error) after tools had run:
 /// the exchanges that were finished, so the client can give them back to the model in the
 /// next turn instead of an answer with no trace of its calls. Displays as the error itself.
@@ -197,7 +210,7 @@ pub fn failure_event(request_id: &str, cancelled: bool, error: &anyhow::Error) -
 /// order, closed by an empty assistant message (as a paused turn is). A call that was written
 /// but has no result is dropped, so no template ever sees a call without its answer. None
 /// when no tool result exists: the client then keeps the visible text, as before.
-fn interrupted_history(transcript: &[Value]) -> Option<String> {
+fn interrupted_history(transcript: &[Value], persist_raw: bool) -> Option<String> {
     let mut history = turn_history(transcript);
     if let Some(last) = history
         .iter()
@@ -224,7 +237,7 @@ fn interrupted_history(transcript: &[Value]) -> Option<String> {
     {
         history.push(json!({"role":"assistant", "content":""}));
     }
-    serde_json::to_string(&history).ok()
+    serialize_turn_history(history, persist_raw).ok()
 }
 
 fn yielded_turn(
@@ -233,6 +246,7 @@ fn yielded_turn(
     answer: String,
     token_hash: String,
     rounds: usize,
+    persist_raw: bool,
 ) -> Result<TurnEnd> {
     host.forget_prompt_cache();
     let history = turn_history(transcript);
@@ -242,7 +256,7 @@ fn yielded_turn(
         token_hash,
         context_full: false,
         stop_reason: "agent_yield",
-        turn_context: Some(serde_json::to_string(&history)?),
+        turn_context: Some(serialize_turn_history(history, persist_raw)?),
         json_answer: false,
         rounds,
     })
@@ -265,7 +279,7 @@ pub fn run_turn(
         } else {
             dialogue.get(original_length..).unwrap_or_default()
         };
-        match interrupted_history(transcript) {
+        match interrupted_history(transcript, turn.persist_raw) {
             Some(turn_context) => {
                 let message = error.to_string();
                 error.context(Interrupted {
@@ -414,6 +428,7 @@ fn run_steps(
                 answer,
                 output.token_hash,
                 round,
+                turn.persist_raw,
             );
         }
         if let Some(text) = output.reasoning_cut {
@@ -528,7 +543,7 @@ fn run_steps(
             } else {
                 let mut transcript = dialogue[*original_length..].to_vec();
                 transcript.push(json!({"role":"assistant", "content":raw}));
-                Some(serde_json::to_string(&transcript)?)
+                Some(serialize_turn_history(transcript, turn.persist_raw)?)
             };
             let stop_reason = match (limited, repeated) {
                 (true, true) => "repeated_calls",
@@ -565,7 +580,7 @@ fn run_steps(
                 text
             };
             let mut written = json!({"role":"assistant", "content":tool_text});
-            if turn.keep_raw {
+            if turn.keep_raw && turn.persist_raw {
                 written["raw"] = json!(raw);
             }
             dialogue.push(written);
@@ -590,7 +605,13 @@ fn run_steps(
         dialogue.push(json!({"role":"assistant", "content":answer, "tool_calls":[]}));
         // H1: the step as the model wrote it, unless the dialogue keeps another call than the
         // one written (a completed name here; a call that was not dispatched below).
-        if turn.keep_raw && !renamed {
+        if turn.keep_raw
+            && !renamed
+            && (turn.persist_raw
+                || calls
+                    .iter()
+                    .all(|call| offered.contains(&call.name.as_str())))
+        {
             dialogue[assistant_index]["raw"] = json!(raw);
         }
         let mut calls = calls.into_iter();
@@ -624,6 +645,7 @@ fn run_steps(
                         answer,
                         output.token_hash,
                         round + usize::from(ran_tools),
+                        turn.persist_raw,
                     );
                 }
                 ToolBoundary::Continue => {}
@@ -1080,6 +1102,7 @@ mod tests {
     fn turn(context_limit: usize, tool_rounds: usize) -> Turn<'static> {
         Turn {
             keep_raw: false,
+            persist_raw: true,
             request_id: "r1",
             context_limit,
             max_tokens: -1,
@@ -1186,15 +1209,17 @@ mod tests {
         Ok(())
     }
 
-    /// AGENT-2026-11-26-LIVE-CACHE H1: with `keep_raw`, a step that calls tools keeps its text as
-    /// the model wrote it, for the next step and in the stored turn; without it nothing is added.
+    /// AGENT-2026-11-26-LIVE-CACHE H1: only the working dialogue needs transient raw output.
     #[test]
     fn a_step_keeps_its_own_text_only_when_asked() -> Result<()> {
         let written = call("return 1").raw;
-        for keep_raw in [false, true] {
-            let mut host = ScriptHost::new(vec![call("return 1"), answer("It returns 1.")]);
+        for (keep_raw, persist_raw) in [(false, true), (true, false), (true, true)] {
+            let mut final_step = answer("It returns 1.");
+            final_step.raw = "Plan.</think>\n\nIt returns 1.".into();
+            let mut host = ScriptHost::new(vec![call("return 1"), final_step]);
             let settings = Turn {
                 keep_raw,
+                persist_raw,
                 ..turn(100_000, 8)
             };
             let end = run_turn(&mut host, dialogue(), &tools(), &settings)?;
@@ -1202,20 +1227,74 @@ mod tests {
             assert_eq!(step["tool_calls"][0]["function"]["name"], "javascript");
             assert_eq!(step["content"], "");
             let history: Vec<Value> = serde_json::from_str(end.turn_context.as_deref().unwrap())?;
-            if keep_raw {
-                assert_eq!(step["raw"], written);
-                assert_eq!(history[0]["raw"], written);
-            } else {
-                assert!(step.get("raw").is_none() && history[0].get("raw").is_none());
-            }
+            assert_eq!(step.get("raw"), keep_raw.then(|| json!(written)).as_ref());
+            assert_eq!(
+                history[0].get("raw"),
+                (keep_raw && persist_raw).then(|| json!(written)).as_ref()
+            );
             // results and the final message never carry one
             assert!(
                 history[1..]
                     .iter()
                     .all(|message| message.get("raw").is_none())
             );
-            assert_eq!(history[2]["content"], "It returns 1.");
+            assert_eq!(end.assistant, "It returns 1.");
+            assert_eq!(end.raw, "Plan.</think>\n\nIt returns 1.");
+            assert_eq!(history[2]["content"], end.raw);
         }
+        Ok(())
+    }
+
+    #[test]
+    fn transient_step_raw_is_omitted_when_yielding_or_interrupted() -> Result<()> {
+        let settings = Turn {
+            keep_raw: true,
+            persist_raw: false,
+            ..turn(100_000, 8)
+        };
+        let history = |context: &str| -> Result<()> {
+            let messages: Vec<Value> = serde_json::from_str(context)?;
+            well_formed(&messages);
+            assert_eq!(
+                messages[0]["tool_calls"][0]["function"]["name"],
+                "javascript"
+            );
+            assert_eq!(messages[1]["content"], "ran read");
+            assert!(messages.iter().all(|message| message.get("raw").is_none()));
+            Ok(())
+        };
+
+        let mut yielded = ScriptHost::new(vec![call("read")]);
+        yielded.yield_after = Some(1);
+        let end = run_turn(&mut yielded, dialogue(), &tools(), &settings)?;
+        assert_eq!(end.stop_reason, "agent_yield");
+        history(end.turn_context.as_deref().unwrap())?;
+
+        let mut interrupted = ScriptHost::new(vec![call("read")]);
+        interrupted.fail_step = Some(2);
+        let error = run_turn(&mut interrupted, dialogue(), &tools(), &settings).unwrap_err();
+        assert!(interrupted.requests[1].dialogue[2].get("raw").is_some());
+        let event = failure_event("r1", false, &error);
+        assert_eq!(event["type"], "error");
+        history(event["turn_context"].as_str().unwrap())
+    }
+
+    #[test]
+    fn transient_raw_is_not_kept_for_a_tool_that_did_not_run() -> Result<()> {
+        let mut unoffered = call("");
+        unoffered.raw = "<tool_call>{\"name\":\"missing\",\"arguments\":{}}</tool_call>".into();
+        unoffered.tool_text = unoffered.raw.clone();
+        let mut host = ScriptHost::new(vec![unoffered, answer("ok")]);
+        let settings = Turn {
+            keep_raw: true,
+            persist_raw: false,
+            ..turn(100_000, 8)
+        };
+        run_turn(&mut host, dialogue(), &tools(), &settings)?;
+        assert!(host.calls.is_empty());
+        let step = &host.requests[1].dialogue[2];
+        assert_eq!(step["tool_calls"][0]["function"]["name"], "missing");
+        assert!(step.get("raw").is_none());
         Ok(())
     }
 
@@ -1784,7 +1863,7 @@ mod tests {
                             "tool_calls":(0..calls).map(|index| call(10 + index)).collect::<Vec<_>>()
                         }));
                         transcript.extend((0..results).map(|index| result(10 + index)));
-                        let stored = interrupted_history(&transcript);
+                        let stored = interrupted_history(&transcript, true);
                         let finished = before + results;
                         assert_eq!(stored.is_some(), finished > 0, "{before} {calls} {results}");
                         let Some(stored) = stored else { continue };
@@ -1808,8 +1887,10 @@ mod tests {
             }
         }
         // A turn without tools (JSON retries) and an empty one carry nothing.
-        assert!(interrupted_history(&[]).is_none());
-        assert!(interrupted_history(&[json!({"role":"assistant", "content":"nope"})]).is_none());
+        assert!(interrupted_history(&[], true).is_none());
+        assert!(
+            interrupted_history(&[json!({"role":"assistant", "content":"nope"})], true).is_none()
+        );
     }
 
     /// A conversation of three earlier turns (the first with a stored tool exchange), then the

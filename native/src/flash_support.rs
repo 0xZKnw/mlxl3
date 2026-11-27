@@ -8,6 +8,46 @@ pub fn group_prompt_span(total: usize, end: usize, serial_tail: bool) -> bool {
     end < total && (!serial_tail || total < 256 || total - end >= 48)
 }
 
+#[cfg(any(all(feature = "mlx", feature = "chat"), test, kani))]
+pub(crate) fn cold_prefill_group_span(total: usize, end: usize, fresh: bool) -> bool {
+    fresh && (64..=512).contains(&total) && group_prompt_span(total, end, true)
+}
+
+#[test]
+fn cold_prefill_groups_only_the_qualified_fresh_prefix() {
+    for total in [0, 63, 64, 255, 256, 447, 512, 513, usize::MAX] {
+        for end in 0..=514 {
+            let eligible =
+                (64..=512).contains(&total) && end < total && (total < 256 || end + 48 <= total);
+            assert_eq!(cold_prefill_group_span(total, end, true), eligible);
+            assert!(!cold_prefill_group_span(total, end, false));
+        }
+    }
+}
+
+#[cfg(kani)]
+#[kani::proof]
+fn cold_prefill_preserves_the_resumed_path_and_serial_suffix() {
+    let total: usize = kani::any();
+    let end: usize = kani::any();
+    let fresh: bool = kani::any();
+    let grouped = cold_prefill_group_span(total, end, fresh);
+    let admissible = fresh && (64..=512).contains(&total);
+    let serial_end = if total < 256 { 1 } else { 48 };
+    assert_eq!(
+        grouped,
+        admissible
+            && total
+                .checked_sub(end)
+                .is_some_and(|distance| distance >= serial_end)
+    );
+    kani::cover!(fresh && grouped && total == 64);
+    kani::cover!(fresh && grouped && total == 512);
+    kani::cover!(!fresh && !grouped && total == 64 && end == 8);
+    kani::cover!(fresh && !grouped && total == 513 && end == 8);
+    kani::cover!(fresh && !grouped && total == 256 && end == 209);
+}
+
 #[test]
 fn serial_tail_only_changes_the_end_of_long_prompts() {
     for total in [0, 1, 255, 256, 654, usize::MAX] {

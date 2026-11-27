@@ -1,0 +1,622 @@
+{
+  "experiment": "FLASHNEXT-2026-11-26-AGENT-CACHE",
+  "label": "B2",
+  "model": "Qwen3.8-Flash-Next-exl3-84147e95",
+  "registry": "$WORKTREE/build/flash-agent-local/models.json",
+  "engine": "$WORKTREE/build/flash-agent-local/target/release/mlxl3-rs",
+  "helper": "/Applications/MLXL3 Desktop.app/Contents/MacOS/MLXL3Studio",
+  "fixture": {
+    "stock.txt": "units=17",
+    "returns.txt": "units=5",
+    "dispatch.txt": "units=4"
+  },
+  "context_length": 4096,
+  "request": {
+    "type": "generate",
+    "request_id": "inventory",
+    "conversation_id": "flashnext-agent-cache-trial",
+    "messages": [
+      {
+        "role": "system",
+        "content": "You are an inventory assistant working with local records. Use relative file paths and report the result."
+      },
+      {
+        "role": "user",
+        "content": "Calculate the units currently in stock. Read stock.txt, returns.txt, then dispatch.txt via sandbox.read with one file per call in this order. Add the returned units to stock and subtract the dispatched units. When all three records have been read, answer only TOTAL=<number>."
+      }
+    ],
+    "max_tokens": 192,
+    "temperature": 0.0,
+    "top_k": 0,
+    "top_p": 1.0,
+    "repetition_penalty": 1.0,
+    "presence_penalty": 0.0,
+    "mtp": false,
+    "dflash2": false,
+    "dspark": false,
+    "memory_saver": false,
+    "reuse_prompt_cache": true,
+    "live_prompt_cache": true,
+    "tool_rounds": 5,
+    "mcp_enabled": true,
+    "allowed_tools": [
+      "sandbox.read"
+    ],
+    "reasoning_effort": "none"
+  },
+  "environment": {
+    "DYLD_LIBRARY_PATH": "$ENGINE_BUNDLE",
+    "MLXL3_METALLIB_PATH": "$ENGINE_BUNDLE/mlx.metallib",
+    "MLXL3_SSD_CACHE_GIB": "3",
+    "MLXL3_FLASH_MODEL": "$MODEL_DIR/Qwen3.8-Flash-Next-exl3-84147e95",
+    "MLXL3_PROMPT_CACHE_TRACE": "1"
+  },
+  "status": "complete",
+  "task_passed": true,
+  "task": {
+    "tools": [
+      {
+        "arguments": {
+          "file_path": "stock.txt"
+        },
+        "request_id": "inventory",
+        "server_name": "sandbox",
+        "tool_call_id": "mcp-0-3-sandbox.read",
+        "tool_name": "sandbox.read",
+        "type": "tool_start"
+      },
+      {
+        "is_error": false,
+        "request_id": "inventory",
+        "server_name": "sandbox",
+        "text": "1| units=17",
+        "tool_call_id": "mcp-0-3-sandbox.read",
+        "tool_name": "sandbox.read",
+        "type": "tool_result"
+      },
+      {
+        "arguments": {
+          "file_path": "returns.txt"
+        },
+        "request_id": "inventory",
+        "server_name": "sandbox",
+        "tool_call_id": "mcp-1-5-sandbox.read",
+        "tool_name": "sandbox.read",
+        "type": "tool_start"
+      },
+      {
+        "is_error": false,
+        "request_id": "inventory",
+        "server_name": "sandbox",
+        "text": "1| units=5",
+        "tool_call_id": "mcp-1-5-sandbox.read",
+        "tool_name": "sandbox.read",
+        "type": "tool_result"
+      },
+      {
+        "arguments": {
+          "file_path": "dispatch.txt"
+        },
+        "request_id": "inventory",
+        "server_name": "sandbox",
+        "tool_call_id": "mcp-2-7-sandbox.read",
+        "tool_name": "sandbox.read",
+        "type": "tool_start"
+      },
+      {
+        "is_error": false,
+        "request_id": "inventory",
+        "server_name": "sandbox",
+        "text": "1| units=4",
+        "tool_call_id": "mcp-2-7-sandbox.read",
+        "tool_name": "sandbox.read",
+        "type": "tool_result"
+      }
+    ],
+    "complete": {
+      "assistant_context": "TOTAL=18",
+      "cache_context": "TOTAL=18",
+      "context_full": false,
+      "elapsed_seconds": 95.61845825,
+      "first_text_seconds": 95.154846042,
+      "request_id": "inventory",
+      "round_stats": [
+        {
+          "cached_prompt_tokens": 0,
+          "context_limit": 4096,
+          "context_used": 416,
+          "decode_seconds": 5.1533919170000075,
+          "decode_tokens": 26,
+          "decode_tps": 5.045220782496904,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 82.422299542,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 389,
+          "generated_tokens": 27,
+          "live_prompt_tokens": 0,
+          "memory": {
+            "mlx_active_bytes": 6584181376,
+            "mlx_cache_bytes": 146510722,
+            "mlx_peak_bytes": 6596493136,
+            "process_compressed_lifetime_logical_bytes": 2976825344,
+            "process_compressed_logical_bytes": 2969042944,
+            "process_compressed_peak_logical_bytes": 2969288704,
+            "process_decompressions": 280446,
+            "process_footprint_bytes": 7258658744,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7258675128
+          },
+          "model_size_gb": 62.814592802,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 77.266403459,
+          "prefill_tps": 5.034529660830088,
+          "prepare_seconds": 0.00102625,
+          "prompt_tokens": 389,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 77.268907625
+        },
+        {
+          "cached_prompt_tokens": 416,
+          "context_limit": 4096,
+          "context_used": 467,
+          "decode_seconds": 2.9267692080000005,
+          "decode_tokens": 26,
+          "decode_tps": 8.883515628404137,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 5.18947025,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 24,
+          "generated_tokens": 27,
+          "live_prompt_tokens": 416,
+          "memory": {
+            "mlx_active_bytes": 6586155652,
+            "mlx_cache_bytes": 193131390,
+            "mlx_peak_bytes": 6597945120,
+            "process_compressed_lifetime_logical_bytes": 2979168256,
+            "process_compressed_logical_bytes": 2969042944,
+            "process_compressed_peak_logical_bytes": 2969288704,
+            "process_decompressions": 281060,
+            "process_footprint_bytes": 7307483064,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7307483064
+          },
+          "model_size_gb": 62.814592802,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 2.261495125,
+          "prefill_tps": 10.61244825809651,
+          "prepare_seconds": 0.000920834,
+          "prompt_tokens": 440,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 2.2627010419999998
+        },
+        {
+          "cached_prompt_tokens": 467,
+          "context_limit": 4096,
+          "context_used": 517,
+          "decode_seconds": 2.8619435,
+          "decode_tokens": 26,
+          "decode_tps": 9.084735600126278,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 5.14279925,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 27,
+          "live_prompt_tokens": 467,
+          "memory": {
+            "mlx_active_bytes": 6587761286,
+            "mlx_cache_bytes": 230896508,
+            "mlx_peak_bytes": 6599330600,
+            "process_compressed_lifetime_logical_bytes": 2979168256,
+            "process_compressed_logical_bytes": 2966749184,
+            "process_compressed_peak_logical_bytes": 2969288704,
+            "process_decompressions": 281200,
+            "process_footprint_bytes": 7347099576,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7347099576
+          },
+          "model_size_gb": 62.814592802,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 2.279813875,
+          "prefill_tps": 10.088542864052883,
+          "prepare_seconds": 0.000820042,
+          "prompt_tokens": 490,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 2.28085575
+        },
+        {
+          "cached_prompt_tokens": 517,
+          "context_limit": 4096,
+          "context_used": 544,
+          "decode_seconds": 0.46355204200000033,
+          "decode_tokens": 3,
+          "decode_tps": 6.471765256510288,
+          "dflash_accepted_tokens": null,
+          "dflash_block_seconds": 0.0,
+          "dflash_blocks": null,
+          "dflash_lookup_blocks": null,
+          "dflash_profile": null,
+          "dflash_proposed_tokens": null,
+          "draft_load_seconds": 0.0,
+          "elapsed_seconds": 2.706663417,
+          "end_to_end_ttft_seconds": null,
+          "evaluated_prompt_tokens": 23,
+          "generated_tokens": 4,
+          "live_prompt_tokens": 517,
+          "memory": {
+            "mlx_active_bytes": 6588031622,
+            "mlx_cache_bytes": 245109628,
+            "mlx_peak_bytes": 6599904040,
+            "process_compressed_lifetime_logical_bytes": 2979250176,
+            "process_compressed_logical_bytes": 2966683648,
+            "process_compressed_peak_logical_bytes": 2969288704,
+            "process_decompressions": 281414,
+            "process_footprint_bytes": 7361714104,
+            "process_ledger_swapins_logical_bytes": 0,
+            "process_lifetime_peak_bytes": 7361730488
+          },
+          "model_size_gb": 62.814592802,
+          "mtp_accepted_tokens": null,
+          "mtp_blocks": null,
+          "mtp_depth_blocks": null,
+          "mtp_lookup_blocks": null,
+          "mtp_proposed_tokens": null,
+          "prefill_seconds": 2.242219625,
+          "prefill_tps": 10.257692753893364,
+          "prepare_seconds": 0.000618542,
+          "prompt_tokens": 540,
+          "round_count": 1,
+          "tool_rounds": 0,
+          "tool_seconds": 0.0,
+          "ttft_seconds": 2.243111375
+        }
+      ],
+      "stats": {
+        "cached_prompt_tokens": 1400,
+        "context_limit": 4096,
+        "context_used": 544,
+        "decode_seconds": 11.405656667000008,
+        "decode_tokens": 81,
+        "decode_tps": 7.1017392829610015,
+        "dflash_accepted_tokens": null,
+        "dflash_block_seconds": 0.0,
+        "dflash_blocks": null,
+        "dflash_lookup_blocks": null,
+        "dflash_profile": null,
+        "dflash_proposed_tokens": null,
+        "draft_load_seconds": 0.0,
+        "elapsed_seconds": 95.61844,
+        "end_to_end_ttft_seconds": 95.154846042,
+        "evaluated_prompt_tokens": 459,
+        "generated_tokens": 85,
+        "live_prompt_tokens": 1400,
+        "memory": {
+          "mlx_active_bytes": 6588031622,
+          "mlx_cache_bytes": 245109628,
+          "mlx_peak_bytes": 6599904040,
+          "process_compressed_lifetime_logical_bytes": 2979250176,
+          "process_compressed_logical_bytes": 2966683648,
+          "process_compressed_peak_logical_bytes": 2969288704,
+          "process_decompressions": 281414,
+          "process_footprint_bytes": 7361714104,
+          "process_ledger_swapins_logical_bytes": 0,
+          "process_lifetime_peak_bytes": 7361730488
+        },
+        "model_size_gb": 62.814592802,
+        "mtp_accepted_tokens": null,
+        "mtp_blocks": null,
+        "mtp_depth_blocks": null,
+        "mtp_lookup_blocks": null,
+        "mtp_proposed_tokens": null,
+        "prefill_seconds": 84.049932084,
+        "prefill_tps": 5.461039510909689,
+        "prepare_seconds": 0.003385668,
+        "prompt_tokens": 1859,
+        "round_count": 4,
+        "tool_rounds": 3,
+        "tool_seconds": 0.15668833399999998,
+        "ttft_seconds": 77.26893616699999
+      },
+      "stop_reason": "eos",
+      "token_hash": "aaee49135bd200dc",
+      "tool_rounds": 3,
+      "turn_context": "[{\"content\":\"\",\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":{\"file_path\":\"stock.txt\"},\"name\":\"sandbox.read\"},\"type\":\"function\"}]},{\"content\":\"1| units=17\",\"name\":\"sandbox.read\",\"role\":\"tool\"},{\"content\":\"\",\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":{\"file_path\":\"returns.txt\"},\"name\":\"sandbox.read\"},\"type\":\"function\"}]},{\"content\":\"1| units=5\",\"name\":\"sandbox.read\",\"role\":\"tool\"},{\"content\":\"\",\"role\":\"assistant\",\"tool_calls\":[{\"function\":{\"arguments\":{\"file_path\":\"dispatch.txt\"},\"name\":\"sandbox.read\"},\"type\":\"function\"}]},{\"content\":\"1| units=4\",\"name\":\"sandbox.read\",\"role\":\"tool\"},{\"content\":\"TOTAL=18\",\"role\":\"assistant\"}]",
+      "type": "complete"
+    },
+    "wall_seconds": 95.6187031659938
+  },
+  "engine_sha256": "2b9144f4787d42e8b82d6f03962a0778eb42411b04f29db3bf237ed2d16878b1",
+  "helper_sha256": "8edd196971aeea2f922b2b86214c509546d1ad7622c33fff4dd281bfe2362ed8",
+  "ready": {
+    "agent_loop_supported": true,
+    "agent_yield_supported": true,
+    "bridge_protocol": 1,
+    "context_limit": 4096,
+    "context_memory": null,
+    "dflash_configure_supported": true,
+    "dflash_family": null,
+    "dflash_sampling_supported": false,
+    "dflash_supported": true,
+    "dflash_tune_supported": false,
+    "dflash_tuning_key": "[local artifact ID]:2.0.39:8b2ce15e6292-dirty:release:0.32.2:Apple M5:4096:pipeline=all:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:mtppostnorm-v1=1:mtpevict-v1=1:q36headlane-v1=1:lanelayout-v1=1:smallm-v2=1:dflash-v4:copy=0",
+    "dspark_default": false,
+    "dspark_supported": false,
+    "flash": {
+      "lookahead_depth": 0,
+      "memory": {
+        "expert_bank_backing_bytes": 3177215808,
+        "expert_bank_payload_bytes": 3174942528,
+        "expert_slots_by_layer": [
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53,
+          53
+        ],
+        "fixed_weight_arrays_not_ready": 73,
+        "fixed_weight_backing_bytes": 3276148736,
+        "memory": {
+          "mlx_active_bytes": 6456399040,
+          "mlx_cache_bytes": 0,
+          "mlx_peak_bytes": 6456399040,
+          "process_compressed_lifetime_logical_bytes": 348733440,
+          "process_compressed_logical_bytes": 348667904,
+          "process_compressed_peak_logical_bytes": 348717056,
+          "process_decompressions": 4,
+          "process_footprint_bytes": 3766309592,
+          "process_ledger_swapins_logical_bytes": 0,
+          "process_lifetime_peak_bytes": 3766309592
+        },
+        "mlx_active_other_bytes": 3034496,
+        "ple_host_row_payload_bytes": 0,
+        "program_cache": {
+          "cached_tensor_bytes": 0,
+          "creations": 0,
+          "entries": 0,
+          "evictions": 0,
+          "hits": 0,
+          "retained_host_object_bytes": 0
+        },
+        "request_limit_bytes": null,
+        "state_backing_bytes": {}
+      },
+      "multi_token": false,
+      "prefill_heads": true,
+      "target_policy": {
+        "cold_priority": false,
+        "cold_ready": true,
+        "cold_ready_rows": 2,
+        "cold_shared": false,
+        "dynamic_readers_requested": true,
+        "force_lru": false,
+        "gpu_hot": false,
+        "gpu_hot_wide": false,
+        "native_prepare": false,
+        "native_prepare_requested": false,
+        "overlap": true,
+        "predictor_half": false,
+        "prefetch_pipeline": false,
+        "readers": 4,
+        "resident_gates": false,
+        "routed_index_cache": false,
+        "shared_batch": false,
+        "shared_exl3": false,
+        "stable_expert_kernels": false,
+        "unique_cohorts": false,
+        "weighted_epilogue": false
+      }
+    },
+    "images_supported": false,
+    "live_prompt_cache_supported": false,
+    "load_seconds": 1.135090125,
+    "mcp_call_timeout_supported": true,
+    "mcp_errors": {},
+    "mcp_servers": 0,
+    "mcp_tools": 0,
+    "memory": {
+      "mlx_active_bytes": 6456399040,
+      "mlx_cache_bytes": 0,
+      "mlx_peak_bytes": 6456399040,
+      "process_compressed_lifetime_logical_bytes": 345620480,
+      "process_compressed_logical_bytes": 345604096,
+      "process_compressed_peak_logical_bytes": 345620480,
+      "process_decompressions": 1,
+      "process_footprint_bytes": 3766227672,
+      "process_ledger_swapins_logical_bytes": 0,
+      "process_lifetime_peak_bytes": 3766227672
+    },
+    "memory_saver_supported": true,
+    "mlx_version": "0.32.2",
+    "model": "Qwen3.8-Flash-Next-exl3-84147e95",
+    "model_context_limit": 262144,
+    "modules": 74041,
+    "mtp_auto_download_supported": false,
+    "mtp_configure_supported": true,
+    "mtp_max_depth": 1,
+    "mtp_sampling_supported": true,
+    "mtp_supported": true,
+    "mtp_tune_supported": false,
+    "mtp_tuning_key": "[local artifact ID]:2.0.39:8b2ce15e6292-dirty:release:0.32.2:Apple M5:4096:pipeline=all:adaptive=0:embedding-pack=0:allocator-cache-v1=0:lookup=0:mtppostnorm-v1=1:mtpevict-v1=1:q36headlane-v1=1:lanelayout-v1=1:smallm-v2=1",
+    "reasoning_effort_levels": [
+      "none",
+      "minimal",
+      "low",
+      "medium",
+      "high",
+      "xhigh",
+      "max"
+    ],
+    "reasoning_effort_supported": true,
+    "resident_gb": 62.814592802,
+    "runtime_commit": "8b2ce15e6292-dirty",
+    "runtime_executable": "$WORKTREE/build/flash-agent-local/target/release/mlxl3-rs",
+    "runtime_profile": "release",
+    "runtime_version": "2.0.39",
+    "tool_rounds_supported": true,
+    "type": "ready",
+    "workspace_features": true
+  },
+  "mcp": {
+    "mcp_errors": {},
+    "mcp_servers": 1,
+    "mcp_tool_catalog": [
+      {
+        "function": {
+          "description": "[sandbox] Find files by path pattern, e.g. `src/**/*.ts`; a pattern without `/` matches file names in any folder. At most 500 paths.",
+          "name": "sandbox.glob",
+          "parameters": {
+            "properties": {
+              "path": {
+                "description": "Folder (default: the project)",
+                "type": "string"
+              },
+              "pattern": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pattern"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "[sandbox] Search file contents with an extended regular expression (grep -E). Returns `path:line: text`, at most 200 matches and 50 per file.",
+          "name": "sandbox.grep",
+          "parameters": {
+            "properties": {
+              "include": {
+                "description": "File-name glob: `*.py`, `*.{js,ts}`",
+                "type": "string"
+              },
+              "path": {
+                "description": "File or folder (default: the project)",
+                "type": "string"
+              },
+              "pattern": {
+                "type": "string"
+              }
+            },
+            "required": [
+              "pattern"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      },
+      {
+        "function": {
+          "description": "[sandbox] Read a text file as numbered lines (`N| text`), 200 per call by default; `offset` continues a long file.",
+          "name": "sandbox.read",
+          "parameters": {
+            "properties": {
+              "file_path": {
+                "type": "string"
+              },
+              "limit": {
+                "description": "At most 2000",
+                "type": "integer"
+              },
+              "offset": {
+                "description": "First line, from 1",
+                "type": "integer"
+              }
+            },
+            "required": [
+              "file_path"
+            ],
+            "type": "object"
+          }
+        },
+        "type": "function"
+      }
+    ],
+    "mcp_tools": 3,
+    "request_id": "mcp",
+    "type": "mcp_status"
+  },
+  "live_steps": 3,
+  "engine_exit": 0
+}
