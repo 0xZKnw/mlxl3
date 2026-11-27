@@ -316,6 +316,13 @@ skips intermediate vocabulary projections and has no demonstrated speed gain on
 its own. Grouped mode takes precedence. Each switch accepts only `0` or `1`,
 defaults to off, and is read when loading a Flash session.
 
+`MLXL3_FLASH_COLD_PREFILL=1` opts into grouped fresh autoregressive prefill in
+Studio's bridge and `mlxl3 run` when the Flash cache has 53 expert slots per
+layer (3 GiB) and the prompt has 64–512 tokens. It keeps the serial tail on
+longer prompts in that range and uses serial prefill for a resumed Agent tool
+round. This option leaves the cache budget alone. Leave the three switches
+above unset to use it. Any explicit setting of those switches takes precedence.
+
 At a 3 GiB expert budget, grouped prefill shortened time to first token but the
 long-prompt CLI series measured about 4.9–5.0 tok/s in decode versus 6.1 with
 serial prefill. With an optional 5 GiB cache and early resident-expert processing,

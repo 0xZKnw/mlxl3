@@ -1212,11 +1212,12 @@ struct ModelAssets {
 }
 
 #[cfg(feature = "chat")]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum PromptMode {
     Serial,
     FinalHead,
     Experts { serial_tail: bool },
+    ColdExperts,
 }
 
 #[cfg(feature = "chat")]
@@ -1231,17 +1232,41 @@ impl PromptMode {
     }
 
     fn load() -> Result<Self> {
-        let flag = |name| Self::flag(name, std::env::var_os(name).as_deref());
-        let experts = flag("MLXL3_FLASH_PREFILL_EXPERT4")?;
-        let serial_tail = flag("MLXL3_FLASH_PREFILL_SERIAL_TAIL")?;
-        let final_head = flag("MLXL3_FLASH_PROMPT_FINAL_HEAD")?;
+        Self::resolve(
+            std::env::var_os("MLXL3_FLASH_PREFILL_EXPERT4").as_deref(),
+            std::env::var_os("MLXL3_FLASH_PREFILL_SERIAL_TAIL").as_deref(),
+            std::env::var_os("MLXL3_FLASH_PROMPT_FINAL_HEAD").as_deref(),
+            std::env::var_os("MLXL3_FLASH_COLD_PREFILL").as_deref(),
+        )
+    }
+
+    fn resolve(
+        experts: Option<&std::ffi::OsStr>,
+        serial_tail: Option<&std::ffi::OsStr>,
+        final_head: Option<&std::ffi::OsStr>,
+        cold: Option<&std::ffi::OsStr>,
+    ) -> Result<Self> {
+        let legacy_override = experts.is_some() || serial_tail.is_some() || final_head.is_some();
+        let experts = Self::flag("MLXL3_FLASH_PREFILL_EXPERT4", experts)?;
+        let serial_tail = Self::flag("MLXL3_FLASH_PREFILL_SERIAL_TAIL", serial_tail)?;
+        let final_head = Self::flag("MLXL3_FLASH_PROMPT_FINAL_HEAD", final_head)?;
         Ok(if experts {
             Self::Experts { serial_tail }
         } else if final_head {
             Self::FinalHead
+        } else if !legacy_override && Self::flag("MLXL3_FLASH_COLD_PREFILL", cold)? {
+            Self::ColdExperts
         } else {
             Self::Serial
         })
+    }
+
+    fn for_cache(self, layer_slots: &[usize; 48], standard_execution: bool) -> Self {
+        if self == Self::ColdExperts && (!standard_execution || *layer_slots != [53; 48]) {
+            Self::Serial
+        } else {
+            self
+        }
     }
 }
 
@@ -1263,6 +1288,52 @@ fn chat_prefill_flags_require_exact_literals() {
             "FLAG must be 0 or 1"
         );
     }
+}
+
+#[cfg(all(test, feature = "chat"))]
+#[test]
+fn cold_prefill_mode_is_opt_in_and_preserves_legacy_flags_and_cache_shapes() -> Result<()> {
+    use std::ffi::OsStr;
+    let off = Some(OsStr::new("0"));
+    let on = Some(OsStr::new("1"));
+    let invalid = Some(OsStr::new("true"));
+    let cases = [
+        (None, None, None, None, PromptMode::Serial),
+        (None, None, None, off, PromptMode::Serial),
+        (None, None, None, on, PromptMode::ColdExperts),
+        (off, None, None, on, PromptMode::Serial),
+        (None, off, None, on, PromptMode::Serial),
+        (None, None, off, on, PromptMode::Serial),
+        (None, None, on, on, PromptMode::FinalHead),
+        (on, None, on, on, PromptMode::Experts { serial_tail: false }),
+        (
+            on,
+            on,
+            on,
+            invalid,
+            PromptMode::Experts { serial_tail: true },
+        ),
+    ];
+    for (experts, tail, final_head, cold, expected) in cases {
+        assert_eq!(
+            PromptMode::resolve(experts, tail, final_head, cold)?,
+            expected
+        );
+    }
+    assert!(PromptMode::resolve(None, None, None, invalid).is_err());
+    assert!(PromptMode::resolve(invalid, None, None, on).is_err());
+
+    let profile = PromptMode::ColdExperts;
+    assert_eq!(profile.for_cache(&[53; 48], true), profile);
+    assert_eq!(profile.for_cache(&[53; 48], false), PromptMode::Serial);
+    for slots in [52, 54, 89] {
+        let mut shape = [53; 48];
+        shape[47] = slots;
+        assert_eq!(profile.for_cache(&shape, true), PromptMode::Serial);
+    }
+    let experts = PromptMode::Experts { serial_tail: true };
+    assert_eq!(experts.for_cache(&[89; 48], false), experts);
+    Ok(())
 }
 
 /// One inference session. Layer caches, transactions and the draft are session-local.
@@ -1324,6 +1395,22 @@ impl FlashNext {
             },
             Err(std::env::VarError::NotPresent) => true,
             Err(error) => return Err(error.into()),
+        };
+        #[cfg(feature = "chat")]
+        let prompt_mode = {
+            let effective = prompt_mode.for_cache(
+                &layer_slots,
+                request_limit.is_none() && lookahead_depth == 0 && prefill_heads && overlap,
+            );
+            if prompt_mode == PromptMode::ColdExperts {
+                let status = if effective == PromptMode::ColdExperts {
+                    "cold grouped prefill enabled for fresh autoregressive prompts of 64–512 tokens"
+                } else {
+                    "cold grouped prefill unavailable (requires 53 expert slots per layer, standard prefill heads and overlap, without a request limit or lookahead)"
+                };
+                eprintln!("Flash Next: {status}");
+            }
+            effective
         };
         let embed = c
             .tensors
@@ -1640,13 +1727,14 @@ impl FlashNext {
         }
         Ok(last)
     }
-    /// Advance an intermediate plain-chat span if the session enables the fast path.
+    /// Advance an intermediate AR span. Cold grouping starts only from a reset model.
     #[cfg(feature = "chat")]
     pub fn advance_chat_prompt(
         &mut self,
         tokens: &[u32],
         total: usize,
         end: usize,
+        fresh: bool,
         cancelled: &AtomicBool,
     ) -> Result<bool> {
         match self.prompt_mode {
@@ -1657,6 +1745,11 @@ impl FlashNext {
             }
             PromptMode::FinalHead if end < total => {
                 self.forward_prompt_chunk(tokens, false)?;
+            }
+            PromptMode::ColdExperts
+                if flash_support::cold_prefill_group_span(total, end, fresh) =>
+            {
+                self.prefill_experts(tokens, cancelled)?;
             }
             _ => return Ok(false),
         }
@@ -1741,7 +1834,10 @@ impl FlashNext {
             && self.request_memory_limit().is_none()
             && !self.dflash2_active()
             && self.lookahead_depth == 0
-            && matches!(self.prompt_mode, PromptMode::Serial | PromptMode::FinalHead)
+            && matches!(
+                self.prompt_mode,
+                PromptMode::Serial | PromptMode::FinalHead | PromptMode::ColdExperts
+            )
     }
     pub fn io_stats(&self) -> (u64, u64, u64) {
         let bytes = self
@@ -2160,11 +2256,29 @@ mod tests {
     #[test]
     #[ignore = "physical Apple GPU and installed Flash checkpoint; AR tool-round replay oracle"]
     fn flash_agent_live_tool_prefix_matches_cold_prefill() -> Result<()> {
+        check_flash_agent_live_tool_prefix(false)
+    }
+
+    #[cfg(feature = "chat")]
+    #[test]
+    #[ignore = "physical Apple GPU, Flash checkpoint, 53 slots and MLXL3_FLASH_COLD_PREFILL=1"]
+    fn flash_cold_prefill_reuses_agent_tool_state() -> Result<()> {
+        check_flash_agent_live_tool_prefix(true)
+    }
+
+    #[cfg(feature = "chat")]
+    fn check_flash_agent_live_tool_prefix(grouped: bool) -> Result<()> {
         use crate::live_cache::{committed_stream, live_start};
 
-        fn prefill(model: &mut FlashNext, tokens: &[u32], mut start: usize) -> Result<Array> {
+        fn prefill(
+            model: &mut FlashNext,
+            tokens: &[u32],
+            mut start: usize,
+        ) -> Result<(Array, usize)> {
             let cancelled = AtomicBool::new(false);
+            let fresh = start == 0;
             let mut logits = None;
+            let mut advanced = 0;
             while let Some(end) = crate::prefill_span_end_merged(
                 start,
                 tokens.len(),
@@ -2174,11 +2288,13 @@ mod tests {
             ) {
                 let chunk = &tokens[start..end];
                 start = end;
-                if !model.advance_chat_prompt(chunk, tokens.len(), end, &cancelled)? {
+                if model.advance_chat_prompt(chunk, tokens.len(), end, fresh, &cancelled)? {
+                    advanced += 1;
+                } else {
                     logits = Some(model.forward_tokens(chunk)?);
                 }
             }
-            logits.context("missing tool-round logits")
+            Ok((logits.context("missing tool-round logits")?, advanced))
         }
 
         fn checked_logits(logits: &Array) -> Result<Vec<f32>> {
@@ -2197,22 +2313,44 @@ mod tests {
             model.supports_agent_live_cache(),
             "use plain Flash AR settings"
         );
+        if grouped {
+            ensure!(
+                model.prompt_mode == PromptMode::ColdExperts,
+                "cold prefill is not active"
+            );
+        }
+        let modes: &[PromptMode] = if grouped {
+            &[PromptMode::ColdExperts]
+        } else {
+            &[PromptMode::Serial, PromptMode::FinalHead]
+        };
         let first_prompt =
             "<|im_start|>user\nRead stock.txt.\n<|im_end|>\n<|im_start|>assistant\n<think>\n";
+        let first_prompt = if grouped {
+            format!(
+                "<|im_start|>system\n{}<|im_end|>\n{first_prompt}",
+                "Use the requested local file contents. ".repeat(20)
+            )
+        } else {
+            first_prompt.to_owned()
+        };
         let tool_call = "I will read the file.\n</think>\n\n<tool_call>\n<function=read_file>\n<parameter=path>\nstock.txt\n</parameter>\n</function>\n</tool_call>";
         let tool_result = "<|im_end|>\n<|im_start|>user\n<tool_response>\n17\n</tool_response><|im_end|>\n<|im_start|>assistant\n<think>\n";
-        let first = tokenizer.encode(first_prompt)?;
+        let first = tokenizer.encode(&first_prompt)?;
         let through_call = tokenizer.encode(&format!("{first_prompt}{tool_call}"))?;
         let next = tokenizer.encode(&format!("{first_prompt}{tool_call}{tool_result}"))?;
         ensure!(!first.is_empty() && through_call.starts_with(&first));
         ensure!(next.len() > through_call.len() && next.starts_with(&through_call));
         let emitted = &through_call[first.len()..];
         ensure!(emitted.len() > 1);
+        if grouped {
+            ensure!((64..=512).contains(&first.len()) && next.len() <= 512);
+        }
 
-        for mode in [PromptMode::Serial, PromptMode::FinalHead] {
+        for &mode in modes {
             model.reset();
-            model.prompt_mode = mode;
-            let cold = prefill(&mut model, &next, 0)?;
+            model.prompt_mode = if grouped { PromptMode::Serial } else { mode };
+            let (cold, _) = prefill(&mut model, &next, 0)?;
             ensure!(usize::try_from(model.offset())? == next.len());
             let cold_state = state_bytes(&model)?;
             ensure!(!cold_state.is_empty() && cold_state.iter().all(|bytes| !bytes.is_empty()));
@@ -2221,7 +2359,11 @@ mod tests {
             ensure!(greedy.len() == 1);
 
             model.reset();
-            prefill(&mut model, &first, 0)?;
+            model.prompt_mode = mode;
+            let (_, advanced) = prefill(&mut model, &first, 0)?;
+            if grouped {
+                ensure!(advanced > 0, "cold tool request did not group any prefix");
+            }
             for &token in &emitted[..emitted.len() - 1] {
                 model.forward(token)?;
             }
@@ -2233,7 +2375,10 @@ mod tests {
             let start = live_start(&first, &committed, &next, Some(position))
                 .context("a valid tool-round prefix was not reusable")?;
             ensure!(start == position && next[start] == emitted[emitted.len() - 1]);
-            let warm = prefill(&mut model, &next, start)?;
+            let (warm, resumed_advanced) = prefill(&mut model, &next, start)?;
+            if grouped {
+                ensure!(resumed_advanced == 0, "resumed tool suffix used grouping");
+            }
             ensure!(usize::try_from(model.offset())? == next.len());
             ensure!(cold.shape() == warm.shape() && warm.chat_greedy_ids()? == greedy);
             let warm_values = checked_logits(&warm)?;
@@ -2253,8 +2398,7 @@ mod tests {
                 "Flash tool-round states differ"
             );
             println!(
-                "Flash tool-round oracle: final-head={}, held={start}, full={}, states={}, relative L2={l2}",
-                matches!(mode, PromptMode::FinalHead),
+                "Flash tool-round oracle: mode={mode:?}, prefix spans={advanced}, resumed spans={resumed_advanced}, held={start}, full={}, states={}, relative L2={l2}",
                 next.len(),
                 cold_state.len(),
             );

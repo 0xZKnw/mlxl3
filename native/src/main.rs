@@ -2445,12 +2445,13 @@ impl NativeChatModel {
         chunk: &[u32],
         total: usize,
         end: usize,
+        fresh: bool,
         cancelled: &AtomicBool,
     ) -> Result<bool> {
         let Self::Flash(target) = self else {
             return Ok(false);
         };
-        target.advance_chat_prompt(chunk, total, end, cancelled)
+        target.advance_chat_prompt(chunk, total, end, fresh, cancelled)
     }
 
     fn prefill_chunk_size(&self) -> usize {
@@ -3970,7 +3971,7 @@ fn prefill_round(
         }
         if draft.is_none()
             && end < tokens.len()
-            && model.advance_flash_prompt(chunk, tokens.len(), end, cancelled)?
+            && model.advance_flash_prompt(chunk, tokens.len(), end, cached == 0, cancelled)?
         {
             #[cfg(test)]
             tests::FLASH_ADVANCED_ENDS.with_borrow_mut(|ends| ends.push(end));
@@ -7467,6 +7468,7 @@ fn native_chat(
                         &tokens[start..end],
                         tokens.len(),
                         end,
+                        true,
                         &AtomicBool::new(false),
                     )?
                 {
@@ -7605,16 +7607,24 @@ mod tests {
             a.to_bytes()
         };
         let enabled = |key| std::env::var(key).as_deref() == Ok("1");
-        let expected_ends: Vec<usize> = if enabled("MLXL3_FLASH_PREFILL_EXPERT4")
-            && enabled("MLXL3_FLASH_PREFILL_SERIAL_TAIL")
-        {
-            (8..=208).step_by(8).collect()
-        } else if enabled("MLXL3_FLASH_PREFILL_EXPERT4") || enabled("MLXL3_FLASH_PROMPT_FINAL_HEAD")
-        {
-            (8..=256).step_by(8).collect()
-        } else {
-            vec![]
-        };
+        let experts = enabled("MLXL3_FLASH_PREFILL_EXPERT4");
+        let cold = enabled("MLXL3_FLASH_COLD_PREFILL")
+            && [
+                "MLXL3_FLASH_PREFILL_EXPERT4",
+                "MLXL3_FLASH_PREFILL_SERIAL_TAIL",
+                "MLXL3_FLASH_PROMPT_FINAL_HEAD",
+            ]
+            .iter()
+            .all(|flag| std::env::var_os(flag).is_none());
+        let expected_ends: Vec<usize> =
+            if cold || (experts && enabled("MLXL3_FLASH_PREFILL_SERIAL_TAIL")) {
+                // This physical case uses the 53-slot benchmark configuration.
+                (8..=208).step_by(8).collect()
+            } else if experts || enabled("MLXL3_FLASH_PROMPT_FINAL_HEAD") {
+                (8..=256).step_by(8).collect()
+            } else {
+                vec![]
+            };
         let tokens: Vec<_> = (0..257).map(|i| 18 + (i * 193) % 8000).collect();
         let mut model =
             NativeChatModel::load(std::path::Path::new(&std::env::var("MLXL3_FLASH_MODEL")?))?;
