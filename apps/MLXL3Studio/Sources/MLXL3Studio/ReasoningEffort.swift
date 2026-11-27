@@ -46,6 +46,38 @@ enum ReasoningEffort: String, CaseIterable, Codable, Identifiable, Sendable {
     case .xhigh, .max: "gauge.with.dots.needle.100percent"
     }
   }
+
+}
+
+/// The Agent bridge can suggest when a thinking block should end on the next send.
+enum AgentThinkingTarget: String, CaseIterable, Identifiable {
+  case automatic, brief, balanced, extended
+
+  var id: Self { self }
+
+  var tokens: Int? {
+    switch self {
+    case .automatic: nil
+    case .brief: 256
+    case .balanced: 1024
+    case .extended: 4096
+    }
+  }
+
+  var title: String {
+    switch self {
+    case .automatic: L("Auto", "Auto")
+    case .brief: L("Courte · 256 tokens", "Brief · 256 tokens")
+    case .balanced: L("Équilibrée · 1 024 tokens", "Balanced · 1,024 tokens")
+    case .extended: L("Longue · 4 096 tokens", "Extended · 4,096 tokens")
+    }
+  }
+
+  /// The engine reserves at least half the remaining token slots for the response.
+  func fitsContext(_ limit: Int?) -> Bool {
+    guard let tokens, let limit else { return true }
+    return limit > 2 * tokens
+  }
 }
 
 /// The model template supplies the native controls. The engine may understand fewer names.

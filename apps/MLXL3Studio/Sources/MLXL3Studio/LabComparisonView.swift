@@ -5,6 +5,9 @@ struct LabComparisonDraft {
     var right = ""
     var prompt = ""
     var budget = 1024
+    var compareThinking = false
+    var leftTarget: AgentThinkingTarget = .brief
+    var rightTarget: AgentThinkingTarget = .extended
 }
 
 // The Hub appends eight hex digits to installation names. Keep the full name when two
@@ -27,25 +30,32 @@ struct LabComparisonView: View {
     let width: CGFloat
     @State private var editing = false
     @State private var showingFullPrompt = false
+    @State private var thinkingSupported = false
     @FocusState private var writingPrompt: Bool
 
     private var models: [LocalModel] { studio.comparisonModels }
+    private var firstModel: LocalModel? { models.first { $0.name == draft.left } }
     private var needsSetup: Bool { comparison.runs.isEmpty || editing }
+    private var singleModelComparison: Bool { draft.compareThinking || models.count == 1 }
     private var canStart: Bool {
-        !comparison.isRunning && studio.comparisonUnavailability == nil &&
-            models.contains { $0.name == draft.left } && models.contains { $0.name == draft.right } &&
-            draft.left != draft.right && LabComparison.validPrompt(draft.prompt)
+        guard !comparison.isRunning, studio.comparisonUnavailability == nil,
+              firstModel != nil,
+              LabComparison.validPrompt(draft.prompt) else { return false }
+        if singleModelComparison {
+            return draft.leftTarget != draft.rightTarget && thinkingSupported
+        }
+        return draft.left != draft.right && models.contains { $0.name == draft.right }
     }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 18) {
             if needsSetup {
-                if models.count < 2 {
+                if models.isEmpty {
                     StudioEmptyState(
                         icon: "rectangle.split.2x1",
-                        title: L("Deux modèles de texte sont nécessaires.", "Two text models are required."),
-                        detail: L("Choisis deux modèles compatibles dans la bibliothèque pour comparer leurs réponses sur ce Mac.",
-                                  "Add two compatible text models to your library to compare their answers on this Mac.")
+                        title: L("Installe un modèle de texte pour comparer.", "Install a text model to compare."),
+                        detail: L("Compare deux modèles compatibles ou deux cibles de réflexion du même modèle.",
+                                  "Compare two compatible models or two thinking targets on the same model.")
                     ) {
                         Button(action: studio.openModelManager) {
                             Label(L("Ouvrir les modèles", "Open Models"), systemImage: "square.stack")
@@ -64,8 +74,10 @@ struct LabComparisonView: View {
                 let layout = width >= 600 ? AnyLayout(HStackLayout(alignment: .top, spacing: 12))
                     : AnyLayout(VStackLayout(alignment: .leading, spacing: 12))
                 layout {
-                    ForEach(comparison.runs, id: \.model.name) { run in
-                        LabComparisonAnswer(run: run, title: comparisonLabel(run.model.name, among: comparison.runs.map { $0.model.name }))
+                    ForEach(comparison.runs) { run in
+                        let model = comparisonLabel(run.model.name, among: comparison.runs.map { $0.model.name })
+                        let title = run.target.map { "\(model) · \($0.title)" } ?? model
+                        LabComparisonAnswer(run: run, title: title)
                             .frame(maxWidth: .infinity, alignment: .topLeading)
                     }
                 }
@@ -77,7 +89,13 @@ struct LabComparisonView: View {
                 draft.left = first.model.name
                 draft.right = last.model.name
                 draft.prompt = comparison.prompt
-                draft.budget = comparison.budget
+                if let leftTarget = first.target, let rightTarget = last.target {
+                    draft.compareThinking = true
+                    draft.leftTarget = leftTarget
+                    draft.rightTarget = rightTarget
+                } else {
+                    draft.budget = comparison.budget
+                }
             }
             if !names.contains(draft.left) {
                 draft.left = names.first(where: { $0 != draft.right }) ?? names.first ?? ""
@@ -86,14 +104,31 @@ struct LabComparisonView: View {
                 draft.right = names.first(where: { $0 != draft.left }) ?? ""
             }
         }
+        .onChange(of: firstModel?.path, initial: true) { _, path in
+            thinkingSupported = path.flatMap { ReasoningSupport.detect(modelPath: $0) } != nil
+        }
     }
 
     private var setup: some View {
         VStack(alignment: .leading, spacing: 14) {
             let pair = width >= 520 ? AnyLayout(HStackLayout(spacing: 12)) : AnyLayout(VStackLayout(spacing: 10))
-            pair {
+            if models.count >= 2 {
+                Picker(L("Comparer", "Compare"), selection: $draft.compareThinking) {
+                    Text(L("Deux modèles", "Two models")).tag(false)
+                    Text(L("Deux cibles de réflexion", "Two thinking targets")).tag(true)
+                }.pickerStyle(.segmented).labelsHidden()
+            }
+            if singleModelComparison {
                 modelMenu(first: true)
-                modelMenu(first: false)
+                pair {
+                    targetPicker(first: true)
+                    targetPicker(first: false)
+                }
+            } else {
+                pair {
+                    modelMenu(first: true)
+                    modelMenu(first: false)
+                }
             }
             VStack(alignment: .leading, spacing: 9) {
                 HStack {
@@ -106,7 +141,7 @@ struct LabComparisonView: View {
                         }.buttonStyle(.studio(.quiet, height: 24))
                     }
                 }
-                TextField(L("Pose ta question aux deux modèles…", "Ask both models a question…"),
+                TextField(L("Saisis une question commune…", "Enter a shared question…"),
                           text: $draft.prompt, axis: .vertical)
                     .font(.system(size: 14)).textFieldStyle(.plain).lineLimit(3...8)
                     .focused($writingPrompt)
@@ -121,12 +156,23 @@ struct LabComparisonView: View {
                     .allowsHitTesting(false)
             }
 
-            ViewThatFits(in: .horizontal) {
-                HStack(spacing: 14) { budgetPicker; Spacer(minLength: 12); startButton }
-                VStack(alignment: .leading, spacing: 12) { budgetPicker; startButton }
+            if singleModelComparison {
+                startButton
+                if !thinkingSupported {
+                    StudioNotice(text: L("Choisis un modèle avec un réglage de réflexion.",
+                                         "Choose a model with a thinking control."))
+                }
+            } else {
+                ViewThatFits(in: .horizontal) {
+                    HStack(spacing: 14) { budgetPicker; Spacer(minLength: 12); startButton }
+                    VStack(alignment: .leading, spacing: 12) { budgetPicker; startButton }
+                }
             }
-            Text(L("Les modèles répondent l’un après l’autre. Le raisonnement compte dans la limite de sortie.",
-                   "The models run one at a time. Reasoning tokens count toward the output limit."))
+            Text(singleModelComparison
+                ? L("Deux réponses sans outils, avec l’effort par défaut. Le prompt et la limite de sortie de 16 384 tokens laissent plus ou moins de place à chaque cible.",
+                    "Two tool-free responses at the default effort. The prompt and the 16,384-token output limit determine how much room each target gets.")
+                : L("Les modèles répondent l’un après l’autre. Le raisonnement compte dans la limite de sortie.",
+                    "The models run one at a time. Reasoning tokens count toward the output limit."))
                 .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
             if draft.prompt.utf8.count > 65_536 {
                 StudioNotice(kind: .error, text: L("Le prompt dépasse la limite de 64 Kio.", "The prompt exceeds the 64 KiB limit."))
@@ -143,12 +189,13 @@ struct LabComparisonView: View {
 
     private func modelMenu(first: Bool) -> some View {
         let selected = first ? draft.left : draft.right
-        let label = first ? L("Premier modèle", "First model") : L("Second modèle", "Second model")
+        let label = singleModelComparison ? L("Modèle", "Model")
+            : first ? L("Premier modèle", "First model") : L("Second modèle", "Second model")
         return Menu {
             ForEach(models) { model in
                 Button {
                     if first {
-                        if draft.right == model.name { draft.right = draft.left }
+                        if !singleModelComparison && draft.right == model.name { draft.right = draft.left }
                         draft.left = model.name
                     } else {
                         if draft.left == model.name { draft.left = draft.right }
@@ -185,6 +232,16 @@ struct LabComparisonView: View {
         .accessibilityIdentifier(first ? "lab.compare.left" : "lab.compare.right")
     }
 
+    private func targetPicker(first: Bool) -> some View {
+        Picker(first ? L("Première cible", "First target") : L("Seconde cible", "Second target"),
+               selection: first ? $draft.leftTarget : $draft.rightTarget) {
+            ForEach(AgentThinkingTarget.allCases) { target in
+                Text(target.title).tag(target)
+            }
+        }
+        .accessibilityIdentifier(first ? "lab.compare.left-target" : "lab.compare.right-target")
+    }
+
     private var budgetPicker: some View {
         HStack(spacing: 6) {
             Text(L("Limite de sortie", "Output limit")).foregroundStyle(StudioTheme.secondary)
@@ -198,7 +255,13 @@ struct LabComparisonView: View {
     private var startButton: some View {
         Button {
             writingPrompt = false
-            studio.startLabComparison(left: draft.left, right: draft.right, prompt: draft.prompt, budget: draft.budget)
+            if singleModelComparison {
+                studio.startLabComparison(left: draft.left, right: draft.left, prompt: draft.prompt,
+                                          budget: LabComparison.thinkingOutputLimit,
+                                          thinkingTargets: (draft.leftTarget, draft.rightTarget))
+            } else {
+                studio.startLabComparison(left: draft.left, right: draft.right, prompt: draft.prompt, budget: draft.budget)
+            }
             if comparison.isRunning {
                 editing = false
                 showingFullPrompt = false
@@ -234,7 +297,7 @@ struct LabComparisonView: View {
                     showingFullPrompt.toggle()
                 }.buttonStyle(.studio(.quiet, height: 24))
             }
-            Text(L("Jusqu’à \(comparison.budget) tokens par modèle", "Up to \(comparison.budget) tokens per model"))
+            Text(L("Jusqu’à \(comparison.budget) tokens par réponse", "Up to \(comparison.budget) tokens per response"))
                 .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
         }
         .studioCard(padding: 16)
@@ -288,6 +351,10 @@ private struct LabComparisonAnswer: View {
             }
             if let error = run.error {
                 StudioNotice(kind: .error, text: error)
+            }
+            if run.targetReducedByContext {
+                StudioNotice(text: L("Le contexte restant a réduit cette cible de réflexion.",
+                                     "The remaining context reduced this thinking target."))
             }
             if run.phase == .complete {
                 let details = [run.generatedTokens.map { L("\($0) tokens générés", "\($0) tokens generated") },

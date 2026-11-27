@@ -106,6 +106,11 @@ elif command == "bridge":
     if can_yield:
         signal.signal(signal.SIGUSR2, request_yield)
     signal.signal(signal.SIGUSR1, cancel)
+    agent_loop = os.path.isfile(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine"))
+    roomy_context = agent_loop and not os.path.isfile(
+        os.path.join(os.environ["MLXL3_HOME"], "short-thinking-context")
+    )
+    context_limit = 32768 if roomy_context else 2048
     with open(os.path.join(os.environ["MLXL3_HOME"], "mode-launches.jsonl"), "a") as log:
         log.write(json.dumps({"registry": registry, "model": model, "pid": os.getpid()}) + "\n")
     emit(
@@ -113,8 +118,8 @@ elif command == "bridge":
         model=model,
         modules=1,
         resident_gb=0.01,
-        context_limit=2048,
-        model_context_limit=2048,
+        context_limit=context_limit,
+        model_context_limit=context_limit,
         workspace_features=True,
         agent_yield_supported=can_yield,
         bridge_protocol=1,
@@ -124,9 +129,9 @@ elif command == "bridge":
         reasoning_effort_supported=True,
         reasoning_effort_levels=["none", "minimal", "low", "medium", "high", "xhigh", "max"],
         # AGENT-2026-11-23-BOUCLE: a newer engine when the test leaves this marker file
-        agent_loop_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
+        agent_loop_supported=agent_loop,
         # AGENT-2026-11-26-LIVE-CACHE: announced with the same marker (a newer engine)
-        live_prompt_cache_supported=os.path.exists(os.path.join(os.environ["MLXL3_HOME"], "agent-loop-engine")),
+        live_prompt_cache_supported=agent_loop,
     )
     if model.startswith("compare-test-no-reader-"):
         time.sleep(60)
@@ -149,6 +154,13 @@ elif command == "bridge":
             if model.startswith("compare-test-"):
                 with open(os.path.join(os.environ["MLXL3_HOME"], "compare-requests.jsonl"), "a") as log:
                     log.write(json.dumps({"request": request, "model": model, "registry": registry}) + "\n")
+                if text == "same-model targets":
+                    emit(
+                        "context_usage",
+                        request_id=active,
+                        used_tokens=28000,
+                        context_limit=context_limit,
+                    )
                 if text == "comparison-errors" and model == "compare-test-a":
                     emit("delta", request_id="unrelated", phase="answer", text="wrong request")
                     emit("delta", request_id=active, phase="thinking", text="internal thought")

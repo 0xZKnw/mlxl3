@@ -810,6 +810,36 @@ mod tests {
     }
 
     #[test]
+    fn studio_thinking_targets_cut_distinctly_and_leave_an_answer_slot() {
+        // A deterministic decoder remains in its thinking channel for 6,144 sampled
+        // tokens unless the production policy requests a closure sooner.
+        for (request, expected) in [
+            (None, None),
+            (Some(256), Some(256)),
+            (Some(1024), Some(1024)),
+            (Some(4096), Some(4096)),
+        ] {
+            let limit = reasoning_budget(request)
+                .unwrap()
+                .and_then(|budget| step_reasoning_budget(budget, 16_384));
+            let closed_at = limit.and_then(|limit| {
+                (1..=6144).find(|&thought| {
+                    cut_thinking_now(thought, limit, 16_384 - thought, 2, 16_384 - thought)
+                })
+            });
+            assert_eq!(closed_at, expected);
+        }
+
+        let limit = step_reasoning_budget(4096, 768).unwrap();
+        assert_eq!(limit, 384);
+        assert!(!cut_thinking_now(383, limit, 385, 2, 385));
+        assert!(cut_thinking_now(384, limit, 384, 2, 384));
+        assert!(cut_thinking_now(2, limit, 3, 2, 10));
+        assert!(!cut_thinking_now(2, limit, 2, 2, 10));
+        assert!(!cut_thinking_now(limit, limit, 384, 2, 0));
+    }
+
+    #[test]
     fn forced_close_ends_with_each_family_marker() {
         let qwen = reasoning_continuation("</think>", false, true, false);
         assert_eq!(

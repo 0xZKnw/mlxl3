@@ -43,7 +43,9 @@ final class StudioModel: ObservableObject {
     private var bridgeUsesAgentRegistry = false
     @Published var models: [LocalModel] = [] { didSet { installedComparisonModels = nil } }
     private var installedComparisonModels: [LocalModel]?
-    @Published var selectedModelName: String?
+    @Published var selectedModelName: String? {
+        didSet { if oldValue != selectedModelName { agentThinkingTarget = .automatic } }
+    }
     @Published var conversations: [Conversation] = [Conversation()] {
         didSet { observeSidebarChanges() }
     }
@@ -67,7 +69,15 @@ final class StudioModel: ObservableObject {
             }
         }
     }
-    @Published var selectedConversationID: UUID? { didSet { if oldValue != selectedConversationID { cancelDocumentPreparation(); attemptedSendWithoutModel = false } } }
+    @Published var selectedConversationID: UUID? {
+        didSet {
+            if oldValue != selectedConversationID {
+                cancelDocumentPreparation()
+                attemptedSendWithoutModel = false
+                agentThinkingTarget = .automatic
+            }
+        }
+    }
     @Published var projects: [WorkspaceProject] = []
     @Published var profiles: [GenerationProfile] = []
     @Published var documents: [LibraryDocument] = [] { didSet { documentRevision &+= 1 } }
@@ -172,6 +182,8 @@ final class StudioModel: ObservableObject {
     @Published private(set) var reasoningSupport: ReasoningSupport?
     /// Level chosen for the selected model (kept per model); nil = the template default.
     @Published private(set) var reasoningChoice: ReasoningEffort?
+    /// A one-send override, independent of the model's saved native effort.
+    @Published private(set) var agentThinkingTarget: AgentThinkingTarget = .automatic
     /// The running engine passes `reasoning_effort` to the template (reported at ready).
     @Published private(set) var engineReasoningSupported = false
     @Published private(set) var engineReasoningLevels = ReasoningEffort.legacyLevels
@@ -181,9 +193,8 @@ final class StudioModel: ObservableObject {
     /// Older engines only: tool rounds of one Agent turn (chat keeps the engine's 5).
     static let agentToolRounds = 24
     /// Engines with `agent_loop_supported`: no total budget (each step may use the rest of the
-    /// context) and tool rounds as in Unharnessed and opencode (no practical cap, the engine
-    /// stops repeated identical calls). Reasoning is never cut, as in deepseek-harness and
-    /// opencode: no `reasoning_budget` is sent (the engine's option stays unused).
+    /// context) and tool rounds as in Unharnessed and opencode. In Auto the model decides
+    /// when to finish thinking. A user may request a thinking target for one message.
     static let agentLoopToolRounds = 256
     /// The engine accepts `tool_rounds` and a per-server MCP deadline (reported at ready):
     /// Agent calls may then last as long as their commands. Kept across model loads.
@@ -760,9 +771,23 @@ final class StudioModel: ObservableObject {
         return choice.rawValue
     }
 
+    var agentThinkingTargets: [AgentThinkingTarget] {
+        guard selectedMode == .agent, engineAgentLoop, reasoningControlAvailable,
+              reasoningLevel != ReasoningEffort.none || reasoningSupport?.noneIsZeroEffort == true else { return [] }
+        return AgentThinkingTarget.allCases.filter { $0.fitsContext(activeContextLimit) }
+    }
+
+    var agentThinkingTargetAvailable: Bool { agentThinkingTargets.count > 1 }
+
+    func setAgentThinkingTarget(_ target: AgentThinkingTarget) {
+        guard !composerBusy, !preparingDocuments, agentThinkingTargets.contains(target) else { return }
+        agentThinkingTarget = target
+    }
+
     func setReasoningLevel(_ level: ReasoningEffort) {
         guard let model = selectedModel, reasoningLevels.contains(level) else { return }
         reasoningChoice = level
+        if !agentThinkingTargetAvailable { agentThinkingTarget = .automatic }
         preferences.set(level.rawValue, forKey: "studio.reasoning.\(model.path)")
     }
 
@@ -1548,6 +1573,8 @@ final class StudioModel: ObservableObject {
         let trimmed = draft.trimmingCharacters(in: .whitespacesAndNewlines)
         let text = trimmed.isEmpty ? L("Analyse les fichiers joints.", "Analyze the attached files.") : trimmed
         let attachments = pendingAttachments
+        let reasoningBudget = agentThinkingTargets.contains(agentThinkingTarget) ? agentThinkingTarget.tokens : nil
+        agentThinkingTarget = .automatic
 
         draft = ""
         drafts[conversations[conversationIndex].id] = nil
@@ -1635,6 +1662,7 @@ final class StudioModel: ObservableObject {
                     allowedTools: selectedMode == .agent ? nil : currentProject?.allowedTools,
                     responseSchema: selectedMode == .agent || responseSchema.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ? nil : responseSchema,
                     reasoningEffort: requestReasoningEffort,
+                    reasoningBudget: reasoningBudget,
                     toolRounds: selectedMode == .agent
                         ? (engineAgentLoop ? Self.agentLoopToolRounds : Self.agentToolRounds) : nil,
                     livePromptCache: selectedMode == .agent && engineLivePromptCache ? true : nil
@@ -2629,6 +2657,9 @@ final class StudioModel: ObservableObject {
                 .compactMap { $0 }.joined(separator: " · ")
             activeContextLimit = event.contextLimit
             modelContextLimit = event.modelContextLimit
+            if agentThinkingTarget != .automatic && !agentThinkingTargets.contains(agentThinkingTarget) {
+                agentThinkingTarget = .automatic
+            }
             contextMemory = event.contextMemory ?? event.nativeContextMemory
             modelResidentBytes = event.residentGB.map { $0 * 1e9 }
             let info = (
@@ -3000,22 +3031,37 @@ extension StudioModel {
         return nil
     }
 
-    func startLabComparison(left: String, right: String, prompt: String, budget: Int) {
+    func startLabComparison(left: String, right: String, prompt: String, budget: Int,
+                            thinkingTargets: (AgentThinkingTarget, AgentThinkingTarget)? = nil) {
         guard selectedMode == .lab, modeTransition == nil, !labComparison.isRunning else { return }
         if let reason = comparisonUnavailability { featureError = reason; return }
         guard !showImages, !showModelManager else { return }
         installedComparisonModels = nil // A volume may have been disconnected since the picker opened.
         let installed = comparisonModels
-        guard left != right, let first = installed.first(where: { $0.name == left }),
+        guard let first = installed.first(where: { $0.name == left }),
               let second = installed.first(where: { $0.name == right }),
-              LabComparison.validPrompt(prompt), (1...4096).contains(budget) else {
+              LabComparison.validPrompt(prompt) else {
             featureError = L("Vérifie les deux modèles, le prompt (64 Kio maximum) et la limite de sortie.",
                              "Check the two models, the prompt (64 KiB maximum), and the output limit.")
             return
         }
+        if let (leftTarget, rightTarget) = thinkingTargets {
+            guard left == right, leftTarget != rightTarget, budget == LabComparison.thinkingOutputLimit,
+                  ReasoningSupport.detect(modelPath: first.path) != nil else {
+                featureError = L("Choisis un modèle avec réflexion et deux cibles différentes.",
+                                 "Choose a model with thinking and two different targets.")
+                return
+            }
+        } else {
+            guard left != right, (1...4096).contains(budget) else {
+                featureError = L("Choisis deux modèles et une limite de sortie valide.",
+                                 "Choose two models and a valid output limit.")
+                return
+            }
+        }
         let previous = engineState.isReady ? selectedModelName : nil
         ejectModel()
-        labComparison.start(first, second, prompt: prompt, budget: budget) { [weak self] in
+        labComparison.start(first, second, prompt: prompt, budget: budget, thinkingTargets: thinkingTargets) { [weak self] in
             await self?.bridge.stopAndWait()
         }
         modeTransition = Task {

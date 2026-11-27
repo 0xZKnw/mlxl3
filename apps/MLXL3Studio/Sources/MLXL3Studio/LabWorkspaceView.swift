@@ -29,7 +29,7 @@ private enum LabPage: String, CaseIterable, Identifiable {
     var heading: String {
         switch self {
         case .images: L("Images générées", "Generated images")
-        case .compare: L("Comparer les modèles", "Compare models")
+        case .compare: L("Comparer les réponses", "Compare responses")
         default: title
         }
     }
@@ -38,7 +38,7 @@ private enum LabPage: String, CaseIterable, Identifiable {
         switch self {
         case .usage: L("Tokens, débit et modèles utilisés sur ce Mac.", "Tokens, speed and models used on this Mac.")
         case .images: "Qwen-Image-2.1"
-        case .compare: L("Le même prompt sur deux modèles, l’un après l’autre.", "The same prompt on two models, one after the other.")
+        case .compare: L("Un même prompt avec deux modèles ou deux cibles de réflexion.", "One shared prompt with two models or two thinking targets.")
         case .generations: L("Le détail mesuré de chaque réponse récente.", "The measured detail of each recent reply.")
         case .hardware: L("Le matériel, les logiciels et la mémoire en ce moment.", "Hardware, software and memory right now.")
         }
