@@ -417,6 +417,8 @@ struct GenerationRequest: Encodable {
     var responseSchema: String? = nil
     /// Omitted (nil) keeps the chat template's default level; older engines ignore it.
     var reasoningEffort: String? = nil
+    /// Optional per-step target for ending thinking, supported by the Agent bridge.
+    var reasoningBudget: Int? = nil
     /// Tool rounds before the final answer (Agent mode); nil keeps the engine default.
     var toolRounds: Int? = nil
     /// Agent turns on an engine that announces it: the model's own output stays in the prompt
@@ -444,6 +446,7 @@ struct GenerationRequest: Encodable {
         case allowedTools = "allowed_tools"
         case responseSchema = "response_schema"
         case reasoningEffort = "reasoning_effort"
+        case reasoningBudget = "reasoning_budget"
         case toolRounds = "tool_rounds"
         case livePromptCache = "live_prompt_cache"
     }

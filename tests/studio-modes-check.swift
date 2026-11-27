@@ -24,6 +24,9 @@ extension StudioModel {
     }
     let second = entry("compare-test-b", localRoot.appendingPathComponent("b").path, "lfm3")
     for path in [first.path, second.path] { try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true) }
+    let template = "{% if enable_thinking is defined and enable_thinking is false %}<think></think>{% else %}<think>{% endif %}"
+    try template.write(to: URL(fileURLWithPath: first.path).appendingPathComponent("chat_template.jinja"),
+                       atomically: true, encoding: .utf8)
     let alias = localRoot.appendingPathComponent("alias")
     try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: first.path)
     let studio = StudioModel(conversationFileURL: localRoot.appendingPathComponent("history"), preferences: prefs)
@@ -80,6 +83,48 @@ extension StudioModel {
     check(identifiers.count == 2 && studio.draft == "unchanged draft" && studio.selectedConversationID == id
       && studio.currentConversation!.messages.count == count && studio.labSamples.isEmpty
       && studio.labUsage.summary(for: .allTime).models.isEmpty, "Lab preserves the draft, conversation and usage")
+    let targetLimit = LabComparison.thinkingOutputLimit
+    studio.startLabComparison(left: first.name, right: first.name, prompt: "same", budget: targetLimit,
+                              thinkingTargets: (.brief, .brief))
+    check(!comparison.isRunning && comparison.prompt == "identical ☕ prompt", "Reject two identical targets")
+    studio.startLabComparison(left: second.name, right: second.name, prompt: "same", budget: targetLimit,
+                              thinkingTargets: (.brief, .extended))
+    check(!comparison.isRunning, "Reject thinking comparisons for a model that has no thinking control")
+    studio.startLabComparison(left: first.name, right: first.name, prompt: "legacy-targets", budget: targetLimit,
+                              thinkingTargets: (.brief, .extended))
+    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error != nil && $0.answer.isEmpty },
+      "Both arms report an unsupported engine instead of pretending to compare")
+    let targetMarker = root.appendingPathComponent("agent-loop-engine")
+    FileManager.default.createFile(atPath: targetMarker.path, contents: Data())
+    let shortContext = root.appendingPathComponent("short-thinking-context")
+    FileManager.default.createFile(atPath: shortContext.path, contents: Data())
+    studio.startLabComparison(left: first.name, right: first.name, prompt: "short-context targets", budget: targetLimit,
+                              thinkingTargets: (.brief, .extended))
+    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error?.lowercased().contains("context") == true },
+      "Comparison cannot silently collapse its two targets when the context is too short")
+    try FileManager.default.removeItem(at: shortContext)
+    studio.startLabComparison(left: first.name, right: first.name, prompt: "same-model targets", budget: targetLimit,
+                              thinkingTargets: (.brief, .extended))
+    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try FileManager.default.removeItem(at: targetMarker)
+    let sameModelRequests = try String(contentsOf: root.appendingPathComponent("compare-requests.jsonl"), encoding: .utf8)
+      .split(separator: "\n").suffix(2).map { try JSONSerialization.jsonObject(with: Data($0.utf8)) as! [String: Any] }
+    let sameModelPayloads = sameModelRequests.map { $0["request"] as! [String: Any] }
+    check(comparison.runs.allSatisfy { $0.model == first && $0.phase == .complete && !$0.answer.isEmpty }
+      && comparison.runs.map(\.target) == [.brief, .extended] && Set(comparison.runs.map(\.id)).count == 2,
+      "The same model has two distinct result cards, each with the requested thinking target")
+    check(sameModelRequests.allSatisfy { $0["model"] as? String == first.name && $0["registry"] is NSNull }
+      && sameModelPayloads.compactMap { $0["reasoning_budget"] as? Int } == [256, 4096]
+      && sameModelPayloads.allSatisfy { ($0["messages"] as? [[String: String]]) == [["role": "user", "content": "same-model targets"]]
+        && $0["max_tokens"] as? Int == 16_384 && $0["temperature"] as? Int == 0
+        && $0["mcp_enabled"] as? Bool == false && $0["reasoning_effort"] == nil },
+      "Both fresh requests have the same prompt, model, sampling, default native effort and room to separate the targets")
+    check(Set(sameModelPayloads.compactMap { $0["conversation_id"] as? String }).count == 2,
+      "The two targets do not share a conversation")
+    check(comparison.runs.map(\.targetReducedByContext) == [false, true],
+      "The measured prompt leaves room for the shorter target and visibly constrains the longer one")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-errors", budget: 1)
     try await wait { !comparison.isRunning && studio.engineState.isReady }
     let a = comparison.runs[0], b = comparison.runs[1]
@@ -811,6 +856,9 @@ extension StudioModel {
     legacyStop.stopServices()
     await legacyStop.bridge.stopAndWait()
     let limited = try await readyAgent("budget")
+    limited.setAgentThinkingTarget(.extended)
+    check(!limited.agentThinkingTargetAvailable && limited.agentThinkingTarget == .automatic,
+      "A legacy engine cannot arm a thinking target")
     limited.draft = "budget-limit"
     limited.send()
     try await wait { !limited.isGenerating }
@@ -827,7 +875,7 @@ extension StudioModel {
     limited.stopServices()
     await limited.bridge.stopAndWait()
     // AGENT-2026-11-23-BOUCLE: an engine announcing `agent_loop_supported` gets no total
-    // budget and the long round limit; reasoning is never cut (no `reasoning_budget`).
+    // budget and the long round limit; the default leaves reasoning to the model.
     let marker = root.appendingPathComponent("agent-loop-engine")
     FileManager.default.createFile(atPath: marker.path, contents: Data())
     defer { try? FileManager.default.removeItem(at: marker) }
@@ -912,13 +960,60 @@ extension StudioModel {
     check(looping.reasoningLevels == native, "Agent and Chat use the same model controls")
     looping.draft = "Agent after chat"
     looping.send()
-    try await wait { !looping.isGenerating }
+    try await wait { !looping.isGenerating && !looping.agentStudioBusy }
     let agentRequest = try JSONSerialization.jsonObject(with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
     check(agentRequest["reasoning_effort"] as? String == "max" && agentRequest["reasoning_budget"] == nil
             && agentRequest["max_tokens"] as? Int == -1, "Agent preserves the natural effort")
+    check(looping.agentThinkingTargetAvailable, "The advertised engine and thinking template enable an Agent target")
+    check(AgentThinkingTarget.allCases.filter { $0.fitsContext(2048) } == [.automatic, .brief]
+      && AgentThinkingTarget.allCases.filter { $0.fitsContext(8193) } == AgentThinkingTarget.allCases,
+      "A target cannot use half the whole context when the prompt also needs room")
+    for (target, expected) in [(AgentThinkingTarget.brief, 256), (.balanced, 1024), (.extended, 4096)] {
+      let messageCount = looping.currentConversation!.messages.count
+      looping.setAgentThinkingTarget(target)
+      check(looping.agentThinkingTarget == target, "The target is armed for a new message")
+      looping.draft = "Agent target \(target.title)"
+      looping.send()
+      try await wait {
+        looping.currentConversation!.messages.count == messageCount + 2
+          && !looping.isGenerating && !looping.agentStudioBusy
+      }
+      let request = try JSONSerialization.jsonObject(with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+      check(request["reasoning_budget"] as? Int == expected
+        && request["reasoning_effort"] as? String == "max"
+        && request["max_tokens"] as? Int == -1 && request["tool_rounds"] as? Int == 256,
+        "Expected target \(expected) with max native effort and 256 tool rounds: \(request["reasoning_budget"] ?? "missing")")
+      check(looping.agentThinkingTarget == .automatic, "The target is consumed by one submitted Agent message")
+    }
+    let resetMessageCount = looping.currentConversation!.messages.count
+    looping.draft = "Agent target reset"
+    looping.send()
+    try await wait {
+      looping.currentConversation!.messages.count == resetMessageCount + 2
+        && !looping.isGenerating && !looping.agentStudioBusy
+    }
+    let reset = try JSONSerialization.jsonObject(with: Data(looping.currentConversation!.messages.last!.content.utf8)) as! [String: Any]
+    check(reset["reasoning_budget"] == nil, "A later Agent message omits the previous target")
+    looping.setAgentThinkingTarget(.brief)
+    looping.newConversation()
+    check(looping.agentThinkingTarget == .automatic, "A target cannot follow the user into another conversation")
+    try await wait { !looping.mcpUpdating && !looping.agentStudioBusy }
+    looping.setAgentThinkingTarget(.extended)
+    let smallContext = root.appendingPathComponent("short-thinking-context")
+    FileManager.default.createFile(atPath: smallContext.path, contents: Data())
+    looping.ejectModel()
+    await looping.bridge.stopAndWait()
+    looping.selectModel(model.name)
+    try await wait { looping.engineState.isReady && !looping.mcpUpdating }
+    try FileManager.default.removeItem(at: smallContext)
+    check(looping.agentThinkingTargets == [.automatic, .brief] && looping.agentThinkingTarget == .automatic,
+      "Reloading with a shorter context clears a now unavailable target")
     looping.selectMode(.chat)
     try await wait { !looping.mcpUpdating && looping.engineState.isReady }
     check(looping.effectiveReasoningChoice == .max, "Returning to Chat restores the saved native choice")
+    looping.setAgentThinkingTarget(.extended)
+    check(!looping.agentThinkingTargetAvailable && looping.agentThinkingTarget == .automatic,
+      "Chat does not arm an Agent target")
     looping.stopServices()
     await looping.bridge.stopAndWait()
     return count
@@ -1723,11 +1818,14 @@ extension StudioModesCheck {
       "Generations exposes its export action and the measured decode rate from 45 days ago")
     clickSidebar("Compare", in: history)
     let emptyComparison = try await displayedCells()
-    expectText("Two text models are required", in: emptyComparison)
+    expectText("Install a text model", in: emptyComparison)
     expectText("Open Models", in: emptyComparison)
     func textModel(_ name: String) throws -> LocalModel {
-      try FileManager.default.createDirectory(at: root.appendingPathComponent(name), withIntermediateDirectories: true)
-      return LocalModel(name: name, path: root.appendingPathComponent(name).path, modelType: "qwen3_5",
+      let folder = root.appendingPathComponent(name)
+      try FileManager.default.createDirectory(at: folder, withIntermediateDirectories: true)
+      let template = "{% if enable_thinking is defined and enable_thinking is false %}<think></think>{% else %}<think>{% endif %}"
+      try template.write(to: folder.appendingPathComponent("chat_template.jinja"), atomically: true, encoding: .utf8)
+      return LocalModel(name: name, path: folder.path, modelType: "qwen3_5",
         format: "EXL3", bits: 4, sizeBytes: 1024, modules: 1, addedAt: "", size: "1 KiB")
     }
     fixture.models = try [textModel("Atlas"), textModel("Birch")]
@@ -1765,8 +1863,45 @@ extension StudioModesCheck {
     check(recognizesFirstText(in: answers.map(\.text)),
       "Expected 'First text' in rendered Lab, read \(answers.map(\.text))")
     expectText("Decode", in: answers)
+    guard let edit = answers.first(where: { $0.text.localizedCaseInsensitiveCompare("Edit") == .orderedSame }) else {
+      preconditionFailure("Missing comparison edit button")
+    }
+    click(edit)
+    _ = try await displayedCells()
+    func targetMode(in view: NSView) -> NSSegmentedControl? {
+      if let toggle = view as? NSSegmentedControl, toggle.segmentCount == 2,
+         toggle.label(forSegment: 1) == "Two thinking targets" { return toggle }
+      for child in view.subviews {
+        if let picker = targetMode(in: child) { return picker }
+      }
+      return nil
+    }
+    guard let mode = targetMode(in: host) else { preconditionFailure("Missing thinking comparison mode") }
+    mode.selectedSegment = 1
+    check(mode.sendAction(mode.action, to: mode.target), "Thinking comparison mode applies its action")
+    let targetSetup = try await displayedCells()
+    expectText("First target", in: targetSetup)
+    expectText("Second target", in: targetSetup)
+    guard let targetStart = targetSetup.first(where: {
+      $0.box.midX * host.bounds.width > fixture.sidebarWidth.points &&
+        $0.text.lowercased().split(whereSeparator: { !$0.isLetter }).last == "compare"
+    }) else { preconditionFailure("Missing thinking comparison start button") }
+    let marker = root.appendingPathComponent("agent-loop-engine")
+    FileManager.default.createFile(atPath: marker.path, contents: Data())
+    defer { try? FileManager.default.removeItem(at: marker) }
+    click(targetStart)
+    for _ in 0..<200 {
+      if fixture.labComparison.runs.first?.target == .brief && !fixture.labComparison.isRunning { break }
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    check(fixture.labComparison.runs.map(\.target) == [.brief, .extended]
+      && fixture.labComparison.runs.allSatisfy { $0.model.name == "Atlas" && $0.phase == .complete },
+      "The visible comparison starts two separate target runs on Atlas")
+    let targetAnswers = try await displayedCells()
+    expectText("Brief", in: targetAnswers)
+    expectText("Extended", in: targetAnswers)
     // "This" uniquely identifies this sidebar entry and avoids OCR's Latin/Cyrillic Mac homoglyphs.
-    clickSidebar("This", in: answers)
+    clickSidebar("This", in: targetAnswers)
     let hardware = try await displayedCells()
     check(hardware.contains { $0.text.contains("CPU cores") } && hardware.contains { $0.text.contains("Unified memory") },
       "This Mac shows processor and memory details")

@@ -1174,20 +1174,23 @@ private struct ComposerPasteMonitor: NSViewRepresentable {
 }
 
 
-/// The model’s native thinking switch or effort levels.
+/// The model's saved effort and the optional target for the next Agent message.
 private struct ReasoningMenu: View {
     @EnvironmentObject private var studio: StudioModel
     let support: ReasoningSupport
     let level: ReasoningEffort
 
     private var currentLabel: String {
+        if studio.agentThinkingTargetAvailable, let tokens = studio.agentThinkingTarget.tokens {
+            return L("Cible \(tokens.formatted()) tokens", "Target \(tokens.formatted()) tokens")
+        }
         if studio.effectiveReasoningChoice == nil { return L("Réflexion auto", "Auto thinking") }
         return support.title(for: level, inComposer: true)
     }
 
     var body: some View {
         Menu {
-            Picker(L("Raisonnement", "Reasoning"), selection: Binding(
+            Picker(L("Effort du modèle", "Model effort"), selection: Binding(
                 get: { studio.effectiveReasoningChoice }, set: { choice in
                     if let choice { studio.setReasoningLevel(choice) } else { studio.resetReasoningLevel() }
                 })) {
@@ -1198,6 +1201,18 @@ private struct ReasoningMenu: View {
                 }
             }
             .pickerStyle(.inline)
+            if studio.agentThinkingTargetAvailable {
+                Divider()
+                Picker(L("Cible pour le prochain message", "Target for the next message"), selection: Binding(
+                    get: { studio.agentThinkingTarget }, set: studio.setAgentThinkingTarget)) {
+                    ForEach(studio.agentThinkingTargets) { target in
+                        Text(target.title).tag(target)
+                    }
+                }
+                .pickerStyle(.inline)
+                Text(L("Par étape. La place restante dans le contexte peut réduire la cible.",
+                       "Per step. The remaining context can lower the target."))
+            }
         } label: {
             HStack(spacing: 6) {
                 Image(systemName: level.symbol)
@@ -1212,11 +1227,14 @@ private struct ReasoningMenu: View {
         }
         .menuStyle(.button).buttonStyle(.plain).menuIndicator(.hidden)
         .fixedSize()
-        .disabled(studio.isGenerating)
+        .disabled(studio.isGenerating || studio.preparingDocuments)
         .accessibilityIdentifier("composer.reasoning")
         .accessibilityLabel(L("Raisonnement", "Reasoning"))
         .accessibilityValue(currentLabel)
-        .help(L("Profondeur de raisonnement du modèle", "Model reasoning depth"))
+        .help(studio.agentThinkingTargetAvailable
+            ? L("L’effort règle le modèle. La cible demande d’achever la réflexion à chaque étape du prochain message.",
+                "Effort guides the model. A target asks it to finish thinking at each step of the next message.")
+            : L("Profondeur de raisonnement du modèle", "Model reasoning depth"))
     }
 }
 

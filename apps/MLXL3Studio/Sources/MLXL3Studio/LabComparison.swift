@@ -6,10 +6,12 @@ import Foundation
 @MainActor
 final class LabComparison: ObservableObject {
     enum Phase { case waiting, loading, generating, complete, failed, cancelled }
+    static let thinkingOutputLimit = 16_384
 
     struct Run: Identifiable {
+        let id = UUID()
         let model: LocalModel
-        var id: String { model.id }
+        let target: AgentThinkingTarget?
         var phase: Phase = .waiting
         var answer = ""
         var firstTextSeconds: Double?
@@ -19,6 +21,7 @@ final class LabComparison: ObservableObject {
         var error: String?
         var hitTokenLimit = false
         var hitContextLimit = false
+        var targetReducedByContext = false
         var isThinking = false
     }
 
@@ -40,11 +43,17 @@ final class LabComparison: ObservableObject {
     }
 
     func start(_ first: LocalModel, _ second: LocalModel, prompt: String, budget: Int,
+               thinkingTargets: (AgentThinkingTarget, AgentThinkingTarget)? = nil,
                prepare: @escaping @MainActor () async -> Void) {
-        guard !isRunning, first.id != second.id, Self.validPrompt(prompt), (1...4096).contains(budget) else { return }
+        guard !isRunning, Self.validPrompt(prompt) else { return }
+        if let (left, right) = thinkingTargets {
+            guard first.id == second.id, left != right, budget == Self.thinkingOutputLimit else { return }
+        } else {
+            guard first.id != second.id, (1...4096).contains(budget) else { return }
+        }
         self.prompt = prompt
         self.budget = budget
-        runs = [Run(model: first), Run(model: second)]
+        runs = [Run(model: first, target: thinkingTargets?.0), Run(model: second, target: thinkingTargets?.1)]
         isRunning = true
         task = Task {
             await prepare()
@@ -107,6 +116,7 @@ final class LabComparison: ObservableObject {
         try await bridge.start(model: runs[index].model.name)
         let requestID = UUID().uuidString
         var started: ContinuousClock.Instant?
+        var sawPromptContext = false
         for await signal in stream {
             try Task.checkCancellation()
             switch signal {
@@ -118,9 +128,21 @@ final class LabComparison: ObservableObject {
                     throw MLXL3BridgeError.commandFailed(event.message ?? L("Erreur du moteur.", "Engine error."))
                 }
                 if event.type == "ready", started == nil {
+                    let target = runs[index].target
+                    if target != nil, event.agentLoopSupported != true {
+                        throw MLXL3BridgeError.commandFailed(
+                            L("Ce moteur ne prend pas en charge les cibles de réflexion.",
+                              "This engine does not support thinking targets."))
+                    }
+                    if target != nil, !runs.compactMap(\.target).allSatisfy({ $0.fitsContext(event.contextLimit) }) {
+                        throw MLXL3BridgeError.commandFailed(
+                            L("Le contexte du modèle est trop court pour ces deux cibles de réflexion.",
+                              "The model context is too short for these two thinking targets."))
+                    }
                     let request = GenerationRequest(requestID: requestID, conversationID: UUID().uuidString,
                         messages: [PromptMessage(role: "user", content: prompt)], maxTokens: budget,
-                        temperature: 0, topK: 0, repetitionPenalty: 1, dspark: false)
+                        temperature: 0, topK: 0, repetitionPenalty: 1, dspark: false,
+                        reasoningBudget: target?.tokens)
                     started = .now
                     try bridge.generate(request) { channel.yield(.failure($0)) }
                     runs[index].phase = .generating
@@ -130,6 +152,12 @@ final class LabComparison: ObservableObject {
                 let elapsed = started.duration(to: .now).components
                 let seconds = Double(elapsed.seconds) + Double(elapsed.attoseconds) / 1e18
                 switch event.type {
+                case "context_usage" where !sawPromptContext:
+                    if let tokens = runs[index].target?.tokens, let limit = event.contextLimit,
+                       let used = event.usedTokens, used >= 0, limit >= used {
+                        runs[index].targetReducedByContext = min(budget, limit - used) / 2 < tokens
+                        sawPromptContext = true
+                    }
                 case "delta":
                     guard let text = event.text, !text.isEmpty else { break }
                     if event.phase == "thinking" {
