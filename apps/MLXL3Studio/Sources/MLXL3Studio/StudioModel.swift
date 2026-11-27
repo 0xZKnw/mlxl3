@@ -3010,7 +3010,7 @@ extension StudioModel {
         let installed = comparisonModels
         guard left != right, let first = installed.first(where: { $0.name == left }),
               let second = installed.first(where: { $0.name == right }),
-              LabComparison.validPrompt(prompt), (1...4096).contains(budget) else {
+              LabComparison.validPrompt(prompt), LabComparison.validBudget(budget) else {
             featureError = L("Vérifie les deux modèles, le prompt (64 Kio maximum) et la limite de sortie.",
                              "Check the two models, the prompt (64 KiB maximum), and the output limit.")
             return

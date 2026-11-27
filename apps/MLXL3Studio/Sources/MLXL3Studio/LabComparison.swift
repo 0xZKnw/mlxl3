@@ -5,6 +5,9 @@ import Foundation
 /// participates in a Studio conversation, its tools, or the usage ledger.
 @MainActor
 final class LabComparison: ObservableObject {
+    // The bridge reserves -1 for generation up to the remaining context.
+    nonisolated static let noOutputLimit = -1
+
     enum Phase { case waiting, loading, generating, complete, failed, cancelled }
 
     struct Run: Identifiable {
@@ -39,9 +42,13 @@ final class LabComparison: ObservableObject {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && text.utf8.count <= 65_536
     }
 
+    static func validBudget(_ budget: Int) -> Bool {
+        budget == noOutputLimit || (1...4096).contains(budget)
+    }
+
     func start(_ first: LocalModel, _ second: LocalModel, prompt: String, budget: Int,
                prepare: @escaping @MainActor () async -> Void) {
-        guard !isRunning, first.id != second.id, Self.validPrompt(prompt), (1...4096).contains(budget) else { return }
+        guard !isRunning, first.id != second.id, Self.validPrompt(prompt), Self.validBudget(budget) else { return }
         self.prompt = prompt
         self.budget = budget
         runs = [Run(model: first), Run(model: second)]

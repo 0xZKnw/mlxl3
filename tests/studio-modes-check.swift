@@ -67,6 +67,10 @@ extension StudioModel {
     check(comparison.runs.isEmpty && !comparison.isRunning, "Refuse to compare one model with itself")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "same", budget: 4097)
     check(comparison.runs.isEmpty && !comparison.isRunning, "Invalid budget launches nothing")
+    for invalidBudget in [-2, 0] {
+      studio.startLabComparison(left: first.name, right: second.name, prompt: "same", budget: invalidBudget)
+      check(comparison.runs.isEmpty && !comparison.isRunning, "Only -1 can request generation without a fixed cap")
+    }
     studio.startLabComparison(left: first.name, right: second.name, prompt: "identical ☕ prompt", budget: 128)
     studio.startLabComparison(left: second.name, right: first.name, prompt: "overwrite", budget: 1)
     try await waitForIdleLab()
@@ -93,6 +97,14 @@ extension StudioModel {
     check(identifiers.count == 2 && studio.draft == "unchanged draft" && studio.selectedConversationID == id
       && studio.currentConversation!.messages.count == count && studio.labSamples.isEmpty
       && studio.labUsage.summary(for: .allTime).models.isEmpty, "Lab preserves the draft, conversation and usage")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-unlimited", budget: -1)
+    try await waitForIdleLab()
+    check(comparison.budget == -1 && comparison.runs.map(\.generatedTokens) == [690, 5000]
+      && comparison.runs.allSatisfy { $0.phase == .complete && !$0.hitTokenLimit },
+      "An unlimited comparison accepts a natural stop and a generation past the old maximum")
+    check(!comparison.runs[0].hitContextLimit && comparison.runs[1].hitContextLimit
+      && comparison.runs[1].answer.hasSuffix("<footer>Done</footer>"),
+      "The context boundary is reported and the long response is retained")
     let legacyPayload = requests.last?["request"] as? [String: Any]
     check(legacyPayload != nil && legacyPayload?["reasoning_effort"] == nil && legacyPayload?["reasoning_budget"] == nil,
       "An older bridge and a model without an off switch use the ordinary request")
@@ -139,14 +151,14 @@ extension StudioModel {
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-malformed", budget: 1)
     try await waitForIdleLab()
     check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error != nil }, "Malformed frames fail each arm explicitly")
-    studio.startLabComparison(left: first.name, right: second.name, prompt: "hang-ignore", budget: 32)
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "hang-ignore", budget: -1)
     try await wait { comparison.runs.first?.isThinking == true }
     check(comparison.runs.first?.answer.isEmpty == true && comparison.runs.first?.firstTextSeconds == nil,
       "Reasoning can be indicated live without appearing in the visible answer or starting its clock")
     comparison.cancel()
     try await waitForIdleLab()
     check(comparison.runs.allSatisfy { $0.phase == .cancelled },
-      "Stopping in Lab unloads the active model and skips the second arm")
+      "Stopping an unlimited run unloads the active model and skips the second arm")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "hang-ignore", budget: 32)
     try await wait { comparison.runs.first?.isThinking == true }
     studio.leaveLab()
@@ -1791,9 +1803,9 @@ extension StudioModesCheck {
       if fixture.labComparison.runs.count == 2 && !fixture.labComparison.isRunning { break }
       try await Task.sleep(for: .milliseconds(25))
     }
-    check(fixture.labComparison.runs.count == 2 && fixture.labComparison.runs.allSatisfy {
+    check(fixture.labComparison.budget == -1 && fixture.labComparison.runs.count == 2 && fixture.labComparison.runs.allSatisfy {
       $0.phase == .complete && !$0.answer.isEmpty && $0.generatedTokens == 6
-    }, "The visible start button submits a real comparison across both fixture engines")
+    }, "The visible start button compares both fixture engines without a fixed cap by default")
     let answers = try await displayedCells()
     // Vision sometimes reads the rendered label as "Firsttext" at 1×.
     func recognizesFirstText(in lines: [String]) -> Bool {
