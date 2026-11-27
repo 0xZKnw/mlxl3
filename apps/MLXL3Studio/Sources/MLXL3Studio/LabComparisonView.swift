@@ -27,6 +27,7 @@ struct LabComparisonView: View {
     let width: CGFloat
     @State private var editing = false
     @State private var showingFullPrompt = false
+    @State private var showingSites = false
     @FocusState private var writingPrompt: Bool
 
     private var models: [LocalModel] { studio.comparisonModels }
@@ -35,6 +36,14 @@ struct LabComparisonView: View {
         !comparison.isRunning && studio.comparisonUnavailability == nil &&
             models.contains { $0.name == draft.left } && models.contains { $0.name == draft.right } &&
             draft.left != draft.right && LabComparison.validPrompt(draft.prompt)
+    }
+
+    private var sites: [LabSiteComparisonView.Page] {
+        let names = comparison.runs.map(\.model.name)
+        return comparison.runs.compactMap { run in
+            guard let source = run.htmlDocument else { return nil }
+            return .init(id: run.id, title: comparisonLabel(run.model.name, among: names), source: source)
+        }
     }
 
     var body: some View {
@@ -70,6 +79,9 @@ struct LabComparisonView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showingSites) {
+            LabSiteComparisonView(pages: sites)
         }
         .onChange(of: models.map(\.name), initial: true) { _, names in
             if draft.left.isEmpty && draft.right.isEmpty, let first = comparison.runs.first,
@@ -236,9 +248,69 @@ struct LabComparisonView: View {
             }
             Text(L("Jusqu’à \(comparison.budget) tokens par modèle", "Up to \(comparison.budget) tokens per model"))
                 .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
+            if !comparison.isRunning && sites.count == 2 {
+                Button { showingSites = true } label: {
+                    Label(L("Comparer les sites", "Compare sites"), systemImage: "rectangle.split.2x1")
+                }
+                .buttonStyle(.studio(.secondary, height: 30))
+                .accessibilityIdentifier("lab.compare.sites")
+            }
         }
         .studioCard(padding: 16)
         .accessibilityIdentifier("lab.compare.submitted")
+    }
+}
+
+private struct LabSiteComparisonView: View {
+    struct Page: Identifiable {
+        let id: String
+        let title: String
+        let source: String
+    }
+
+    private enum Viewport: Hashable {
+        case desktop, mobile
+        var width: CGFloat { self == .desktop ? 1_280 : 390 }
+    }
+
+    let pages: [Page]
+    @State private var viewport: Viewport = .desktop
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                StudioSectionTitle(title: L("Comparer les sites", "Compare sites"))
+                Spacer()
+                Picker(L("Format d’aperçu", "Preview size"), selection: $viewport) {
+                    Text(L("Bureau", "Desktop")).tag(Viewport.desktop)
+                    Text(L("Mobile", "Mobile")).tag(Viewport.mobile)
+                }
+                .pickerStyle(.segmented).labelsHidden().fixedSize()
+                .accessibilityIdentifier("lab.compare.viewport")
+                Button(L("Fermer", "Close")) { dismiss() }
+                    .buttonStyle(.studio(.secondary, height: 28))
+                    .keyboardShortcut(.cancelAction)
+            }
+            HStack(alignment: .top, spacing: 16) {
+                ForEach(pages) { page in
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text(page.title).font(.headline).lineLimit(1).help(page.title)
+                        GeometryReader { surface in
+                            InlineHTMLPreview(
+                                source: page.source,
+                                pageZoom: max(1, surface.size.width) / viewport.width
+                            )
+                        }
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+                    .frame(maxWidth: viewport == .mobile ? viewport.width : .infinity)
+                    .frame(maxWidth: .infinity)
+                }
+            }
+        }
+        .padding(20)
+        .frame(minWidth: 760, idealWidth: 1_100, minHeight: 500, idealHeight: 670)
     }
 }
 
@@ -258,6 +330,21 @@ private struct LabComparisonAnswer: View {
         }
     }
 
+    private var stopReason: String? {
+        switch run.stopReason {
+        case .eos: L("Fin naturelle", "Natural end")
+        case .outputLimit: L("Plafond atteint", "Output limit")
+        case .contextFull: L("Contexte plein", "Context full")
+        case .stopped: L("Arrêt manuel", "Stopped manually")
+        case .skipped: L("Non démarré", "Not started")
+        case .timedOut: L("Délai dépassé", "Timed out")
+        case .interrupted: L("Moteur interrompu", "Engine interrupted")
+        case .error: L("Erreur", "Error")
+        case .unknown: L("Non renseignée", "Not reported")
+        case nil: nil
+        }
+    }
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
@@ -271,15 +358,20 @@ private struct LabComparisonAnswer: View {
                 }
             }
             HStack(alignment: .top, spacing: 12) {
-                reading(L("Premier texte", "First text"), seconds: run.firstTextSeconds)
+                reading(L("Premier texte", "First text"), value: run.firstTextSeconds.map(duration))
                     .help(L("Délai jusqu’au premier texte visible, après le chargement du modèle.",
                             "Time to the first visible answer text after the model has loaded."))
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(L("Décodage", "Decode")).font(.system(size: 12, weight: .medium)).foregroundStyle(StudioTheme.secondary)
-                    Text(run.decodeTps.map { number($0, precision: 1) + " tok/s" } ?? "—")
-                        .font(.system(size: 17, weight: .semibold)).monospacedDigit()
-                        .foregroundStyle(run.decodeTps == nil ? StudioTheme.secondary : LabWorkspaceView.outputColor)
-                }.frame(maxWidth: .infinity, alignment: .leading).accessibilityElement(children: .combine)
+                reading(L("Décodage", "Decode"), value: run.decodeTps.map { number($0, precision: 1) + " tok/s" },
+                        color: LabWorkspaceView.outputColor)
+            }
+            HStack(alignment: .top, spacing: 12) {
+                reading(L("Temps total", "Total time"), value: run.totalSeconds.map(duration))
+                    .help(L("Du début du chargement à la fin de ce passage.",
+                            "From the start of model loading to the end of this run."))
+                reading(L("Tokens", "Tokens"), value: run.generatedTokens?.formatted(.number.locale(locale)))
+                    .help(L("Tokens générés selon le moteur, réflexion incluse.",
+                            "Generated tokens reported by the engine, including thinking."))
+                reading(L("Raison de fin", "Stop reason"), value: stopReason)
             }
             Rectangle().fill(StudioTheme.edge).frame(height: 0.5).accessibilityHidden(true)
             if !run.answer.isEmpty {
@@ -289,26 +381,19 @@ private struct LabComparisonAnswer: View {
             if let error = run.error {
                 StudioNotice(kind: .error, text: error)
             }
-            if run.phase == .complete {
-                let details = [run.generatedTokens.map { L("\($0) tokens générés", "\($0) tokens generated") },
-                               run.elapsedSeconds.map(duration),
-                               run.hitTokenLimit ? L("limite atteinte", "limit reached") : nil,
-                               run.hitContextLimit ? L("contexte plein", "context full") : nil]
-                Text(details.compactMap { $0 }.joined(separator: " · "))
-                    .font(.system(size: 12)).monospacedDigit().foregroundStyle(StudioTheme.quiet)
-                if run.answer.isEmpty {
-                    StudioNotice(text: L("Le modèle a atteint la limite avant de répondre. Essaie un budget plus élevé.",
-                                         "The model reached the limit before answering. Try a larger output budget."))
-                }
+            if run.phase == .complete && run.answer.isEmpty {
+                StudioNotice(text: L("Le modèle a atteint la limite avant de répondre. Essaie un budget plus élevé.",
+                                     "The model reached the limit before answering. Try a larger output budget."))
             }
         }
         .studioCard(padding: 16)
     }
 
-    private func reading(_ title: String, seconds: Double?) -> some View {
+    private func reading(_ title: String, value: String?, color: Color = StudioTheme.ink) -> some View {
         VStack(alignment: .leading, spacing: 3) {
             Text(title).font(.system(size: 12, weight: .medium)).foregroundStyle(StudioTheme.secondary)
-            Text(seconds.map(duration) ?? "—").font(.system(size: 17, weight: .semibold)).monospacedDigit()
+            Text(value ?? "—").font(.system(size: 17, weight: .semibold)).monospacedDigit()
+                .foregroundStyle(value == nil ? StudioTheme.secondary : color)
         }.frame(maxWidth: .infinity, alignment: .leading).accessibilityElement(children: .combine)
     }
 

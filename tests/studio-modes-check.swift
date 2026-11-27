@@ -2,6 +2,7 @@ import AppKit
 import Foundation
 import SwiftUI
 import Vision
+import WebKit
 
 extension StudioModel {
   func modesRegistryForCheck() throws -> URL { try prepareAgentRegistry() }
@@ -74,8 +75,9 @@ extension StudioModel {
         && payload["mcp_enabled"] as? Bool == false && payload["dspark"] as? Bool == false,
         "Same prompt, budget, sampling, empty context and tools disabled")
       identifiers.insert(payload["conversation_id"] as! String)
-      check(run.firstTextSeconds != nil && run.firstTextSeconds! >= 0 && run.elapsedSeconds! >= run.firstTextSeconds!
+      check(run.firstTextSeconds != nil && run.firstTextSeconds! >= 0 && run.totalSeconds! >= run.firstTextSeconds!
         && run.decodeTps == 30 && run.generatedTokens == 6, "Answer clock and engine-only decode measurements")
+      check(run.htmlDocument == nil && run.stopReason == .unknown, "Plain text and older bridge results stay explicit")
     }
     check(identifiers.count == 2 && studio.draft == "unchanged draft" && studio.selectedConversationID == id
       && studio.currentConversation!.messages.count == count && studio.labSamples.isEmpty
@@ -86,7 +88,8 @@ extension StudioModel {
     check(a.phase == .complete && a.error == nil && a.hitTokenLimit && a.answer.isEmpty && a.firstTextSeconds == nil
       && a.generatedTokens == 1 && a.decodeTps == nil && !a.isThinking,
       "A normal limit before a visible answer preserves its counters without inventing a decode interval or an answer")
-    check(b.phase == .complete && b.answer == "B's fallback answer" && b.firstTextSeconds == b.elapsedSeconds
+    check(b.phase == .complete && b.answer == "B's fallback answer" && b.stopReason == .eos
+      && b.firstTextSeconds.map { $0 <= (b.totalSeconds ?? -1) } == true
       && b.decodeTps == nil && b.generatedTokens == nil, "A real fallback answer is timed at completion; missing counters stay missing")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-empty", budget: 8)
     try await wait { !comparison.isRunning && studio.engineState.isReady }
@@ -95,7 +98,8 @@ extension StudioModel {
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-context", budget: 32)
     try await wait { !comparison.isRunning && studio.engineState.isReady }
     check(comparison.runs.allSatisfy {
-      $0.phase == .complete && $0.error == nil && $0.answer == "Text before the context filled" && $0.firstTextSeconds != nil
+      $0.phase == .complete && $0.stopReason == .contextFull && $0.error == nil
+        && $0.answer == "Text before the context filled" && $0.firstTextSeconds != nil
     }, "A full context preserves both streamed and completion-only answers exactly once")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-context-empty", budget: 32)
     try await wait { !comparison.isRunning && studio.engineState.isReady }
@@ -112,12 +116,18 @@ extension StudioModel {
     try await wait { !comparison.isRunning && studio.selectedMode == .chat && studio.engineState.isReady }
     check(comparison.runs.allSatisfy { $0.phase == .cancelled } && studio.draft == "unchanged draft"
       && studio.selectedModelName == first.name && studio.selectedConversationID == id, "Leaving Lab cancels both arms and restores the resident chat")
+    check(comparison.runs.map(\.stopReason) == [.stopped, .skipped]
+      && comparison.runs[0].totalSeconds != nil && comparison.runs[1].totalSeconds == nil
+      && comparison.runs.allSatisfy { $0.generatedTokens == nil },
+      "An active cancellation and a skipped model report only the metrics that were available")
     let timeout = LabComparison(idleTimeout: .milliseconds(350))
     studio.ejectModel()
     await studio.bridge.stopAndWait()
     timeout.start(first, second, prompt: "hang-cooperative", budget: 32) {}
     try await wait { !timeout.isRunning }
-    check(timeout.runs.allSatisfy { $0.phase == .failed && $0.error != nil && $0.firstTextSeconds == nil },
+    check(timeout.runs.allSatisfy {
+      $0.phase == .failed && $0.stopReason == .timedOut && $0.totalSeconds != nil && $0.error != nil && $0.firstTextSeconds == nil
+    },
       "Silent or thinking-only workers time out and relinquish the exclusive lock")
     // JSON escaping makes this legal maximum-size prompt substantially larger than a pipe buffer.
     let large = String(repeating: "\u{001B}", count: 65_536)
@@ -1730,6 +1740,7 @@ extension StudioModesCheck {
       return LocalModel(name: name, path: root.appendingPathComponent(name).path, modelType: "qwen3_5",
         format: "EXL3", bits: 4, sizeBytes: 1024, modules: 1, addedAt: "", size: "1 KiB")
     }
+    window.setContentSize(NSSize(width: 1160, height: 720))
     fixture.models = try [textModel("Atlas"), textModel("Birch")]
     let setup = try await displayedCells()
     expectText("Atlas", in: setup)
@@ -1765,8 +1776,36 @@ extension StudioModesCheck {
     check(recognizesFirstText(in: answers.map(\.text)),
       "Expected 'First text' in rendered Lab, read \(answers.map(\.text))")
     expectText("Decode", in: answers)
+    expectText("Total time", in: answers)
+    expectText("Stop reason", in: answers)
+    expectText("Natural end", in: answers)
+    check(!answers.contains { $0.text.localizedCaseInsensitiveContains("Compare sites") },
+      "A text comparison does not offer site previews")
+    fixture.models = try [textModel("Site Atlas"), textModel("Site Birch")]
+    fixture.startLabComparison(left: "Site Atlas", right: "Site Birch", prompt: "Generate a single HTML page.", budget: 1024)
+    for _ in 0..<200 where fixture.labComparison.isRunning {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    let runs = fixture.labComparison.runs
+    check(runs.map(\.generatedTokens) == [690, 1024] && runs.map(\.stopReason) == [.eos, .contextFull],
+      "The HTML comparison reports the observed token counts and reasons")
+    check(runs.allSatisfy { run in
+      guard run.phase == .complete, let total = run.totalSeconds, let firstText = run.firstTextSeconds else { return false }
+      return total.isFinite && total - firstText >= 0.20
+    }, "Both totals include their own simulated loading interval")
+    check(runs.map(\.model.name) == ["Site Atlas", "Site Birch"]
+      && runs.allSatisfy { $0.htmlDocument?.hasPrefix("<!doctype html>") == true },
+      "Raw HTML and Markdown-wrapped HTML both produce one site")
+    let siteAnswers = try await displayedCells()
+    expectText("Context full", in: siteAnswers)
+    expectText("690", in: siteAnswers)
+    guard let sites = siteAnswers.first(where: { $0.text.localizedCaseInsensitiveContains("Compare sites") }) else {
+      preconditionFailure("Missing side-by-side HTML preview action")
+    }
+    click(sites)
+    try await checkLabSites(window: window, check: check)
     // "This" uniquely identifies this sidebar entry and avoids OCR's Latin/Cyrillic Mac homoglyphs.
-    clickSidebar("This", in: answers)
+    clickSidebar("This", in: siteAnswers)
     let hardware = try await displayedCells()
     check(hardware.contains { $0.text.contains("CPU cores") } && hardware.contains { $0.text.contains("Unified memory") },
       "This Mac shows processor and memory details")
@@ -1815,6 +1854,78 @@ extension StudioModesCheck {
       "Show all time opens the recorded history from an empty period")
 
 
+  }
+
+  @MainActor static func checkLabSites(window: NSWindow, check: (Bool, String) -> Void) async throws {
+    func descendants<T: NSView>(of view: NSView, type: T.Type) -> [T] {
+      (view as? T).map { [$0] } ?? view.subviews.flatMap { descendants(of: $0, type: type) }
+    }
+    var webViews: [WKWebView] = []
+    var viewport: NSSegmentedControl?
+    for _ in 0..<200 {
+      if let content = window.attachedSheet?.contentView {
+        webViews = descendants(of: content, type: WKWebView.self).sorted {
+          $0.convert($0.bounds, to: nil).minX < $1.convert($1.bounds, to: nil).minX
+        }
+        viewport = descendants(of: content, type: NSSegmentedControl.self).first
+        if webViews.count == 2 && viewport != nil { break }
+      }
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    guard webViews.count == 2, let viewport, let sheet = window.attachedSheet else {
+      preconditionFailure("Expected two real WebKit views and a viewport picker in the Lab sheet")
+    }
+    let rectangles = webViews.map { $0.convert($0.bounds, to: nil) }
+    check(rectangles[0].maxX <= rectangles[1].minX && rectangles[0].width > 0 && rectangles[1].width > 0,
+      "Both websites sit side by side within the sheet")
+    func expectViewport(width: Int, color: String) async throws {
+      let script = "[document.title, window.innerWidth, getComputedStyle(document.body).color]"
+      let titles = ["Site Atlas", "Site Birch"]
+      var measurements: [[Any]] = []
+      for _ in 0..<100 {
+        measurements = []
+        for webView in webViews {
+          measurements.append((try? await webView.evaluateJavaScript(script)) as? [Any] ?? [])
+        }
+        if zip(titles, measurements).allSatisfy({ title, values in
+          values.count == 3 && values[0] as? String == title
+            && abs((values[1] as? Int ?? 0) - width) <= 2 && values[2] as? String == color
+        }) { break }
+        try await Task.sleep(for: .milliseconds(25))
+      }
+      check(zip(titles, measurements).allSatisfy { title, values in
+        values.count == 3 && values[0] as? String == title
+          && abs((values[1] as? Int ?? 0) - width) <= 2 && values[2] as? String == color
+      }, "Both previews render at \(width) CSS px with the matching media query, got \(measurements)")
+    }
+    try await expectViewport(width: 1280, color: "rgb(12, 34, 56)")
+    for webView in webViews {
+      let action = "document.querySelector('button').click(); document.querySelector('button').textContent"
+      let clicked = try await webView.evaluateJavaScript(action) as? String
+      check(clicked == "Clicked" && !webView.configuration.websiteDataStore.isPersistent,
+        "Each site runs its own script in a nonpersistent WebKit view")
+    }
+    guard let mobile = (0..<viewport.segmentCount).first(where: { viewport.label(forSegment: $0) == "Mobile" }),
+      let desktop = (0..<viewport.segmentCount).first(where: { viewport.label(forSegment: $0) == "Desktop" }) else {
+      preconditionFailure("Missing Desktop or Mobile viewport option")
+    }
+    viewport.selectedSegment = mobile
+    check(viewport.sendAction(viewport.action, to: viewport.target), "Mobile picker action reaches the sheet")
+    try await expectViewport(width: 390, color: "rgb(70, 80, 90)")
+    viewport.selectedSegment = desktop
+    check(viewport.sendAction(viewport.action, to: viewport.target), "Desktop picker action reaches the sheet")
+    try await expectViewport(width: 1280, color: "rgb(12, 34, 56)")
+    // The sheet publishes a standard cancel keyboard shortcut through its Close button.
+    guard let escape = NSEvent.keyEvent(with: .keyDown, location: .zero, modifierFlags: [],
+      timestamp: ProcessInfo.processInfo.systemUptime, windowNumber: sheet.windowNumber,
+      context: nil, characters: "\u{1b}", charactersIgnoringModifiers: "\u{1b}", isARepeat: false, keyCode: 53) else {
+      preconditionFailure("Unable to send Escape to the Lab site comparison")
+    }
+    sheet.sendEvent(escape)
+    for _ in 0..<80 where window.attachedSheet != nil {
+      try await Task.sleep(for: .milliseconds(25))
+    }
+    check(window.attachedSheet == nil, "Closing the preview returns to the Lab results")
   }
 }
 
