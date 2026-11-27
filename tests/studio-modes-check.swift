@@ -1,4 +1,5 @@
 import AppKit
+import Darwin
 import Foundation
 import SwiftUI
 import Vision
@@ -24,6 +25,9 @@ extension StudioModel {
     }
     let second = entry("compare-test-b", localRoot.appendingPathComponent("b").path, "lfm3")
     for path in [first.path, second.path] { try FileManager.default.createDirectory(atPath: path, withIntermediateDirectories: true) }
+    let qwenTemplate = "{% if enable_thinking is defined and enable_thinking is false %}<think></think>{% else %}<think>{% endif %}"
+    try qwenTemplate.write(to: URL(fileURLWithPath: first.path).appendingPathComponent("chat_template.jinja"),
+      atomically: true, encoding: .utf8)
     let alias = localRoot.appendingPathComponent("alias")
     try FileManager.default.createSymbolicLink(atPath: alias.path, withDestinationPath: first.path)
     let studio = StudioModel(conversationFileURL: localRoot.appendingPathComponent("history"), preferences: prefs)
@@ -37,6 +41,15 @@ extension StudioModel {
         try await Task.sleep(for: .milliseconds(25))
       }
       preconditionFailure("Comparison fixture timed out at line \(line)")
+    }
+    func waitForIdleLab() async throws {
+      try await wait { !comparison.isRunning && studio.modeTransition == nil }
+      check(studio.selectedMode == .lab && studio.engineState == .idle && !studio.bridge.isRunning,
+        "The conversation model stays unloaded while Lab displays its results")
+      let lease = try FileHandle(forUpdating: root.appendingPathComponent("compare.lock"))
+      defer { try? lease.close() }
+      check(flock(lease.fileDescriptor, LOCK_EX | LOCK_NB) == 0,
+        "No fixture engine holds the model lease after Lab stops")
     }
     studio.models = [first, entry("mirror", alias.path, first.modelType), second, entry("image", localRoot.path, "qwen_image"),
       entry("unplugged", localRoot.appendingPathComponent("missing").path, first.modelType)]
@@ -54,9 +67,13 @@ extension StudioModel {
     check(comparison.runs.isEmpty && !comparison.isRunning, "Refuse to compare one model with itself")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "same", budget: 4097)
     check(comparison.runs.isEmpty && !comparison.isRunning, "Invalid budget launches nothing")
+    for invalidBudget in [-2, 0] {
+      studio.startLabComparison(left: first.name, right: second.name, prompt: "same", budget: invalidBudget)
+      check(comparison.runs.isEmpty && !comparison.isRunning, "Only -1 can request generation without a fixed cap")
+    }
     studio.startLabComparison(left: first.name, right: second.name, prompt: "identical ☕ prompt", budget: 128)
     studio.startLabComparison(left: second.name, right: first.name, prompt: "overwrite", budget: 1)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     check(comparison.prompt == "identical ☕ prompt" && comparison.budget == 128, "Running comparison freezes its inputs")
     check(comparison.runs.map(\.model) == [first, second] && comparison.runs.allSatisfy { $0.phase == .complete },
           "Both original arms finish, in order, across the exclusive engine lock")
@@ -80,8 +97,38 @@ extension StudioModel {
     check(identifiers.count == 2 && studio.draft == "unchanged draft" && studio.selectedConversationID == id
       && studio.currentConversation!.messages.count == count && studio.labSamples.isEmpty
       && studio.labUsage.summary(for: .allTime).models.isEmpty, "Lab preserves the draft, conversation and usage")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-unlimited", budget: -1)
+    try await waitForIdleLab()
+    check(comparison.budget == -1 && comparison.runs.map(\.generatedTokens) == [690, 5000]
+      && comparison.runs.allSatisfy { $0.phase == .complete && !$0.hitTokenLimit },
+      "An unlimited comparison accepts a natural stop and a generation past the old maximum")
+    check(!comparison.runs[0].hitContextLimit && comparison.runs[1].hitContextLimit
+      && comparison.runs[1].answer.hasSuffix("<footer>Done</footer>"),
+      "The context boundary is reported and the long response is retained")
+    let legacyPayload = requests.last?["request"] as? [String: Any]
+    check(legacyPayload != nil && legacyPayload?["reasoning_effort"] == nil && legacyPayload?["reasoning_budget"] == nil,
+      "An older bridge and a model without an off switch use the ordinary request")
+    do {
+      let marker = root.appendingPathComponent("agent-loop-engine")
+      FileManager.default.createFile(atPath: marker.path, contents: Data())
+      defer { try? FileManager.default.removeItem(at: marker) }
+      studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-visible-answer", budget: 1024)
+      try await waitForIdleLab()
+      check(comparison.runs.allSatisfy {
+        $0.phase == .complete && !$0.hitTokenLimit && $0.answer == "Visible answer" && $0.firstTextSeconds != nil
+      }, "Both models produce visible text instead of spending 1024 tokens on hidden thinking")
+      let payloads = try String(contentsOf: root.appendingPathComponent("compare-requests.jsonl"), encoding: .utf8)
+        .split(separator: "\n").suffix(2).map { line in
+          let row = try JSONSerialization.jsonObject(with: Data(line.utf8)) as! [String: Any]
+          return row["request"] as! [String: Any]
+        }
+      check(payloads.count == 2 && payloads.allSatisfy { $0["max_tokens"] as? Int == 1024 }
+        && payloads[0]["reasoning_effort"] as? String == "none" && payloads[0]["reasoning_budget"] == nil
+        && payloads[1]["reasoning_effort"] == nil && payloads[1]["reasoning_budget"] as? Int == 256,
+        "Use the native off switch when supported and a short target otherwise")
+    }
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-errors", budget: 1)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     let a = comparison.runs[0], b = comparison.runs[1]
     check(a.phase == .complete && a.error == nil && a.hitTokenLimit && a.answer.isEmpty && a.firstTextSeconds == nil
       && a.generatedTokens == 1 && a.decodeTps == nil && !a.isThinking,
@@ -89,25 +136,31 @@ extension StudioModel {
     check(b.phase == .complete && b.answer == "B's fallback answer" && b.firstTextSeconds == b.elapsedSeconds
       && b.decodeTps == nil && b.generatedTokens == nil, "A real fallback answer is timed at completion; missing counters stay missing")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-empty", budget: 8)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error != nil && $0.firstTextSeconds == nil },
       "Unexpected empty responses are reported as failures")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-context", budget: 32)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     check(comparison.runs.allSatisfy {
       $0.phase == .complete && $0.error == nil && $0.answer == "Text before the context filled" && $0.firstTextSeconds != nil
     }, "A full context preserves both streamed and completion-only answers exactly once")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-context-empty", budget: 32)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     check(comparison.runs.allSatisfy { $0.phase == .failed && $0.answer.isEmpty && $0.error != nil },
       "A full context before any visible text reports the failure")
     studio.startLabComparison(left: first.name, right: second.name, prompt: "comparison-malformed", budget: 1)
-    try await wait { !comparison.isRunning && studio.engineState.isReady }
+    try await waitForIdleLab()
     check(comparison.runs.allSatisfy { $0.phase == .failed && $0.error != nil }, "Malformed frames fail each arm explicitly")
-    studio.startLabComparison(left: first.name, right: second.name, prompt: "hang-ignore", budget: 32)
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "hang-ignore", budget: -1)
     try await wait { comparison.runs.first?.isThinking == true }
     check(comparison.runs.first?.answer.isEmpty == true && comparison.runs.first?.firstTextSeconds == nil,
       "Reasoning can be indicated live without appearing in the visible answer or starting its clock")
+    comparison.cancel()
+    try await waitForIdleLab()
+    check(comparison.runs.allSatisfy { $0.phase == .cancelled },
+      "Stopping an unlimited run unloads the active model and skips the second arm")
+    studio.startLabComparison(left: first.name, right: second.name, prompt: "hang-ignore", budget: 32)
+    try await wait { comparison.runs.first?.isThinking == true }
     studio.leaveLab()
     try await wait { !comparison.isRunning && studio.selectedMode == .chat && studio.engineState.isReady }
     check(comparison.runs.allSatisfy { $0.phase == .cancelled } && studio.draft == "unchanged draft"
@@ -1750,9 +1803,9 @@ extension StudioModesCheck {
       if fixture.labComparison.runs.count == 2 && !fixture.labComparison.isRunning { break }
       try await Task.sleep(for: .milliseconds(25))
     }
-    check(fixture.labComparison.runs.count == 2 && fixture.labComparison.runs.allSatisfy {
+    check(fixture.labComparison.budget == -1 && fixture.labComparison.runs.count == 2 && fixture.labComparison.runs.allSatisfy {
       $0.phase == .complete && !$0.answer.isEmpty && $0.generatedTokens == 6
-    }, "The visible start button submits a real comparison across both fixture engines")
+    }, "The visible start button compares both fixture engines without a fixed cap by default")
     let answers = try await displayedCells()
     // Vision sometimes reads the rendered label as "Firsttext" at 1×.
     func recognizesFirstText(in lines: [String]) -> Bool {

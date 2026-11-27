@@ -149,6 +149,34 @@ elif command == "bridge":
             if model.startswith("compare-test-"):
                 with open(os.path.join(os.environ["MLXL3_HOME"], "compare-requests.jsonl"), "a") as log:
                     log.write(json.dumps({"request": request, "model": model, "registry": registry}) + "\n")
+                if text == "comparison-unlimited":
+                    if request["max_tokens"] != -1:
+                        emit("error", request_id=active, message="Expected an uncapped Lab request")
+                    else:
+                        context_full = model == "compare-test-b"
+                        answer = "<p>HTML fixture</p>\n" * (600 if context_full else 1) + "<footer>Done</footer>"
+                        emit("delta", request_id=active, phase="answer", text=answer)
+                        emit("complete", request_id=active, context_full=context_full,
+                             stop_reason="context_full" if context_full else "eos",
+                             stats={"ttft_seconds": 0.1, "prefill_tps": 120, "decode_tps": 100,
+                                    "prompt_tokens": 12, "generated_tokens": 5000 if context_full else 690})
+                    active = None
+                    continue
+                if text == "comparison-visible-answer":
+                    controlled = (
+                        request.get("reasoning_effort") == "none"
+                        if model == "compare-test-a"
+                        else request.get("reasoning_budget") == 256
+                    )
+                    if controlled:
+                        emit("delta", request_id=active, phase="answer", text="Visible answer")
+                        emit("complete", request_id=active, stop_reason="eos")
+                    else:
+                        emit("delta", request_id=active, phase="thinking", text="Still thinking")
+                        emit("complete", request_id=active, stop_reason="max_tokens",
+                             stats={"generated_tokens": request["max_tokens"], "decode_tps": 48.5})
+                    active = None
+                    continue
                 if text == "comparison-errors" and model == "compare-test-a":
                     emit("delta", request_id="unrelated", phase="answer", text="wrong request")
                     emit("delta", request_id=active, phase="thinking", text="internal thought")

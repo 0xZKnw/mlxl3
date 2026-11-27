@@ -4,7 +4,7 @@ struct LabComparisonDraft {
     var left = ""
     var right = ""
     var prompt = ""
-    var budget = 1024
+    var budget = LabComparison.noOutputLimit
 }
 
 // The Hub appends eight hex digits to installation names. Keep the full name when two
@@ -125,8 +125,7 @@ struct LabComparisonView: View {
                 HStack(spacing: 14) { budgetPicker; Spacer(minLength: 12); startButton }
                 VStack(alignment: .leading, spacing: 12) { budgetPicker; startButton }
             }
-            Text(L("Les modèles répondent l’un après l’autre. Le raisonnement compte dans la limite de sortie.",
-                   "The models run one at a time. Reasoning tokens count toward the output limit."))
+            Text(L("Les modèles répondent l’un après l’autre.", "The models run one at a time."))
                 .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
             if draft.prompt.utf8.count > 65_536 {
                 StudioNotice(kind: .error, text: L("Le prompt dépasse la limite de 64 Kio.", "The prompt exceeds the 64 KiB limit."))
@@ -189,10 +188,12 @@ struct LabComparisonView: View {
         HStack(spacing: 6) {
             Text(L("Limite de sortie", "Output limit")).foregroundStyle(StudioTheme.secondary)
             Picker(L("Limite de sortie", "Output limit"), selection: $draft.budget) {
+                Text(L("Sans limite de sortie", "No output limit")).tag(LabComparison.noOutputLimit)
                 ForEach([128, 256, 512, 1024, 2048, 4096], id: \.self) { Text("\($0) tokens").tag($0) }
             }.labelsHidden().fixedSize()
         }
-        .help(L("Chaque modèle peut terminer sa réponse avant cette limite.", "Either model can finish its answer before this limit."))
+        .help(L("Sans plafond, chaque modèle peut utiliser le reste de son contexte. Un plafond inclut la réflexion.",
+                "With no output limit, each model can use its remaining context. A fixed limit includes thinking."))
     }
 
     private var startButton: some View {
@@ -234,7 +235,9 @@ struct LabComparisonView: View {
                     showingFullPrompt.toggle()
                 }.buttonStyle(.studio(.quiet, height: 24))
             }
-            Text(L("Jusqu’à \(comparison.budget) tokens par modèle", "Up to \(comparison.budget) tokens per model"))
+            Text(comparison.budget == LabComparison.noOutputLimit
+                ? L("Jusqu’à la fin de la réponse ou du contexte", "Until the answer ends or the context fills")
+                : L("Jusqu’à \(comparison.budget) tokens par modèle", "Up to \(comparison.budget) tokens per model"))
                 .font(.system(size: 12)).foregroundStyle(StudioTheme.quiet)
         }
         .studioCard(padding: 16)

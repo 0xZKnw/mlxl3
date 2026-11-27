@@ -18,6 +18,7 @@ final class StudioModel: ObservableObject {
     let labComparison = LabComparison()
     private var comparisonObservation: AnyCancellable?
     private var comparisonDestination: StudioMode?
+    private var labModelToRestore: String?
     private var modeBeforeLab: StudioMode = .chat
     /// One conversation mode (the app since 2.1): every conversation is an Agent task, Chat
     /// is never selected, and conversations saved as chats become tasks without a folder.
@@ -2446,7 +2447,8 @@ final class StudioModel: ObservableObject {
     }
 
     private func loadSelectedModel() {
-        guard !quantizer.converting, !isGenerating || mtpAutoTuneActive, !localServer.active, modeTransition == nil else { return }
+        guard !labComparison.isRunning, !quantizer.converting, !isGenerating || mtpAutoTuneActive,
+              !localServer.active, modeTransition == nil else { return }
         // The bridge restarts below; an automatic Tune is interrupted, not failed.
         interruptMTPAutoTune()
         modelLoadTask?.cancel()
@@ -3008,12 +3010,13 @@ extension StudioModel {
         let installed = comparisonModels
         guard left != right, let first = installed.first(where: { $0.name == left }),
               let second = installed.first(where: { $0.name == right }),
-              LabComparison.validPrompt(prompt), (1...4096).contains(budget) else {
+              LabComparison.validPrompt(prompt), LabComparison.validBudget(budget) else {
             featureError = L("Vérifie les deux modèles, le prompt (64 Kio maximum) et la limite de sortie.",
                              "Check the two models, the prompt (64 KiB maximum), and the output limit.")
             return
         }
-        let previous = engineState.isReady ? selectedModelName : nil
+        // Keep the conversation model unloaded while viewing results or running another comparison.
+        if engineState.isReady { labModelToRestore = selectedModelName }
         ejectModel()
         labComparison.start(first, second, prompt: prompt, budget: budget) { [weak self] in
             await self?.bridge.stopAndWait()
@@ -3027,27 +3030,33 @@ extension StudioModel {
                 comparisonDestination = nil
                 selectMode(next)
             }
-            // Return the previous resident model to the same conversation and registry.
-            if let previous, selectedModelName == previous, !canEject,
-               selectedMode != .decision, !decision.active, !localServer.active { loadSelectedModel() }
         }
     }
 
     func leaveLab() {
         guard selectedMode == .lab else { return }
-        if labComparison.isRunning {
+        if labComparison.isRunning || modeTransition != nil {
             comparisonDestination = modeBeforeLab
             labComparison.cancel()
             return
         }
         // Opening Lab keeps the running workspace and its selected conversation alive.
         selectedMode = modeBeforeLab
+        restoreModelAfterLab()
+    }
+
+    private func restoreModelAfterLab() {
+        guard selectedMode == .chat || selectedMode == .agent, let previous = labModelToRestore else { return }
+        labModelToRestore = nil
+        if selectedModelName == previous, !canEject, !decision.active, !localServer.active {
+            loadSelectedModel()
+        }
     }
 
     func selectMode(_ mode: StudioMode) {
         // One conversation mode: whatever still asks for Chat gets Agent.
         let mode = unified && mode == .chat ? StudioMode.agent : mode
-        if selectedMode == .lab, mode != .lab, labComparison.isRunning {
+        if selectedMode == .lab, mode != .lab, labComparison.isRunning || modeTransition != nil {
             comparisonDestination = mode
             labComparison.cancel()
             return
@@ -3091,6 +3100,7 @@ extension StudioModel {
             newConversation()
             if mode != .agent && canEject { loadSelectedModel() }
         }
+        restoreModelAfterLab()
     }
 
     /// What the app keeps for one Agent task: `files` (its private copy, unless it works in
@@ -3405,6 +3415,7 @@ extension StudioModel {
     func stopServices() {
         labComparison.cancel()
         comparisonDestination = nil
+        labModelToRestore = nil
         cancelPendingRegeneration()
         modelLoadID = UUID()
         modelLoadTask?.cancel(); modelLoadTask = nil

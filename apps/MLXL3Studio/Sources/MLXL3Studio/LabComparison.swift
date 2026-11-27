@@ -5,6 +5,9 @@ import Foundation
 /// participates in a Studio conversation, its tools, or the usage ledger.
 @MainActor
 final class LabComparison: ObservableObject {
+    // The bridge reserves -1 for generation up to the remaining context.
+    nonisolated static let noOutputLimit = -1
+
     enum Phase { case waiting, loading, generating, complete, failed, cancelled }
 
     struct Run: Identifiable {
@@ -39,9 +42,13 @@ final class LabComparison: ObservableObject {
         !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && text.utf8.count <= 65_536
     }
 
+    static func validBudget(_ budget: Int) -> Bool {
+        budget == noOutputLimit || (1...4096).contains(budget)
+    }
+
     func start(_ first: LocalModel, _ second: LocalModel, prompt: String, budget: Int,
                prepare: @escaping @MainActor () async -> Void) {
-        guard !isRunning, first.id != second.id, Self.validPrompt(prompt), (1...4096).contains(budget) else { return }
+        guard !isRunning, first.id != second.id, Self.validPrompt(prompt), Self.validBudget(budget) else { return }
         self.prompt = prompt
         self.budget = budget
         runs = [Run(model: first), Run(model: second)]
@@ -118,9 +125,16 @@ final class LabComparison: ObservableObject {
                     throw MLXL3BridgeError.commandFailed(event.message ?? L("Erreur du moteur.", "Engine error."))
                 }
                 if event.type == "ready", started == nil {
+                    let disableThinking = event.reasoningEffortSupported == true
+                        && (event.reasoningEffortLevels?.contains(ReasoningEffort.none.rawValue) ?? true)
+                        && ReasoningSupport.detect(modelPath: runs[index].model.path)?.levels.contains(.none) == true
+                    // The bridge bounds this target to half the space available for output.
+                    let reasoningBudget = !disableThinking && event.agentLoopSupported == true ? 256 : nil
                     let request = GenerationRequest(requestID: requestID, conversationID: UUID().uuidString,
                         messages: [PromptMessage(role: "user", content: prompt)], maxTokens: budget,
-                        temperature: 0, topK: 0, repetitionPenalty: 1, dspark: false)
+                        temperature: 0, topK: 0, repetitionPenalty: 1, dspark: false,
+                        reasoningEffort: disableThinking ? ReasoningEffort.none.rawValue : nil,
+                        reasoningBudget: reasoningBudget)
                     started = .now
                     try bridge.generate(request) { channel.yield(.failure($0)) }
                     runs[index].phase = .generating
