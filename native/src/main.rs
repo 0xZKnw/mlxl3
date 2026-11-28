@@ -6604,6 +6604,9 @@ fn release_bridge_idle_state(
     if !(keep_inkling && !memory_saver && matches!(model, NativeChatModel::Inkling(..))) {
         model.reset();
     }
+    if memory_saver && let NativeChatModel::Inkling(target, ..) = model {
+        target.release_idle_vision();
+    }
     let reset = head.map_or(Ok(()), ChatMtpHead::reset);
     let released = mlxl3_native::array::release_idle_cache_with_policy(memory_saver);
     reset?;
@@ -6987,6 +6990,9 @@ fn native_bridge(
                 mcp.set_enabled(&registry_path, request.mcp_enabled, false);
                 let request_id = request.request_id.clone();
                 let memory_saver = request.memory_saver;
+                if let NativeChatModel::Inkling(target, ..) = &mut model {
+                    target.set_release_vision_after_encoding(memory_saver);
+                }
                 let result = (|| -> Result<()> {
                     let mut draft_load_seconds = 0.;
                     anyhow::ensure!(

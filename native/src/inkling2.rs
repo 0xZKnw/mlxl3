@@ -4145,19 +4145,12 @@ pub struct Inkling2 {
     /// SPEED-2026-11-23-INK2M-MAYA PC: lineage of the cache rows, renewed by every `reset` (process-wide
     /// unique), so a saved prefix only resumes the state it was taken from.
     epoch: u64,
-    /// Vision encoder: absent from the checkpoint, loadable on the first image, or loaded.
-    vision: VisionSlot,
+    /// Vision encoder, loaded on demand for checkpoints with image support.
+    vision: Option<crate::inkling2_vision_slot::VisionSlot<Box<crate::inkling2_vision::Vision>>>,
+    release_vision_after_encoding: bool,
     /// Image features of the current prompt: `(first position, rows [n, D] FP32)` in position order. They
     /// replace the embeddings of those positions; `reset` and `prepare_images` clear them.
     images: Vec<(i32, Array)>,
-}
-
-/// Where the vision encoder of an Inkling checkpoint is.
-enum VisionSlot {
-    Absent,
-    /// The checkpoint directory; loaded by the first `prepare_images` with pictures.
-    Available(std::path::PathBuf),
-    Loaded(Box<crate::inkling2_vision::Vision>),
 }
 
 /// Process-wide source of `Inkling2::epoch` values.
@@ -4397,20 +4390,28 @@ impl Inkling2 {
             offset: 0,
             epoch: next_epoch(),
             // `MLXL3_INKLING_VISION=0` keeps the model text only
-            vision: if crate::inkling2_vision::Vision::present(checkpoint)
-                && std::env::var("MLXL3_INKLING_VISION").as_deref() != Ok("0")
-            {
-                VisionSlot::Available(checkpoint.path.clone())
-            } else {
-                VisionSlot::Absent
-            },
+            vision: (crate::inkling2_vision::Vision::present(checkpoint)
+                && std::env::var("MLXL3_INKLING_VISION").as_deref() != Ok("0"))
+            .then(|| crate::inkling2_vision_slot::VisionSlot::new(checkpoint.path.clone())),
+            release_vision_after_encoding: false,
             images: Vec::new(),
         })
     }
 
     /// The checkpoint ships the vision encoder: `prepare_images` accepts pictures.
     pub fn supports_images(&self) -> bool {
-        !matches!(self.vision, VisionSlot::Absent)
+        self.vision.is_some()
+    }
+
+    /// In memory saver mode only the evaluated image features remain during language prefill.
+    pub fn set_release_vision_after_encoding(&mut self, release: bool) {
+        self.release_vision_after_encoding = release;
+    }
+
+    pub fn release_idle_vision(&mut self) {
+        if let Some(vision) = &mut self.vision {
+            vision.release();
+        }
     }
 
     /// Encodes `images` and places their features at the image placeholders of `tokens`, the whole
@@ -4424,6 +4425,9 @@ impl Inkling2 {
     ) -> Result<()> {
         self.images.clear();
         if images.is_empty() {
+            if self.release_vision_after_encoding {
+                self.release_idle_vision();
+            }
             return Ok(());
         }
         ensure!(
@@ -4440,33 +4444,28 @@ impl Inkling2 {
             "image placeholders of the prompt do not match its {} images",
             images.len()
         );
-        if let VisionSlot::Available(path) = &self.vision {
-            let path = path.clone();
-            let checkpoint = checkpoint::inspect(&path)?;
-            let root: serde_json::Value =
-                serde_json::from_reader(File::open(path.join("config.json"))?)?;
-            let vision = crate::inkling2_vision::Vision::load(&checkpoint, &root)
-                .context("loading the Inkling vision encoder")?;
-            ensure!(
-                vision.text_hidden() == self.hidden,
-                "Inkling vision output does not match the language model"
-            );
-            self.vision = VisionSlot::Loaded(Box::new(vision));
-        }
-        let VisionSlot::Loaded(vision) = &self.vision else {
-            anyhow::bail!("this Inkling checkpoint has no vision encoder");
-        };
-        let mut placed = Vec::with_capacity(images.len());
-        for (&(first, length), image) in runs.iter().zip(images) {
-            let features = vision.forward(image)?.astype(Dtype::Float32)?;
-            features.eval()?;
-            ensure!(
-                features.shape() == [i32::try_from(length)?, self.hidden],
-                "unexpected Inkling image feature shape"
-            );
-            placed.push((i32::try_from(first)?, features));
-        }
-        self.images = placed;
+        let vision = self
+            .vision
+            .as_mut()
+            .context("this Inkling checkpoint has no vision encoder")?;
+        let hidden = self.hidden;
+        self.images = vision.with_encoder(
+            self.release_vision_after_encoding,
+            |path| crate::inkling2_vision::Vision::load_from_path(path, hidden).map(Box::new),
+            |vision| -> Result<_> {
+                let mut placed = Vec::with_capacity(images.len());
+                for (&(first, length), image) in runs.iter().zip(images) {
+                    let features = vision.forward(image)?.astype(Dtype::Float32)?;
+                    features.eval()?;
+                    ensure!(
+                        features.shape() == [i32::try_from(length)?, hidden],
+                        "unexpected Inkling image feature shape"
+                    );
+                    placed.push((i32::try_from(first)?, features));
+                }
+                Ok(placed)
+            },
+        )?;
         Ok(())
     }
 
@@ -5453,7 +5452,7 @@ pub(crate) fn with_moe_group<T>(group: usize, run: impl FnOnce() -> T) -> T {
     run()
 }
 
-/// Test and export helper: writes `tensors` (U32, F16 or F32, row-major) as one safetensors file.
+/// Test and export helper: writes row-major `tensors` as one safetensors file.
 #[cfg(test)]
 pub(crate) fn write_safetensors(path: &Path, tensors: &[(String, &Array)]) -> Result<()> {
     use std::io::Write;
@@ -5463,7 +5462,9 @@ pub(crate) fn write_safetensors(path: &Path, tensors: &[(String, &Array)]) -> Re
     for (name, array) in tensors {
         let dtype = match array.dtype() {
             Dtype::UInt32 => "U32",
+            Dtype::Int16 => "I16",
             Dtype::Float16 => "F16",
+            Dtype::BFloat16 => "BF16",
             Dtype::Float32 => "F32",
             other => anyhow::bail!("{name}: cannot write dtype {other:?}"),
         };
