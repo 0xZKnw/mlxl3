@@ -117,6 +117,8 @@ pub mod inkling2_draft;
 #[cfg(feature = "mlx")]
 pub mod inkling2_lookup;
 pub mod inkling2_vision;
+#[cfg(any(feature = "mlx", test, kani))]
+mod inkling2_vision_slot;
 #[cfg(feature = "mlx")]
 pub mod lfm2;
 pub mod lfm3;

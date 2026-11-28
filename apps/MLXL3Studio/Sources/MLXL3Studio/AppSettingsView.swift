@@ -207,8 +207,8 @@ struct AppSettingsView: View {
                                    ? L("Mets à jour le moteur pour utiliser cette option.", "Update the engine to use this option.") + " "
                                    : "")
                                    + L(
-                                       "Libère le cache de contexte après chaque réponse sans décharger le modèle. Le prochain message peut démarrer plus lentement.",
-                                       "Frees the context cache after each response while keeping the model loaded. The next message may start more slowly."
+                                       "Libère le cache de contexte après chaque réponse et l’encodeur d’images d’Inkling après usage. Le prochain message peut démarrer plus lentement.",
+                                       "Frees the context cache after each response and Inkling’s image encoder after use. The next message may start more slowly."
                                    )) {
                         Toggle(
                             L("Économie de mémoire", "Memory saving"),

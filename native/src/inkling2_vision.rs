@@ -300,6 +300,18 @@ mod runtime {
             Self::load_as(cp, root, Dtype::Float32)
         }
 
+        pub(crate) fn load_from_path(path: &std::path::Path, hidden: i32) -> Result<Self> {
+            let checkpoint = crate::checkpoint::inspect(path)?;
+            let root = serde_json::from_reader(std::fs::File::open(path.join("config.json"))?)?;
+            let vision =
+                Self::load(&checkpoint, &root).context("loading the Inkling vision encoder")?;
+            ensure!(
+                vision.text_hidden() == hidden,
+                "Inkling vision output does not match the language model"
+            );
+            Ok(vision)
+        }
+
         /// The encoder computing its activations in `dtype` (BF16 or FP32; LayerNorm, rotary embedding
         /// and position resampling stay in FP32 either way). The weights stay in their stored type.
         pub(crate) fn load_as(
@@ -543,6 +555,112 @@ mod gpu_tests {
     use anyhow::{Context, Result, ensure};
     use serde_json::{Value, json};
     use std::path::{Path, PathBuf};
+
+    #[test]
+    #[ignore = "requires an Apple GPU but uses only a synthetic vision checkpoint"]
+    fn vision_features_survive_eviction_and_reload() -> Result<()> {
+        use crate::{array::Array, inkling2_vision_slot::VisionSlot, lfm3::PreparedImage};
+        let dir = tempfile::tempdir()?;
+        let path = dir.path();
+        let root = json!({
+            "model_type": "inkling2",
+            "text_config": {"hidden_size": 4},
+            "vision_config": {"hidden_size": 4, "num_attention_heads": 1,
+                "num_hidden_layers": 1, "intermediate_size": 8, "patch_size": 20,
+                "spatial_merge_size": 2, "posemb_grid_size": 2,
+                "projection_hidden_dim": 8, "text_hidden_size": 4}
+        });
+        std::fs::write(path.join("config.json"), serde_json::to_vec(&root)?)?;
+        std::fs::write(
+            path.join("quantization_config.json"),
+            br#"{"quant_method":"exl3","tensor_storage":{"synthetic":{"quant_format":"exl3"}}}"#,
+        )?;
+        std::fs::write(path.join("tokenizer.json"), b"{}")?;
+        let mut weights = Vec::new();
+        let mut tensor = |name: &str, shape: &[i32]| -> Result<()> {
+            let n = shape.iter().product::<i32>();
+            let values: Vec<_> = (0..n).map(|i| ((i * 11 % 43) - 21) as f32 / 256.).collect();
+            weights.push((
+                format!("model.visual.{name}"),
+                Array::from_f32(&values, shape)?.astype(Dtype::BFloat16)?,
+            ));
+            Ok(())
+        };
+        for suffix in ["class_embedding", "cls_position_embedding"] {
+            tensor(&format!("backbone.embeddings.{suffix}"), &[4])?;
+        }
+        tensor("backbone.embeddings.position_embedding", &[4, 4])?;
+        tensor(
+            "backbone.embeddings.patch_embedding.weight",
+            &[4, super::PATCH_VALUES as i32],
+        )?;
+        for name in [
+            "backbone.ln_pre",
+            "backbone.layers.0.ln_1",
+            "backbone.layers.0.ln_2",
+        ] {
+            tensor(&format!("{name}.weight"), &[4])?;
+            tensor(&format!("{name}.bias"), &[4])?;
+        }
+        for (name, rows, cols) in [
+            ("self_attn.q_proj", 4, 4),
+            ("self_attn.k_proj", 4, 4),
+            ("self_attn.v_proj", 4, 4),
+            ("self_attn.out_proj", 4, 4),
+            ("mlp.c_fc", 8, 4),
+            ("mlp.c_proj", 4, 8),
+        ] {
+            let name = format!("backbone.layers.0.{name}");
+            tensor(&format!("{name}.weight"), &[rows, cols])?;
+            tensor(&format!("{name}.bias"), &[rows])?;
+        }
+        for name in ["ls_1", "ls_2"] {
+            tensor(&format!("backbone.layers.0.{name}.gamma"), &[4])?;
+        }
+        tensor("proj_in.weight", &[8, 16])?;
+        tensor("proj_out.weight", &[4, 8])?;
+        // The real checkpoint inspector requires an EXL3 module. Its tiny
+        // placeholder is only inspected, never loaded by the vision encoder.
+        weights.push((
+            "synthetic.trellis".into(),
+            Array::zeros_dtype(&[1, 1, 16], Dtype::Int16)?,
+        ));
+        for name in ["synthetic.suh", "synthetic.svh"] {
+            weights.push((name.into(), Array::zeros_dtype(&[16], Dtype::Float16)?));
+        }
+        let tensors: Vec<_> = weights
+            .iter()
+            .map(|(name, weight)| (name.clone(), weight))
+            .collect();
+        crate::inkling2::write_safetensors(&path.join("model-vision.safetensors"), &tensors)?;
+        drop(weights);
+
+        let mut slot = VisionSlot::new(path.to_path_buf());
+        let load = |p: &Path| super::Vision::load_from_path(p, 4);
+        let encode = |vision: &super::Vision| {
+            [0.25, -0.375]
+                .map(|value| {
+                    vision.forward(&PreparedImage {
+                        width: 2,
+                        height: 2,
+                        patches: vec![value; 4 * super::PATCH_VALUES],
+                    })
+                })
+                .into_iter()
+                .collect::<Result<Vec<_>>>()
+        };
+        let reference = slot.with_encoder(false, load, encode)?;
+        let evicted = slot.with_encoder(true, load, encode)?;
+        let reloaded = slot.with_encoder(true, load, encode)?;
+        assert_eq!(reloaded.len(), 2);
+        for ((expected, after), next) in reference.iter().zip(evicted).zip(reloaded) {
+            assert_eq!(expected.shape(), &[1, 4]);
+            assert!(expected.to_f32()?.iter().all(|v| v.is_finite()));
+            assert_eq!(expected.to_bytes()?, after.to_bytes()?);
+            assert_eq!(expected.to_bytes()?, next.to_bytes()?);
+        }
+        Ok(())
+    }
 
     fn relative_l2(actual: &[f32], expected: &[f32]) -> f64 {
         let error: f64 = actual

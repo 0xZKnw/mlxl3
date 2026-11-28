@@ -187,6 +187,7 @@ def test_required_obligations_preserve_baseline_and_complete_partitions():
         ]
     )
     added = {
+        "inkling2_vision_slot::vision_slot_preserves_checkpoint_and_releases_only_when_requested",
         "agent_loop::reasoning_cut_reserves_answer_tokens",
         "agent_turn::queued_guidance_never_overrides_stop_or_starts_a_tool",
         "mtp_projection::compact_projection_chunks_and_offsets_are_bounded",
