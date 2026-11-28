@@ -94,8 +94,10 @@ final class StudioModel: ObservableObject {
     @Published private(set) var attachmentDrafts: [UUID: [ChatAttachment]] = [:] { didSet { schedulePersistence(); if !hasDraftContent { attemptedSendWithoutModel = false } } }
     @Published private(set) var attachmentImportErrors: [UUID: String] = [:]
     @Published private(set) var isImportingFiles = false
+    @Published private(set) var isTranscribingFiles = false
     private var attachmentImportID: UUID?
     private var attachmentImportConversationID: UUID?
+    private var attachmentImportTask: Task<ChatAttachmentImporter.Batch, Never>?
     @Published var storageError: String?
     private var persistenceBlocked = false
     private var persistenceRevision = 0
@@ -1035,11 +1037,14 @@ final class StudioModel: ObservableObject {
         let panel = NSOpenPanel()
         panel.title = L("Joindre des fichiers", "Attach files")
         panel.message = canImportImages
-            ? L("PDF, texte et images PNG/JPEG/WebP · 8 fichiers · images : 8 Mio au total", "PDF, text and PNG/JPEG/WebP images · 8 files · images: 8 MiB total")
-            : L("PDF et texte · 8 fichiers maximum · 20 Mio par fichier", "PDF and text · up to 8 files · 20 MiB per file")
+            ? L("PDF, texte, images PNG/JPEG/WebP et audio M4A/WAV/MP3 · 8 fichiers",
+                "PDF, text, PNG/JPEG/WebP images and M4A/WAV/MP3 audio · 8 files")
+            : L("PDF, texte et audio M4A/WAV/MP3 · 8 fichiers",
+                "PDF, text and M4A/WAV/MP3 audio · 8 files")
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = true
-        panel.allowedContentTypes = ChatAttachmentImporter.contentTypes + (canImportImages ? ChatAttachmentImporter.imageContentTypes : [])
+        panel.allowedContentTypes = ChatAttachmentImporter.contentTypes + AudioFileTranscription.contentTypes
+            + (canImportImages ? ChatAttachmentImporter.imageContentTypes : [])
         // Extensionless text files are valid too; unsupported formats get an explicit error.
         panel.allowsOtherFileTypes = true
         guard panel.runModal() == .OK else { return }
@@ -1047,10 +1052,14 @@ final class StudioModel: ObservableObject {
         Task { await importChatFiles(urls) }
     }
 
-    func importChatFiles(_ urls: [URL]) async {
+    func importChatFiles(
+        _ urls: [URL], recognize: @escaping AudioFileTranscription.Recognize = AudioFileTranscription.recognize
+    ) async {
         guard !urls.isEmpty else { return }
-        await importChatAttachments { existing, allowImages in
-            ChatAttachmentImporter.load(urls, existing: existing, allowImages: allowImages)
+        let locale = Locale(identifier: voiceLocale)
+        await importChatAttachments(includesAudio: urls.contains(where: AudioFileTranscription.supports)) { existing, allowImages in
+            await ChatAttachmentImporter.loadChatFiles(
+                urls, existing: existing, allowImages: allowImages, locale: locale, recognize: recognize)
         }
     }
 
@@ -1071,28 +1080,29 @@ final class StudioModel: ObservableObject {
     }
 
     private func importChatAttachments(
-        _ load: @escaping @Sendable ([ChatAttachment], Bool) -> ChatAttachmentImporter.Batch
+        includesAudio: Bool = false,
+        _ load: @escaping @Sendable ([ChatAttachment], Bool) async -> ChatAttachmentImporter.Batch
     ) async {
         guard canImportFiles, let id = selectedConversationID else { return }
         let token = UUID()
         attachmentImportID = token
         attachmentImportConversationID = id
         isImportingFiles = true
+        isTranscribingFiles = includesAudio
         attachmentImportErrors[id] = nil
         let existing = pendingAttachments
         let allowImages = canImportImages
         let task = Task.detached(priority: .userInitiated) {
-            load(existing, allowImages)
+            await load(existing, allowImages)
         }
+        attachmentImportTask = task
         let result = await withTaskCancellationHandler {
             await task.value
         } onCancel: {
             task.cancel()
         }
         guard attachmentImportID == token else { return }
-        attachmentImportID = nil
-        attachmentImportConversationID = nil
-        isImportingFiles = false
+        finishChatFileImport()
         guard !Task.isCancelled, conversations.contains(where: { $0.id == id }) else { return }
         attachmentDrafts[id] = result.attachments
         attachmentImportErrors[id] = result.errors.isEmpty ? nil : result.errors.joined(separator: "\n")
@@ -1108,14 +1118,23 @@ final class StudioModel: ObservableObject {
         attachmentImportErrors[id] = nil
     }
 
+    func cancelChatFileImport() {
+        attachmentImportTask?.cancel()
+        finishChatFileImport()
+    }
+
+    private func finishChatFileImport() {
+        attachmentImportTask = nil
+        attachmentImportID = nil
+        attachmentImportConversationID = nil
+        isImportingFiles = false
+        isTranscribingFiles = false
+    }
+
     private func clearAttachmentDraft(_ id: UUID) {
         attachmentDrafts[id] = nil
         attachmentImportErrors[id] = nil
-        if attachmentImportConversationID == id {
-            attachmentImportID = nil
-            attachmentImportConversationID = nil
-            isImportingFiles = false
-        }
+        if attachmentImportConversationID == id { cancelChatFileImport() }
     }
 
     var isGenerating: Bool {
@@ -3403,6 +3422,7 @@ extension StudioModel {
     }
 
     func stopServices() {
+        cancelChatFileImport()
         labComparison.cancel()
         comparisonDestination = nil
         cancelPendingRegeneration()

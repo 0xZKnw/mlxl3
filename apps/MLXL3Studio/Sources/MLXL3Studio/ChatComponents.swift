@@ -904,6 +904,17 @@ struct ChatAttachmentView: View {
     var onRemove: (() -> Void)? = nil
     @State private var showPreview = false
 
+    private var fileIcon: String {
+        if attachment.isAudioTranscript { return "waveform" }
+        return attachment.fileName.lowercased().hasSuffix(".pdf") ? "doc.richtext" : "doc.text"
+    }
+
+    private var previewTitle: String {
+        if attachment.image != nil { return L("Afficher l’image", "Preview image") }
+        if attachment.isAudioTranscript { return L("Afficher la transcription", "Preview transcript") }
+        return L("Afficher le texte extrait", "Preview extracted text")
+    }
+
     var body: some View {
         HStack(spacing: 8) {
             Button { showPreview = true } label: {
@@ -916,17 +927,22 @@ struct ChatAttachmentView: View {
                         .frame(width: image.size.width * scale, height: image.size.height * scale)
                         .clipShape(RoundedRectangle(cornerRadius: 8))
                 } else {
-                    Label(attachment.fileName, systemImage: attachment.fileName.lowercased().hasSuffix(".pdf") ? "doc.richtext" : "doc.text")
+                    Label(attachment.fileName, systemImage: fileIcon)
                         .lineLimit(1)
                         .truncationMode(.middle)
                 }
             }
             .buttonStyle(.plain)
             .accessibilityLabel(attachment.fileName)
-            .help(attachment.image != nil ? L("Afficher l’image", "Preview image") : L("Afficher le texte extrait", "Preview extracted text"))
+            .help(previewTitle)
             .popover(isPresented: $showPreview) {
                 VStack(alignment: .leading, spacing: 12) {
                     Text(attachment.fileName).font(.headline)
+                    if attachment.isAudioTranscript {
+                        Text(L("Transcription locale", "On-device transcript"))
+                            .font(.subheadline)
+                            .foregroundStyle(StudioTheme.secondary)
+                    }
                     if let data = attachment.image?.data, let image = NSImage(data: data) {
                         Image(nsImage: image).renderingMode(.original).resizable().scaledToFit()
                             .accessibilityLabel(attachment.fileName)
@@ -999,8 +1015,12 @@ struct ComposerView: View {
             if studio.isImportingFiles {
                 HStack(spacing: 8) {
                     ProgressView().controlSize(.mini)
-                    Text(L("Lecture des fichiers…", "Reading files…"))
+                    Text(studio.isTranscribingFiles
+                        ? L("Transcription audio locale…", "Transcribing audio on device…")
+                        : L("Lecture des fichiers…", "Reading files…"))
                     Spacer()
+                    Button(L("Annuler", "Cancel"), action: studio.cancelChatFileImport)
+                        .buttonStyle(.plain)
                 }
                 .font(.system(size: 11))
                 .foregroundStyle(StudioTheme.secondary)

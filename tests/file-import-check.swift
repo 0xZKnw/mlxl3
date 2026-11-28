@@ -1,9 +1,26 @@
+import AVFoundation
 import AppKit
 import CoreText
 import PDFKit
 import SwiftUI
 
 private struct CheckFailure: Error { let message: String }
+
+private actor RecognitionProbe {
+  private(set) var started = false
+  private(set) var cancelled = false
+
+  func recognize() async throws -> String {
+    started = true
+    do {
+      try await Task.sleep(for: .seconds(2))
+    } catch {
+      cancelled = true
+      throw error
+    }
+    return "Cancelled transcript"
+  }
+}
 
 @main struct FileImportCheck {
   static func require(_ condition: @autoclosure () throws -> Bool, _ message: String) throws {
@@ -45,6 +62,116 @@ private struct CheckFailure: Error { let message: String }
       context.endPDFPage()
     }
     context.closePDF()
+  }
+
+  static func wav(at url: URL, frames: Int64) throws {
+    guard let format = AVAudioFormat(commonFormat: .pcmFormatInt16, sampleRate: 8_000, channels: 1, interleaved: true),
+          let buffer = AVAudioPCMBuffer(pcmFormat: format, frameCapacity: 8_000),
+          let samples = buffer.int16ChannelData?[0]
+    else { throw CheckFailure(message: "Cannot create PCM fixture") }
+    samples.update(repeating: 0, count: Int(buffer.frameCapacity))
+    let file = try AVAudioFile(forWriting: url, settings: format.settings,
+      commonFormat: .pcmFormatInt16, interleaved: true)
+    var remaining = frames
+    while remaining > 0 {
+      buffer.frameLength = UInt32(min(remaining, Int64(buffer.frameCapacity)))
+      try file.write(from: buffer)
+      remaining -= Int64(buffer.frameLength)
+    }
+  }
+
+  @MainActor static func checkAudio(root: URL, prefs: UserDefaults) async throws {
+    let sample = root.appendingPathComponent("meeting.WAV")
+    try wav(at: sample, frames: 16_000)
+    let transcript = "[00:01] The CEDAR-42 budget is seventy-three euros."
+    let history = root.appendingPathComponent("audio-history.json")
+    let studio = StudioModel(conversationFileURL: history, preferences: prefs, unified: true)
+    defer { studio.stopServices() }
+    let expectedLocale = studio.voiceLocale
+    let recognize: AudioFileTranscription.Recognize = { file, locale in
+      try require(file.length == 16_000 && file.processingFormat.sampleRate == 8_000,
+        "The recognizer did not receive decoded audio")
+      try require(locale.identifier == expectedLocale, "Audio import did not use the preferred locale")
+      return transcript
+    }
+    try require(studio.selectedMode == .agent, "Audio check must use unified Agent")
+    try require(
+      ["meeting.WAV", "memo.m4a", "clip.MP3"].allSatisfy {
+        AudioFileTranscription.supports(URL(fileURLWithPath: $0))
+      } && !AudioFileTranscription.supports(URL(fileURLWithPath: "movie.mp4")),
+      "Audio formats are incorrectly detected")
+    await studio.importChatFiles([sample], recognize: recognize)
+    try require(studio.pendingAttachments.count == 1 && studio.attachmentImportError == nil,
+      "Agent did not attach the audio transcript")
+    let attachment = studio.pendingAttachments[0]
+    try require(attachment.text == transcript && attachment.fileName == "meeting.WAV"
+      && attachment.image == nil && attachment.isAudioTranscript, "Audio import changed the transcript or its kind")
+    let corrupt = root.appendingPathComponent("corrupt.mp3")
+    try Data("invalid audio".utf8).write(to: corrupt)
+    let failed = await ChatAttachmentImporter.loadChatFiles(
+      [corrupt], existing: [attachment], allowImages: false, locale: .init(identifier: expectedLocale),
+      recognize: { _, _ in throw CheckFailure(message: "Unreadable audio reached the recognizer") })
+    try require(failed.attachments == [attachment] && failed.errors == [
+      "corrupt.mp3: " + AttachmentImportError.invalidAudio.localizedDescription
+    ], "Corrupt audio should provide a targeted error and preserve the draft")
+    await studio.importChatFiles([sample], recognize: { _, _ in " \t\n" })
+    try require(studio.pendingAttachments == [attachment] && studio.attachmentImportError?.contains(
+      AttachmentImportError.noSpeech.localizedDescription) == true, "Silence did not report a targeted error")
+
+    let longClip = root.appendingPathComponent("six-minutes.wav")
+    try wav(at: longClip, frames: 8_000 * 300 + 1)
+    let huge = root.appendingPathComponent("too-big.wav")
+    try Data().write(to: huge)
+    let file = try FileHandle(forWritingTo: huge)
+    try file.truncate(atOffset: UInt64(AudioFileTranscription.maxFileBytes) + 1)
+    try file.close()
+    let limits = await ChatAttachmentImporter.loadChatFiles(
+      [longClip, huge], existing: [], allowImages: false, locale: .init(identifier: expectedLocale),
+      recognize: { _, _ in throw CheckFailure(message: "Too-large audio reached the recognizer") })
+    try require(limits.attachments.isEmpty && limits.errors == [
+      "six-minutes.wav: " + AttachmentImportError.audioTooLong.localizedDescription,
+      "too-big.wav: " + AttachmentImportError.audioTooLarge.localizedDescription
+    ], "Audio limit checks did not reject before recognition")
+
+    studio.models = [LocalModel(name: "audio-file-import", path: root.path, modelType: "fixture",
+      format: "EXL3", bits: 3, sizeBytes: 1, modules: 1, addedAt: "", size: "1 B")]
+    studio.selectModel("audio-file-import")
+    for _ in 0..<250 where !studio.canSend { try await Task.sleep(for: .milliseconds(20)) }
+    try require(studio.canSend && studio.agentToolsReady, "Agent transcript-only send unavailable")
+
+    let probe = RecognitionProbe()
+    let importing = Task {
+      await studio.importChatFiles([sample]) { _, _ in try await probe.recognize() }
+    }
+    for _ in 0..<200 {
+      if await probe.started { break }
+      try await Task.sleep(for: .milliseconds(5))
+    }
+    let started = await probe.started
+    try require(started && studio.isImportingFiles && studio.isTranscribingFiles && !studio.canSend,
+      "Import did not block send while recognizing audio")
+    studio.cancelChatFileImport()
+    await importing.value
+    let cancelled = await probe.cancelled
+    try require(cancelled && studio.canSend && !studio.isImportingFiles
+      && !studio.isTranscribingFiles && studio.pendingAttachments == [attachment],
+      "Cancelling audio should cancel the transcriber, keep the existing draft and re-enable send")
+
+    studio.send()
+    for _ in 0..<250 where studio.isGenerating { try await Task.sleep(for: .milliseconds(20)) }
+    guard let messages = studio.currentConversation?.messages, messages.count == 2 else {
+      throw CheckFailure(message: "Audio send did not produce an Agent exchange")
+    }
+    let request = try JSONSerialization.jsonObject(with: Data(messages[1].content.utf8)) as? [[String: Any]]
+    let message = request?.last
+    try require((message?["content"] as? String)?.contains("Audio transcript: \"meeting.WAV\"") == true
+      && (message?["content"] as? String)?.contains(transcript) == true && message?["images"] == nil,
+      "Agent bridge did not receive the transcript as text")
+    try require(studio.persistNow(), "Audio conversation was not saved")
+    try FileManager.default.removeItem(at: sample)
+    let reopened = StudioModel(conversationFileURL: history, isPreview: true, preferences: prefs, unified: true)
+    try require(reopened.currentConversation?.messages.first?.attachments == [attachment],
+      "The saved transcript depends on the original audio file")
   }
 
   @MainActor static func main() async throws {
@@ -199,6 +326,7 @@ private struct CheckFailure: Error { let message: String }
     let prefs = UserDefaults(suiteName: suite)!
     defer { prefs.removePersistentDomain(forName: suite) }
     setenv("MLXL3_EXECUTABLE", CommandLine.arguments[1], 1)
+    setenv("MLXL3_HOME", root.path, 1)
     let history = root.appendingPathComponent("history.json")
     let studio = StudioModel(conversationFileURL: history, preferences: prefs)
     defer { studio.ejectModel() }
@@ -304,8 +432,9 @@ private struct CheckFailure: Error { let message: String }
     host.frame = CGRect(x: 0, y: 0, width: 900, height: 600)
     host.layoutSubtreeIfNeeded()
     try require(host.fittingSize.height > 0, "Attachment UI failed to render")
+    try await checkAudio(root: root, prefs: prefs)
     print(
-      "File import checks passed: text/PDF, errors, \(checked) finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering"
+      "File import checks passed: text/PDF/audio, errors, \(checked) finite boundary cases, 256 encoding samples, drafts, bridge, history, async lifecycle and UI rendering"
     )
   }
 }
